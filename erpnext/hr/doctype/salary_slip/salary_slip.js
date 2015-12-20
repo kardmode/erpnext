@@ -32,7 +32,7 @@ cur_frm.cscript.month = cur_frm.cscript.employee = cur_frm.cscript.fiscal_year;
 
 cur_frm.cscript.leave_without_pay = function(doc,dt,dn){
 	if (doc.employee && doc.fiscal_year && doc.month) {
-		return $c_obj(doc, 'get_leave_details',doc.leave_without_pay,function(r, rt) {
+		return $c_obj(doc, 'get_leave_details', {"lwp": doc.leave_without_pay}, function(r, rt) {
 			var doc = locals[dt][dn];
 			cur_frm.refresh();
 			calculate_all(doc, dt, dn);
@@ -84,7 +84,7 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 		}
 		total_earn += flt(tbl[i].e_modified_amount);
 	}
-	doc.gross_pay = total_earn + flt(doc.arrear_amount) + flt(doc.leave_encashment_amount);
+	doc.gross_pay = total_earn + flt(doc.arrear_amount) + flt(doc.leave_encashment_amount) + flt(doc.gratuity_encashment);
 	refresh_many(['e_modified_amount', 'gross_pay']);
 }
 
@@ -100,7 +100,7 @@ var calculate_ded_total = function(doc, dt, dn, reset_amount) {
 			refresh_field('d_modified_amount', tbl[i].name, 'deductions');
 		} else if(reset_amount) {
 			tbl[i].d_modified_amount = tbl[i].d_amount;
-			refresh_field('d_modified_amount', tbl[i].name, 'earnings');
+			refresh_field('d_modified_amount', tbl[i].name, 'deductions');
 		}
 		total_ded += flt(tbl[i].d_modified_amount);
 	}

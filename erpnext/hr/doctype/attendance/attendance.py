@@ -4,8 +4,11 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import getdate, nowdate
+from frappe.utils import getdate, get_datetime, get_time,flt, nowdate
 from frappe import _
+
+class NegativeHoursError(frappe.ValidationError): pass
+
 from frappe.model.document import Document
 from erpnext.hr.utils import set_employee_name
 
@@ -19,6 +22,48 @@ class Attendance(Document):
 
 		set_employee_name(self)
 
+	def validate_timings(self):
+		if self.departure and self.arrival and get_datetime(self.departure) <= get_datetime(self.arrival):
+			frappe.throw(_("Departure Time must be greater than Arrival Time"), NegativeHoursError)
+
+	def calculate_total_hours(self):
+		weekday = get_datetime(self.att_date).weekday()
+
+		if weekday == 4:
+			self.shift = 0
+		
+		from frappe.utils import time_diff_in_seconds
+		totalworkhours = flt(time_diff_in_seconds(self.departure, self.arrival)) / 3600
+		if totalworkhours > self.shift:
+			self.overtime = flt(totalworkhours) - flt(self.shift)
+		else:
+			self.overtime = 0
+			self.shift = totalworkhours
+			
+	def check_times(self):
+		if self.arrival and self.departure:
+			
+			self.shift = 10
+
+			from datetime import time
+
+			if get_time(self.arrival) < time(5):
+				frappe.throw(_("Arrival Time must be greater than 5"), NegativeHoursError)
+
+			if time(23,55) < get_time(self.departure):
+				frappe.throw(_("Departure Time must be less than 23:55"), NegativeHoursError)
+				
+			self.calculate_total_hours()
+			
+		else:
+			self.status = 'Absent'
+
+			
+			
+
+		
+
+		
 	def check_leave_record(self):
 		if self.status == 'Present':
 			leave = frappe.db.sql("""select name from `tabLeave Application`
@@ -47,6 +92,8 @@ class Attendance(Document):
 		self.validate_att_date()
 		self.validate_duplicate_record()
 		self.check_leave_record()
+		self.check_times()
+	
 
 	def on_update(self):
 		# this is done because sometimes user entered wrong employee name
