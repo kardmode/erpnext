@@ -47,8 +47,6 @@ class Item(WebsiteGenerator):
 
 		if not self.stock_uom:
 			msgprint(_("Please enter default Unit of Measure"), raise_exception=1)
-		if self.image and not self.website_image:
-			self.website_image = self.image
 
 		self.check_warehouse_is_set_for_stock_item()
 		self.validate_uom()
@@ -68,6 +66,7 @@ class Item(WebsiteGenerator):
 		self.validate_has_variants()
 		self.validate_attributes()
 		self.validate_variant_attributes()
+		self.validate_website_image()
 		self.make_thumbnail()
 
 		if not self.get("__islocal"):
@@ -82,6 +81,37 @@ class Item(WebsiteGenerator):
 		self.update_item_price()
 		self.update_variants()
 		self.update_template_item()
+
+	def validate_website_image(self):
+		"""Validate if the website image is a public file"""
+		auto_set_website_image = False
+		if not self.website_image and self.image:
+			auto_set_website_image = True
+			self.website_image = self.image
+
+		if not self.website_image:
+			return
+
+		# find if website image url exists as public
+		file = frappe.get_all("File", filters={
+			"file_url": self.website_image
+		}, fields=["name", "is_private"], order_by="is_private asc", limit_page_length=1)
+
+		if file:
+			file = file[0]
+
+		if not file:
+			if not auto_set_website_image:
+				frappe.msgprint(_("Website Image {0} attached to Item {1} cannot be found")
+					.format(self.website_image, self.name))
+
+			self.website_image = None
+
+		elif file.is_private:
+			if not auto_set_website_image:
+				frappe.msgprint(_("Website Image should be a public file or website URL"))
+
+			self.website_image = None
 
 	def make_thumbnail(self):
 		"""Make a thumbnail of `website_image`"""
@@ -383,7 +413,7 @@ class Item(WebsiteGenerator):
 		for d in self.get("reorder_levels"):
 			if d.warehouse_reorder_level and not d.warehouse_reorder_qty:
 				frappe.throw(_("Row #{0}: Please set reorder quantity").format(d.idx))
-					
+
 
 	def validate_warehouse_for_reorder(self):
 		warehouse = []
