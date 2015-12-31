@@ -143,7 +143,7 @@ def get_basic_details(args, item):
 		item.update_template_tables()
 
 	from frappe.defaults import get_user_default_as_list
-	user_default_warehouse_list = get_user_default_as_list('warehouse')
+	user_default_warehouse_list = get_user_default_as_list('Warehouse')
 	user_default_warehouse = user_default_warehouse_list[0] \
 		if len(user_default_warehouse_list)==1 else ""
 
@@ -360,7 +360,7 @@ def get_projected_qty(item_code, warehouse):
 @frappe.whitelist()
 def get_available_qty(item_code, warehouse):
 	return frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse},
-		["projected_qty", "actual_qty"], as_dict=True) or {}
+		["projected_qty", "actual_qty"], as_dict=True) or {"projected_qty": 0, "actual_qty": 0}
 
 @frappe.whitelist()
 def get_batch_qty(batch_no,warehouse,item_code):
