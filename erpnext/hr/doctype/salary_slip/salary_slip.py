@@ -291,16 +291,7 @@ class SalarySlip(TransactionBase):
 	def calculate_leaveadvance(self, salaryperday, joining_date,relieving_date):
 		disable_rounded_total = cint(frappe.db.get_value("Global Defaults", None, "disable_rounded_total"))
 	
-		leave = frappe.db.sql("""
-			select from_date,to_date
-			from `tabLeave Application` t1
-			where t1.leave_type = %s
-			and t1.docstatus < 2
-			and t1.status = 'Approved'
-			and t1.employee = %s
-			ORDER BY to_date DESC LIMIT 2""", ("Vacation Leave",self.employee), as_dict=True)
 		
-		frappe.errprint(leave)
 
 		if relieving_date:
 		
@@ -309,17 +300,48 @@ class SalarySlip(TransactionBase):
 			return
 		
 		else:
+		
+			m = get_month_details(self.fiscal_year, self.month)
+			dt = add_days(cstr(m['month_start_date']), 32)
+			
+			
+			leave = frappe.db.sql("""
+				select from_date,to_date,leave_type
+				from `tabLeave Application` t1, `tabLeave Type` t2
+				where t2.name = t1.leave_type
+				and t2.is_lwp = 1
+				and t1.docstatus < 2
+				and t1.status = 'Approved'
+				and t1.employee = %s
+				and t1.from_date <= %s
+				ORDER BY to_date DESC LIMIT 2""", (self.employee, dt), as_dict=True)
+				
+			frappe.errprint(leave)
 			if leave:
+				if leave[0].leave_type == "Vacation Leave":
+				
+					if leave[0].from_date < m['month_start_date']:
+						self.encash_leave = 0
+						frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
+						return
+					
+					relieving_date = leave[0].from_date
 
-				relieving_date = leave[0].from_date
-				frappe.msgprint(_("Using leave application dated {0} for this employee").format(relieving_date))
+					if len(leave)>1:
+						joining_date = leave[1].to_date
+						frappe.msgprint(_("Calculating Leave From Date {0} To Date {1}.").format(joining_date,relieving_date))
+					else:
+						frappe.msgprint(_("No previous application found for this employee. Using company joining date."))
 
-				if leave[1]:
-					joining_date = leave[1].to_date
+
+				elif leave[0].leave_type == "Encash Leave":					
+					relieving_date = leave[0].to_date
+					joining_date = leave[0].from_date
+					frappe.msgprint(_("Special Case: Leave Encashment application dated {0}.").format(relieving_date))
 
 			else:
 				self.encash_leave = 0
-				frappe.msgprint(_("Please approve a leave application for this employee"))
+				frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
 				return
 
 				
@@ -358,8 +380,9 @@ class SalarySlip(TransactionBase):
 
 		leave_type = "Vacation Leave"
 		leavedaystaken = get_approved_leaves_for_period(self.employee, leave_type, 
-				joining_date, relieving_date)		
-		
+				joining_date, relieving_date)
+		leave_type = "Encash Leave"				
+		leavedaystaken += get_approved_leaves_for_period(self.employee, leave_type, joining_date, relieving_date)
 		leavesbalance = leavedaysdue - leavedaystaken
 		leaveadvance = 0
 
