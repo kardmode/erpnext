@@ -59,6 +59,41 @@ cur_frm.cscript.make_jv = function(doc, dt, dn) {
 }
 
 
+cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
+	cur_frm.cscript.display_activity_log("");
+    if(doc.company && doc.month && doc.fiscal_year){
+		
+		var callback = function(r, rt){
+			if (r.message)
+			{
+				var names = "";
+				
+				r.message.forEach(function (element, index) {
+					names = names + "-" + element[0];
+				});
+								
+				var w = window.open("/api/method/frappe.templates.pages.print.download_multi_pdf?"
+					+"doctype="+encodeURIComponent("Salary Slip")
+					+"&name="+encodeURIComponent(names));
+					if(!w) {
+						msgprint(__("Please enable pop-ups")); return;
+					}
+			}
+		}
+
+		return $c('runserverobj', args={'method':'print_salary_slips','docs':doc},callback);
+
+		
+    } else {
+  	  msgprint(__("Company, Month and Fiscal Year is mandatory"));
+    }
+}
+
+
+
+
+
+
 frappe.ui.form.on("Process Payroll", "refresh", function(frm) {
 	frm.disable_save();
 });

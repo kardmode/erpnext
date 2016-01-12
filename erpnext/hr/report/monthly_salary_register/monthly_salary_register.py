@@ -18,7 +18,7 @@ def execute(filters=None):
 	data = []
 	for ss in salary_slips:
 		row = [ss.employee, ss.employee_name, ss.branch, ss.department, ss.designation, 
-			ss.company, ss.month, ss.leave_withut_pay, ss.payment_days]
+			ss.company, ss.month, ss.leave_without_pay, ss.payment_days]
 			
 		for e in earning_types:
 			row.append(ss_earning_map.get(ss.name, {}).get(e))
@@ -59,7 +59,7 @@ def get_columns(salary_slips):
 	
 def get_salary_slips(filters):
 	conditions, filters = get_conditions(filters)
-	salary_slips = frappe.db.sql("""select * from `tabSalary Slip` where docstatus = 1 %s
+	salary_slips = frappe.db.sql("""select * from `tabSalary Slip` where docstatus < 2 %s
 		order by employee, month""" % conditions, filters, as_dict=1)
 	
 	if not salary_slips:

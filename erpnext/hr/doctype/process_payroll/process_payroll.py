@@ -3,13 +3,36 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate
+from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff
 from frappe import _
 
 from frappe.model.document import Document
 
 class ProcessPayroll(Document):
+			
+	
+	def calculate_lwp(self, e, m):
+		lwp = 0
 
+		for d in range(m['month_days']):
+		
+			dt = add_days(cstr(m['month_start_date']), d)
+
+			leave = frappe.db.sql("""
+				select t1.name, t1.half_day
+				from `tabLeave Application` t1, `tabLeave Type` t2
+				where t2.name = t1.leave_type
+				and t2.is_lwp = 1
+				and t1.docstatus < 2
+				and t1.status = 'approved'
+				and t1.employee = %s
+				and %s between from_date and to_date
+			""", (e, dt))
+			if leave:
+				lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+	
+		return lwp
+	
 	def get_emp_list(self):
 		"""
 			Returns list of active employees based on selected criteria
@@ -22,12 +45,52 @@ class ProcessPayroll(Document):
 		emp_list = frappe.db.sql("""
 			select t1.name
 			from `tabEmployee` t1, `tabSalary Structure` t2
-			where t1.docstatus!=2 and t2.docstatus != 2
-			and t1.name = t2.employee
+			where t1.docstatus!=2 and t1.status !='Left' and t2.docstatus != 2
+			and t2.is_active = 'Yes' and t1.name = t2.employee
 		%s """% cond)
+		
+		m = get_month_details(self.fiscal_year, self.month)
+		
+		if not self.fiscal_year:
+			self.fiscal_year = frappe.db.get_default("fiscal_year")
+		if not self.month:
+			self.month = "%02d" % getdate(nowdate()).month
+		
+		new_emp_list = ()
+		for e in emp_list:
 
-		return emp_list
+			joining_date, relieving_date = frappe.db.get_value("Employee", e[0], 
+				["date_of_joining", "relieving_date"])
+		
+			lwp = self.calculate_lwp(e,m)
+			payment_days = flt(self.get_payment_days(m, joining_date, relieving_date))-flt(lwp)
+			if payment_days > 0:
+				new_emp_list = new_emp_list + (e,)
 
+
+
+		return new_emp_list
+
+				
+	def get_payment_days(self, month, joining_date, relieving_date):
+		start_date = month['month_start_date']
+		if joining_date:
+			if joining_date > month['month_start_date']:
+				start_date = joining_date
+			elif joining_date > month['month_end_date']:
+				return
+				
+		end_date = month['month_end_date']
+		if relieving_date:
+			if relieving_date > start_date and relieving_date < month['month_end_date']:
+				end_date = relieving_date
+			elif relieving_date < month['month_start_date']:
+				frappe.throw(_("Employee relieved on {0} must be set as 'Left'")
+					.format(relieving_date))			
+			
+		payment_days = date_diff(end_date, start_date) + 1
+			
+		return payment_days
 
 	def get_filter_condition(self):
 		self.check_mandatory()
@@ -63,7 +126,7 @@ class ProcessPayroll(Document):
 		ss_list = []
 		for emp in emp_list:
 			if not frappe.db.sql("""select name from `tabSalary Slip`
-					where docstatus!= 2 and employee = %s and month = %s and fiscal_year = %s and company = %s
+					where docstatus < 2 and employee = %s and month = %s and fiscal_year = %s and company = %s
 					""", (emp[0], self.month, self.fiscal_year, self.company)):
 				ss = frappe.get_doc({
 					"doctype": "Salary Slip",
@@ -95,7 +158,7 @@ class ProcessPayroll(Document):
 		cond = self.get_filter_condition()
 		ss_list = frappe.db.sql("""
 			select t1.name from `tabSalary Slip` t1
-			where t1.docstatus = 0 and month = %s and fiscal_year = %s %s
+			where month = %s and fiscal_year = %s %s
 		""" % ('%s', '%s', cond), (self.month, self.fiscal_year))
 		return ss_list
 
@@ -117,7 +180,14 @@ class ProcessPayroll(Document):
 				continue
 
 		return self.create_submit_log(ss_list, not_submitted_ss)
+	
+	def print_salary_slips(self):
+		"""
+			Print all salary slips based on selected criteria
+		"""
+		ss_list = self.get_sal_slip_list()
 
+		return ss_list
 
 	def create_submit_log(self, all_ss, not_submitted_ss):
 		log = ''
@@ -157,7 +227,7 @@ class ProcessPayroll(Document):
 		cond = self.get_filter_condition()
 		tot = frappe.db.sql("""
 			select sum(rounded_total) from `tabSalary Slip` t1
-			where t1.docstatus = 1 and month = %s and fiscal_year = %s %s
+			where t1.docstatus < 2 and month = %s and fiscal_year = %s %s
 		""" % ('%s', '%s', cond), (self.month, self.fiscal_year))
 
 		return flt(tot[0][0])

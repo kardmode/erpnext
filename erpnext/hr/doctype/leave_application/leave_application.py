@@ -260,7 +260,7 @@ def get_approved_leaves_for_period(employee, leave_type, from_date, to_date):
 		select employee, leave_type, from_date, to_date, total_leave_days
 		from `tabLeave Application`
 		where employee=%(employee)s and leave_type=%(leave_type)s
-			and status="Approved" and docstatus=1
+			and status="Approved" and docstatus<2
 			and (from_date between %(from_date)s and %(to_date)s
 				or to_date between %(from_date)s and %(to_date)s
 				or (from_date < %(from_date)s and to_date > %(to_date)s))
