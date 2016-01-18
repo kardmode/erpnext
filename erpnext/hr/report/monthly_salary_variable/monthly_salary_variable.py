@@ -42,14 +42,13 @@ def execute(filters=None):
 			if "salary" in e.lower():
 				basic_pay += flt(ss_earning_map.get(ss.name, {}).get(e))
 			elif "benefit" in e.lower():
-				if "science" in ss.company.lower():
-					basic_pay += flt(ss_earning_map.get(ss.name, {}).get(e))
+				basic_pay += flt(ss_earning_map.get(ss.name, {}).get(e))
 	
 			
 		import math
 		basic_pay = math.ceil(basic_pay)			
 		
-		variable_pay = flt(ss.net_pay) - flt(basic_pay)
+		variable_pay = flt(ss.rounded_total) - flt(basic_pay)
 		
 		row += [basic_pay,variable_pay]	
 		data.append(row)

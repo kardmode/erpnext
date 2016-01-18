@@ -47,7 +47,7 @@ def execute(filters=None):
 			
 		import math
 		basic_pay = math.ceil(basic_pay)			
-		variable_pay = flt(ss.net_pay) - flt(basic_pay)
+		variable_pay = flt(ss.rounded_total) - flt(basic_pay)
 		row += [basic_pay,variable_pay]
 		
 		data.append(row)
