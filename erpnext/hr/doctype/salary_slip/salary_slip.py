@@ -55,7 +55,6 @@ class SalarySlip(TransactionBase):
 			else:
 				msgprint(_("No active Attendance Sheet found for employee {0} and the month").format(self.employee))
 			return vars or ''
-			return ''
 	
 	
 	def get_emp_and_leave_details(self):
