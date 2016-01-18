@@ -7,14 +7,15 @@ cur_frm.add_fetch('employee', 'company', 'company');
 // On load
 // -------------------------------------------------------------------
 cur_frm.cscript.onload = function(doc,dt,dn){
-	
+	if((cint(doc.__islocal) == 1) && !doc.amended_from){
+
+	}
 }
 
 // Get employee details
 //---------------------------------------------------------------------
 cur_frm.cscript.employee = function(doc,dt,dn){
 	if (doc.employee) {
-		
 	}
 }
 
@@ -24,6 +25,8 @@ cur_frm.cscript.transaction_amount = function(doc,dt,dn){
 		calculate_earning_total(doc, dt, dn);
 	}
 }
+
+cur_frm.cscript.transaction_type = cur_frm.cscript.transaction_amount;
 
 // validate
 // ------------------------------------------------------------------------

@@ -582,7 +582,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2015-12-07 10:38:37.072229", 
+ "modified": "2016-01-12 21:41:31.293708", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Expense Claim", 
@@ -606,27 +606,6 @@
    "set_user_permissions": 0, 
    "share": 1, 
    "submit": 1, 
-   "write": 1
-  }, 
-  {
-   "amend": 0, 
-   "apply_user_permissions": 1, 
-   "cancel": 0, 
-   "create": 1, 
-   "delete": 0, 
-   "email": 1, 
-   "export": 0, 
-   "if_owner": 0, 
-   "import": 0, 
-   "permlevel": 0, 
-   "print": 1, 
-   "read": 1, 
-   "report": 1, 
-   "role": "Employee", 
-   "set_user_permissions": 0, 
-   "share": 1, 
-   "submit": 0, 
-   "user_permission_doctypes": "[\"Employee\"]", 
    "write": 1
   }, 
   {
@@ -677,6 +656,5 @@
  "search_fields": "approval_status,employee,employee_name", 
  "sort_field": "modified", 
  "sort_order": "DESC", 
- "title_field": "title", 
- "version": 0
+ "title_field": "title"
 }
