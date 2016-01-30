@@ -80,17 +80,16 @@ class Attendance(Document):
 		if self.status == 'Present':
 			leave = frappe.db.sql("""select name from `tabLeave Application`
 				where employee = %s and %s between from_date and to_date and status = 'Approved'
-				and docstatus < 2""", (self.employee, self.att_date))
+				and docstatus < 2 and leave_type <> 'Encash Leave'""", (self.employee, self.att_date))
 
 			if leave:
 				frappe.throw(_("Employee {0} was on leave on {1}. Cannot mark attendance.").format(self.employee,
 					self.att_date))
 
 	def validate_att_date(self):
-		
-		
-		if getdate(self.att_date) > getdate(nowdate()):
-			frappe.throw(_("Attendance can not be marked for future dates"))
+		pass
+		#if getdate(self.att_date) > getdate(nowdate()):
+		#	frappe.throw(_("Attendance can not be marked for future dates"))
 
 	def validate_employee(self):
 		emp = frappe.db.sql("select name from `tabEmployee` where name = %s and status = 'Active'",
