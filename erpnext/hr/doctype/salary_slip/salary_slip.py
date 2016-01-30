@@ -6,6 +6,7 @@ import frappe
 
 from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff
 from frappe.model.naming import make_autoname
+from math import ceil
 
 from frappe import msgprint, _
 from erpnext.setup.utils import get_company_currency
@@ -282,8 +283,7 @@ class SalarySlip(TransactionBase):
 		self.calculate_ded_total()
 		self.net_pay = flt(self.gross_pay) - flt(self.total_deduction)
 
-		import math
-		self.rounded_total = math.ceil(self.net_pay)
+		self.rounded_total = ceil(self.net_pay)
 
 			
 			
@@ -306,9 +306,8 @@ class SalarySlip(TransactionBase):
 			
 			leave = frappe.db.sql("""
 				select from_date,to_date,leave_type
-				from `tabLeave Application` t1, `tabLeave Type` t2
-				where t2.name = t1.leave_type
-				and t2.is_lwp = 1
+				from `tabLeave Application` t1
+				where (t1.leave_type = 'Vacation Leave' OR t1.leave_type = 'Encash Leave')
 				and t1.docstatus < 2
 				and t1.status = 'Approved'
 				and t1.employee = %s
@@ -337,28 +336,27 @@ class SalarySlip(TransactionBase):
 					relieving_date = leave[0].to_date
 					joining_date = leave[0].from_date
 					frappe.msgprint(_("Special Case: Leave Encashment application dated {0}.").format(relieving_date))
-
+				else:
+					self.encash_leave = 0
+					frappe.msgprint(_("No VACATION/ENCASH leave applications found for this period."))
+					return
 			else:
 				self.encash_leave = 0
-				frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
+				frappe.msgprint(_("No leave applications found for this period. Please approve a valid leave application for this employee"))
 				return
-
-				
-		frappe.errprint(joining_date)
-		frappe.errprint(relieving_date)
-		
 		
 		payment_days = date_diff(relieving_date, joining_date) + 1
 		leavedaysdue = flt(payment_days)/365 * 30	
-		leavedaysdue = rounded(leavedaysdue,
-			self.precision("net_pay"))	
+		leavedaysdue = ceil(leavedaysdue)
+		if leavedaysdue < 30 and leavedaysdue + 2 >= 30:
+			leavedaysdue = 30
 		
 		leaveadvance = flt(leavedaysdue)*flt(salaryperday)
 		leaveadvance = rounded(leaveadvance,
 			self.precision("net_pay"))
 			
 		joiningtext = "Last Joining Date: " + str(joining_date) + ", Leave Date: " + str(relieving_date) + ", Total Working Days: " + str(payment_days) 
-		workingdaystext =  "Leave Days Due: " + str(leavedaysdue)
+		workingdaystext =  "Rounded Leave Days Due: " + str(leavedaysdue)
 		leavetext = "30 Days Leave Accumulated Every Year"			
 		self.leave_calculation = joiningtext + "<br>" + workingdaystext + "<br>" + leavetext + "<br>"
 		
