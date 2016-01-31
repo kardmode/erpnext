@@ -8,7 +8,7 @@
  "description": "Company license information.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Setup", 
  "fields": [
   {
    "allow_on_submit": 0, 
@@ -118,7 +118,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2016-01-18 21:36:07.008905", 
+ "modified": "2016-01-31 06:45:57.339768", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Company Licenses", 
