@@ -114,9 +114,7 @@ var calculate_ded_total = function(doc, dt, dn, reset_amount) {
 // Calculate net payable amount
 // ------------------------------------------------------------------------
 var calculate_net_pay = function(doc, dt, dn) {
-
 	doc.net_pay = flt(doc.gross_pay) - flt(doc.total_deduction);
-
 	doc.rounded_total = Math.ceil(doc.net_pay);
 	refresh_many(['net_pay', 'rounded_total']);
 }
@@ -128,9 +126,6 @@ cur_frm.cscript.arrear_amount = function(doc,dt,dn){
 	calculate_net_pay(doc, dt, dn);
 }
 
-// trigger on encashed amount
-// ------------------------------------------------------------------------
-cur_frm.cscript.leave_encashment_amount = cur_frm.cscript.arrear_amount;
 
 // validate
 // ------------------------------------------------------------------------
@@ -145,38 +140,58 @@ cur_frm.fields_dict.employee.get_query = function(doc,cdt,cdn) {
 }
 
 
-// Calculate earnings
+// Table modified
 // ------------------------------------------------------------------------
 
 frappe.ui.form.on("Salary Slip Earning", "earnings_remove", function(frm,dt,dn){
-calculate_earning_total(frm.doc, dt, dn);
+	calculate_earning_total(frm.doc, dt, dn);
 	calculate_net_pay(frm.doc, dt, dn);
 })
 
 
 frappe.ui.form.on("Salary Slip Deduction", "deductions_remove", function(frm,dt,dn){
-calculate_ded_total(frm.doc, dt, dn);
+	calculate_ded_total(frm.doc, dt, dn);
 	calculate_net_pay(frm.doc, dt, dn);
 })
 
+frappe.ui.form.on("Salary Slip Earning", "e_type", function(frm,dt,dn){
+	calculate_earnings(doc, dt, dn);	
+})
+
+// Custom
+// Leave encashment
 cur_frm.cscript.encash_leave = function(doc,dt,dn){
-	calculate_earnings(doc, dt, dn);
+	calculate_earnings(doc, dt, dn);	
 }
 
+
+// Loan deduction
+cur_frm.cscript.refresh_loan_deduction = function(doc,dt,dn){
+	calculate_deductions(doc, dt, dn);	
+}
+
+
+
+var calculate_net_pays = function(doc, dt, dn) {
+	return $c_obj(cur_frm.doc, 'calculate_net_pay','',function(r, rt) {
+		refresh_many(['deductions','d_modified_amount','total_deduction']);
+		refresh_many(['earnings','encash_leave','leave_calculation','leave_encashment_amount','e_modified_amount', 'gross_pay','net_pay','rounded_total']);
+	});
+}
+
+// ----------------------------------
 var calculate_earnings = function(doc, dt, dn) {
 	return $c_obj(doc, 'calculate_earning_total','',function(r, rt) {
 	var doc = locals[dt][dn];
 	refresh_many(['earnings','encash_leave','leave_calculation','leave_encashment_amount','e_modified_amount', 'gross_pay']);
-	      calculate_net_pay(doc, dt, dn);
+	calculate_net_pay(doc, dt, dn);
 	});
 }
 
-frappe.ui.form.on("Salary Slip Earning", "e_type", function(frm,dt,dn){
-        calculate_net_pays(frm.doc, dt, dn);
-})
-
-var calculate_net_pays = function(doc, dt, dn) {
-	return $c_obj(cur_frm.doc, 'calculate_net_pay','',function(r, rt) {
-	refresh_many(['earnings','leave_calculation','leave_encashment_amount','e_modified_amount', 'gross_pay','net_pay','rounded_total']);
+var calculate_deductions = function(doc, dt, dn) {
+	return $c_obj(doc, 'calculate_ded_total','',function(r, rt) {
+	var doc = locals[dt][dn];
+		refresh_many(['deductions','d_modified_amount','total_deduction']);
+		calculate_net_pay(doc, dt, dn);
 	});
 }
