@@ -21,16 +21,14 @@ class ProcessPayroll(Document):
 			leave = frappe.db.sql("""
 				select t1.name, t1.half_day, t1.leave_type
 				from `tabLeave Application` t1, `tabLeave Type` t2
-				where t2.name = t1.leave_type
-				and t2.is_lwp = 1
+				where t1.leave_type <> 'Encash Leave'
 				and t1.docstatus < 2
 				and t1.status = 'Approved'
 				and t1.employee = %s
 				and %s between from_date and to_date
 			""", (e, dt))
 			if leave:
-				if leave.leave_type == "Vacation Leave":
-					lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+				lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
 	
 		return lwp
 	
