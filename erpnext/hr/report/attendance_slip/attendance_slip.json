@@ -1,4 +1,6 @@
 {
+ "_liked_by": "[\"Administrator\"]", 
+ "_user_tags": ",Attendance", 
  "add_total_row": 0, 
  "apply_user_permissions": 1, 
  "creation": "2015-12-28 06:17:15.347465", 
@@ -7,7 +9,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2016-01-12 16:16:47.099112", 
+ "modified": "2016-02-06 22:27:52.941024", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Attendance Slip", 
