@@ -85,6 +85,8 @@ def get_product_list_for_group(product_group=None, start=0, limit=10):
 
 	return [get_item_for_list_in_html(r) for r in data]
 
+	
+@frappe.whitelist()
 def get_child_groups(item_group_name):
 	item_group = frappe.get_doc("Item Group", item_group_name)
 	return frappe.db.sql("""select name
@@ -106,7 +108,7 @@ def get_group_item_count(item_group):
 			or name in (select parent from `tabWebsite Item Group`
 				where item_group in (%s))) """ % (child_groups, child_groups))[0][0]
 
-
+@frappe.whitelist()
 def get_parent_item_groups(item_group_name):
 	item_group = frappe.get_doc("Item Group", item_group_name)
 	return frappe.db.sql("""select name, page_name from `tabItem Group`
@@ -114,6 +116,43 @@ def get_parent_item_groups(item_group_name):
 		and show_in_website=1
 		order by lft asc""", (item_group.lft, item_group.rgt), as_dict=True)
 
+@frappe.whitelist()
+def get_child_group(item_group_name):
+	item_group = frappe.get_doc("Item Group", item_group_name)
+	return frappe.db.sql("""select name, page_name from `tabItem Group`
+		where lft <= %s and rgt >= %s
+		and show_in_website=1
+		order by lft asc""", (item_group.lft, item_group.rgt), as_dict=True)
+
+@frappe.whitelist()
+def get_parent_group(item_group_name):
+	item_group = frappe.get_doc("Item Group", item_group_name)	
+	return item_group.parent_item_group or {}
+
+@frappe.whitelist()
+def get_main_parent_group(item_group_name):
+	parent_item_group = frappe.db.get_value("Item Group", item_group_name,"parent_item_group")
+
+	for x in range(0, 5):
+		if str(parent_item_group).lower() != "all items group":
+			item_group_name = parent_item_group
+			parent_item_group = frappe.db.get_value("Item Group", parent_item_group,"parent_item_group")
+		else:
+			break
+	return item_group_name or {}
+
+@frappe.whitelist()
+def is_group(item_group_name):
+	item_group = frappe.get_doc("Item Group", item_group_name)	
+	return item_group.is_group
+
+@frappe.whitelist()
+def has_parent_group(item_group_name):
+	item_group = frappe.get_doc("Item Group", item_group_name)
+	if item_group.parent_item_group == "All Item Groups":
+		return false
+	return true
+	
 def invalidate_cache_for(doc, item_group=None):
 	if not item_group:
 		item_group = doc.name
