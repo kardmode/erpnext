@@ -111,11 +111,7 @@ def validate_item_details(args, item):
 
 	if args.transaction_type=="selling":
 		# validate if sales item or service item
-		if args.get("order_type") == "Maintenance":
-			if item.is_service_item != 1:
-				throw(_("Item {0} must be a Service Item.").format(item.name))
-
-		elif item.is_sales_item != 1:
+		if item.is_sales_item != 1:
 			throw(_("Item {0} must be a Sales Item").format(item.name))
 
 		if cint(item.has_variants):
@@ -200,7 +196,7 @@ def get_default_cost_center(args, item):
 		or args.get("cost_center"))
 
 def get_price_list_rate(args, item_doc, out):
-	meta = frappe.get_meta(args.doctype)
+	meta = frappe.get_meta(args.parenttype or args.doctype)
 
 	if meta.get_field("currency"):
 		validate_price_list(args)

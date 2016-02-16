@@ -7,6 +7,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
+ "document_type": "Setup", 
  "fields": [
   {
    "allow_on_submit": 0, 
@@ -380,8 +381,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "menu_index": 0, 
- "modified": "2016-02-01 04:42:10.247329", 
+ "modified": "2016-02-03 01:16:35.435720", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Leave Allocation", 
@@ -412,5 +412,6 @@
  "read_only_onload": 0, 
  "search_fields": "employee,employee_name,leave_type,total_leaves_allocated", 
  "sort_field": "modified", 
- "sort_order": "DESC"
+ "sort_order": "DESC", 
+ "timeline_field": "employee"
 }
