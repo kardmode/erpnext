@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
+
 from frappe.utils import cstr, add_days, date_diff
 from frappe import _
 from frappe.utils.csvutils import UnicodeWriter
@@ -87,7 +88,7 @@ def get_naming_series():
 
 @frappe.whitelist()
 def upload():
-	if not frappe.has_permission("Attendance", "create"):
+	if not frappe.has_permission("Quotation", "create"):
 		raise frappe.PermissionError
 
 	from frappe.utils.csvutils import read_csv_content_from_uploaded_file
@@ -98,32 +99,26 @@ def upload():
 	if not rows:
 		msg = [_("Please select a csv file")]
 		return {"messages": msg, "error": msg}
-	columns = [scrub(f) for f in rows[3]]
-	columns[0] = "name"
+	columns = [scrub(f) for f in rows[0]]
+	columns[0] = "item_code"
 	ret = []
-	error = False
-
-	from frappe.utils.csvutils import check_record, import_doc
-
-	for i, row in enumerate(rows[4:]):
-		if not row: continue
-		row_idx = i + 4
+	error = []
+	start_row = 1
+	total = len(rows)-1
+	
+	for i, row in enumerate(rows[start_row:]):
+		
+		row_idx = i + start_row
 		d = frappe._dict(zip(columns, row))
-		d["doctype"] = "Item"
-		if d.name:
-			d["docstatus"] = frappe.db.get_value("Item", d.name, "docstatus")
+		item = frappe.db.sql("""select name from `tabItem` where name = %s and docstatus < 2""",d.item_code, as_dict=1)
+		
+		if item:
+			newitem = {}
+			newitem["item_code"] = item[0].name
+			newitem["qty"] = d.quantity
+			ret.append(newitem)
+		else:
+			error.append('Error for row (#%d) %s : Invalid Item Code' % (row_idx,row[0]))		
+		
 
-		try:
-			check_record(d)
-			ret.append(import_doc(d, "Item", 1, row_idx, submit=True))
-		except Exception, e:
-			error = True
-			ret.append('Error for row (#%d) %s : %s' % (row_idx,
-				len(row)>1 and row[1] or "", cstr(e)))
-			frappe.errprint(frappe.get_traceback())
-
-	if error:
-		frappe.db.rollback()
-	else:
-		frappe.db.commit()
 	return {"messages": ret, "error": error}

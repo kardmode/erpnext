@@ -37,21 +37,16 @@ erpnext.selling.ItemsControlPanel = frappe.ui.form.Controller.extend({
 			args: {
 				method: 'erpnext.selling.doctype.upload_item_list_to_quotation.upload_item_list_to_quotation.upload'
 			},
-			sample_url: "e.g. http://example.com/somefile.csv",
 			callback: function(attachment, r) {
 				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
-
+				console.log(r);
+				var messages = r.message.messages
+				var error = r.message.error
 				if(!r.messages) r.messages = [];
 				// replace links if error has occured
-				if(r.exc || r.error) {
-					r.messages = $.map(r.message.messages, function(v) {
-						var msg = v.replace("Inserted", "Valid")
-							.replace("Updated", "Valid").split("<");
-						if (msg.length > 1) {
-							v = msg[0] + (msg[1].split(">").slice(-1)[0]);
-						} else {
-							v = msg[0];
-						}
+				if(error) {
+					r.messages = $.map(error, function(v) {
+						
 						return v;
 					});
 
@@ -64,23 +59,16 @@ erpnext.selling.ItemsControlPanel = frappe.ui.form.Controller.extend({
 
 				$.each(r.messages, function(i, v) {
 					var $p = $('<p>').html(v).appendTo($log_wrapper);
-					if(v.substr(0,5)=='Error') {
-						$p.css('color', 'red');
-					} else if(v.substr(0,8)=='Inserted') {
-						$p.css('color', 'green');
-					} else if(v.substr(0,7)=='Updated') {
-						$p.css('color', 'green');
-					} else if(v.substr(0,5)=='Valid') {
-						$p.css('color', '#777');
-					}
 				});
-			}
+			},
+			is_private: false
 		});
 
 		// rename button
 		$wrapper.find('form input[type="submit"]')
 			.attr('value', 'Upload and Import')
 	}
+	
 })
 
 cur_frm.cscript = new erpnext.selling.ItemsControlPanel({frm: cur_frm});
