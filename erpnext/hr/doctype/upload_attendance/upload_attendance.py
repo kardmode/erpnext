@@ -5,7 +5,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cstr, add_days, date_diff
+from frappe.utils import cstr, add_days, date_diff, get_datetime
 from frappe import _
 from frappe.utils.csvutils import UnicodeWriter
 from frappe.model.document import Document
@@ -23,7 +23,7 @@ def get_template():
 	w = UnicodeWriter()
 	w = add_header(w)
 
-	w = add_data(w, args)
+	#w = add_data(w, args)
 
 	# write out response as a type csv
 	frappe.response['result'] = cstr(w.getvalue())
@@ -31,13 +31,9 @@ def get_template():
 	frappe.response['doctype'] = "Attendance"
 
 def add_header(w):
-	status = ", ".join((frappe.get_meta("Attendance").get_field("status").options or "").strip().split("\n"))
 	w.writerow(["Notes:"])
 	w.writerow(["Please do not change the template headings"])
-	w.writerow(["Status should be one of these values: " + status])
-	w.writerow(["If you are overwriting existing attendance records, 'ID' column mandatory"])
-	w.writerow(["ID", "Employee", "Employee Name", "Date", "Status",
-		"Fiscal Year", "Company", "Naming Series"])
+	w.writerow(["Employee", "Att Date", "Arrival Time", "Departure Time"])
 	return w
 
 def add_data(w, args):
@@ -104,22 +100,22 @@ def upload():
 	if not rows:
 		msg = [_("Please select a csv file")]
 		return {"messages": msg, "error": msg}
-	columns = [scrub(f) for f in rows[4]]
-	columns[0] = "name"
-	columns[3] = "att_date"
+	columns = [scrub(f) for f in rows[2]]
 	ret = []
 	error = False
 
 	from frappe.utils.csvutils import check_record, import_doc
 
-	for i, row in enumerate(rows[5:]):
+	for i, row in enumerate(rows[3:]):
 		if not row: continue
-		row_idx = i + 5
+		row_idx = i + 3
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
-		if d.name:
-			d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
-
+		#if d.name:
+		#	d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
+		
+		d["fiscal_year"] = get_datetime(d.att_date).strftime("%Y")
+			
 		try:
 			check_record(d)
 			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=True))
