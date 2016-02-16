@@ -35,7 +35,7 @@ class ProcessPayroll(Document):
 	def get_emp_list(self):
 		"""
 			Returns list of active employees based on selected criteria
-			and for which salary structure exists
+			and for which salary structure exists and is active
 		"""
 
 		cond = self.get_filter_condition()
