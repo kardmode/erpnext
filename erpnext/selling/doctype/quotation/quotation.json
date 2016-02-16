@@ -1421,7 +1421,7 @@
    "oldfieldtype": "Currency", 
    "options": "currency", 
    "permlevel": 0, 
-   "print_hide": 0, 
+   "print_hide": 1, 
    "print_hide_if_no_value": 0, 
    "read_only": 1, 
    "report_hide": 0, 
@@ -1447,7 +1447,7 @@
    "oldfieldname": "in_words_export", 
    "oldfieldtype": "Data", 
    "permlevel": 0, 
-   "print_hide": 0, 
+   "print_hide": 1, 
    "print_hide_if_no_value": 0, 
    "read_only": 1, 
    "report_hide": 0, 
@@ -2026,7 +2026,7 @@
  "istable": 0, 
  "max_attachments": 1, 
  "menu_index": 0, 
- "modified": "2015-12-17 16:19:06.964646", 
+ "modified": "2016-02-15 01:05:54.758252", 
  "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Quotation", 
@@ -2223,6 +2223,5 @@
  "search_fields": "status,transaction_date,customer,lead,order_type", 
  "sort_field": "modified", 
  "sort_order": "DESC", 
- "title_field": "title", 
- "version": 0
+ "title_field": "title"
 }

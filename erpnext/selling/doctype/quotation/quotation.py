@@ -83,6 +83,35 @@ class Quotation(SellingController):
 			lst1.append(d.total)
 			print_lst.append(lst1)
 		return print_lst
+	
+	def calculate_headers(self):
+
+		from erpnext.setup.doctype.item_group.item_group import get_main_parent_group
+
+		for d in self.items:
+			frappe.errprint(d)
+			item_group_parent = get_main_parent_group(d.item_group);
+			frappe.errprint(item_group_parent)
+			if item_group_parent == "Header1":
+				sum = 0
+				# next item group equal to current - break
+				# next item group is parent of current - break
+				# next item group is child of current - return
+				j = i+1
+				while j < len(items):
+					testitem = items[j]
+					get_child_groups(d.item_group,testitem.item_group)
+					if (testitem.item_group == d.item_group):
+						break
+					elif (testitem.item_group == "Header2"):
+						return
+					else:
+						sum = sum + testitem.amount;
+						j = j + 1
+
+				d.qty = 0
+				d.rate = sum
+				d.amount = 0
 
 
 @frappe.whitelist()
@@ -159,3 +188,64 @@ def _make_customer(source_name, ignore_permissions=False):
 				frappe.throw(_("Please create Customer from Lead {0}").format(lead_name))
 		else:
 			return customer_name
+
+		
+			
+@frappe.whitelist()
+def upload():
+	if not frappe.has_permission("Quotation", "create"):
+		raise frappe.PermissionError
+
+	from frappe.utils.csvutils import read_csv_content_from_uploaded_file
+	from frappe.modules import scrub
+
+	rows = read_csv_content_from_uploaded_file()
+	rows = filter(lambda x: x and any(x), rows)
+	if not rows:
+		msg = [_("Please select a csv file")]
+		return {"messages": msg, "error": msg}
+	columns = [scrub(f) for f in rows[0]]
+	columns[0] = "item_code"
+	ret = []
+	error = []
+	start_row = 1
+	for i, row in enumerate(rows[start_row:]):
+		
+		row_idx = i + start_row
+		d = frappe._dict(zip(columns, row))
+		itemdict = frappe.db.sql("""select name,item_group, is_sales_item from `tabItem` where name = %s and docstatus < 2""",d.item_code, as_dict=1)
+		
+		if itemdict:
+			item = itemdict[0]
+			newitem = {}
+			newitem["item_code"] = item.name
+			newitem["qty"] = d.quantity
+			newitem["page_break"] = False
+			newitem["item_group"] = item.item_group
+			
+			if item.is_sales_item:
+			
+				if str(item.item_group).lower() == "header1":
+					newitem["qty"] = "0"
+					if d.page_break:
+						newitem["page_break"] = d.page_break
+			
+					ret.append(newitem)
+					
+				elif str(item.item_group).lower() == "raw material":
+					pass
+				elif str(item.item_group).lower() == "assemblypart":
+					pass		
+				else:
+					if d.page_break:
+						newitem["page_break"] = d.page_break
+			
+					ret.append(newitem)
+				
+			else:
+				error.append('Error for row (#%d) %s : Item is not a sales item' % (row_idx,row[0]))		
+		else:
+			error.append('Error for row (#%d) %s : Invalid Item Code' % (row_idx,row[0]))		
+		
+
+	return {"messages": ret, "error": error}
