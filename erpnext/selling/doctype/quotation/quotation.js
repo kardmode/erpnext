@@ -406,3 +406,4 @@ get_child_groups = function(parent_group, child_group){
 }
 
 cur_frm.add_fetch("item_code", "manufacturer_part_no", "manufacturer_part_no")
+cur_frm.add_fetch("item_code", "manufacturer", "manufacturer")
