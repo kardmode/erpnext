@@ -49,6 +49,7 @@ cur_frm.cscript.refresh = function(doc) {
 				frappe.set_route("List", "Expense Claim");
 			}, __("View"), true);
 		}
+		
 	}
 }
 

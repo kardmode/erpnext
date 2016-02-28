@@ -10,6 +10,43 @@ from frappe import _
 from frappe.model.document import Document
 
 class Project(Document):
+
+	
+
+	def print_summary(self):
+	
+		ss_list = []
+		format = ""
+		doctype = ""
+		if self.summary_type.lower() == "quotation":
+			format = "Quotation"
+			doctype = "Quotation"
+			ss_list = frappe.db.sql("""
+				select t1.name from `tabQuotation` t1 
+				where project_reference = %s and docstatus <2""", self.project_name)
+		elif self.summary_type.lower() == "quotation":
+			format = "BOQ"
+			doctype = "Quotation"
+			ss_list = frappe.db.sql("""
+				select t1.name from `tabQuotation` t1 
+				where project_reference = %s and docstatus <2""", self.project_name)
+		elif self.summary_type.lower() == "sales invoice":
+			doctype = "Sales Invoice"
+			ss_list = frappe.db.sql("""
+				select t1.name from `tabSales Invoice` t1 
+				where project_reference = %s and docstatus <2""", self.project_name)
+		elif self.summary_type.lower() == "delivery note":
+			doctype = "Delivery Note"
+			ss_list = frappe.db.sql("""
+				select t1.name from `tabDelivery Note` t1 
+				where project_reference = %s and docstatus <2""", self.project_name)
+		
+		if not len(ss_list):
+			frappe.throw(_("No entries found"))
+		
+		return ss_list,doctype,format
+
+		
 	def get_feed(self):
 		return '{0}: {1}'.format(_(self.status), self.project_name)
 
