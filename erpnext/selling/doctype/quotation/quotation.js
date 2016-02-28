@@ -5,15 +5,7 @@
 {% include 'selling/sales_common.js' %}
 
 erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
-	validate:function(doc, dt, dn){
-		var me = this;
-		this._super(doc, dt, dn);
-		
-		calculate_headers();
-		
-	},
-	
-	
+
 	onload: function(doc, dt, dn) {
 		var me = this;
 		this._super(doc, dt, dn);
@@ -54,80 +46,9 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 					})
 				}, __("Get items from"), "btn-default");
 			
-			cur_frm.add_custom_button(__('CSV'),
-				function() {
-					var me = this;
-
-					var dialog = new frappe.ui.Dialog({
-						title: "Add items from CSV",
-						fields: [
-							{"fieldtype": "HTML", "label": __(""), "fieldname": "import_html",
-								"reqd": 1 },
-							{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log",
-								"reqd": 1 },
-							{"fieldtype": "Check", "label": __("Keep Previous Entries"), "fieldname": "keep_previous"},
-							{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
-						]
-					});
-
-					var $wrapper = $(dialog.fields_dict.import_html.wrapper).empty();
-
-					// upload
-					frappe.upload.make({
-						parent: $wrapper,
-						args: {
-							method: 'erpnext.selling.doctype.quotation.quotation.upload',
-						},
-						btn: $(dialog.fields_dict.update.wrapper),
-						callback: function(attachment, r) {
-							var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
-							var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
-				
-							var messages = r.message.messages;
-							var error = r.message.error;
-							if(!r.messages) r.messages = [];
-							// replace links if error has occured
-							if(error.length) {
-								r.messages = $.map(error, function(v) {
-									
-									return v;
-								});
-
-								r.messages = ["<h4 style='color:red'>"+__("Import Failed!")+"</h4>"]
-									.concat(r.messages)
-								
-								$.each(r.messages, function(i, v) {
-								var $p = $('<p>').html(v).appendTo($log_wrapper);
-							});
-							} else {
-								if(!$keep_previous.is(":checked")){	
-									 cur_frm.doc.items = [];
-								}
-								$.each(messages, function(i, item) {
-									var d = frappe.model.add_child(cur_frm.doc, "Quotation Item", "items");
-										d.item_code = item.item_code;
-										d.qty = item.qty;
-										d.page_break = item.page_break;
-										console.log(d);
-										cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
-
-									});
-								//r.messages = ["<h4 style='color:green'>"+__("Import Successful!")+"</h4>"].concat(r.message.messages)
-								dialog.hide();
-								refresh_field("items");
-							}	
-						},
-						is_private: false
-					});
-
-					
-					dialog.show();
-
-					
-					
-				}, __("Get items from"), "btn-default");
+			
 		}
-		calculate_headers();
+		
 
 		this.toggle_reqd_lead_customer();
 		
@@ -260,150 +181,11 @@ frappe.ui.form.on("Quotation Item", "items_remove", function(frm,dt,dn){
 frappe.ui.form.on("Quotation Item", "qty", function(frm,dt,dn){
 })
 
-
-calculate_headers2 = function(){
-				
-	return $c_obj(cur_frm.doc, 'calculate_headers','',function(r, rt) {
-			var doc = locals[dt][dn];
-			cur_frm.refresh();
-			console.log(r);
-	});
-
-}
-
-calculate_headers = function(){
-		var items = cur_frm.doc.items;
-		$.each(items, function(i, d) {
-			
-			//item_group_parent = get_parent_group(d.item_group);
-			if (d.item_group == "Header1"){
-				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header2" || testitem.item_group == "Header3") {
-						sum = sum;
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-			} else if (d.item_group == "Header2"){
-				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header1") {
-						break;
-					} else if (testitem.item_group == "Header3") {
-						
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-
-			
-			} else if (d.item_group == "Header3"){
-				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header1") {
-						break;
-					} else if (testitem.item_group == "Header2") {
-						break;
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-				
-				
-			}
-		});
-		refresh_field("items");
-}
-
-	
-get_parent_groups = function(name){
-	
-	frappe.model.with_doc("Item Group", name, function() { 
-		var doc = frappe.model.get_doc("Item Group", name);
-		
-	});
-		
-	
-	
-}
-
-
-get_parent_group = function(parent_group){
-	frappe.call({
-		method:"erpnext.setup.doctype.item_group.item_group.get_main_parent_group",
-		args:{
-			item_group_name:parent_group
-		},
-		callback: function(r) {
-			console.log(r);
-
+cur_frm.fields_dict['project_name'].get_query = function(doc, cdt, cdn) {
+	return {
+		query: "erpnext.controllers.queries.get_project_name",
+		filters: {
+			'customer': doc.customer
 		}
-	});
+	}
 }
-
-get_parent_group1 = function(parent_group){
-	frappe.call({
-		method:"erpnext.setup.doctype.item_group.item_group.get_parent_item_groups",
-		args:{
-			item_group_name:parent_group
-		},
-		callback: function(r) {
-			//console.log(r);
-		}
-	});
-}
-
-
-
-get_child_groups = function(parent_group, child_group){
-	frappe.call({
-		method:"frappe.client.get_list",
-		args:{
-			doctype:"Item Group",
-			filters: [
-				["parent_item_group","=", parent_group]
-			],
-			fields: ["item_group_name"]
-		},
-		callback: function(r) {
-			//console.log(r);
-		}
-	});
-}
-
-cur_frm.add_fetch("item_code", "manufacturer_part_no", "manufacturer_part_no")
-cur_frm.add_fetch("item_code", "manufacturer", "manufacturer")

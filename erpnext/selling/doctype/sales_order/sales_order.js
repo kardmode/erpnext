@@ -3,7 +3,7 @@
 
 {% include 'selling/sales_common.js' %}
 
-frappe.ui.form.on("Sales Order", {
+frappe.ui.form.on("Sales Order", {	
 	onload: function(frm) {
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
 			return erpnext.queries.warehouse(frm.doc);
@@ -109,7 +109,8 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 					})
 				}, __("Get items from"));
 		}
-
+		
+		
 		this.order_type(doc);
 	},
 
@@ -272,3 +273,92 @@ cur_frm.cscript.on_submit = function(doc, cdt, cdn) {
 		cur_frm.email_doc(frappe.boot.notification_settings.sales_order_message);
 	}
 };
+
+
+//--------------
+
+
+
+calculate_headers = function(){
+		var items = cur_frm.doc.items;
+		if (!items){
+			return;
+		}
+		$.each(items, function(i, d) {
+			
+			//item_group_parent = get_parent_group(d.item_group);
+			if (d.item_group == "Header1"){
+				var sum = 0;
+						
+				// next item group equal to current - break
+				// next item group is parent of current - break
+				// next item group is child of current - return
+				for (var j = i+1; j < items.length; ++j) {
+					var testitem = items[j];
+					//get_child_groups(d.item_group,testitem.item_group);
+					if (testitem.item_group == d.item_group)
+						break;
+					else if (testitem.item_group == "Header2" || testitem.item_group == "Header3") {
+						sum = sum;
+					} else {
+						sum = sum + testitem.amount;
+					} 
+				}
+				d.qty = 0;
+				d.rate = sum;
+				d.amount = 0;
+			} else if (d.item_group == "Header2"){
+				var sum = 0;
+						
+				// next item group equal to current - break
+				// next item group is parent of current - break
+				// next item group is child of current - return
+				for (var j = i+1; j < items.length; ++j) {
+					var testitem = items[j];
+					//get_child_groups(d.item_group,testitem.item_group);
+					if (testitem.item_group == d.item_group)
+						break;
+					else if (testitem.item_group == "Header1") {
+						break;
+					} else if (testitem.item_group == "Header3") {
+						
+					} else {
+						sum = sum + testitem.amount;
+					} 
+				}
+				d.qty = 0;
+				d.rate = sum;
+				d.amount = 0;
+
+			
+			} else if (d.item_group == "Header3"){
+				var sum = 0;
+						
+				// next item group equal to current - break
+				// next item group is parent of current - break
+				// next item group is child of current - return
+				for (var j = i+1; j < items.length; ++j) {
+					var testitem = items[j];
+					//get_child_groups(d.item_group,testitem.item_group);
+					if (testitem.item_group == d.item_group)
+						break;
+					else if (testitem.item_group == "Header1") {
+						break;
+					} else if (testitem.item_group == "Header2") {
+						break;
+					} else {
+						sum = sum + testitem.amount;
+					} 
+				}
+				d.qty = 0;
+				d.rate = sum;
+				d.amount = 0;
+				
+				
+			}
+		});
+		refresh_field("items");
+}
+
+
+

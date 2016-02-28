@@ -124,7 +124,9 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 		target.flags.ignore_permissions = ignore_permissions
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
-
+		if customer.project_name:
+			target.project_name = customer.project_name
+		
 	doclist = get_mapped_doc("Quotation", source_name, {
 			"Quotation": {
 				"doctype": "Sales Order",
@@ -149,7 +151,7 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 		}, target_doc, set_missing_values, ignore_permissions=ignore_permissions)
 
 	# postprocess: fetch shipping address, set missing values
-
+	
 	return doclist
 
 def _make_customer(source_name, ignore_permissions=False):
