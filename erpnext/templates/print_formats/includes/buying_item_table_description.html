@@ -1,0 +1,13 @@
+
+<div>
+    {% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
+    	<div class="primary"><b>{{ doc.item_code }}</div>
+    {%- endif %}
+    {% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
+    	(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
+			or doc.item_code != doc.item_name)) -%}
+    	<div class="primary"><b>{{ doc.get_formatted("item_name") }}</b></div>
+    {%- endif %}
+
+    
+</div>

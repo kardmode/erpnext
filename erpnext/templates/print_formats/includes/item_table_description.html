@@ -5,12 +5,12 @@
 {%- endif %}
 <div>
     {% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
-    	<div class="primary">{{ doc.item_code }}</div>
+    	<div class="primary"><b>{{ doc.item_code }}</div>
     {%- endif %}
     {% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
     	(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
 			or doc.item_code != doc.item_name)) -%}
-    	<div class="primary">{{ doc.get_formatted("item_name") }}</div>
+    	<div class="primary"><b>{{ doc.get_formatted("item_name") }}</b></div>
     {%- endif %}
     {% if (doc.in_format_data("description") and doc.description and
     	(
@@ -21,5 +21,12 @@
 		))
 	-%}
     <p>{{ doc.get_formatted("description") }}</p>
-    {%- endif %}
+	{%- endif %}
+	{% if (doc.in_format_data("brand") and doc.brand) -%}
+	<p><b>{{ doc.get_formatted("brand") }}</b></p>
+	{%- endif %}
+	{% if (doc.in_format_data("manufacturer_part_no") and doc.manufacturer_part_no)%}
+	<p>Part No. {{ doc.get_formatted("manufacturer_part_no") }}</p>
+	{%- endif %}	
+    
 </div>
