@@ -66,15 +66,20 @@ cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 		var callback = function(r, rt){
 			if (r.message)
 			{
-				var names = "";
+				var names = [];
 				
 				r.message.forEach(function (element, index) {
-					names = names + "-" + element[0];
+					names.push(element[0]);
 				});
+				
+				var json_string = JSON.stringify(names);
+				console.log(json_string);
 								
 				var w = window.open("/api/method/frappe.templates.pages.print.download_multi_pdf?"
 					+"doctype="+encodeURIComponent("Salary Slip")
-					+"&name="+encodeURIComponent(names));
+					+"&name="+encodeURIComponent(json_string)
+					+"&format="+encodeURIComponent("Salary Slip Multi")
+					+"&no_letterhead="+encodeURIComponent('0'));
 					if(!w) {
 						msgprint(__("Please enable pop-ups")); return;
 					}
