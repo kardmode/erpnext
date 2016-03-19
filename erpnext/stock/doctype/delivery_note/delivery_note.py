@@ -9,6 +9,8 @@ from frappe.utils import flt, cint
 from frappe import msgprint, _
 import frappe.defaults
 from frappe.model.mapper import get_mapped_doc
+from frappe.model.naming import make_autoname
+
 from erpnext.controllers.selling_controller import SellingController
 from frappe.desk.notifications import clear_doctype_notifications
 
@@ -18,6 +20,10 @@ form_grid_templates = {
 }
 
 class DeliveryNote(SellingController):
+
+	def autoname(self):
+		self.name = make_autoname('DN-'+ self.fiscal_year + '.#####')
+		
 	def __init__(self, arg1, arg2=None):
 		super(DeliveryNote, self).__init__(arg1, arg2)
 		self.status_updater = [{
