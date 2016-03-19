@@ -13,13 +13,14 @@ cur_frm.email_field = "contact_email";
 erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	validate:function(){
 		this._super();		
-		calculate_headers();
+		this.calculate_headers();
 		
 	},
 	
 	onload: function() {
 		this._super();
 		this.setup_queries();
+		this.calculate_headers();
 	},
 
 	setup_queries: function() {
@@ -99,7 +100,15 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		}
 		this.toggle_editable_price_list_rate();
 		
+		this.calculate_headers();
 		
+		cur_frm.add_custom_button(__("Quotation Report"), function() {
+						window.location.href = 'desk#query-report/Quotation%20Report';
+					});
+		
+		cur_frm.add_custom_button(__("Project Item Report"), function() {
+						window.location.href = 'desk#query-report/Item%20Summary%20By%20Project';
+					});
 		if (this.frm.doc.docstatus===0) {
 
 			cur_frm.add_custom_button(__('CSV'),
@@ -130,28 +139,28 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 						callback: function(attachment, r) {
 							var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
 							var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
-				
+							
+							var items = r.message.items;
 							var messages = r.message.messages;
 							var error = r.message.error;
 							if(!r.messages) r.messages = [];
-							// replace links if error has occured
-							if(error.length) {
-								r.messages = $.map(error, function(v) {
-									
-									return v;
-								});
 
-								r.messages = ["<h4 style='color:red'>"+__("Import Failed!")+"</h4>"]
+							r.messages = $.map(messages, function(v) {
+								return v;
+							});
+							
+							if (error){
+								r.messages = ["<h4 style='color:red'>"+__("Import Failed")+"</h4>"]
+									.concat(r.messages)
+
+							} else {
+								r.messages = ["<h4 style='color:green'>"+__("Import Succeeded")+"</h4>"]
 									.concat(r.messages)
 								
-								$.each(r.messages, function(i, v) {
-								var $p = $('<p>').html(v).appendTo($log_wrapper);
-							});
-							} else {
 								if(!$keep_previous.is(":checked")){	
 									 cur_frm.doc.items = [];
 								}
-								$.each(messages, function(i, item) {
+								$.each(items, function(i, item) {
 									var d = frappe.model.add_child(cur_frm.doc, "Quotation Item", "items");
 										d.item_code = item.item_code;
 										d.qty = item.qty;
@@ -160,10 +169,19 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 										cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
 										
 									});
-								//r.messages = ["<h4 style='color:green'>"+__("Import Successful!")+"</h4>"].concat(r.message.messages)
-								dialog.hide();
 								refresh_field("items");
-							}	
+							}
+							
+							$.each(r.messages, function(i, v) {
+								var $p = $('<p>').html(v).appendTo($log_wrapper);
+								if(v.substr(0,5)=='Error') {
+									$p.css('color', 'red');
+								}else if(v.substr(0,6)=='Header') {
+									$p.css('color', 'green');
+								} else if(v.substr(0,7)=='Updated') {
+									$p.css('color', 'green');
+								}
+							});
 						},
 						is_private: false
 					});
@@ -175,7 +193,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 					
 				}, __("Get items from"), "btn-default");
 			}
-			calculate_headers();
+		
+		
 	},
 
 	customer: function() {
@@ -385,6 +404,74 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				}
 			}
 		})
+	},
+	
+	
+	
+	calculate_headers : function(){
+		
+		var items = cur_frm.doc.items;
+		if (!items){
+			return;
+		}
+		$.each(items, function(i, d) {
+			var data_row = cur_frm.page.body.find('[data-fieldname="items"] [data-idx="'+ d.idx +'"] .data-row');
+			data_row.removeClass("highlight-custom");
+			//item_group_parent = get_parent_group(d.item_group);
+			if (d.item_group == "Header1"){
+				
+				
+				data_row.addClass("highlight-custom");
+				
+				
+				var sum = 0;
+						
+				// next item group equal to current - break
+				// next item group is parent of current - break
+				// next item group is child of current - return
+				for (var j = i+1; j < items.length; ++j) {
+					var testitem = items[j];
+					//get_child_groups(d.item_group,testitem.item_group);
+					if (testitem.item_group == d.item_group)
+						break;
+					else if (testitem.item_group == "Header2") {
+						break;
+					} else {
+						sum = sum + testitem.amount;
+					} 
+				}
+				d.qty = 0;
+				d.rate = sum;
+				d.amount = 0;
+				d.page_break = 1
+
+				if (d.idx == 1)
+					d.page_break = 0
+			} else if (d.item_group == "Header2"){
+				var sum = 0;
+				data_row.addClass("highlight-custom");		
+				// next item group equal to current - break
+				// next item group is parent of current - break
+				// next item group is child of current - return
+				for (var j = i+1; j < items.length; ++j) {
+					var testitem = items[j];
+					//get_child_groups(d.item_group,testitem.item_group);
+					if (testitem.item_group == d.item_group)
+						break;
+					else if (testitem.item_group == "Header1") {
+						break;
+					} else {
+						sum = sum + testitem.amount;
+					} 
+				}
+				d.qty = 0;
+				d.rate = sum;
+				d.amount = 0;
+				d.page_break = 0
+			
+			}
+		});
+		refresh_field("items");
 	}
 });
 
@@ -405,83 +492,4 @@ frappe.ui.form.on(cur_frm.doctype,"project_name", function(frm) {
 	}
 })
 
-calculate_headers = function(){
-		var items = cur_frm.doc.items;
-		if (!items){
-			return;
-		}
-		$.each(items, function(i, d) {
-			
-			//item_group_parent = get_parent_group(d.item_group);
-			if (d.item_group == "Header1"){
-				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header2" || testitem.item_group == "Header3") {
-						sum = sum;
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-			} else if (d.item_group == "Header2"){
-				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header1") {
-						break;
-					} else if (testitem.item_group == "Header3") {
-						
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
 
-			
-			} else if (d.item_group == "Header3"){
-				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header1") {
-						break;
-					} else if (testitem.item_group == "Header2") {
-						break;
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-				
-				
-			}
-		});
-		refresh_field("items");
-}

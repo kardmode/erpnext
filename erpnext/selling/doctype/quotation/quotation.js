@@ -29,7 +29,7 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 			
 			cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
 		}
-
+		
 		if (this.frm.doc.docstatus===0) {
 			cur_frm.add_custom_button(__('Opportunity'),
 				function() {

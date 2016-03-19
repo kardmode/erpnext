@@ -8,6 +8,8 @@ import frappe.utils
 from frappe.utils import cstr, flt, getdate, comma_and, cint
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
+from frappe.model.naming import make_autoname
+
 from erpnext.stock.stock_balance import update_bin_qty, get_reserved_qty
 from frappe.desk.notifications import clear_doctype_notifications
 from erpnext.controllers.recurring_document import month_map, get_next_date
@@ -21,6 +23,9 @@ form_grid_templates = {
 class WarehouseRequired(frappe.ValidationError): pass
 
 class SalesOrder(SellingController):
+
+	def autoname(self):
+		self.name = make_autoname('SO-'+ self.fiscal_year + '.#####')
 	def validate(self):
 		super(SalesOrder, self).validate()
 

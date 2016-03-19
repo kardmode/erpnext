@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.mapper import get_mapped_doc
+from frappe.model.naming import make_autoname
 from frappe import _
 
 from erpnext.controllers.selling_controller import SellingController
@@ -13,6 +14,8 @@ form_grid_templates = {
 }
 
 class Quotation(SellingController):
+	def autoname(self):
+		self.name = make_autoname('QTN-'+ self.fiscal_year + '.#####')
 	def validate(self):
 		super(Quotation, self).validate()
 		self.set_status()
@@ -78,35 +81,6 @@ class Quotation(SellingController):
 			lst1.append(d.total)
 			print_lst.append(lst1)
 		return print_lst
-	
-	def calculate_headers(self):
-
-		from erpnext.setup.doctype.item_group.item_group import get_main_parent_group
-
-		for d in self.items:
-			frappe.errprint(d)
-			item_group_parent = get_main_parent_group(d.item_group);
-			frappe.errprint(item_group_parent)
-			if item_group_parent == "Header1":
-				sum = 0
-				# next item group equal to current - break
-				# next item group is parent of current - break
-				# next item group is child of current - return
-				j = i+1
-				while j < len(items):
-					testitem = items[j]
-					get_child_groups(d.item_group,testitem.item_group)
-					if (testitem.item_group == d.item_group):
-						break
-					elif (testitem.item_group == "Header2"):
-						return
-					else:
-						sum = sum + testitem.amount;
-						j = j + 1
-
-				d.qty = 0
-				d.rate = sum
-				d.amount = 0
 
 
 @frappe.whitelist()
@@ -124,8 +98,8 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 		target.flags.ignore_permissions = ignore_permissions
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
-		if customer.project_name:
-			target.project_name = customer.project_name
+		if source.project_name:
+			target.project_name = source.project_name
 		
 	doclist = get_mapped_doc("Quotation", source_name, {
 			"Quotation": {
@@ -204,7 +178,8 @@ def upload():
 	columns = [scrub(f) for f in rows[0]]
 	columns[0] = "item_code"
 	ret = []
-	error = []
+	error = False
+	messages = []
 	start_row = 1
 	for i, row in enumerate(rows[start_row:]):
 		
@@ -217,32 +192,37 @@ def upload():
 			newitem = {}
 			newitem["item_code"] = item.name
 			newitem["qty"] = d.quantity
-			newitem["page_break"] = False
 			newitem["item_group"] = item.item_group
+			if d.page_break:
+				newitem["page_break"] = True
+			else:
+				newitem["page_break"] = False
 			
 			if item.is_sales_item:
 			
-				if str(item.item_group).lower() == "header1":
+				if str(item.item_group).lower() in {"header1","header2","header3","header4"}:
 					newitem["qty"] = "0"
-					if d.page_break:
-						newitem["page_break"] = d.page_break
-			
 					ret.append(newitem)
-					
+					if d.page_break:
+						messages.append('Header Row (#%d) %s with Page Break' % (row_idx,row[0]))	
+					else:
+						messages.append('Header Row (#%d) %s' % (row_idx,row[0]))	
 				elif str(item.item_group).lower() == "raw material":
-					pass
+					messages.append('Ignored Row (#%d) %s : Item is a raw material' % (row_idx,row[0]))		
 				elif str(item.item_group).lower() == "assemblypart":
-					pass		
+					messages.append('Ignored Row (#%d) %s : Item is an assembly part' % (row_idx,row[0]))		
 				else:
-					if d.page_break:
-						newitem["page_break"] = d.page_break
-			
 					ret.append(newitem)
-				
+					if d.page_break:
+						messages.append('Row (#%d) %s : Item added with Page Break' % (row_idx,row[0]))	
+					else:
+						messages.append('Row (#%d) %s : Item added' % (row_idx,row[0]))	
 			else:
-				error.append('Error for row (#%d) %s : Item is not a sales item' % (row_idx,row[0]))		
+				error = True
+				messages.append('Error for row (#%d) %s : Item is not a sales item' % (row_idx,row[0]))		
 		else:
-			error.append('Error for row (#%d) %s : Invalid Item Code' % (row_idx,row[0]))		
+			error = True
+			messages.append('Error for row (#%d) %s : Invalid Item Code' % (row_idx,row[0]))		
 		
 
-	return {"messages": ret, "error": error}
+	return {"items":ret,"messages": messages, "error": error}
