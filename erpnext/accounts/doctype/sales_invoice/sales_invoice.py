@@ -9,6 +9,7 @@ from frappe import _, msgprint, throw
 from erpnext.accounts.party import get_party_account, get_due_date
 from erpnext.controllers.stock_controller import update_gl_entries_after
 from frappe.model.mapper import get_mapped_doc
+from frappe.model.naming import make_autoname
 
 from erpnext.controllers.selling_controller import SellingController
 from erpnext.accounts.utils import get_account_currency
@@ -19,6 +20,9 @@ form_grid_templates = {
 }
 
 class SalesInvoice(SellingController):
+	def autoname(self):
+		self.name = make_autoname('SINV-'+ self.fiscal_year + '.#####')
+		
 	def __init__(self, arg1, arg2=None):
 		super(SalesInvoice, self).__init__(arg1, arg2)
 		self.status_updater = [{
