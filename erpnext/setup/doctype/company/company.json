@@ -1235,13 +1235,8 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
-<<<<<<< HEAD
- "modified": "2016-01-12 21:41:28.788422", 
- "modified_by": "Administrator", 
-=======
  "modified": "2016-03-08 20:21:46.331870", 
  "modified_by": "anand@erpnext.com", 
->>>>>>> f197d42503c2d11eda5e200e35b46ad31061d099
  "module": "Setup", 
  "name": "Company", 
  "owner": "Administrator", 
