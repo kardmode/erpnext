@@ -1,21 +1,34 @@
+
+{%- set compact = doc.flags.compact_item_print -%}
+{%- set compact_fields = doc.flags.compact_item_fields -%}
+
+
+
 <div>
-    {% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
-    	<div class="primary"><b>{{ doc.item_code }}</div>
-    {%- endif %}
-    {% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
-    	(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
+	{% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
+		<div class="primary">
+			{% if compact %}<strong>{% endif %}
+				{{ _(doc.item_code) }}
+			{% if compact %}</strong>{% endif %}
+		</div>
+	{%- endif %}
+
+	{% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
+		(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
 			or doc.item_code != doc.item_name)) -%}
-    	<div class="primary"><b>{{ doc.get_formatted("item_name") }}</b></div>
-    {%- endif %}
-    {% if (doc.in_format_data("description") and doc.description and
-    	(
+		<div class="primary">{{ doc.get_formatted("item_name", translated=True) }}</div>
+	{%- endif %}
+
+	{% if (doc.in_format_data("description") and doc.description and
+		(
 			(
 				(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")) and
 				(not doc.in_format_data("item_name") or doc.is_print_hide("item_name"))
 			) or not (doc.item_code == doc.item_name == doc.description)
 		))
 	-%}
-    <p>{{ doc.get_formatted("description") }}</p>
+
+	<p>{{ doc.get_formatted("description", translated=True) }}</p>
 	{%- endif %}
 	{% if (doc.in_format_data("brand") and doc.brand) -%}
 	<p><b>{{ doc.get_formatted("brand") }}</b></p>
@@ -23,5 +36,15 @@
 	{% if (doc.in_format_data("manufacturer_part_no") and doc.manufacturer_part_no)%}
 	<p>Part No. {{ doc.get_formatted("manufacturer_part_no") }}</p>
 	{%- endif %}	
-    
+
+	{% if compact -%}
+		{%- for fieldname in doc.flags.show_in_description -%}
+			{% if doc.get(fieldname) and doc.in_format_data(fieldname) -%}
+			<p>
+				<strong>{{ _(doc.meta.get_label(fieldname)) }}:</strong>
+				{{ doc.get_formatted(fieldname, translated=True)  }}
+			</p>
+			{% endif %}
+		{%- endfor -%}
+	{%- endif %}
 </div>

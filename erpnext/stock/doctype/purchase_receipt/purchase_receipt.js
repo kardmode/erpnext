@@ -46,7 +46,7 @@ erpnext.stock.PurchaseReceiptController = erpnext.buying.BuyingController.extend
 							get_query_filters: {
 								supplier: cur_frm.doc.supplier || undefined,
 								docstatus: 1,
-								status: ["not in", ["Stopped", "Closed"]],
+								status: ["!=", "Closed"],
 								per_received: ["<", 99.99],
 								company: cur_frm.doc.company
 							}
@@ -184,7 +184,7 @@ cur_frm.cscript.new_contact = function() {
 	loaddoc('Contact', tn);
 }
 
-cur_frm.fields_dict['items'].grid.get_field('project_name').get_query = function(doc, cdt, cdn) {
+cur_frm.fields_dict['items'].grid.get_field('project').get_query = function(doc, cdt, cdn) {
 	return {
 		filters: [
 			['Project', 'status', 'not in', 'Completed, Cancelled']

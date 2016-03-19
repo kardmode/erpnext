@@ -38,15 +38,12 @@ erpnext.buying.PurchaseOrderController = erpnext.buying.BuyingController.extend(
 
 		cur_frm.set_df_property("drop_ship", "hidden", !is_drop_ship);
 
-		if(doc.docstatus == 1 && !in_list(["Stopped", "Closed", "Delivered"], doc.status)) {
+		if(doc.docstatus == 1 && !in_list(["Closed", "Delivered"], doc.status)) {
 			if (this.frm.has_perm("submit")) {
 				if(flt(doc.per_billed, 2) < 100 || doc.per_received < 100) {
-					cur_frm.add_custom_button(__('Stop'), this.stop_purchase_order, __("Status"));
+					cur_frm.add_custom_button(__('Close'), this.close_purchase_order, __("Status"));
 				}
-
-				cur_frm.add_custom_button(__('Close'), this.close_purchase_order, __("Status"));
 			}
-
 
 			if(is_drop_ship && doc.status!="Delivered"){
 				cur_frm.add_custom_button(__('Delivered'),
@@ -58,13 +55,13 @@ erpnext.buying.PurchaseOrderController = erpnext.buying.BuyingController.extend(
 			cur_frm.cscript.add_from_mappers();
 		}
 
-		if(doc.docstatus == 1 && in_list(["Stopped", "Closed", "Delivered"], doc.status)) {
+		if(doc.docstatus == 1 && in_list(["Closed", "Delivered"], doc.status)) {
 			if (this.frm.has_perm("submit")) {
-				cur_frm.add_custom_button(__('Re-open'), this.unstop_purchase_order, __("Status"));
+				cur_frm.add_custom_button(__('Re-open'), this.unclose_purchase_order, __("Status"));
 			}
 		}
 
-		if(doc.docstatus == 1 && !in_list(["Stopped", "Closed"], doc.status)) {
+		if(doc.docstatus == 1 && doc.status != "Closed") {
 			if(flt(doc.per_received, 2) < 100 && allow_receipt) {
 				cur_frm.add_custom_button(__('Receive'), this.make_purchase_receipt, __("Make"));
 
@@ -192,11 +189,7 @@ erpnext.buying.PurchaseOrderController = erpnext.buying.BuyingController.extend(
 		});
 	},
 
-	stop_purchase_order: function(){
-		cur_frm.cscript.update_status('Stop', 'Stopped')
-	},
-
-	unstop_purchase_order: function(){
+	unclose_purchase_order: function(){
 		cur_frm.cscript.update_status('Re-open', 'Submitted')
 	},
 
@@ -247,7 +240,7 @@ cur_frm.fields_dict['contact_person'].get_query = function(doc, cdt, cdn) {
 	}
 }
 
-cur_frm.fields_dict['items'].grid.get_field('project_name').get_query = function(doc, cdt, cdn) {
+cur_frm.fields_dict['items'].grid.get_field('project').get_query = function(doc, cdt, cdn) {
 	return {
 		filters:[
 			['Project', 'status', 'not in', 'Completed, Cancelled']

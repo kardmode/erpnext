@@ -52,6 +52,10 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 				if(doc.material_request_type === "Purchase")
 					cur_frm.add_custom_button(__("Supplier Quotation"),
 					this.make_supplier_quotation, __("Make"));
+				
+				if(doc.material_request_type === "Manufacture" && doc.status === "Submitted")
+					cur_frm.add_custom_button(__("Production Order"),
+					this.raise_production_orders, __("Make"));
 
 				cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
 
@@ -70,7 +74,7 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 						source_doctype: "Sales Order",
 						get_query_filters: {
 							docstatus: 1,
-							status: ["!=", "Stopped"],
+							status: ["!=", "Closed"],
 							per_delivered: ["<", 99.99],
 							company: cur_frm.doc.company
 						}
@@ -101,7 +105,9 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 			title: __("Get Items from BOM"),
 			fields: [
 				{"fieldname":"bom", "fieldtype":"Link", "label":__("BOM"),
-					options:"BOM", reqd: 1},
+					options:"BOM", reqd: 1, get_query: function(){
+						return {filters: { docstatus:1 }}
+					}},
 				{"fieldname":"warehouse", "fieldtype":"Link", "label":__("Warehouse"),
 					options:"Warehouse", reqd: 1, label:"For Warehouse"},
 				{"fieldname":"fetch_exploded", "fieldtype":"Check",
@@ -121,7 +127,7 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 						var d = frappe.model.add_child(cur_frm.doc, "Material Request Item", "items");
 						d.item_code = item.item_code;
 						d.description = item.description;
-						d.warehouse = d.warehouse;
+						d.warehouse = values.warehouse;
 						d.uom = item.stock_uom;
 						d.qty = item.qty;
 					});
@@ -165,6 +171,15 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 			method: "erpnext.stock.doctype.material_request.material_request.make_stock_entry",
 			frm: cur_frm
 		});
+	},
+
+	raise_production_orders: function() {
+		frappe.call({
+			method:"erpnext.stock.doctype.material_request.material_request.raise_production_orders",
+			args: {
+				"material_request": cur_frm.doc.name
+			}
+		});
 	}
 });
 
@@ -184,5 +199,3 @@ cur_frm.cscript['Unstop Material Request'] = function(){
 		cur_frm.refresh();
 	});
 };
-
-

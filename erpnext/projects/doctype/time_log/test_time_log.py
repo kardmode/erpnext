@@ -20,6 +20,22 @@ class TestTimeLog(unittest.TestCase):
 			from_time= tl1.from_time, to_time= tl1.to_time, do_not_save= 1)
 
 		self.assertRaises(OverlapError, tl2.insert)
+		
+		tl3 = make_time_log_test_record(user= "test@example.com", employee= "_T-Employee-0002",
+			from_time= tl1.from_time - datetime.timedelta(hours=1), 
+			to_time= tl1.to_time + datetime.timedelta(hours=1), do_not_save= 1)
+
+		self.assertRaises(OverlapError, tl3.insert)
+		
+		tl4 = make_time_log_test_record(user= "test@example.com", employee= "_T-Employee-0002",
+			from_time= tl1.from_time + datetime.timedelta(minutes=20), 
+			to_time= tl1.to_time + datetime.timedelta(minutes=30), do_not_save= 1)
+
+		self.assertRaises(OverlapError, tl4.insert)
+		
+		make_time_log_test_record(user= "test@example.com", employee= "_T-Employee-0002",
+			from_time= tl1.to_time, 
+			to_time= tl1.to_time + datetime.timedelta(hours=1))
 
 	def test_production_order_status(self):
 		prod_order = make_prod_order_test_record(item= "_Test FG Item 2", qty= 1, do_not_submit= True)
@@ -67,11 +83,11 @@ class TestTimeLog(unittest.TestCase):
 		activity_type.costing_rate = 15
 		activity_type.save()
 
-		project_name = "_Test Project for Activity Type"
+		project = "_Test Project for Activity Type"
 
-		frappe.db.sql("delete from `tabTime Log` where project=%s or employee='_T-Employee-0002'", project_name)
-		frappe.delete_doc("Project", project_name)
-		project = frappe.get_doc({"doctype": "Project", "project_name": project_name}).insert()
+		frappe.db.sql("delete from `tabTime Log` where project=%s or employee='_T-Employee-0002'", project)
+		frappe.delete_doc("Project", project)
+		project = frappe.get_doc({"doctype": "Project", "project_name": project}).insert()
 
 		make_time_log_test_record(employee="_T-Employee-0002", hours=2,
 			activity_type = "_Test Activity Type", project = project.name)

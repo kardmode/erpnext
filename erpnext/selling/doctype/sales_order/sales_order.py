@@ -108,12 +108,12 @@ class SalesOrder(SellingController):
 		self.validate_sales_mntc_quotation()
 
 	def validate_proj_cust(self):
-		if self.project_name and self.customer_name:
+		if self.project and self.customer_name:
 			res = frappe.db.sql("""select name from `tabProject` where name = %s
 				and (customer = %s or ifnull(customer,'')='')""",
-					(self.project_name, self.customer))
+					(self.project, self.customer))
 			if not res:
-				frappe.throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project_name))
+				frappe.throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
 	def validate_warehouse(self):
 		super(SalesOrder, self).validate_warehouse()
@@ -155,8 +155,6 @@ class SalesOrder(SellingController):
 				frappe.throw(_("Row #{0}: Set Supplier for item {1}").format(d.idx, d.item_code))
 
 	def on_submit(self):
-		super(SalesOrder, self).on_submit()
-
 		self.check_credit_limit()
 		self.update_reserved_qty()
 
@@ -165,9 +163,9 @@ class SalesOrder(SellingController):
 		self.update_prevdoc_status('submit')
 
 	def on_cancel(self):
-		# Cannot cancel stopped SO
-		if self.status == 'Stopped':
-			frappe.throw(_("Stopped order cannot be cancelled. Unstop to cancel."))
+		# Cannot cancel closed SO
+		if self.status == 'Closed':
+			frappe.throw(_("Closed order cannot be cancelled. Unclose to cancel."))
 
 		self.check_nextdoc_docstatus()
 		self.update_reserved_qty()
@@ -198,7 +196,7 @@ class SalesOrder(SellingController):
 		#check maintenance schedule
 		submit_ms = frappe.db.sql_list("""select t1.name from `tabMaintenance Schedule` t1,
 			`tabMaintenance Schedule Item` t2
-			where t2.parent=t1.name and t2.prevdoc_docname = %s and t1.docstatus = 1""", self.name)
+			where t2.parent=t1.name and t2.sales_order = %s and t1.docstatus = 1""", self.name)
 		if submit_ms:
 			frappe.throw(_("Maintenance Schedule {0} must be cancelled before cancelling this Sales Order").format(comma_and(submit_ms)))
 
@@ -322,7 +320,7 @@ def get_list_context(context=None):
 	return list_context
 
 @frappe.whitelist()
-def stop_or_unstop_sales_orders(names, status):
+def close_or_unclose_sales_orders(names, status):
 	if not frappe.has_permission("Sales Order", "write"):
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
 
@@ -330,11 +328,11 @@ def stop_or_unstop_sales_orders(names, status):
 	for name in names:
 		so = frappe.get_doc("Sales Order", name)
 		if so.docstatus == 1:
-			if status in ("Stopped", "Closed"):
-				if so.status not in ("Stopped", "Cancelled", "Closed") and (so.per_delivered < 100 or so.per_billed < 100):
+			if status == "Closed":
+				if so.status not in ("Cancelled", "Closed") and (so.per_delivered < 100 or so.per_billed < 100):
 					so.update_status(status)
 			else:
-				if so.status in ("Stopped", "Closed"):
+				if so.status == "Closed":
 					so.update_status('Draft')
 
 	frappe.local.message_log = []
@@ -358,7 +356,7 @@ def make_material_request(source_name, target_doc=None):
 		item_table: {
 			"doctype": "Material Request Item",
 			"field_map": {
-				"parent": "sales_order_no",
+				"parent": "sales_order",
 				"stock_uom": "uom"
 			}
 		}
@@ -469,15 +467,12 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 def make_maintenance_schedule(source_name, target_doc=None):
 	maint_schedule = frappe.db.sql("""select t1.name
 		from `tabMaintenance Schedule` t1, `tabMaintenance Schedule Item` t2
-		where t2.parent=t1.name and t2.prevdoc_docname=%s and t1.docstatus=1""", source_name)
+		where t2.parent=t1.name and t2.sales_order=%s and t1.docstatus=1""", source_name)
 
 	if not maint_schedule:
 		doclist = get_mapped_doc("Sales Order", source_name, {
 			"Sales Order": {
 				"doctype": "Maintenance Schedule",
-				"field_map": {
-					"name": "sales_order_no"
-				},
 				"validation": {
 					"docstatus": ["=", 1]
 				}
@@ -485,7 +480,7 @@ def make_maintenance_schedule(source_name, target_doc=None):
 			"Sales Order Item": {
 				"doctype": "Maintenance Schedule Item",
 				"field_map": {
-					"parent": "prevdoc_docname"
+					"parent": "sales_order"
 				},
 				"add_if_empty": True
 			}
@@ -504,9 +499,6 @@ def make_maintenance_visit(source_name, target_doc=None):
 		doclist = get_mapped_doc("Sales Order", source_name, {
 			"Sales Order": {
 				"doctype": "Maintenance Visit",
-				"field_map": {
-					"name": "sales_order_no"
-				},
 				"validation": {
 					"docstatus": ["=", 1]
 				}
@@ -557,11 +549,11 @@ def make_purchase_order_for_drop_shipment(source_name, for_supplier, target_doc=
 
 		if any( item.delivered_by_supplier==1 for item in source.items):
 			if source.shipping_address_name:
-				target.customer_address = source.shipping_address_name
-				target.customer_address_display = source.shipping_address
+				target.shipping_address = source.shipping_address_name
+				target.shipping_address_display = source.shipping_address
 			else:
-				target.customer_address = source.customer_address
-				target.customer_address_display = source.address_display
+				target.shipping_address = source.customer_address
+				target.shipping_address_display = source.address_display
 
 			target.customer_contact_person = source.contact_person
 			target.customer_contact_display = source.contact_display

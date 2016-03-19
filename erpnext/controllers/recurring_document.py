@@ -3,13 +3,10 @@ import frappe
 import frappe.utils
 import frappe.defaults
 
-from frappe.utils import add_days, cint, cstr, date_diff, flt, getdate, nowdate, \
-	get_first_day, get_last_day, comma_and, split_emails
-from frappe.model.naming import make_autoname
+from frappe.utils import cint, cstr, getdate, nowdate, \
+	get_first_day, get_last_day, split_emails
 
 from frappe import _, msgprint, throw
-from erpnext.accounts.party import get_party_account, get_due_date, get_party_details
-from frappe.model.mapper import get_mapped_doc
 
 month_map = {'Monthly': 1, 'Quarterly': 3, 'Half-yearly': 6, 'Yearly': 12}
 date_field_map = {
@@ -34,22 +31,23 @@ def manage_recurring_documents(doctype, next_date=None, commit=True):
 
 	date_field = date_field_map[doctype]
 
-	condition = " and ifnull(status, '') != 'Stopped'" if doctype in ("Sales Order", "Purchase Order") else ""
+	condition = " and ifnull(status, '') != 'Closed'" if doctype in ("Sales Order", "Purchase Order") else ""
 
 	recurring_documents = frappe.db.sql("""select name, recurring_id
 		from `tab{0}` where is_recurring=1
-		and docstatus=1 and next_date=%s
+		and (docstatus=1 or docstatus=0) and next_date=%s
 		and next_date <= ifnull(end_date, '2199-12-31') {1}""".format(doctype, condition), next_date)
 
 	exception_list = []
 	for ref_document, recurring_id in recurring_documents:
 		if not frappe.db.sql("""select name from `tab%s`
-				where %s=%s and recurring_id=%s and docstatus=1"""
+				where %s=%s and recurring_id=%s and (docstatus=1 or docstatus=0)"""
 				% (doctype, date_field, '%s', '%s'), (next_date, recurring_id)):
 			try:
 				reference_doc = frappe.get_doc(doctype, ref_document)
 				new_doc = make_new_document(reference_doc, date_field, next_date)
-				send_notification(new_doc)
+				if reference_doc.notify_by_email:
+					send_notification(new_doc)
 				if commit:
 					frappe.db.commit()
 			except:
@@ -74,8 +72,7 @@ def manage_recurring_documents(doctype, next_date=None, commit=True):
 		frappe.throw(exception_message)
 
 def make_new_document(reference_doc, date_field, posting_date):
-	from erpnext.accounts.utils import get_fiscal_year
-	new_document = frappe.copy_doc(reference_doc, ignore_no_copy=True)
+	new_document = frappe.copy_doc(reference_doc, ignore_no_copy=False)
 	mcount = month_map[reference_doc.recurring_type]
 
 	from_date = get_next_date(reference_doc.from_date, mcount)
@@ -92,14 +89,14 @@ def make_new_document(reference_doc, date_field, posting_date):
 		date_field: posting_date,
 		"from_date": from_date,
 		"to_date": to_date,
-		"fiscal_year": get_fiscal_year(posting_date)[0]
+		"next_date": get_next_date(reference_doc.next_date, mcount,cint(reference_doc.repeat_on_day_of_month))
 	})
 
 	# copy document fields
 	for fieldname in ("owner", "recurring_type", "repeat_on_day_of_month",
 		"recurring_id", "notification_email_address", "is_recurring", "end_date",
 		"title", "naming_series", "select_print_heading", "ignore_pricing_rule",
-		"posting_time", "remarks"):
+		"posting_time", "remarks", 'submit_on_creation'):
 		if new_document.meta.get_field(fieldname):
 			new_document.set(fieldname, reference_doc.get(fieldname))
 
@@ -110,7 +107,12 @@ def make_new_document(reference_doc, date_field, posting_date):
 
 	new_document.run_method("on_recurring", reference_doc=reference_doc)
 
-	new_document.submit()
+	if reference_doc.submit_on_creation:
+		new_document.insert()
+		new_document.submit()
+	else:
+		new_document.docstatus=0
+		new_document.insert()
 
 	return new_document
 
@@ -159,50 +161,57 @@ def assign_task_to_owner(doc, doctype, msg, users):
 def validate_recurring_document(doc):
 	if doc.is_recurring:
 		validate_notification_email_id(doc)
-
 		if not doc.recurring_type:
-			msgprint(_("Please select {0}").format(doc.meta.get_label("recurring_type")),
-			raise_exception=1)
+			frappe.throw(_("Please select {0}").format(doc.meta.get_label("recurring_type")))
 
 		elif not (doc.from_date and doc.to_date):
-			throw(_("Period From and Period To dates mandatory for recurring {0}").format(doc.doctype))
+			frappe.throw(_("Period From and Period To dates mandatory for recurring {0}").format(doc.doctype))
+			
+def validate_recurring_next_date(doc):
+	posting_date = doc.get("posting_date") or doc.get("transaction_date")
+	if getdate(posting_date) > getdate(doc.next_date):
+		frappe.throw(_("Next Date must be greater than Posting Date"))
 
-#
+	if getdate(doc.next_date).day != doc.repeat_on_day_of_month:
+		frappe.throw(_("Next Date's day and Repeat on Day of Month must be equal"))
+
 def convert_to_recurring(doc, posting_date):
-    if doc.is_recurring:
-        if not doc.recurring_id:
-            frappe.db.set(doc, "recurring_id", doc.name)
+	if doc.is_recurring:
+		if not doc.recurring_id:
+			doc.db_set("recurring_id", doc.name)
 
-        set_next_date(doc, posting_date)
+		set_next_date(doc, posting_date)
 
-    elif doc.recurring_id:
-        frappe.db.sql("""update `tab%s` set is_recurring = 0
-            where recurring_id = %s""" % (doc.doctype, '%s'), (doc.recurring_id))
-#
+	elif doc.recurring_id:
+		frappe.db.sql("""update `tab%s` set is_recurring = 0
+			where recurring_id = %s""" % (doc.doctype, '%s'), (doc.recurring_id))
+			
+	if doc.next_date:
+		validate_recurring_next_date(doc)
 
 def validate_notification_email_id(doc):
-	if doc.notification_email_address:
-		email_list = split_emails(doc.notification_email_address.replace("\n", ""))
+	if doc.notify_by_email:
+		if doc.notification_email_address:
+			email_list = split_emails(doc.notification_email_address.replace("\n", ""))
 
-		from frappe.utils import validate_email_add
-		for email in email_list:
-			if not validate_email_add(email):
-				throw(_("{0} is an invalid email address in 'Notification \
-					Email Address'").format(email))
+			from frappe.utils import validate_email_add
+			for email in email_list:
+				if not validate_email_add(email):
+					throw(_("{0} is an invalid email address in 'Notification \
+						Email Address'").format(email))
 
-	else:
-		frappe.throw(_("'Notification Email Addresses' not specified for recurring %s") \
-			% doc.doctype)
+		else:
+			frappe.throw(_("'Notification Email Addresses' not specified for recurring %s") \
+				% doc.doctype)
 
 def set_next_date(doc, posting_date):
 	""" Set next date on which recurring document will be created"""
-
 	if not doc.repeat_on_day_of_month:
 		msgprint(_("Please enter 'Repeat on Day of Month' field value"), raise_exception=1)
 
 	next_date = get_next_date(posting_date, month_map[doc.recurring_type],
 		cint(doc.repeat_on_day_of_month))
 
-	frappe.db.set(doc, 'next_date', next_date)
+	doc.db_set('next_date', next_date)
 
 	msgprint(_("Next Recurring {0} will be created on {1}").format(doc.doctype, next_date))

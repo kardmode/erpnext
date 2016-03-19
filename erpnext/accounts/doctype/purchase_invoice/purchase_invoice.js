@@ -24,11 +24,13 @@ erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
 
 		if(!doc.is_return) {
 			if(doc.docstatus==1) {
-				if(doc.outstanding_amount != 0) {
+				if(doc.outstanding_amount > 0) {
 					this.frm.add_custom_button(__('Payment'), this.make_bank_entry, __("Make"));
 					cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
 				}
-				cur_frm.add_custom_button(__('Debit Note'), this.make_debit_note, __("Make"));
+				if(doc.outstanding_amount >= 0 || Math.abs(flt(doc.outstanding_amount)) < flt(doc.grand_total)) {
+					cur_frm.add_custom_button(__('Debit Note'), this.make_debit_note, __("Make"));
+				}
 			}
 
 			if(doc.docstatus===0) {
@@ -39,7 +41,7 @@ erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
 						get_query_filters: {
 							supplier: cur_frm.doc.supplier || undefined,
 							docstatus: 1,
-							status: ["not in", ["Stopped", "Closed"]],
+							status: ["!=", "Closed"],
 							per_billed: ["<", 99.99],
 							company: cur_frm.doc.company
 						}
@@ -116,7 +118,7 @@ erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
 	items_add: function(doc, cdt, cdn) {
 		var row = frappe.get_doc(cdt, cdn);
 		this.frm.script_manager.copy_from_first_row("items", row,
-			["expense_account", "cost_center", "project_name"]);
+			["expense_account", "cost_center", "project"]);
 	},
 
 	on_submit: function() {
@@ -240,7 +242,7 @@ cur_frm.cscript.cost_center = function(doc, cdt, cdn){
 	refresh_field('items');
 }
 
-cur_frm.fields_dict['items'].grid.get_field('project_name').get_query = function(doc, cdt, cdn) {
+cur_frm.fields_dict['items'].grid.get_field('project').get_query = function(doc, cdt, cdn) {
 	return{
 		filters:[
 			['Project', 'status', 'not in', 'Completed, Cancelled']

@@ -42,17 +42,14 @@ class AccountsController(TransactionBase):
 		if self.doctype in ("Sales Invoice", "Purchase Invoice") and not self.is_return:
 			self.validate_due_date()
 
-		if self.meta.get_field("is_recurring"):
-			validate_recurring_document(self)
-
 		if self.meta.get_field("taxes_and_charges"):
 			self.validate_enabled_taxes_and_charges()
 
 		self.validate_party()
 		self.validate_currency()
-
-	def on_submit(self):
-		if self.meta.get_field("is_recurring"):
+		
+		if self.meta.get_field("is_recurring") and not self.get("__islocal"):
+			validate_recurring_document(self)
 			convert_to_recurring(self, self.get("posting_date") or self.get("transaction_date"))
 
 	def on_update_after_submit(self):
@@ -220,10 +217,10 @@ class AccountsController(TransactionBase):
 		gl_dict = frappe._dict({
 			'company': self.company,
 			'posting_date': self.posting_date,
+			'fiscal_year': get_fiscal_year(self.posting_date, company=self.company)[0],
 			'voucher_type': self.doctype,
 			'voucher_no': self.name,
 			'remarks': self.get("remarks"),
-			'fiscal_year': self.fiscal_year,
 			'debit': 0,
 			'credit': 0,
 			'debit_in_account_currency': 0,
@@ -239,7 +236,7 @@ class AccountsController(TransactionBase):
 
 		if self.doctype not in ["Journal Entry", "Period Closing Voucher"]:
 			self.validate_account_currency(gl_dict.account, account_currency)
-			self.set_balance_in_account_currency(gl_dict, account_currency)
+			set_balance_in_account_currency(gl_dict, account_currency, self.get("conversion_rate"), self.company_currency)
 
 		return gl_dict
 
@@ -251,23 +248,6 @@ class AccountsController(TransactionBase):
 		if account_currency not in valid_currency:
 			frappe.throw(_("Account {0} is invalid. Account Currency must be {1}")
 				.format(account, _(" or ").join(valid_currency)))
-
-	def set_balance_in_account_currency(self, gl_dict, account_currency=None):
-		if (not self.get("conversion_rate") and account_currency!=self.company_currency):
-				frappe.throw(_("Account: {0} with currency: {1} can not be selected")
-					.format(gl_dict.account, account_currency))
-
-		gl_dict["account_currency"] = self.company_currency if account_currency==self.company_currency \
-			else account_currency
-
-		# set debit/credit in account currency if not provided
-		if flt(gl_dict.debit) and not flt(gl_dict.debit_in_account_currency):
-			gl_dict.debit_in_account_currency = gl_dict.debit if account_currency==self.company_currency \
-				else flt(gl_dict.debit / (self.get("conversion_rate")), 2)
-
-		if flt(gl_dict.credit) and not flt(gl_dict.credit_in_account_currency):
-			gl_dict.credit_in_account_currency = gl_dict.credit if account_currency==self.company_currency \
-				else flt(gl_dict.credit / (self.get("conversion_rate")), 2)
 
 	def clear_unallocated_advances(self, childtype, parentfield):
 		self.set(parentfield, self.get(parentfield, {"allocated_amount": ["not in", [0, None, ""]]}))
@@ -541,3 +521,20 @@ def validate_inclusive_tax(tax, doc):
 			_on_previous_row_error("1 - %d" % (tax.row_id,))
 		elif tax.get("category") == "Valuation":
 			frappe.throw(_("Valuation type charges can not marked as Inclusive"))
+
+def set_balance_in_account_currency(gl_dict, account_currency=None, conversion_rate=None, company_currency=None):
+	if (not conversion_rate) and (account_currency!=company_currency):
+			frappe.throw(_("Account: {0} with currency: {1} can not be selected")
+				.format(gl_dict.account, account_currency))
+
+	gl_dict["account_currency"] = company_currency if account_currency==company_currency \
+		else account_currency
+
+	# set debit/credit in account currency if not provided
+	if flt(gl_dict.debit) and not flt(gl_dict.debit_in_account_currency):
+		gl_dict.debit_in_account_currency = gl_dict.debit if account_currency==company_currency \
+			else flt(gl_dict.debit / conversion_rate, 2)
+
+	if flt(gl_dict.credit) and not flt(gl_dict.credit_in_account_currency):
+		gl_dict.credit_in_account_currency = gl_dict.credit if account_currency==company_currency \
+			else flt(gl_dict.credit / conversion_rate, 2)

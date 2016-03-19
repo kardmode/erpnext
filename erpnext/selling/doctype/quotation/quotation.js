@@ -189,3 +189,9 @@ cur_frm.fields_dict['project_name'].get_query = function(doc, cdt, cdn) {
 		}
 	}
 }
+
+frappe.ui.form.on("Quotation Item", "stock_balance", function(frm, cdt, cdn) {
+	var d = frappe.model.get_doc(cdt, cdn);
+	frappe.route_options = {"item_code": d.item_code}; 
+	frappe.set_route("query-report", "Stock Balance");
+})

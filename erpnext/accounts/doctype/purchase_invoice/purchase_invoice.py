@@ -10,7 +10,7 @@ import frappe.defaults
 
 from erpnext.controllers.buying_controller import BuyingController
 from erpnext.accounts.party import get_party_account, get_due_date
-from erpnext.accounts.utils import get_account_currency
+from erpnext.accounts.utils import get_account_currency, get_fiscal_year
 from erpnext.stock.doctype.purchase_receipt.purchase_receipt import update_billed_amount_based_on_po
 
 form_grid_templates = {
@@ -49,7 +49,7 @@ class PurchaseInvoice(BuyingController):
 		self.check_conversion_rate()
 		self.validate_credit_to_acc()
 		self.clear_unallocated_advances("Purchase Invoice Advance", "advances")
-		self.check_for_stopped_or_closed_status()
+		self.check_for_closed_status()
 		self.validate_with_previous_doc()
 		self.validate_uom_is_integer("uom", "qty")
 		self.set_against_expense_account()
@@ -104,14 +104,14 @@ class PurchaseInvoice(BuyingController):
 
 		self.party_account_currency = account.account_currency
 
-	def check_for_stopped_or_closed_status(self):
+	def check_for_closed_status(self):
 		check_list = []
 		pc_obj = frappe.get_doc('Purchase Common')
 
 		for d in self.get('items'):
 			if d.purchase_order and not d.purchase_order in check_list and not d.purchase_receipt:
 				check_list.append(d.purchase_order)
-				pc_obj.check_for_stopped_or_closed_status('Purchase Order', d.purchase_order)
+				pc_obj.check_for_closed_status('Purchase Order', d.purchase_order)
 
 	def validate_with_previous_doc(self):
 		super(PurchaseInvoice, self).validate_with_previous_doc({
@@ -121,7 +121,7 @@ class PurchaseInvoice(BuyingController):
 			},
 			"Purchase Order Item": {
 				"ref_dn_field": "po_detail",
-				"compare_fields": [["project_name", "="], ["item_code", "="], ["uom", "="]],
+				"compare_fields": [["project", "="], ["item_code", "="], ["uom", "="]],
 				"is_child_table": True,
 				"allow_duplicate_prev_row_id": True
 			},
@@ -131,7 +131,7 @@ class PurchaseInvoice(BuyingController):
 			},
 			"Purchase Receipt Item": {
 				"ref_dn_field": "pr_detail",
-				"compare_fields": [["project_name", "="], ["item_code", "="], ["uom", "="]],
+				"compare_fields": [["project", "="], ["item_code", "="], ["uom", "="]],
 				"is_child_table": True
 			}
 		})
@@ -234,8 +234,6 @@ class PurchaseInvoice(BuyingController):
 			reconcile_against_document(lst)
 
 	def on_submit(self):
-		super(PurchaseInvoice, self).on_submit()
-
 		self.check_prev_docstatus()
 
 		frappe.get_doc('Authorization Control').validate_approving_authority(self.doctype,
@@ -405,7 +403,7 @@ class PurchaseInvoice(BuyingController):
 			make_gl_entries(gl_entries, cancel=(self.docstatus == 2))
 
 	def on_cancel(self):
-		self.check_for_stopped_or_closed_status()
+		self.check_for_closed_status()
 
 		if not self.is_return:
 			from erpnext.accounts.utils import remove_against_link_from_jv
@@ -421,22 +419,36 @@ class PurchaseInvoice(BuyingController):
 	def update_project(self):
 		project_list = []
 		for d in self.items:
-			if d.project_name and d.project_name not in project_list:
-				project = frappe.get_doc("Project", d.project_name)
+			if d.project and d.project not in project_list:
+				project = frappe.get_doc("Project", d.project)
 				project.flags.dont_sync_tasks = True
 				project.update_purchase_costing()
 				project.save()
-				project_list.append(d.project_name)
+				project_list.append(d.project)
 
 	def validate_supplier_invoice(self):
 		if self.bill_date:
 			if getdate(self.bill_date) > getdate(self.posting_date):
 				frappe.throw("Supplier Invoice Date cannot be greater than Posting Date")
+
 		if self.bill_no:
 			if cint(frappe.db.get_single_value("Accounts Settings", "check_supplier_invoice_uniqueness")):
-				pi = frappe.db.exists("Purchase Invoice", {"bill_no": self.bill_no,
-					"fiscal_year": self.fiscal_year, "name": ("!=", self.name), "docstatus": ("<", 2)})
+				fiscal_year = get_fiscal_year(self.posting_date, company=self.company, as_dict=True)
+
+				pi = frappe.db.sql('''select name from `tabPurchase Invoice`
+					where
+						bill_no = %(bill_no)s
+						and name != %(name)s
+						and docstatus < 2
+						and posting_date between %(year_start_date)s and %(year_end_date)s''', {
+							"bill_no": self.bill_no,
+							"name": self.name,
+							"year_start_date": fiscal_year.year_start_date,
+							"year_end_date": fiscal_year.year_end_date
+						})
+
 				if pi:
+					pi = pi[0][0]
 					frappe.throw("Supplier Invoice No exists in Purchase Invoice {0}".format(pi))
 
 	def update_billing_status_in_pr(self, update_modified=True):

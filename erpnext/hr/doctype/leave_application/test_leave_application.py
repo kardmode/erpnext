@@ -15,7 +15,6 @@ _test_records = [
   "company": "_Test Company",
   "doctype": "Leave Application",
   "employee": "_T-Employee-0001",
-  "fiscal_year": "_Test Fiscal Year 2013",
   "from_date": "2013-05-01",
   "leave_type": "_Test Leave Type",
   "posting_date": "2013-01-02",
@@ -25,7 +24,6 @@ _test_records = [
   "company": "_Test Company",
   "doctype": "Leave Application",
   "employee": "_T-Employee-0002",
-  "fiscal_year": "_Test Fiscal Year 2013",
   "from_date": "2013-05-01",
   "leave_type": "_Test Leave Type",
   "posting_date": "2013-01-02",
@@ -35,7 +33,6 @@ _test_records = [
   "company": "_Test Company",
   "doctype": "Leave Application",
   "employee": "_T-Employee-0001",
-  "fiscal_year": "_Test Fiscal Year 2013",
   "from_date": "2013-01-15",
   "leave_type": "_Test Leave Type LWP",
   "posting_date": "2013-01-02",
@@ -214,6 +211,10 @@ class TestLeaveApplication(unittest.TestCase):
 
 		frappe.set_user("test@example.com")
 		application.status = "Approved"
+
+		# clear permlevel access cache on change user
+		del application._has_access_to
+
 		self.assertRaises(LeaveDayBlockedError, application.submit)
 
 		frappe.db.set_value("Leave Block List", "_Test Leave Block List",
@@ -250,6 +251,7 @@ class TestLeaveApplication(unittest.TestCase):
 		# submit leave application by Leave Approver
 		frappe.set_user("test1@example.com")
 		application.status = "Approved"
+		del application._has_access_to
 		application.submit()
 		self.assertEqual(frappe.db.get_value("Leave Application", application.name,
 			"docstatus"), 1)
@@ -289,6 +291,7 @@ class TestLeaveApplication(unittest.TestCase):
 		application.leave_approver = "test2@example.com"
 		application.insert()
 		frappe.set_user("test1@example.com")
+		del application._has_access_to
 		application.status = "Approved"
 
 		from erpnext.hr.doctype.leave_application.leave_application import LeaveApproverIdentityError
@@ -315,6 +318,7 @@ class TestLeaveApplication(unittest.TestCase):
 		# change to valid leave approver and try to submit leave application
 		frappe.set_user("test2@example.com")
 		application.status = "Approved"
+		del application._has_access_to
 		application.submit()
 		self.assertEqual(frappe.db.get_value("Leave Application", application.name,
 			"docstatus"), 1)

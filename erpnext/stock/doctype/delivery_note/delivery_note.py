@@ -104,7 +104,7 @@ class DeliveryNote(SellingController):
 		self.set_status()
 		self.so_required()
 		self.validate_proj_cust()
-		self.check_stop_or_close_sales_order("against_sales_order")
+		self.check_close_sales_order("against_sales_order")
 		self.validate_for_items()
 		self.validate_warehouse()
 		self.validate_uom_is_integer("stock_uom", "qty")
@@ -124,7 +124,7 @@ class DeliveryNote(SellingController):
 				super(DeliveryNote, self).validate_with_previous_doc({
 					fn[0]: {
 						"ref_dn_field": fn[1],
-						"compare_fields": [["customer", "="], ["company", "="], ["project_name", "="],
+						"compare_fields": [["customer", "="], ["company", "="], ["project", "="],
 							["currency", "="]],
 					},
 				})
@@ -135,12 +135,12 @@ class DeliveryNote(SellingController):
 
 	def validate_proj_cust(self):
 		"""check for does customer belong to same project as entered.."""
-		if self.project_name and self.customer:
+		if self.project and self.customer:
 			res = frappe.db.sql("""select name from `tabProject`
 				where name = %s and (customer = %s or
-					ifnull(customer,'')='')""", (self.project_name, self.customer))
+					ifnull(customer,'')='')""", (self.project, self.customer))
 			if not res:
-				frappe.throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project_name))
+				frappe.throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
 	def validate_for_items(self):
 		check_list, chk_dupl_itm = [], []
@@ -201,7 +201,7 @@ class DeliveryNote(SellingController):
 		self.make_gl_entries()
 
 	def on_cancel(self):
-		self.check_stop_or_close_sales_order("against_sales_order")
+		self.check_close_sales_order("against_sales_order")
 		self.check_next_docstatus()
 
 		self.update_prevdoc_status()
