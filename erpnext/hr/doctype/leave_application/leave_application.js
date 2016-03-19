@@ -86,6 +86,7 @@ frappe.ui.form.on("Leave Application", {
 
 	calculate_total_days: function(frm) {
 		if(frm.doc.from_date && frm.doc.to_date) {
+			
 			if (cint(frm.doc.half_day)==1) {
 				frm.set_value("total_leave_days", 0.5);
 			} else if (frm.doc.employee && frm.doc.leave_type){

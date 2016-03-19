@@ -31,8 +31,6 @@ def get_template():
 	frappe.response['doctype'] = "Attendance"
 
 def add_header(w):
-	w.writerow(["Notes:"])
-	w.writerow(["Please do not change the template headings"])
 	w.writerow(["Employee", "Att Date", "Arrival Time", "Departure Time"])
 	return w
 
@@ -100,25 +98,28 @@ def upload():
 	if not rows:
 		msg = [_("Please select a csv file")]
 		return {"messages": msg, "error": msg}
-	columns = [scrub(f) for f in rows[2]]
+	columns = [scrub(f) for f in rows[0]]
+	columns[0] = "employee"
+	columns[1] = "att_date"
+	columns[2] = "arrival_time"
+	columns[3] = "departure_time"
 	ret = []
 	error = False
 
 	from frappe.utils.csvutils import check_record, import_doc
 
-	for i, row in enumerate(rows[3:]):
+	for i, row in enumerate(rows[1:]):
 		if not row: continue
-		row_idx = i + 3
+		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
 		#if d.name:
 		#	d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
 		
 		d["fiscal_year"] = get_datetime(d.att_date).strftime("%Y")
-			
 		try:
 			check_record(d)
-			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=True))
+			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
 		except Exception, e:
 			error = True
 			ret.append('Error for row (#%d) %s : %s' % (row_idx,

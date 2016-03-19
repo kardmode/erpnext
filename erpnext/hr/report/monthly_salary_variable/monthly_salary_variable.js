@@ -29,6 +29,12 @@ frappe.query_reports["Monthly Salary Variable"] = {
 			"label": __("Company"),
 			"fieldtype": "Link",
 			"options": "Company",
+		},
+		{
+			"fieldname":"alternate",
+			"label": __("Move benefits to variable pay"),
+			"fieldtype": "Check",
+			"default": 0,
 		}
 	]
 }

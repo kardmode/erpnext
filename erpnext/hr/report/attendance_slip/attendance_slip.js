@@ -29,7 +29,6 @@ frappe.query_reports["Attendance Slip"] = {
 			"label": __("Company"),
 			"fieldtype": "Link",
 			"options": "Company",
-			"default": frappe.defaults.get_user_default("company")
 		}
 	]
 }

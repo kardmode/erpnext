@@ -4,11 +4,30 @@ frappe.ui.form.on("Employee Attendance Tool", {
 	},
 
 	onload: function(frm) {
+		doc = frm.doc;
+		doc.date = get_today();
+			doc.arrival_time = "05:30:00";
+			doc.departure_time = "23:30:00";
+			refresh_many(['date','arrival_time','departure_time']);
+		
 		erpnext.employee_attendance_tool.load_employees(frm);
 	},
 
+
 	date: function(frm) {
-		erpnext.employee_attendance_tool.load_employees(frm);
+		
+			erpnext.employee_attendance_tool.load_employees(frm);
+		
+	},
+	
+	to_date: function(frm) {
+		if (frm.doc.to_date < frm.doc.date) {
+			msgprint("You can not select past date");
+		}
+		else{
+			erpnext.employee_attendance_tool.load_employees(frm);
+		}
+		
 	},
 
 	department: function(frm) {
@@ -123,9 +142,7 @@ erpnext.EmployeeSelector = Class.extend({
 			</div>').appendTo($(this.wrapper));
 
 		var mark_employee_toolbar = $('<div class="col-sm-12 bottom-toolbar">\
-			<button class="btn btn-primary btn-mark-present btn-xs"></button>\
-			<button class="btn btn-default btn-mark-absent btn-xs"></button>\
-			<button class="btn btn-default btn-mark-half-day btn-xs"></button></div>')
+		<button class="btn btn-primary btn-mark-times btn-xs"></button></div>')
 
 		employee_toolbar.find(".btn-add")
 			.html(__('Check all'))
@@ -220,6 +237,14 @@ erpnext.EmployeeSelector = Class.extend({
 						erpnext.employee_attendance_tool.load_employees(frm);
 
 					}
+				});
+			});
+		
+		mark_employee_toolbar.find(".btn-mark-times")
+			.html(__('Mark Times'))
+			.on("click", function() {
+				return $c_obj(doc, 'mark_employee_times','',function(r, rt) {
+					erpnext.employee_attendance_tool.load_employees(cur_frm);
 				});
 			});
 

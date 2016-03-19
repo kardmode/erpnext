@@ -66,23 +66,23 @@ cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 		var callback = function(r, rt){
 			if (r.message)
 			{
-				var names = [];
+				var docname = [];
 				
 				r.message.forEach(function (element, index) {
-					names.push(element[0]);
+					docname.push(element[0]);
 				});
 				
-				var json_string = JSON.stringify(names);
-				console.log(json_string);
-								
-				var w = window.open("/api/method/frappe.templates.pages.print.download_multi_pdf?"
-					+"doctype="+encodeURIComponent("Salary Slip")
-					+"&name="+encodeURIComponent(json_string)
-					+"&format="+encodeURIComponent("Salary Slip Multi")
-					+"&no_letterhead="+encodeURIComponent('0'));
+				if(docname.length >= 1){
+					var json_string = JSON.stringify(docname);								
+					var w = window.open("/api/method/frappe.templates.pages.print.download_multi_pdf?"
+						+"doctype="+encodeURIComponent("Salary Slip")
+						+"&name="+encodeURIComponent(json_string)
+						+"&format="+encodeURIComponent("Salary Slip Multi")
+						+"&no_letterhead="+"0");
 					if(!w) {
 						msgprint(__("Please enable pop-ups")); return;
 					}
+				}
 			}
 		}
 

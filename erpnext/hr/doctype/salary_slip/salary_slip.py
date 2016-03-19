@@ -18,7 +18,7 @@ from erpnext.utilities.transaction_base import TransactionBase
 
 class SalarySlip(TransactionBase):
 	def autoname(self):
-		self.name = make_autoname('Sal Slip/' +self.employee + '/.#####')
+		self.name = make_autoname(self.employee + '-SS-.#####')
 
 	def get_attendance_detailstoo(self):
 		if self.employee:
