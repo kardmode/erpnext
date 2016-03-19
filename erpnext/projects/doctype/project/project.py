@@ -13,38 +13,29 @@ class Project(Document):
 
 	
 
-	def print_summary(self):
+	def print_summary(self, document):
 	
 		ss_list = []
 		format = ""
 		doctype = ""
-		if self.summary_type.lower() == "quotation":
-			format = "Quotation"
+		if document.lower() == "quotation":
 			doctype = "Quotation"
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabQuotation` t1 
-				where project_reference = %s and docstatus <2""", self.project_name)
-		elif self.summary_type.lower() == "quotation":
-			format = "BOQ"
-			doctype = "Quotation"
-			ss_list = frappe.db.sql("""
-				select t1.name from `tabQuotation` t1 
-				where project_reference = %s and docstatus <2""", self.project_name)
-		elif self.summary_type.lower() == "sales invoice":
+				where project_name = %s""", self.project_name)
+		elif document.lower() == "sales invoice":
 			doctype = "Sales Invoice"
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabSales Invoice` t1 
-				where project_reference = %s and docstatus <2""", self.project_name)
-		elif self.summary_type.lower() == "delivery note":
+				where project_name = %s""", self.project_name)
+		elif document.lower() == "delivery note":
 			doctype = "Delivery Note"
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabDelivery Note` t1 
-				where project_reference = %s and docstatus <2""", self.project_name)
+				where project_name = %s""", self.project_name)
 		
-		if not len(ss_list):
-			frappe.throw(_("No entries found"))
 		
-		return ss_list,doctype,format
+		return ss_list,doctype
 
 		
 	def get_feed(self):
