@@ -31,7 +31,7 @@ class SellingController(StockController):
 		super(SellingController, self).validate()
 		self.validate_max_discount()
 		check_active_sales_items(self)
-
+		check_header_items(self)
 	def set_missing_values(self, for_validate=False):
 		super(SellingController, self).set_missing_values(for_validate)
 
@@ -237,3 +237,24 @@ def check_active_sales_items(obj):
 			if getattr(d, "income_account", None) and not item.income_account:
 				frappe.db.set_value("Item", d.item_code, "income_account",
 					d.income_account)
+					
+def check_header_items(obj):
+
+	
+	items = obj.get("items")
+	
+	if items:
+		first_item = items[0]
+		has_header = 0
+		has_headers = 0
+		if str(first_item.item_group).lower() in ["header1","header2"]:
+			has_header = 1
+			
+		count = 0
+		for d in items:
+			if count > 0 and str(d.item_group).lower() in ["header1","header2"]:
+				has_headers = 1
+		
+			count = count +1
+		if not has_header and has_headers:
+			frappe.msgprint(_("Your items have headers but the first item is not a header."))
