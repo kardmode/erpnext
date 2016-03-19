@@ -7,6 +7,8 @@ import json
 from frappe.utils import cstr, flt
 from frappe import msgprint, _, throw
 from frappe.model.mapper import get_mapped_doc
+from frappe.model.naming import make_autoname
+
 from erpnext.controllers.buying_controller import BuyingController
 from erpnext.stock.doctype.item.item import get_last_purchase_details
 from erpnext.stock.stock_balance import update_bin_qty, get_ordered_qty
@@ -18,6 +20,8 @@ form_grid_templates = {
 }
 
 class PurchaseOrder(BuyingController):
+	def autoname(self):
+		self.name = make_autoname('PO-'+ self.fiscal_year + '.#####')
 	def __init__(self, arg1, arg2=None):
 		super(PurchaseOrder, self).__init__(arg1, arg2)
 		self.status_updater = [{
