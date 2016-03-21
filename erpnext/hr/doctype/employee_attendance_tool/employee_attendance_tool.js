@@ -2,7 +2,7 @@ frappe.ui.form.on("Employee Attendance Tool", {
 	refresh: function(frm) {
 		frm.disable_save();
 	},
-
+	
 	onload: function(frm) {
 		doc = frm.doc;
 		doc.date = get_today();
@@ -41,8 +41,7 @@ frappe.ui.form.on("Employee Attendance Tool", {
 	company: function(frm) {
 		erpnext.employee_attendance_tool.load_employees(frm);
 	}
-
-
+	
 });
 
 
