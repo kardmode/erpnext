@@ -29,7 +29,7 @@ class SalarySlip(TransactionBase):
 			self.absent_days = 0
 			self.unverified_days
 			
-			conditions = "employee = %(employee)s and month(att_date) = %(month)s and fiscal_year = %(fiscal_year)s"
+			conditions = "employee = %(employee)s and month(att_date) = %(month)s and year(att_date) = %(fiscal_year)s"
 
 			vars = frappe.db.sql("""select overtime,overtime_fridays,overtime_holidays, att_date, status from tabAttendance where %s order by att_date""" %
 			conditions,{"employee": self.employee,"month": self.month,"fiscal_year":self.fiscal_year}, as_dict=True)

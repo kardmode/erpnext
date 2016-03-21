@@ -25,7 +25,9 @@ class WarehouseRequired(frappe.ValidationError): pass
 class SalesOrder(SellingController):
 
 	def autoname(self):
-		self.name = make_autoname('SO-'+ self.fiscal_year + '.#####')
+		import datetime
+		year = (getdate(self.transaction_date)).year
+		self.name = make_autoname('SO-'+ str(year) + '.#####')
 	def validate(self):
 		super(SalesOrder, self).validate()
 

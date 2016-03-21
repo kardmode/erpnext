@@ -73,7 +73,7 @@ def execute(filters=None):
 
 		row = ['', '', '','']
 
-		row += ['Totals','', '',total_nt,total_ot, total_otf, total_oth]
+		row += ['Total','', '',total_nt,total_ot, total_otf, total_oth]
 		data.append(row)
 	return columns, data
 
@@ -123,7 +123,7 @@ def get_conditions(filters):
 	
 	filters["total_days_in_month"] = monthrange(cint(year), filters.month)[1]
 
-	conditions = "month(att_date) = %(month)s and fiscal_year = %(fiscal_year)s"
+	conditions = "month(att_date) = %(month)s and year(att_date) = %(fiscal_year)s"
 
 	if filters.get("employee"): conditions += " and employee = %(employee)s"
 	elif filters.get("company"): conditions += " and company = %(company)s"

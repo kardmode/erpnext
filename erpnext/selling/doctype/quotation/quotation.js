@@ -49,9 +49,7 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 			
 		}
 		
-
 		this.toggle_reqd_lead_customer();
-		
 	},
 	
 	
@@ -114,6 +112,7 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 			}
 		})
 	}
+
 });
 
 cur_frm.script_manager.make(erpnext.selling.QuotationController);
@@ -170,18 +169,9 @@ frappe.ui.form.on("Quotation Item", "items_on_form_rendered", function(frm, cdt,
 	// enable tax_amount field if Actual
 })
 
-// Table modified
-// ------------------------------------------------------------------------
 
-frappe.ui.form.on("Quotation Item", "items_remove", function(frm,dt,dn){
-	calculate_headers();
 
-})
-
-frappe.ui.form.on("Quotation Item", "qty", function(frm,dt,dn){
-})
-
-cur_frm.fields_dict['project_name'].get_query = function(doc, cdt, cdn) {
+cur_frm.fields_dict['project'].get_query = function(doc, cdt, cdn) {
 	return {
 		query: "erpnext.controllers.queries.get_project_name",
 		filters: {

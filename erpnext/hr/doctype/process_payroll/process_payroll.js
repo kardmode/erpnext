@@ -101,4 +101,9 @@ cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 
 frappe.ui.form.on("Process Payroll", "refresh", function(frm) {
 	frm.disable_save();
+	
+	cur_frm.add_custom_button(__("Attendance Slips"), function() {
+						window.location.href = 'desk#query-report/Attendance%20Slip';
+					});
+		
 });

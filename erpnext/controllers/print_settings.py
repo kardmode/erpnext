@@ -8,17 +8,17 @@ from frappe.utils import cint
 def print_settings_for_item_table(doc):
 
 	doc.print_templates = {
+		"description": "templates/print_formats/includes/item_table_description.html",
 		"qty": "templates/print_formats/includes/item_table_qty.html"
 	}
+	
 	doc.hide_in_print_layout = ["item_code", "item_name", "image", "uom", "stock_uom"]
 	
-	#doc.hide_in_print_layout = ["uom", "stock_uom"]
 
 	doc.flags.compact_item_print = cint(frappe.db.get_value("Features Setup", None, "compact_item_print"))
 
 	if doc.flags.compact_item_print:
 		doc.print_templates["description"] = "templates/print_formats/includes/item_table_description.html"
-		doc.hide_in_print_layout += ["item_code", "item_name", "image"]
 
 		doc.flags.compact_item_fields = ["description", "qty", "rate", "amount"]
 		doc.flags.show_in_description = []
@@ -36,15 +36,10 @@ def print_settings_for_buying_item_table(doc):
 		"qty": "templates/print_formats/includes/item_table_qty.html"
 	}
 	doc.hide_in_print_layout = ["item_code", "item_name", "image", "uom", "stock_uom"]
-	
-	#doc.hide_in_print_layout = ["uom", "stock_uom"]
 
 	doc.flags.compact_item_print = cint(frappe.db.get_value("Features Setup", None, "compact_item_print"))
 
 	if doc.flags.compact_item_print:
-		doc.print_templates["description"] = "templates/print_formats/includes/item_table_description.html"
-		doc.hide_in_print_layout += ["item_code", "item_name", "image"]
-
 		doc.flags.compact_item_fields = ["description", "qty", "rate", "amount"]
 		doc.flags.show_in_description = []
 

@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 import json
-from frappe.utils import cstr, flt
+from frappe.utils import cstr, flt, getdate
 from frappe import msgprint, _, throw
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.naming import make_autoname
@@ -21,7 +21,9 @@ form_grid_templates = {
 
 class PurchaseOrder(BuyingController):
 	def autoname(self):
-		self.name = make_autoname('PO-'+ self.fiscal_year + '.#####')
+		import datetime
+		year = (getdate(self.transaction_date)).year
+		self.name = make_autoname('PO-'+ str(year) + '.#####')
 	def __init__(self, arg1, arg2=None):
 		super(PurchaseOrder, self).__init__(arg1, arg2)
 		self.status_updater = [{

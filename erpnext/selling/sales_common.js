@@ -14,13 +14,11 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	validate:function(){
 		this._super();		
 		this.calculate_headers();
-		
 	},
 	
 	onload: function() {
 		this._super();
 		this.setup_queries();
-		this.calculate_headers();
 	},
 
 	setup_queries: function() {
@@ -100,7 +98,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		}
 		this.toggle_editable_price_list_rate();
 		
-		this.calculate_headers();
+		if (cur_frm.doc.items)
+			this.refresh_headers();
 		
 		cur_frm.add_custom_button(__("Quotation Report"), function() {
 						window.location.href = 'desk#query-report/Quotation%20Report';
@@ -169,7 +168,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 										cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
 										
 									});
-								refresh_field("items");
+								me.calculate_headers();
+								me.refresh_headers();
 							}
 							
 							$.each(r.messages, function(i, v) {
@@ -228,8 +228,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 
 		item.rate = flt(item.price_list_rate * (1 - item.discount_percentage / 100.0),
 			precision("rate", item));
-		
-		this.set_gross_profit(item);
+
 		this.calculate_taxes_and_totals();
 	},
 
@@ -240,7 +239,6 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		} else {
 			this.price_list_rate(doc, cdt, cdn);
 		}
-		this.set_gross_profit(item);
 	},
 
 	commission_rate: function() {
@@ -283,21 +281,16 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 
 	warehouse: function(doc, cdt, cdn) {
 		var me = this;
+		this.batch_no(doc, cdt, cdn);
 		var item = frappe.get_doc(cdt, cdn);
-		
 		if(item.item_code && item.warehouse) {
 			return this.frm.call({
-				method: "erpnext.stock.get_item_details.get_bin_details",
+				method: "erpnext.stock.get_item_details.get_available_qty",
 				child: item,
 				args: {
 					item_code: item.item_code,
 					warehouse: item.warehouse,
 				},
-				callback:function(r){
-					if (inList(['Delivery Note', 'Sales Invoice'], doc.doctype)) {
-						me.batch_no(doc, cdt, cdn);
-					}
-				}
 			});
 		}
 	},
@@ -406,7 +399,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			callback: function(r) {
 				if(!r.exc){
 					var doc = frappe.model.sync(r.message);
-					console.log(r.message)
+					console.log(r.message);
 					frappe.set_route("Form", r.message.doctype, r.message.name);
 				}
 			}
@@ -414,9 +407,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	},
 	
 	
-	
-	calculate_headers : function(){
-		
+	refresh_headers : function(){
 		var items = cur_frm.doc.items;
 		if (!items){
 			return;
@@ -424,21 +415,46 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		$.each(items, function(i, d) {
 			var data_row = cur_frm.page.body.find('[data-fieldname="items"] [data-idx="'+ d.idx +'"] .data-row');
 			data_row.removeClass("highlight-custom");
-			//item_group_parent = get_parent_group(d.item_group);
-			if (d.item_group == "Header1"){
-				
-				
+			if (d.item_group == "Header1"){		
 				data_row.addClass("highlight-custom");
-				
-				
+			} else if (d.item_group == "Header2"){
+				data_row.addClass("highlight-custom");					
+			}
+		});
+		refresh_field("items");
+		
+	},
+	
+	calculate_headers : function(){
+		console.log("calcing headers")
+		
+		/* var me = this;
+		frappe.call({
+			method:"erpnext.selling.doctype.quotation.quotation.calculate_headers",
+			args: {
+				"doc": cur_frm.doc,
+				"items": cur_frm.doc.items
+			},
+			callback: function(r) {
+				me.refresh_headers();
+			}
+		})
+		
+		return; */
+		
+		
+		var items = cur_frm.doc.items;
+		if (!items){
+			return;
+		}
+		$.each(items, function(i, d) {
+	
+			if (d.item_group == "Header1"){
+
 				var sum = 0;
-						
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
+
 				for (var j = i+1; j < items.length; ++j) {
 					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
 					if (testitem.item_group == d.item_group)
 						break;
 					else if (testitem.item_group == "Header2") {
@@ -450,19 +466,15 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				d.qty = 0;
 				d.rate = sum;
 				d.amount = 0;
-				d.page_break = 1
+				d.page_break = 1;
 
 				if (d.idx == 1)
-					d.page_break = 0
+					d.page_break = 0;
 			} else if (d.item_group == "Header2"){
 				var sum = 0;
-				data_row.addClass("highlight-custom");		
-				// next item group equal to current - break
-				// next item group is parent of current - break
-				// next item group is child of current - return
+
 				for (var j = i+1; j < items.length; ++j) {
 					var testitem = items[j];
-					//get_child_groups(d.item_group,testitem.item_group);
 					if (testitem.item_group == d.item_group)
 						break;
 					else if (testitem.item_group == "Header1") {
@@ -478,7 +490,6 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			
 			}
 		});
-		refresh_field("items");
 	}
 });
 
@@ -499,4 +510,34 @@ frappe.ui.form.on(cur_frm.doctype,"project", function(frm) {
 	}
 })
 
+// Table modified
+// ------------------------------------------------------------------------
+frappe.ui.form.on(cur_frm.doctype + " Item", "Quotation Item_hide", function(frm,dt,dn){
+	//frm.cscript.calculate_headers();
+	//frm.cscript.refresh_headers();
+	//cur_frm.refresh();
+	//console.log("hide");
+})
 
+frappe.ui.form.on(cur_frm.doctype + " Item", "items_refresh", function(frm,dt,dn){
+	//frm.cscript.calculate_headers();
+	//frm.cscript.refresh_headers();
+	//cur_frm.refresh();
+	//console.log("refresh");
+})
+
+frappe.ui.form.on(cur_frm.doctype + " Item", "items_remove", function(frm,dt,dn){
+	//frm.cscript.calculate_headers();
+	//frm.cscript.refresh_headers();
+	cur_frm.refresh();
+})
+
+frappe.ui.form.on(cur_frm.doctype + " Item", "items_add", function(frm,dt,dn){
+	//frm.cscript.calculate_headers();
+	//frm.cscript.refresh_headers();
+	//cur_frm.refresh;
+})
+
+frappe.ui.form.on(cur_frm.doctype + " Item", "qty", function(frm,dt,dn){
+	//frm.cscript.calculate_headers();
+})

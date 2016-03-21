@@ -17,9 +17,8 @@ def execute(filters=None):
 		return columns, data
 	
 	quotation_list = get_quotation(conditions, filters)
-	project_name = filters["project_name"]
-	row = ["",project_name,"","", "" ,"", "","",""]
-	data.append(row)
+	project = filters["project"]
+
 	total_item_list = []
 	quotation_names = ""
 	
@@ -101,10 +100,10 @@ def get_quotation(conditions, filters):
 
 def get_conditions(filters):
 	conditions = ""
-	if not filters.get("project_name"):
+	if not filters.get("project"):
 		return conditions,filters
 	
-	if filters.get("project_name"): conditions = "project_name = %(project_name)s"
+	if filters.get("project"): conditions = "project = %(project)s"
 
 
 	return conditions, filters

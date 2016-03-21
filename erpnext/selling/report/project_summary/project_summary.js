@@ -4,7 +4,7 @@
 frappe.query_reports["Project Summary"] = {
 	"filters": [
 		{
-			"fieldname":"project_name",
+			"fieldname":"project",
 			"label": __("Project"),
 			"fieldtype": "Link",
 			"options": "Project",

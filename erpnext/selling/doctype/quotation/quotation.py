@@ -6,6 +6,8 @@ import frappe
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.naming import make_autoname
 from frappe import _
+from frappe.utils import getdate
+
 
 from erpnext.controllers.selling_controller import SellingController
 
@@ -15,7 +17,9 @@ form_grid_templates = {
 
 class Quotation(SellingController):
 	def autoname(self):
-		self.name = make_autoname('QTN-'+ self.fiscal_year + '.#####')
+		import datetime
+		year = (getdate(self.transaction_date)).year
+		self.name = make_autoname('QTN-'+ str(year) + '.#####')
 	def validate(self):
 		super(Quotation, self).validate()
 		self.set_status()
@@ -98,8 +102,8 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 		target.flags.ignore_permissions = ignore_permissions
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
-		if source.project_name:
-			target.project_name = source.project_name
+		if source.project:
+			target.project = source.project
 		
 	doclist = get_mapped_doc("Quotation", source_name, {
 			"Quotation": {
@@ -160,7 +164,54 @@ def _make_customer(source_name, ignore_permissions=False):
 		else:
 			return customer_name
 
+@frappe.whitelist()
+def calculate_headers(**args):	
+	
+	args = frappe._dict(args)
+	
+	items = args.items
+	if (not items):
+		return
+	
+	for i, d in enumerate(items):
 		
+		if d.item_group == "Header1":
+			sum = 0
+			
+			for j in range(i+1,len(items)): 
+				testitem = items[j]
+
+				if testitem.item_group == d.item_group:
+					break
+				elif testitem.item_group == "Header2":
+					break
+				else:
+					sum = sum + testitem.amount
+			d.qty = 0
+			d.rate = sum
+			d.amount = 0
+			d.page_break = 1
+
+		elif d.item_group == "Header2":
+			sum = 0
+		
+			for j in range(i+1,len(items)): 
+				testitem = items[j]
+
+				if testitem.item_group == d.item_group:
+					break
+				elif testitem.item_group == "Header2":
+					break
+				else:
+					sum = sum + testitem.amount
+			d.qty = 0
+			d.rate = sum
+			d.amount = 0
+			d.page_break = 1
+			
+	return []
+		
+
 			
 @frappe.whitelist()
 def upload():

@@ -33,9 +33,8 @@ class Attendance(Document):
 			holidays = frappe.db.sql("""select t1.holiday_date
 				from `tabHoliday` t1, `tabHoliday List` t2
 				where t1.parent = t2.name and t2.is_default = 1
-				and t2.fiscal_year = %s
 				and t1.holiday_date between %s and %s""", 
-				(self.fiscal_year, start_date, end_date))
+				(start_date, end_date))
 		
 		holidays = [cstr(i[0]) for i in holidays]
 		return holidays
@@ -117,9 +116,6 @@ class Attendance(Document):
 		
 		employee_company = frappe.db.get_value("Employee", self.employee, "company")
 		frappe.db.set(self, 'company', employee_company)
-		
-		fiscal_year = get_datetime(self.att_date).strftime("%Y")
-		frappe.db.set(self, 'fiscal_year', fiscal_year)
 
 		naming_series = "ATT-"
 		frappe.db.set(self, 'naming_series', naming_series)

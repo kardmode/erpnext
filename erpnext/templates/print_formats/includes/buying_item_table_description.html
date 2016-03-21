@@ -1,13 +1,20 @@
 
+{%- set compact = doc.flags.compact_item_print -%}
+{%- set compact_fields = doc.flags.compact_item_fields -%}
+
 <div>
     {% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
-    	<div class="primary"><b>{{ doc.item_code }}</div>
-    {%- endif %}
+		<div class="primary">
+			{% if compact %}<strong>{% endif %}
+				{{ _(doc.item_code) }}
+			{% if compact %}</strong>{% endif %}
+		</div>
+	{%- endif %}
     {% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
-    	(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
+		(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
 			or doc.item_code != doc.item_name)) -%}
-    	<div class="primary"><b>{{ doc.get_formatted("item_name") }}</b></div>
-    {%- endif %}
+		<div class="primary"><strong>{{ doc.get_formatted("item_name", translated=True) }}</strong></div>
+	{%- endif %}
 
     
 </div>

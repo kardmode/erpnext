@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import flt, cint
+from frappe.utils import flt, cint, getdate
 
 from frappe import msgprint, _
 import frappe.defaults
@@ -22,7 +22,9 @@ form_grid_templates = {
 class DeliveryNote(SellingController):
 
 	def autoname(self):
-		self.name = make_autoname('DN-'+ self.fiscal_year + '.#####')
+		import datetime
+		year = (getdate(self.transaction_date)).year
+		self.name = make_autoname('DN-'+ str(year) + '.#####')
 		
 	def __init__(self, arg1, arg2=None):
 		super(DeliveryNote, self).__init__(arg1, arg2)

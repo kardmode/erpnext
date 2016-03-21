@@ -114,7 +114,6 @@ def upload():
 		#if d.name:
 		#	d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
 		
-		d["fiscal_year"] = get_datetime(d.att_date).strftime("%Y")
 		try:
 			check_record(d)
 			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
