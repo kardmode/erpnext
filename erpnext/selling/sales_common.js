@@ -13,7 +13,6 @@ cur_frm.email_field = "contact_email";
 erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	validate:function(){
 		this._super();		
-		this.calculate_headers();
 	},
 	
 	onload: function() {
@@ -98,101 +97,104 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		}
 		this.toggle_editable_price_list_rate();
 		
-		if (cur_frm.doc.items)
-			this.refresh_headers();
-		
+		if (cur_frm.doc.items){
+			//this.refresh_headers();
+		}
 		cur_frm.add_custom_button(__("Quotation Report"), function() {
-						window.location.href = 'desk#query-report/Quotation%20Report';
-					});
+			window.location.href = 'desk#query-report/Quotation%20Report';
+		}, __("Reports"), "btn-default");
+
+		cur_frm.add_custom_button(__("Item Summary By Project"), function() {
+					window.location.href = 'desk#query-report/Item%20Summary%20By%20Project';
+				}, __("Reports"), "btn-default");
 		
-		cur_frm.add_custom_button(__("Project Item Report"), function() {
-						window.location.href = 'desk#query-report/Item%20Summary%20By%20Project';
-					});
-		if (this.frm.doc.docstatus===0) {
+		cur_frm.add_custom_button(__("Item Summary By Document"), function() {
+					window.location.href = 'desk#query-report/Item%20Summary%20By%20Document';
+				}, __("Reports"), "btn-default");
+		
+		cur_frm.add_custom_button(__('CSV'),
+			function() {
+				var me = this;
 
-			cur_frm.add_custom_button(__('CSV'),
-				function() {
-					var me = this;
+				var dialog = new frappe.ui.Dialog({
+					title: "Add items from CSV",
+					fields: [
+						{"fieldtype": "HTML", "label": __(""), "fieldname": "import_html",
+							"reqd": 1 },
+						{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log",
+							"reqd": 1 },
+						{"fieldtype": "Check", "label": __("Keep Previous Entries"), "fieldname": "keep_previous"},
+						{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
+					]
+				});
 
-					var dialog = new frappe.ui.Dialog({
-						title: "Add items from CSV",
-						fields: [
-							{"fieldtype": "HTML", "label": __(""), "fieldname": "import_html",
-								"reqd": 1 },
-							{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log",
-								"reqd": 1 },
-							{"fieldtype": "Check", "label": __("Keep Previous Entries"), "fieldname": "keep_previous"},
-							{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
-						]
-					});
+				var $wrapper = $(dialog.fields_dict.import_html.wrapper).empty();
 
-					var $wrapper = $(dialog.fields_dict.import_html.wrapper).empty();
+				// upload
+				frappe.upload.make({
+					parent: $wrapper,
+					args: {
+						method: 'erpnext.selling.doctype.quotation.quotation.upload',
+					},
+					btn: $(dialog.fields_dict.update.wrapper),
+					callback: function(attachment, r) {
+						var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
+						var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
+						
+						var items = r.message.items;
+						var messages = r.message.messages;
+						var error = r.message.error;
+						if(!r.messages) r.messages = [];
 
-					// upload
-					frappe.upload.make({
-						parent: $wrapper,
-						args: {
-							method: 'erpnext.selling.doctype.quotation.quotation.upload',
-						},
-						btn: $(dialog.fields_dict.update.wrapper),
-						callback: function(attachment, r) {
-							var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
-							var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
+						r.messages = $.map(messages, function(v) {
+							return v;
+						});
+						
+						if (error){
+							r.messages = ["<h4 style='color:red'>"+__("Import Failed")+"</h4>"]
+								.concat(r.messages)
+
+						} else {
+							r.messages = ["<h4 style='color:green'>"+__("Import Succeeded")+"</h4>"]
+								.concat(r.messages)
 							
-							var items = r.message.items;
-							var messages = r.message.messages;
-							var error = r.message.error;
-							if(!r.messages) r.messages = [];
-
-							r.messages = $.map(messages, function(v) {
-								return v;
-							});
-							
-							if (error){
-								r.messages = ["<h4 style='color:red'>"+__("Import Failed")+"</h4>"]
-									.concat(r.messages)
-
-							} else {
-								r.messages = ["<h4 style='color:green'>"+__("Import Succeeded")+"</h4>"]
-									.concat(r.messages)
-								
-								if(!$keep_previous.is(":checked")){	
-									 cur_frm.doc.items = [];
-								}
-								$.each(items, function(i, item) {
-									var d = frappe.model.add_child(cur_frm.doc, "Quotation Item", "items");
-										d.item_code = item.item_code;
-										d.qty = item.qty;
-										d.page_break = item.page_break;
-										console.log(d);
-										cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
-										
-									});
-								me.calculate_headers();
-								me.refresh_headers();
+							if(!$keep_previous.is(":checked")){	
+								 cur_frm.doc.items = [];
 							}
-							
-							$.each(r.messages, function(i, v) {
-								var $p = $('<p>').html(v).appendTo($log_wrapper);
-								if(v.substr(0,5)=='Error') {
-									$p.css('color', 'red');
-								}else if(v.substr(0,6)=='Header') {
-									$p.css('color', 'green');
-								} else if(v.substr(0,7)=='Updated') {
-									$p.css('color', 'green');
-								}
-							});
-						},
-						is_private: false
-					});
+							$.each(items, function(i, item) {
+								var d = frappe.model.add_child(cur_frm.doc, "Quotation Item", "items");
+									d.item_code = item.item_code;
+									d.qty = item.qty;
+									d.page_break = item.page_break;
+									console.log(d);
+									cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+									
+								});
+							//me.calculate_headers();
+							me.refresh_headers();
+						}
+						
+						$.each(r.messages, function(i, v) {
+							var $p = $('<p>').html(v).appendTo($log_wrapper);
+							if(v.substr(0,5)=='Error') {
+								$p.css('color', 'red');
+							}else if(v.substr(0,6)=='Header') {
+								$p.css('color', 'green');
+							} else if(v.substr(0,7)=='Updated') {
+								$p.css('color', 'green');
+							}
+						});
+					},
+					is_private: false
+				});
 
-					
-					dialog.show();
+				
+				dialog.show();
 
-					
-					
-				}, __("Get items from"), "btn-default");
-			}
+				
+				
+			}, __("Get items from"), "btn-default");
+	
 		
 		
 	},
@@ -281,16 +283,21 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 
 	warehouse: function(doc, cdt, cdn) {
 		var me = this;
-		this.batch_no(doc, cdt, cdn);
 		var item = frappe.get_doc(cdt, cdn);
+		
 		if(item.item_code && item.warehouse) {
 			return this.frm.call({
-				method: "erpnext.stock.get_item_details.get_available_qty",
+				method: "erpnext.stock.get_item_details.get_bin_details",
 				child: item,
 				args: {
 					item_code: item.item_code,
 					warehouse: item.warehouse,
 				},
+				callback:function(r){
+					if (inList(['Delivery Note', 'Sales Invoice'], doc.doctype)) {
+						me.batch_no(doc, cdt, cdn);
+					}
+				}
 			});
 		}
 	},
@@ -408,12 +415,14 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	
 	
 	refresh_headers : function(){
+		console.log("refresh headers")
+
 		var items = cur_frm.doc.items;
 		if (!items){
 			return;
 		}
 		$.each(items, function(i, d) {
-			var data_row = cur_frm.page.body.find('[data-fieldname="items"] [data-idx="'+ d.idx +'"] .data-row');
+			var data_row = cur_frm.page.body.find('[data-fieldname="items"] [data-idx="'+ d.idx +'"]');
 			data_row.removeClass("highlight-custom");
 			if (d.item_group == "Header1"){		
 				data_row.addClass("highlight-custom");
@@ -426,69 +435,10 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	},
 	
 	calculate_headers : function(){
-		console.log("calcing headers")
-		
-		/* var me = this;
-		frappe.call({
-			method:"erpnext.selling.doctype.quotation.quotation.calculate_headers",
-			args: {
-				"doc": cur_frm.doc,
-				"items": cur_frm.doc.items
-			},
-			callback: function(r) {
-				me.refresh_headers();
-			}
-		})
-		
-		return; */
-		
-		
-		var items = cur_frm.doc.items;
-		if (!items){
-			return;
-		}
-		$.each(items, function(i, d) {
-	
-			if (d.item_group == "Header1"){
-
-				var sum = 0;
-
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header2") {
-						break;
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-				d.page_break = 1;
-
-				if (d.idx == 1)
-					d.page_break = 0;
-			} else if (d.item_group == "Header2"){
-				var sum = 0;
-
-				for (var j = i+1; j < items.length; ++j) {
-					var testitem = items[j];
-					if (testitem.item_group == d.item_group)
-						break;
-					else if (testitem.item_group == "Header1") {
-						break;
-					} else {
-						sum = sum + testitem.amount;
-					} 
-				}
-				d.qty = 0;
-				d.rate = sum;
-				d.amount = 0;
-				d.page_break = 0
-			
-			}
+		console.log("calculating headers")
+		return $c_obj(doc, 'calculate_headers','',function(r, rt) {
+			var doc = locals[dt][dn];
+			cur_frm.refresh();
 		});
 	}
 });
@@ -512,24 +462,20 @@ frappe.ui.form.on(cur_frm.doctype,"project", function(frm) {
 
 // Table modified
 // ------------------------------------------------------------------------
-frappe.ui.form.on(cur_frm.doctype + " Item", "Quotation Item_hide", function(frm,dt,dn){
-	//frm.cscript.calculate_headers();
-	//frm.cscript.refresh_headers();
-	//cur_frm.refresh();
-	//console.log("hide");
-})
 
-frappe.ui.form.on(cur_frm.doctype + " Item", "items_refresh", function(frm,dt,dn){
+frappe.ui.form.on(cur_frm.doctype, cur_frm.doctype +"_refresh", function(frm,dt,dn){
 	//frm.cscript.calculate_headers();
-	//frm.cscript.refresh_headers();
+	frm.cscript.refresh_headers();
 	//cur_frm.refresh();
-	//console.log("refresh");
+	//console.log("erererierieirie");
 })
 
 frappe.ui.form.on(cur_frm.doctype + " Item", "items_remove", function(frm,dt,dn){
 	//frm.cscript.calculate_headers();
 	//frm.cscript.refresh_headers();
-	cur_frm.refresh();
+	//cur_frm.refresh();
+	//console.log("remove item");
+	
 })
 
 frappe.ui.form.on(cur_frm.doctype + " Item", "items_add", function(frm,dt,dn){
@@ -538,6 +484,8 @@ frappe.ui.form.on(cur_frm.doctype + " Item", "items_add", function(frm,dt,dn){
 	//cur_frm.refresh;
 })
 
-frappe.ui.form.on(cur_frm.doctype + " Item", "qty", function(frm,dt,dn){
+frappe.ui.form.on(cur_frm.doctype + " Item", "item_code", function(frm,dt,dn){
 	//frm.cscript.calculate_headers();
+	//frm.cscript.refresh_headers();
+	//cur_frm.refresh;
 })

@@ -163,53 +163,6 @@ def _make_customer(source_name, ignore_permissions=False):
 				frappe.throw(_("Please create Customer from Lead {0}").format(lead_name))
 		else:
 			return customer_name
-
-@frappe.whitelist()
-def calculate_headers(**args):	
-	
-	args = frappe._dict(args)
-	
-	items = args.items
-	if (not items):
-		return
-	
-	for i, d in enumerate(items):
-		
-		if d.item_group == "Header1":
-			sum = 0
-			
-			for j in range(i+1,len(items)): 
-				testitem = items[j]
-
-				if testitem.item_group == d.item_group:
-					break
-				elif testitem.item_group == "Header2":
-					break
-				else:
-					sum = sum + testitem.amount
-			d.qty = 0
-			d.rate = sum
-			d.amount = 0
-			d.page_break = 1
-
-		elif d.item_group == "Header2":
-			sum = 0
-		
-			for j in range(i+1,len(items)): 
-				testitem = items[j]
-
-				if testitem.item_group == d.item_group:
-					break
-				elif testitem.item_group == "Header2":
-					break
-				else:
-					sum = sum + testitem.amount
-			d.qty = 0
-			d.rate = sum
-			d.amount = 0
-			d.page_break = 1
-			
-	return []
 		
 
 			

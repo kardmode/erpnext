@@ -20,50 +20,46 @@ def execute(filters=None):
 	if not quotation_list:
 		return columns, data
 	
-	project = filters["project"]
-
+	#project = filters["project"]
 
 	quotation_names = ""
+	
 	for i, quotation in enumerate(quotation_list):
-		quotation_names += "'" + str(quotation.name) + "'"
-		
+		quotation_names += str(quotation.name)
 		if not i == len(quotation_list)-1:
 			quotation_names += ","
 			
 	headers = ["header1","header2","header3"]
+
 	if filters.get("format") == "SO":
-		query = 'select item_code,item_name,description,item_group,stock_uom,SUM(qty) AS qty, brand, SUM(delivered_qty) AS delivered_qty from `tabSales Order Item` where parent IN (%s) GROUP BY item_code' % quotation_names
+		item_list = frappe.db.sql("select item_code,item_name,description,item_group,stock_uom, SUM(qty) AS qty,brand,SUM(delivered_qty) AS delivered_qty from `tabSales Order Item` t2 where t2.parent in (%s) GROUP BY item_code", quotation_names, as_dict = 1)
+
 	else:
-		query = 'select item_code,item_name,description,item_group,stock_uom,SUM(qty) AS qty, brand from `tabQuotation Item` where parent IN (%s) GROUP BY item_code' % quotation_names
+		item_list = frappe.db.sql("select item_code,item_name,description,item_group,stock_uom,SUM(qty) AS qty,brand from `tabQuotation Item` t2 where t2.parent in (%s) GROUP BY item_code", quotation_names, as_dict = 1)
 	
-	item_list = frappe.db.sql(query, as_dict = 1)
-	
+
 	newlist = []
 	for i,item in enumerate(item_list):
 		if not item.item_group.lower() in headers:
 			newlist.append(item)
 			
-	bomitems = {}	
+	bomitems = {}		
 	for item in newlist:
-		
 		
 		from frappe.utils import strip_html_tags
 		item["description"] = strip_html_tags(item["description"])
 		
 		if filters.get("format") == "SO":
 			stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item["item_code"], as_dict = 1)
-			actual_qty = 0
-			if stock_details:
-				actual_qty =flt(stock_details[0])
+			frappe.errprint(stock_details)
+			actual_qty =flt(stock_details[0])
 			row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"], item.delivered_qty, actual_qty]
 		else:
 			row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"]]
 		
-		data.append(row)
-		
 		from erpnext.manufacturing.doctype.bom.bom import get_bom_items
 		bom = frappe.db.get_value("BOM", filters={"item": item["item_code"], "project": project}) or frappe.db.get_value("BOM", filters={"item": item["item_code"], "is_default": 1})
-
+		
 		frappe.errprint(bom)
 		if filters.get("format") == "SO":
 			bomitems = get_bom_items(bom, company="Al Maarifa Lab Supplies LLC",qty = item["qty"])
@@ -78,7 +74,13 @@ def execute(filters=None):
 				data.append(row)
 			row = ["","", "","",""]
 			data.append(row)
+		
+		data.append(row)
+				
 			
+	
+				
+				
 	return columns, data
 	
 def merge(dicts):
@@ -122,10 +124,14 @@ def get_quotation(conditions, filters):
 
 def get_conditions(filters):
 	conditions = ""
-	if not filters.get("project"):
-		return conditions,filters
 	
-	if filters.get("project"): conditions = "project = %(project)s"
-
+	if filters.get("format") == "SO":
+		if not filters.get("salesorder"):
+			return conditions,filters
+		conditions = "name = %(salesorder)s"
+	else:
+		if not filters.get("quotation"):
+				return conditions,filters
+		conditions = "name = %(quotation)s"	
 
 	return conditions, filters

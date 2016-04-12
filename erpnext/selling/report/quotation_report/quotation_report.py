@@ -126,17 +126,18 @@ def execute(filters=None):
 			data.append([])
 			
 			if quotation.discount_amount:
-				row = ["","Discount Amount","","", "" ,"", "","",quotation.discount_amount]
+				row = ["","Discount Amount","","", "" ,"", "",quotation.discount_amount]
 				data.append(row)
 				data.append([])
 			
 			row = ["","Grand Total",quotation.in_words,"", "" ,"", "",quotation.grand_total]
 			data.append(row)
 		elif filters.get("format") == "Summary":
+			
 			data.append([])
 			
 			if quotation.discount_amount:
-				row = ["","Discount Amount","","", "" ,"", "","",quotation.discount_amount]
+				row = ["","Discount Amount","",quotation.discount_amount]
 				data.append(row)
 				data.append([])
 			
