@@ -10,7 +10,8 @@ frappe.ui.form.on("BOM", {
 	refresh: function(frm) {
 		frm.toggle_enable("item", frm.doc.__islocal);
 		toggle_operations(frm);
-		toggle_template(frm);
+
+		frm.get_docfield("items").allow_bulk_edit = 1;
 		if (!frm.doc.__islocal && frm.doc.docstatus<2) {
 			frm.add_custom_button(__("Update Cost"), function() {
 				frm.events.update_cost(frm);
@@ -28,72 +29,7 @@ frappe.ui.form.on("BOM", {
 			});
 		}
 		
-		cur_frm.add_custom_button(__('Build Template'),
-				function() {
-					var me = this;
-
-					var dialog = new frappe.ui.Dialog({
-						title: "Build Template",
-						fields: [
-							{"fieldtype": "Select", "label": __("Print Format"), "fieldname": "print_sel"},
-							{"fieldtype": "Data", "label": __("Depth mm"), "fieldname": "depth",
-								"reqd": 1 },
-							{"fieldtype": "Data", "label": __("Width mm"), "fieldname": "width",
-							"reqd": 1 },
-							{"fieldtype": "Data", "label": __("Height mm"), "fieldname": "height",
-							"reqd": 1 },
-							{"fieldtype": "Check", "label": __("With Letterhead"), "fieldname": "with_letterhead"},
-							{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log"},
-							
-						]
-					});
-
-					var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
-					dialog.set_primary_action(__('Build'), function() {
-						args = dialog.get_values();
-						if(!args) return;
-						//with_letterhead = args.with_letterhead ? 1 : 0;
-						template = args.print_sel;
-						
-						if(!template)
-							return;
-						
-						sides = ["Top","Right","Left","Back"];
-						
-						if(template == "Cabinet")
-							sides.push("Bottom");
-						
-						cur_frm.doc.items = [];
-						
-						$.each(sides, function(i, side) {
-							var d = frappe.model.add_child(cur_frm.doc, "BOM Item", "items");
-								d.item_code = "MDF 18 mm";
-								
-								
-								if (side == "Top" || side == "Bottom"){
-									d.qty = args.depth * args.width;
-								}
-								else if (side == "Left" || side == "Right"){
-									d.qty = args.depth * args.height;
-								}
-								else if (side == "Back"){
-									d.qty = args.width * args.height;
-								}
-								
-								cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
-							});
-						
-					
-						cur_frm.refresh_field("items");
-
-					})
-					
-					templates = ["Cabinet","Workbench"];
-					dialog.fields_dict.print_sel.$input.empty().add_options(templates);
-					
-					dialog.show();
-					
-				});
+		
 		
 	},
 	update_cost: function(frm) {
@@ -105,6 +41,23 @@ frappe.ui.form.on("BOM", {
 				if(!r.exc) frm.refresh_fields();
 			}
 		})
+	},
+	build_bom: function(frm) {
+		
+
+		return frappe.call({
+			doc: frm.doc,
+			method: "build_bom",
+			freeze: true,
+			callback: function(r) {
+				
+				frm.refresh_fields();
+				$.each(frm.doc.items, function(i, d) {
+					cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+				});
+				frm.refresh_fields();
+			}
+		})
 	}
 });
 
@@ -113,6 +66,12 @@ cur_frm.add_fetch("item", "image", "image");
 cur_frm.add_fetch("item", "item_name", "item_name");
 cur_frm.add_fetch("item", "stock_uom", "uom");
 
+cur_frm.add_fetch("item", "depth", "depth");
+cur_frm.add_fetch("item", "width", "width");
+cur_frm.add_fetch("item", "height", "height");
+cur_frm.add_fetch("item", "depthunit", "depthunit");
+cur_frm.add_fetch("item", "widthunit", "widthunit");
+cur_frm.add_fetch("item", "heightunit", "heightunit");
 
 cur_frm.cscript.hour_rate = function(doc, dt, dn) {
 	erpnext.bom.calculate_op_cost(doc);
@@ -303,29 +262,47 @@ frappe.ui.form.on("BOM", "with_operations", function(frm) {
 	}
 	toggle_operations(frm);
 });
-//============================
-cur_frm.cscript.make_template = function(doc, cdt, cdn) {
-	if (!doc.type){
-		frappe.msgprint("No type");
-		return;
-	}
-	
-	if (doc.type){
-		frappe.msgprint("No type");
-		return;
-	} 
-}
+//----------------------------------------
 
 
-var toggle_template = function(frm) {
-	frm.toggle_display("template_section", cint(frm.doc.with_template) == 1);
-}
-
-frappe.ui.form.on("BOM", "with_template", function(frm) {
-	toggle_template(frm);
-});
 
 //----------------------------------
 cur_frm.cscript.image = function() {
 	refresh_field("image_view");
 }
+
+//------------
+cur_frm.fields_dict['bomitems'].grid.get_field('laminate').get_query = function(doc, cdt, cdn) {
+	return {
+		query: "erpnext.controllers.queries.item_query",
+		filters: {
+			'item_group': "Laminate"
+		}
+	}
+}
+
+cur_frm.fields_dict['bomitems'].grid.get_field('edging').get_query = function(doc, cdt, cdn) {
+	return {
+		query: "erpnext.controllers.queries.item_query",
+		filters: {
+			'item_group': "PVC Edging"
+		}
+	}
+}
+
+cur_frm.fields_dict['glue'].get_query = function(doc, cdt, cdn) {
+	return {
+		query: "erpnext.controllers.queries.item_query",
+		filters: {
+			'item_group': "Glue"
+		}
+	}
+}
+
+cur_frm.fields_dict['bomitems'].grid.get_field('item_code').get_query = function(doc) {
+	return{
+		query: "erpnext.controllers.queries.item_query",
+		filters: [["Item", "name", "!=", cur_frm.doc.item],["Item", "item_group", "!=", "Header1"]]
+	}
+}
+
