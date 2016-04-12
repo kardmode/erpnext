@@ -77,6 +77,7 @@ frappe.ui.form.on("Item", {
 
 	validate: function(frm){
 		erpnext.item.weight_to_validate(frm);
+		
 	},
 
 	image: function(frm) {
@@ -90,6 +91,16 @@ frappe.ui.form.on("Item", {
 			frm.set_value("item_name", frm.doc.item_code);
 		if(!frm.doc.description)
 			frm.set_value("description", frm.doc.item_code);
+	},
+	
+	item_group: function(frm) {
+		if(frm.doc.item_group == "Services" || frm.doc.item_group == "Header1" || frm.doc.item_group == "Header2"){
+			frm.set_value("is_stock_item", 0);
+			frm.set_value("default_warehouse", "");
+		}else {
+			frm.set_value("is_stock_item", 1);
+			frm.set_value("default_warehouse", "Finished Goods - AMLS");
+		}
 	},
 
 	copy_from_item_group: function(frm) {

@@ -77,7 +77,16 @@ class Item(WebsiteGenerator):
 		self.validate_variant_attributes()
 		self.validate_website_image()
 		self.make_thumbnail()
+		
+		if self.item_group in ["Services","Header1","Header2"]:
+			self.is_stock_item = 0
+			self.default_warehouse = ""
 
+		else:
+			self.is_stock_item = 1
+			if not self.default_warehouse:
+				self.default_warehouse = "Finished Goods - AMLS"
+			
 		if not self.get("__islocal"):
 			self.old_item_group = frappe.db.get_value(self.doctype, self.name, "item_group")
 			self.old_website_item_groups = frappe.db.sql_list("""select item_group from `tabWebsite Item Group`
