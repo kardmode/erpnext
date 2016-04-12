@@ -5,9 +5,7 @@
 <div>
     {% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
 		<div class="primary">
-			{% if compact %}<strong>{% endif %}
-				{{ _(doc.item_code) }}
-			{% if compact %}</strong>{% endif %}
+			<strong>{{ _(doc.item_code) }}</strong>
 		</div>
 	{%- endif %}
     {% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
