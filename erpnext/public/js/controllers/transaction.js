@@ -88,9 +88,14 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 	refresh: function() {
 		erpnext.toggle_naming_series();
 		erpnext.hide_company();
-		this.show_item_wise_taxes();
-		this.set_dynamic_labels();
-		erpnext.pos.make_pos_btn(this.frm);
+		//this.show_item_wise_taxes();
+		
+		var me = this;
+		if (me.frm.doc.items){
+		if(me.frm.doc.items.length<10){
+			this.set_dynamic_labels();
+		}}
+		//erpnext.pos.make_pos_btn(this.frm);
 		this.setup_sms();
 		this.make_show_payments_btn();
 	},

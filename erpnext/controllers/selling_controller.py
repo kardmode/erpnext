@@ -32,6 +32,7 @@ class SellingController(StockController):
 		self.validate_max_discount()
 		check_active_sales_items(self)
 		check_header_items(self)
+
 	def set_missing_values(self, for_validate=False):
 		super(SellingController, self).set_missing_values(for_validate)
 
@@ -225,6 +226,44 @@ class SellingController(StockController):
 				status = frappe.db.get_value("Sales Order", d.get(ref_fieldname), "status")
 				if status == "Closed":
 					frappe.throw(_("Sales Order {0} is {1}").format(d.get(ref_fieldname), status))
+					
+	
+	def calculate_headers(self):	
+		headers =  ["header1","header2"]
+		items = self.get("items")
+		for i, d in enumerate(items):
+			
+			if i == 0:
+				first_item = d
+				has_header = 0
+				has_headers = 0
+				if str(first_item.item_group).lower() in headers:
+					has_header = 1
+		
+		
+			if str(d.item_group).lower() in headers:
+				sum = 0
+				if not i == 0:
+					has_headers = 1
+					
+				for j in range(i+1,len(items)): 
+					testitem = items[j]
+
+					if str(testitem.item_group).lower() in headers:
+						break
+					else:
+						sum = sum + testitem.amount
+				d.qty = 0
+				d.rate = sum
+				d.amount = 0
+				d.page_break = 1
+				if str(d.item_group).lower() == "header2":
+					d.page_break = 0
+
+						
+		if not has_header and has_headers:
+				frappe.msgprint(_("First section doesn't have a header."))
+	
 
 def check_active_sales_items(obj):
 	for d in obj.get("items"):
@@ -240,21 +279,37 @@ def check_active_sales_items(obj):
 					
 def check_header_items(obj):
 
-	
+	headers =  ["header1","header2"]
 	items = obj.get("items")
-	
-	if items:
-		first_item = items[0]
-		has_header = 0
-		has_headers = 0
-		if str(first_item.item_group).lower() in ["header1","header2"]:
-			has_header = 1
-			
-		count = 0
-		for d in items:
-			if count > 0 and str(d.item_group).lower() in ["header1","header2"]:
-				has_headers = 1
+	for i, d in enumerate(items):
 		
-			count = count +1
-		if not has_header and has_headers:
-			frappe.msgprint(_("Your items have headers but the first item is not a header."))
+		if i == 0:
+			first_item = d
+			has_header = 0
+			has_headers = 0
+			if str(first_item.item_group).lower() in headers:
+				has_header = 1
+	
+	
+		if str(d.item_group).lower() in headers:
+			sum = 0
+			if not i == 0:
+				has_headers = 1
+				
+			for j in range(i+1,len(items)): 
+				testitem = items[j]
+
+				if str(testitem.item_group).lower() in headers:
+					break
+				else:
+					sum = sum + testitem.amount
+			d.qty = 0
+			d.rate = sum
+			d.amount = 0
+			d.page_break = 1
+			if str(d.item_group).lower() == "header2":
+				d.page_break = 0
+
+					
+	if not has_header and has_headers:
+			frappe.msgprint(_("First section doesn't have a header."))
