@@ -93,14 +93,14 @@ def upload():
 
 	rows = read_csv_content_from_uploaded_file()
 	rows = filter(lambda x: x and any(x), rows)
+	
 	if not rows:
 		msg = [_("Please select a csv file")]
 		return {"messages": msg, "error": msg}
-	columns = [scrub(f) for f in rows[0]]
-	columns[0] = "employee"
-	columns[1] = "att_date"
-	columns[2] = "arrival_time"
-	columns[3] = "departure_time"
+	#fixme error when importing certain header
+	#columns = [scrub(f) for f in rows[0]]
+
+	columns = ["employee","att_date","arrival_time","departure_time"]
 	ret = []
 	error = False
 
@@ -111,8 +111,7 @@ def upload():
 		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
-		#if d.name:
-		#	d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
+		
 		
 		try:
 			check_record(d)

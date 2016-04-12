@@ -57,6 +57,10 @@ frappe.ui.form.on("Loan Transaction", "e_loan_transaction_remove", function(frm,
 calculate_earning_total(frm.doc, dt, dn);
 })
 
+frappe.ui.form.on("Loan Transaction", "transaction_date", function(frm,dt,dn){
+	frappe.msgprint("Is the Transaction Date correct? Is it the same month as the salary slip?")
+})
+
 
 cur_frm.fields_dict.employee.get_query = function(doc,cdt,cdn) {
 	return{

@@ -159,6 +159,14 @@ frappe.ui.form.on("Salary Slip Earning", "e_type", function(frm,dt,dn){
 	calculate_earnings(doc, dt, dn);	
 })
 
+frappe.ui.form.on("Salary Slip Deduction", "d_type", function(frm,dt,dn){
+	
+	var doc = locals[dt][dn];
+	if (doc.d_type == "Loan Repayment"){
+		frappe.msgprint("Do NOT manually place loan deductions. Go to Employee Loans and input it there. Then open the required salary slip and press refresh loan deduction.");
+	}
+})
+
 // Custom
 // Leave encashment
 cur_frm.cscript.encash_leave = function(doc,dt,dn){

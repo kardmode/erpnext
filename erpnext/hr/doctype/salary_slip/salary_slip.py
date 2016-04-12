@@ -283,7 +283,18 @@ class SalarySlip(TransactionBase):
 			self.total_deduction += flt(d.d_modified_amount)
 
 	def check_loan_deductions(self):
+		# m = get_month_details(self.fiscal_year, self.month)
+		# it = cstr(m['month_start_date']+10)
+		# dt = add_days(cstr(m['month_start_date']), m["month_days"]+10)
 		
+		# loandata = frappe.db.sql("""
+				# select transaction_amount
+				# from `tabLoan Transaction` t1
+				# where t1.transaction_type = 'Deduction'
+				# and t1.parent = %s
+				# and t1.transaction_date >= %s 
+				# and t1.transaction_date <= %s""", (self.employee,it,dt), as_dict=True)
+			
 		loandata = frappe.db.sql("""
 				select transaction_amount
 				from `tabLoan Transaction` t1
