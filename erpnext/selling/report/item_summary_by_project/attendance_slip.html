@@ -1,0 +1,44 @@
+
+		{% for(var i=0, l=data.length; i<l; i++) { %}
+			{% if(data[i][__("Employee")]) { %}
+			<div style="margin-bottom: 7px;">
+			{%= frappe.boot.letter_heads[data[i][__("Company")]] %}
+			</div>
+			<h2>{%= (data[i][__("Employee")]) %} - {%= data[i][__("Employee Name")] %} - {%= filters.month %}. {%= filters.fiscal_year %}</h2>
+			<h3>{%= data[i][__("Designation")] %}</h3>
+			<table class="table table-bordered">
+				<thead>
+					<tr>
+						<th style="width: 15%;line-height:1">{%= __("Date") %}</th>
+						<th style="width: 15%;line-height:1">{%= __("Arrival") %}</th>
+						<th style="width: 15%;line-height:1">{%= __("Departure") %}</th>
+						<th style="width: 15%;line-height:1">{%= __("Normal") %}</th>
+						<th style="width: 15%;line-height:1">{%= __("Overtime") %}</th>
+						<th style="width: 15%;line-height:1">{%= __("Overtime Fridays") %}</th>
+						<th style="width: 15%;line-height:1">{%= __("Overtime Holidays") %}</th>
+					</tr>
+				</thead>
+				<tbody>
+			{% } else { %}
+				<tr>
+					<td style="width: 15%;line-height:1">{%= (data[i][__("Date")]) %}</td>
+					<td style="width: 15%;line-height:1">{%= data[i][__("Arrival")] %}</td>
+					<td style="width: 15%;line-height:1">{%= data[i][__("Departure")] %}</td>
+					{% if(data[i][__("Date")] == "Totals") { %}
+					<td style="font-weight: bold;width: 15%;line-height:1">{%= _round(data[i][__("Normal")],2) %}</td>
+					{% } else { %}
+					<td style="width: 15%;line-height:1">{%= _round(data[i][__("Normal")],2) %}</td>
+					{% } %}
+					<td style="width: 15%;line-height:1">{%= _round(data[i][__("Overtime")],2) %}</td>
+					<td style="width: 15%;line-height:1">{%= _round(data[i][__("Overtime Fridays")],2) %}</td>
+					<td style="width: 15%;line-height:1">{%= _round(data[i][__("Overtime Holidays")],2) %}</td>
+			{% } %}
+			</tr>
+			{% if(data[i+1]) { %}
+				{% if(data[i+1][__("Employee")]) { %}
+				</tbody>
+				</table>
+				<p style="page-break-after:always;"></p>
+				{% } %}
+			{% } %}
+		{% } %}
