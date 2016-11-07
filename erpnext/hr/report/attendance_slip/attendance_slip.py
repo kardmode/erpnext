@@ -12,14 +12,16 @@ def execute(filters=None):
 
 	conditions, filters = get_conditions(filters)
 	columns = get_columns(filters)
-	att_map2 = get_attendance_map(conditions, filters)
-
-	emp_map = get_employee_details()
+	att_map = get_attendance_map(conditions, filters)
+	emp_map = get_emp_details()
+	
 	reportdate = str(filters.month) + '/'+(filters.fiscal_year)
 	data = []
-	for emp in sorted(att_map2):
-		emp_det = emp_map.get(emp)
-		if not emp_det:
+	
+	
+	for emp_det in emp_map:
+		emp = att_map.get(emp_det.name)
+		if not emp:
 			continue
 			
 		letter_head = frappe.db.get_value("Company", emp_det.company, "default_letter_head") or ""
@@ -35,7 +37,7 @@ def execute(filters=None):
 		total_oth = 0
 		
 		for day in range(filters["total_days_in_month"]):
-			details = att_map2.get(emp).get(day + 1)
+			details = emp.get(day + 1)
 			row = ['', '', '','']
 
 			if details:
@@ -87,10 +89,10 @@ def get_columns(filters):
 	columns += [_("Normal") + ":Float:60",_("Overtime") + ":Float:60", _("Overtime Fridays") + ":Float:60",_("Overtime Holidays") + ":Float:60"]
 	return columns
 
-
+	
 def get_attendance_map(conditions, filters):
 	attendance_list = frappe.db.sql("""select employee, day(att_date) as day_of_month,att_date,
-		status, arrival_time,departure_time,working_time,normal_time,overtime,overtime_fridays,overtime_holidays from tabAttendance where %s order by employee, att_date""" %
+		arrival_time,departure_time,normal_time,overtime,overtime_fridays,overtime_holidays from tabAttendance where %s order by employee, att_date""" %
 		conditions, filters, as_dict=1)
 
 	att_map = {}
@@ -130,14 +132,11 @@ def get_conditions(filters):
 
 
 	return conditions, filters
-
-def get_employee_details():
-	emp_map = frappe._dict()
-	for d in frappe.db.sql("""select name, employee_name, designation,
+def get_emp_details():
+	emp_map = frappe.db.sql("""select name, employee_name, designation,
 		department, branch, company
 		from tabEmployee where docstatus < 2
-		and status = 'Active'""", as_dict=1):
-		emp_map.setdefault(d.name, d)
+		and status = 'Active' order by employee_name""", as_dict=1)
 
 	return emp_map
 

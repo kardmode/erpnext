@@ -22,7 +22,7 @@ frappe.ui.form.on("Employee Attendance Tool", {
 	
 	to_date: function(frm) {
 		if (frm.doc.to_date < frm.doc.date) {
-			msgprint("You can not select past date");
+			msgprint("You can not select past from date");
 		}
 		else{
 			erpnext.employee_attendance_tool.load_employees(frm);

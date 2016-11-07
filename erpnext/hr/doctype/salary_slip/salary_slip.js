@@ -1,8 +1,19 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: GNU General Public License v3. See license.txt
 
-cur_frm.add_fetch('employee', 'company', 'company');
-cur_frm.add_fetch('company', 'default_letter_head', 'letter_head');
+/* cur_frm.add_fetch('employee', 'company', 'company');
+cur_frm.add_fetch('employee', 'designation', 'designation');
+cur_frm.add_fetch('employee', 'department', 'department');
+
+
+frappe.ui.form.on("Salary Slip", {
+	company: function(frm) {
+		var company = locals[':Company'][frm.doc.company];
+		if(!frm.doc.letter_head && company.default_letter_head) {
+			frm.set_value('letter_head', company.default_letter_head);
+		}
+	}
+}) */
 
 // On load
 // -------------------------------------------------------------------
@@ -15,7 +26,7 @@ cur_frm.cscript.onload = function(doc,dt,dn){
 			else doc.month = '0'+month;
 		}
 		if(!doc.fiscal_year) doc.fiscal_year = sys_defaults['fiscal_year'];
-		
+		doc.employee = "";
 		refresh_many(['month', 'fiscal_year']);
 	}
 	cur_frm.set_df_property("earnings", "read_only", 1);
@@ -79,8 +90,15 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 	var total_earn = 0;
 	for(var i = 0; i < tbl.length; i++){
 		if(cint(tbl[i].e_depends_on_lwp) == 1) {
-			tbl[i].e_modified_amount =  Math.round(tbl[i].e_amount)*(flt(doc.payment_days) / 
-				cint(doc.total_days_in_month)*100)/100;			
+
+			if(tbl[i].e_type == "Salary"){
+				modified_amount =  Math.round(tbl[i].e_amount) - doc.leave_without_pay * tbl[i].rate * 9;
+				tbl[i].e_modified_amount = (modified_amount >= 0) ? modified_amount : 0;
+			}
+			else{
+				tbl[i].e_modified_amount =  Math.round(tbl[i].e_amount)*(flt(doc.payment_days) / 
+					cint(doc.total_days_in_month)*100)/100;
+			}
 			refresh_field('e_modified_amount', tbl[i].name, 'earnings');
 		} else if(reset_amount) {
 			tbl[i].e_modified_amount = tbl[i].e_amount;

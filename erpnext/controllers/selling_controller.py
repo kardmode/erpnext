@@ -155,7 +155,7 @@ class SellingController(StockController):
 			discount = flt(frappe.db.get_value("Item", d.item_code, "max_discount"))
 
 			if discount and flt(d.discount_percentage) > discount:
-				frappe.throw(_("Maxiumm discount for Item {0} is {1}%").format(d.item_code, discount))
+				frappe.throw(_("Maximum discount for Item {0} is {1}%").format(d.item_code, discount))
 
 	def get_item_list(self):
 		il = []
@@ -231,19 +231,16 @@ class SellingController(StockController):
 	def calculate_headers(self):	
 		headers =  ["header1","header2"]
 		items = self.get("items")
+		has_header = 0
+		has_headers = 0
 		for i, d in enumerate(items):
-			
-			if i == 0:
-				first_item = d
-				has_header = 0
-				has_headers = 0
-				if str(first_item.item_group).lower() in headers:
-					has_header = 1
 		
 		
 			if str(d.item_group).lower() in headers:
 				sum = 0
-				if not i == 0:
+				if i == 0:
+					has_header = 1
+				else:
 					has_headers = 1
 					
 				for j in range(i+1,len(items)): 
@@ -257,13 +254,37 @@ class SellingController(StockController):
 				d.rate = sum
 				d.amount = 0
 				d.page_break = 1
+				
+				if i == 0:
+					d.page_break = 0
+				
 				if str(d.item_group).lower() == "header2":
 					d.page_break = 0
 
 						
 		if not has_header and has_headers:
 				frappe.msgprint(_("First section doesn't have a header."))
-	
+
+	def refresh_items(self):
+		items = self.get("items")
+		
+		for i, d in enumerate(self.items):
+			from erpnext.stock.get_item_details import get_item_details
+			frappe.errprint(d)
+			details = get_item_details({
+				"item_code": d.item_code,
+				"company": self.get("company"),
+				"price_list": self.get("selling_price_list"),
+				"currency": self.get("currency"),
+				"doctype": self.get("doctype"),
+				"conversion_rate": 1,
+				"price_list_currency": self.get("price_list_currency"),
+				"plc_conversion_rate": 1,
+				"order_type": "Sales",
+				"customer":  self.get("customer")
+			})
+			
+			d.price_list_rate = details["price_list_rate"]
 
 def check_active_sales_items(obj):
 	for d in obj.get("items"):
@@ -277,23 +298,22 @@ def check_active_sales_items(obj):
 				frappe.db.set_value("Item", d.item_code, "income_account",
 					d.income_account)
 					
+
+			
 def check_header_items(obj):
 
 	headers =  ["header1","header2"]
 	items = obj.get("items")
+	has_header = 0
+	has_headers = 0
 	for i, d in enumerate(items):
-		
-		if i == 0:
-			first_item = d
-			has_header = 0
-			has_headers = 0
-			if str(first_item.item_group).lower() in headers:
-				has_header = 1
 	
 	
 		if str(d.item_group).lower() in headers:
 			sum = 0
-			if not i == 0:
+			if i == 0:
+				has_header = 1
+			else:
 				has_headers = 1
 				
 			for j in range(i+1,len(items)): 
@@ -307,6 +327,10 @@ def check_header_items(obj):
 			d.rate = sum
 			d.amount = 0
 			d.page_break = 1
+			
+			if i == 0:
+				d.page_break = 0
+			
 			if str(d.item_group).lower() == "header2":
 				d.page_break = 0
 

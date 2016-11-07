@@ -365,7 +365,7 @@ class BOM(Document):
 		if self.with_operations and not self.get('operations'):
 			frappe.throw(_("Operations cannot be left blank."))
 	
-	def build_bom(self):
+	def build_bom(self,depth=None,width=None,height=None):
 	
 		if self.docstatus == 2:
 			return
@@ -378,10 +378,13 @@ class BOM(Document):
 		
 		if not (self.height or self.heightunit):
 			frappe.throw(_("Item {0} has no dimensions or units").format(self.item))
-			
-		depth = self.convert_units(self.depthunit,self.depth)
-		width = self.convert_units(self.widthunit,self.width)
-		height = self.convert_units(self.heightunit,self.height)
+		
+		if not depth:
+			depth = self.convert_units(self.depthunit,self.depth)
+		if not width:
+			width = self.convert_units(self.widthunit,self.width)
+		if not height:
+			height = self.convert_units(self.heightunit,self.height)
 		
 		edgebanding = []
 		laminate = []
@@ -467,6 +470,7 @@ class BOM(Document):
 					required = farea*200
 					qty = required/1000
 					
+
 					if self.glue:
 						newitem = {"side":d.side,"item_code":self.glue,"length":length,"width":width,"required":required,"qty":qty,"stockdetails":stockdetails,"stock_uom":stock_uom,"required_uom":required_uom}
 						glue.append(newitem)
@@ -565,7 +569,6 @@ class BOM(Document):
 		for i, d in enumerate(merged):
 			newd = self.append('items', {})
 			newd.item_code = d["item_code"]
-			d["qty"] = ceil(d["qty"] * 100) / 100.0
 			newd.qty = d["qty"]
 			ret_item = self.get_bom_material_detail({"item_code": d["item_code"], "bom_no": "","qty": d["qty"]})
 			newd.stock_uom = ret_item["stock_uom"]

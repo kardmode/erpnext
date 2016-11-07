@@ -93,7 +93,6 @@ def upload():
 
 	rows = read_csv_content_from_uploaded_file()
 	rows = filter(lambda x: x and any(x), rows)
-	
 	if not rows:
 		msg = [_("Please select a csv file")]
 		return {"messages": msg, "error": msg}
@@ -103,25 +102,31 @@ def upload():
 	columns = ["employee","att_date","arrival_time","departure_time"]
 	ret = []
 	error = False
+	started = False
 
 	from frappe.utils.csvutils import check_record, import_doc
-
+	
 	for i, row in enumerate(rows[1:]):
 		if not row: continue
+		started = True
 		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
-		
 		
 		try:
 			check_record(d)
 			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
 		except Exception, e:
 			error = True
-			ret.append('Error for row (#%d) %s : %s' % (row_idx,
-				len(row)>1 and row[1] or "", cstr(e)))
+			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+				len(row)>1 and row[1] or "", "Check data"))
+			frappe.errprint(row_idx)
 			frappe.errprint(frappe.get_traceback())
-
+	
+	if not started:
+		error = True
+		ret.append('Error reading csv file')
+	
 	if error:
 		frappe.db.rollback()
 	else:

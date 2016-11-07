@@ -20,6 +20,12 @@ frappe.query_reports["Quotation Report"] = {
 				{ "value": "Summary", "label": __("Summary") }
 			],
 			default: "Quotation"
+		},
+		{
+			fieldname: "simplified",
+			label: __("Simplified"),
+			fieldtype: "Check",
+			default: false
 		}
 		
 	]

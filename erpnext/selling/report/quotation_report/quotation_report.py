@@ -59,11 +59,18 @@ def execute(filters=None):
 				# New Section
 				if section_count:
 					if filters.get("format") == "Quotation":
-						row = ["","Total","","", "" ,"", "","",total]
+						if filters.get("simplified"):
+							row = ["","Total","", "","",total]
+						else:
+							row = ["","Total","","","","", "","",total]
 						data.append(row)
 						data.append([])	
 					elif filters.get("format") == "BoqAmount":
-						row = ["","Total","","", "" ,"", "",total]
+						if filters.get("simplified"):
+							row = ["","Total","", "",total]
+						else:
+							row = ["","Total","","","","", "",total]
+						
 						data.append(row)
 						data.append([])	
 					elif filters.get("format") == "Boq":
@@ -97,40 +104,68 @@ def execute(filters=None):
 				
 				if filters.get("format") == "BoqAmount":
 					row_count = row_count + 1
-					row = [row_count,item.item_name, item.description,item.brand,item.item_group,item.warranty_period, item.qty,"",""]
+					
+					if filters.get("simplified"):
+						row = [row_count,item.item_name, item.description, item.qty,"",""]
+					else:
+						row = [row_count,item.item_name, item.description,item.brand,item.item_group,item.warranty_period, item.qty,"",""]
+					
+					
 					data.append(row)	
 				elif not filters.get("format") == "Summary":
 					row_count = row_count + 1
-					row = [row_count,item.item_name, item.description,item.brand,item.item_group,item.warranty_period, item.qty,item.rate,item.amount]
+					
+					if filters.get("simplified"):
+						row = [row_count,item.item_name, item.description, item.qty,item.rate,item.amount]
+					else:
+						row = [row_count,item.item_name, item.description,item.brand,item.item_group,item.warranty_period, item.qty,item.rate,item.amount]
+					
 					data.append(row)
 			
 		if filters.get("format") == "Quotation":
-		
-			row = ["","Total","","", "" ,"", "","",total]
+			
+			if filters.get("simplified"):
+				row = ["","Total","", "","",total]
+			else:
+				row = ["","Total","","","","", "","",total]
 			data.append(row)
 			data.append([])
 			
 			if quotation.discount_amount:
-				row = ["","Discount Amount","","", "" ,"", "","",quotation.discount_amount]
+				
+				if filters.get("simplified"):
+					row = ["","Discount Amount","", "","",quotation.discount_amount]
+				else:
+					row = ["","Discount Amount","","", "" ,"", "","",quotation.discount_amount]
 				data.append(row)
 				data.append([])
 			
 			
-			
-			row = ["","Grand Total",quotation.in_words,"", "" ,"", "","",quotation.grand_total]
+			if filters.get("simplified"):
+				row = ["","Grand Total",quotation.in_words, "","",quotation.grand_total]
+			else:
+				row = ["","Grand Total",quotation.in_words,"", "" ,"", "","",quotation.grand_total]
 			data.append(row)
 		elif filters.get("format") == "BoqAmount":
-		
-			row = ["","Total","","", "" ,"", "",total]
+			if filters.get("simplified"):
+				row = ["","Total","", "",total]
+			else:
+				row = ["","Total","","", "" ,"", "",total]
 			data.append(row)
 			data.append([])
 			
 			if quotation.discount_amount:
-				row = ["","Discount Amount","","", "" ,"", "",quotation.discount_amount]
+				if filters.get("simplified"):
+					row = ["","Discount Amount","", "",quotation.discount_amount]
+				else:
+					row = ["","Discount Amount","","", "" ,"", "",quotation.discount_amount]
 				data.append(row)
 				data.append([])
 			
-			row = ["","Grand Total",quotation.in_words,"", "" ,"", "",quotation.grand_total]
+			if filters.get("simplified"):
+				row = ["","Grand Total",quotation.in_words, "",quotation.grand_total]
+			else:
+				row = ["","Grand Total",quotation.in_words,"", "" ,"", "",quotation.grand_total]
 			data.append(row)
 		elif filters.get("format") == "Summary":
 			
@@ -157,6 +192,11 @@ def get_columns(filters):
 		_("Sr") + "::30",_("Item Name") + "::150", _("Description") + "::440",_("Brand") + "::80",_("Category") + "::80"
 		,_("Remarks") + "::120", _("Qty") + "::80"
 	]
+	
+	if filters.get("simplified"):
+		columns = [
+		_("Sr") + "::30",_("Item Name") + "::150", _("Description") + "::440", _("Qty") + "::80"
+		]
 	
 	if filters.get("format") == "Quotation":
 		columns += [

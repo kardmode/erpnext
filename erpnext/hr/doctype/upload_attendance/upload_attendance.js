@@ -42,10 +42,11 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 			sample_url: "e.g. http://example.com/somefile.csv",
 			callback: function(attachment, r) {
 				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
-
+				
 				if(!r.messages) r.messages = [];
 				// replace links if error has occured
-				if(r.exc || r.error) {
+				
+				if(r.exc || r.error || r.message.error) {
 					r.messages = $.map(r.message.messages, function(v) {
 						var msg = v.replace("Inserted", "Valid")
 							.replace("Updated", "Valid").split("<");
@@ -57,25 +58,35 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 						return v;
 					});
 
-					r.messages = ["<h4 style='color:red'>"+__("Import Failed!")+"</h4>"]
-						.concat(r.messages)
+					
+					var $p = $('<p>').html(["<h4 style='color:red'>"+__("Import Failed!")+"</h4>"]).appendTo($log_wrapper);
+					$p = $('<p>').html(["<h4 style='color:red'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
+
+					
+						
+					$.each(r.messages, function(i, v) {
+						
+						if(v.substr(0,5)=='Error') {
+							var $p = $('<p>').html(v).appendTo($log_wrapper);
+							$p.css('color', 'red');
+						} /* else if(v.substr(0,8)=='Inserted') {
+							$p.css('color', 'green');
+						} else if(v.substr(0,7)=='Updated') {
+							$p.css('color', 'green');
+						} else if(v.substr(0,5)=='Valid') {
+							$p.css('color', '#777');
+						} */
+					});
+					
+					
 				} else {
-					r.messages = ["<h4 style='color:green'>"+__("Import Successful!")+"</h4>"].
-						concat(r.message.messages)
+					var $p = $('<p>').html(["<h4 style='color:green'>"+__("Import Successful!")+"</h4>"]).appendTo($log_wrapper);
+					$p = $('<p>').html(["<h4 style='color:green'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
+
+					
 				}
 
-				$.each(r.messages, function(i, v) {
-					var $p = $('<p>').html(v).appendTo($log_wrapper);
-					if(v.substr(0,5)=='Error') {
-						$p.css('color', 'red');
-					} else if(v.substr(0,8)=='Inserted') {
-						$p.css('color', 'green');
-					} else if(v.substr(0,7)=='Updated') {
-						$p.css('color', 'green');
-					} else if(v.substr(0,5)=='Valid') {
-						$p.css('color', '#777');
-					}
-				});
+				
 			}
 		});
 

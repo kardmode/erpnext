@@ -82,9 +82,9 @@ class EmailDigest(Document):
 		context.events = self.get_calendar_events()
 		context.todo_list = self.get_todo_list()
 		context.notifications = self.get_notifications()
-
-		quote = get_random_quote()
-		context.quote = {"text": quote[0], "author": quote[1]}
+		
+		# quote = get_random_quote()
+		context.quote = {"text": self.custom_message, "author": "AMLS"}
 
 		if not (context.events or context.todo_list or context.notifications or context.cards):
 			return None

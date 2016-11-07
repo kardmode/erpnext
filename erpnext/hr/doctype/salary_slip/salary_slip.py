@@ -20,7 +20,7 @@ class SalarySlip(TransactionBase):
 	def autoname(self):
 		self.name = make_autoname(self.employee + '-SS-.#####')
 
-	def get_attendance_detailstoo(self):
+	def get_attendance_details(self):
 		if self.employee:
 			
 			self.overtime_hours_weekdays = 0
@@ -54,6 +54,7 @@ class SalarySlip(TransactionBase):
 				self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
 				self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(frappe.db.get_single_value("Regulations", "overtime_fridays_rate"))
 				self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
+				
 			else:
 				msgprint(_("No active Attendance Sheet found for employee {0} and the month").format(self.employee))
 			return vars or ''
@@ -61,6 +62,16 @@ class SalarySlip(TransactionBase):
 	
 	def get_emp_and_leave_details(self):
 		if self.employee:
+		
+		
+			vars = frappe.db.sql("""select department,designation,company from tabEmployee where employee = %(employee)s""",{"employee": self.employee}, as_dict=True)
+			if vars:
+				employee_data = vars[0]
+				self.designation = employee_data["designation"]
+				self.department = employee_data["department"]
+				self.company = employee_data["company"]
+
+			
 			self.get_company_letterhead(self.company)
 			joining_date, relieving_date = frappe.db.get_value("Employee", self.employee, 
 				["date_of_joining", "relieving_date"])
@@ -68,7 +79,7 @@ class SalarySlip(TransactionBase):
 			self.get_leave_details(joining_date, relieving_date)
 
 			struct = self.check_sal_struct(joining_date, relieving_date)
-			vars = self.get_attendance_detailstoo()
+			vars = self.get_attendance_details()
 
 			if struct:
 				self.set("earnings", [])
@@ -129,9 +140,9 @@ class SalarySlip(TransactionBase):
 		payment_days = flt(self.get_payment_days(m, joining_date, relieving_date)) - flt(lwp)
 		self.payment_days = payment_days > 0 and payment_days or 0
 		
-		if self.payment_days == self.total_days_in_month:
-			self.payment_days = 30
-		self.total_days_in_month = 30
+		# if self.payment_days == self.total_days_in_month:
+			# self.payment_days = 30
+		# self.total_days_in_month = 30
 		
 
 	def get_payment_days(self, month, joining_date, relieving_date):
@@ -208,19 +219,25 @@ class SalarySlip(TransactionBase):
 	def calculate_earning_total(self):
 		self.gross_pay = flt(self.arrear_amount)
 		
+		salaryperday = 0
+		hourlyrate = 0
 		for d in self.get("earnings"):
-			if not d.is_rate:
-				if(d.e_type == "Salary" or d.e_type == "Basic"):
-					salaryperday = 	flt(d.e_amount)/30
-					hourlyrate = flt(salaryperday)/ 9
-					d.rate = hourlyrate
-					break
+			if(d.e_type == "Salary"):
+				salaryperday = 	flt(d.e_amount)/30
+				hourlyrate = flt(salaryperday)/ 9
+				d.rate = hourlyrate
+				break
 
-		if not salaryperday:
-			frappe.throw(_("No salary per day calulcation for employee {0}").format(self.employee))
+		if salaryperday == 0:
+			frappe.throw(_("No salary per day calculation for employee {0}").format(self.employee))
 
 
 		for d in self.get("earnings"):
+			
+			# if(d.rate_type == "Hourly Based On Salary"):
+				# d.e_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
+			# elif(d.e_type == "Hourly"):
+
 			
 			if(d.e_type == "Overtime Weekdays"):
 				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
@@ -236,6 +253,12 @@ class SalarySlip(TransactionBase):
 			if cint(d.e_depends_on_lwp) == 1:
 				d.e_modified_amount = rounded((flt(d.e_amount) * flt(self.payment_days)
 					/ cint(self.total_days_in_month)), self.precision("e_modified_amount", "earnings"))
+				
+				if(d.e_type == "Salary"):
+					d.e_modified_amount = rounded((flt(d.e_amount) - (flt(self.leave_without_pay)*flt(d.rate)*9)), self.precision("e_modified_amount", "earnings"))
+				
+				d.e_modified_amount = d.e_modified_amount > 0 and d.e_modified_amount or 0
+
 			elif not self.payment_days:
 				d.e_modified_amount = 0
 			elif not d.e_modified_amount:
@@ -410,7 +433,7 @@ class SalarySlip(TransactionBase):
 					frappe.msgprint(_("Special Case: Leave Encashment application dated {0}.").format(relieving_date))
 				else:
 					self.encash_leave = 0
-					frappe.msgprint(_("No VACATION/ENCASH leave applications found for this period."))
+					frappe.msgprint(_("No VACATION/ENCASH leave applications found for this period. Change LEAVE WITHOUT PAY Applications to VACATION/ENCASH"))
 					return
 			else:
 				self.encash_leave = 0
@@ -458,7 +481,12 @@ class SalarySlip(TransactionBase):
 				joining_date, relieving_date)
 		leave_type = "Encash Leave"				
 		leavedaystaken += flt(get_approved_leaves_for_period(self.employee, leave_type, joining_date, relieving_date))
+		
+		leave_type = "Leave Without Pay"
+		leavedaystaken += flt(get_approved_leaves_for_period(self.employee, leave_type, joining_date, relieving_date))
+
 		leavesbalance = leavedaysdue - leavedaystaken
+		
 		leaveadvance = 0
 		if leavesbalance < 0:
 			payment_days += leavesbalance

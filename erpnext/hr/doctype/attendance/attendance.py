@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import cstr,time_diff_in_seconds,getdate, get_datetime, get_time,flt, nowdate
+from frappe.utils import cstr,time_diff,time_diff_in_seconds,getdate, get_datetime, get_time,flt, nowdate
 from frappe import _
 
 class NegativeHoursError(frappe.ValidationError): pass
@@ -18,7 +18,7 @@ class Attendance(Document):
 			and name != %s""",
 			(self.employee, self.att_date, self.name))
 		if res:
-			frappe.throw(_("Attendance for employee {0} is already marked").format(self.employee))
+			frappe.throw(_("Attendance for employee {0} is already marked, date {1}").format(self.employee,self.att_date))
 
 		set_employee_name(self)
 	
@@ -41,15 +41,35 @@ class Attendance(Document):
 	
 	def calculate_total_hours(self):
 		
-		if self.arrival_time == "#--:--" or self.departure_time == "#--:--":
+		if self.arrival_time == "#--:--" or self.arrival_time == "00:00" or self.arrival_time == "0:00:00":
 			self.arrival_time = "00:00:00"
+			
+		if self.departure_time == "#--:--" or self.departure_time == "00:00" or self.departure_time == "0:00:00":
 			self.departure_time = "00:00:00"
+		
+		
+		try:
+			totalworkhours = flt(time_diff_in_seconds(self.departure_time,self.arrival_time))/3600
+		except:
+			try:
+				time = time_diff(self.departure_time,self.arrival_time)
+				totalworkhours = flt(time.hour) + flt(time.minute)/60 + flt(time.second)/3600
+			except:
+				frappe.throw(_("Possible error in arrival time {0} or departure time {1} for employee {2}").format(self.arrival_time,self.departure_time,self.employee))
 
 		
-		totalworkhours = flt(time_diff_in_seconds(self.departure_time,self.arrival_time))/3600
+		
 		self.working_time = totalworkhours
 		weekday = get_datetime(self.att_date).weekday()
-		self.normal_time = 10
+		
+		working_hours = frappe.db.sql("""select working_hours from `tabWorking Hours`
+				where %s between from_date and to_date and docstatus < 2""", (self.att_date))
+
+		if working_hours:
+			self.normal_time = flt(working_hours[0][0])
+		else:
+			self.normal_time = flt(frappe.db.get_single_value("Regulations", "working_hours"))
+			
 		self.overtime = 0
 		self.overtime_fridays = 0
 		self.overtime_holidays = 0
@@ -64,14 +84,19 @@ class Attendance(Document):
 		else:		
 			if totalworkhours > self.normal_time:
 				self.overtime = flt(totalworkhours) - flt(self.normal_time)
+			elif totalworkhours > 2:
+				self.normal_time = totalworkhours
 			elif totalworkhours > 0:
-				self.normal_time = totalworkhours
+				frappe.throw(_("Work Hours under 2. Please check the time for employee {0}, date {1}").format(self.employee,self.att_date))
 			elif totalworkhours < 0:
-				self.normal_time = totalworkhours
-				self.status = 'Absent'
+				frappe.throw(_("Work Hours negative. Please check the time for employee {0}, date {1}").format(self.employee,self.att_date))
 			else:
-				self.normal_time = 0
-				self.status = 'Absent'
+				if self.arrival_time == "00:00:00" and self.departure_time == "00:00:00":
+					self.normal_time = 0
+					self.status = 'Absent'
+				else:
+					frappe.throw(_("Please check the time for employee {0}, date {1}").format(self.employee,self.att_date))
+
 
 
 		
@@ -86,9 +111,9 @@ class Attendance(Document):
 					self.att_date))
 
 	def validate_att_date(self):
-		pass
-		#if getdate(self.att_date) > getdate(nowdate()):
-		#	frappe.throw(_("Attendance can not be marked for future dates"))
+		from datetime import timedelta
+		if get_datetime(self.att_date) > get_datetime(nowdate()) + timedelta(days=30):
+			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.att_date))
 
 	def validate_employee(self):
 		emp = frappe.db.sql("select name from `tabEmployee` where name = %s and status = 'Active'",
@@ -104,7 +129,7 @@ class Attendance(Document):
 		self.check_leave_record()
 		self.calculate_total_hours()
 		if self.normal_time < 0:
-			frappe.throw(_("Working Time cannot be less than 0"))
+			frappe.throw(_("Working Time cannot be less than 0, date {0}").format(self.att_date))
 
 			
 

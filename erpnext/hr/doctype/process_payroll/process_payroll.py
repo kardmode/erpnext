@@ -62,9 +62,16 @@ class ProcessPayroll(Document):
 				["date_of_joining", "relieving_date"])
 		
 			lwp = self.calculate_lwp(e,m)
-			payment_days = flt(self.get_payment_days(m, joining_date, relieving_date))-flt(lwp)
-			if payment_days > 0:
-				new_emp_list = new_emp_list + (e,)
+			
+			if cint(self.employees_on_leave):
+				if lwp > 0:
+					new_emp_list = new_emp_list + (e,)
+			
+			else:
+			
+				payment_days = flt(self.get_payment_days(m, joining_date, relieving_date))-flt(lwp)
+				if payment_days > 0:
+					new_emp_list = new_emp_list + (e,)
 
 
 
@@ -157,7 +164,7 @@ class ProcessPayroll(Document):
 		cond = self.get_filter_condition()
 		ss_list = frappe.db.sql("""
 			select t1.name from `tabSalary Slip` t1
-			where month = %s and fiscal_year = %s %s
+			where month = %s and fiscal_year = %s %s ORDER by t1.employee_name
 		""" % ('%s', '%s', cond), (self.month, self.fiscal_year))
 		return ss_list
 

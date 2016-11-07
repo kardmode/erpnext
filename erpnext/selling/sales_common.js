@@ -98,7 +98,18 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		this.toggle_editable_price_list_rate();
 		
 		if (cur_frm.doc.items){
-			//this.refresh_headers();
+			cur_frm.add_custom_button(__("Refresh Items"), function() {
+				frappe.msgprint("Refreshing Items. This process will take a few minutes. Your browser might become unresponsive.");
+				cur_frm.cscript.refresh_items();
+				
+				
+				cur_frm.dirty();
+				frappe.hide_msgprint(false);	
+				/* return $c_obj(cur_frm.doc, 'refresh_items','',function(r, rt) {
+					cur_frm.refresh();
+					cur_frm.dirty();
+				}); */
+			});
 		}
 		cur_frm.add_custom_button(__("Quotation Report"), function() {
 			window.location.href = 'desk#query-report/Quotation%20Report';
@@ -424,9 +435,14 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		$.each(items, function(i, d) {
 			var data_row = cur_frm.page.body.find('[data-fieldname="items"] [data-idx="'+ d.idx +'"]');
 			data_row.removeClass("highlight-custom");
-			if (d.item_group == "Header1"){		
+			
+			if (d.item_group == "Header1"){
+				d.page_break = 1;
+				if(i==0)
+					d.page_break = 0;				
 				data_row.addClass("highlight-custom");
 			} else if (d.item_group == "Header2"){
+				d.page_break = 0;
 				data_row.addClass("highlight-custom");					
 			}
 		});
@@ -434,13 +450,27 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		
 	},
 	
+	refresh_items : function(){
+
+		var items = cur_frm.doc.items;
+		if (!items){
+			return;
+		}
+		$.each(items, function(i, d) {
+			cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+		});
+		
+		refresh_field("items");
+			
+	},
+	
 	calculate_headers : function(){
 		console.log("calculating headers")
-		return $c_obj(doc, 'calculate_headers','',function(r, rt) {
-			var doc = locals[dt][dn];
+		return $c_obj(cur_frm.doc, 'calculate_headers','',function(r, rt) {
 			cur_frm.refresh();
+			cur_frm.dirty();
 		});
-	}
+	},
 });
 
 frappe.ui.form.on(cur_frm.doctype,"project", function(frm) {

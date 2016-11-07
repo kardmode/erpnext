@@ -4,14 +4,46 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import flt, getdate
+from frappe.utils import flt, getdate, fmt_money
 from frappe import _
 
 from frappe.model.document import Document
 
 class Project(Document):
-
 	
+	def calculate_sales(self):
+		ss_list = frappe.db.sql("""
+			select name,title,grand_total,transaction_date from `tabQuotation` where project = %s and docstatus < 2""", self.name,as_dict = 1)
+		frappe.errprint(ss_list)
+		totalsales = 0
+		
+		
+		joiningtext = """<table class="table table-bordered table-condensed">
+						<tr>
+						<td>Document</td>
+						<td>Title</td>
+						<td>Date</td>
+						<td>Grand Total</td>
+						</tr>"""	
+		
+		for i, d in enumerate(ss_list):
+			joiningtext += """<tr>
+						<td>""" + str(d["name"]) +"""</td>
+						<td>""" + str(d["title"]) +"""</td>
+						<td>""" + str(d["transaction_date"]) +"""</td>
+						<td>""" + str(fmt_money(d["grand_total"], precision=2)) +"""</td>
+						</tr>"""
+		
+			totalsales = totalsales + flt(d["grand_total"])
+		
+		joiningtext += """<tr>
+						<td>Project Total</td>
+						<td></td>
+						<td></td>
+						<td>""" + str(fmt_money(totalsales, precision=2)) +"""</td>
+						</tr>"""
+		joiningtext += """</table><br>"""
+		self.sales_orders = joiningtext
 
 	def print_summary(self, document):
 	
@@ -22,24 +54,24 @@ class Project(Document):
 			doctype = "Quotation"
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabQuotation` t1 
-				where project_name = %s""", self.project_name)
+				where project = %s and docstatus < 2""", self.name)
 		elif document.lower() == "sales invoice":
 			doctype = "Sales Invoice"
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabSales Invoice` t1 
-				where project_name = %s""", self.project_name)
+				where project = %s and docstatus < 2""", self.name)
 		elif document.lower() == "delivery note":
 			doctype = "Delivery Note"
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabDelivery Note` t1 
-				where project_name = %s""", self.project_name)
+				where project = %s and docstatus < 2""", self.name)
 		
 		
 		return ss_list,doctype
 
 		
 	def get_feed(self):
-		return '{0}: {1}'.format(_(self.status), self.project_name)
+		return '{0}: {1}'.format(_(self.status), self.name)
 
 	def onload(self):
 		"""Load project tasks for quick view"""
@@ -53,6 +85,8 @@ class Project(Document):
 					"description": task.description,
 					"task_id": task.name
 				})
+				
+		
 
 	def __setup__(self):
 		self.onload()
@@ -64,6 +98,7 @@ class Project(Document):
 		self.validate_dates()
 		self.sync_tasks()
 		self.tasks = []
+		self.calculate_sales()
 
 	def validate_dates(self):
 		if self.expected_start_date and self.expected_end_date:

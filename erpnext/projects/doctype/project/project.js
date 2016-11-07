@@ -50,6 +50,12 @@ cur_frm.cscript.refresh = function(doc) {
 			}, __("View"), true);
 		}
 		
+		cur_frm.add_custom_button(__("Sales"), function() {
+				calculate_sales();
+				
+				
+			}, __("Calculate"), true);
+		
 		/* if(frappe.model.can_read("Quotation")) {
 			cur_frm.add_custom_button(__("Quotation"), function() {
 				print_summary("Quotation");
@@ -90,6 +96,15 @@ cur_frm.fields_dict['sales_order'].get_query = function(doc) {
 		filters: filters
 	}
 }
+
+calculate_sales = function(){
+	var doc = cur_frm.doc;
+	return $c_obj(doc, 'calculate_sales','', function(r, rt) {
+		
+			cur_frm.refresh();
+	});
+}
+
 
 print_summary = function(doctype){
 		var doc = cur_frm.doc;
