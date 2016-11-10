@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import unittest
 import frappe
 import frappe.defaults
-from frappe.utils import cint, flt, cstr
+from frappe.utils import cint, flt, cstr, today
 from erpnext.stock.doctype.purchase_receipt.purchase_receipt import make_purchase_invoice
 
 class TestPurchaseReceipt(unittest.TestCase):
@@ -125,7 +125,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 		pr = make_purchase_receipt()
 		
 		return_pr = make_purchase_receipt(is_return=1, return_against=pr.name, qty=-2)
-		
+
 		# check sle
 		outgoing_rate = frappe.db.get_value("Stock Ledger Entry", {"voucher_type": "Purchase Receipt", 
 			"voucher_no": return_pr.name}, "outgoing_rate")
@@ -148,7 +148,21 @@ class TestPurchaseReceipt(unittest.TestCase):
 			self.assertEquals(expected_values[gle.account][1], gle.credit)
 		
 		set_perpetual_inventory(0)
+
+	def test_purchase_return_for_rejected_qty(self):
+		set_perpetual_inventory()
+
+		pr = make_purchase_receipt(received_qty=4, qty=2)
+
+		return_pr = make_purchase_receipt(is_return=1, return_against=pr.name, received_qty = -4, qty=-2)
+
+		actual_qty = frappe.db.get_value("Stock Ledger Entry", {"voucher_type": "Purchase Receipt",
+			"voucher_no": return_pr.name, 'warehouse': return_pr.items[0].rejected_warehouse}, "actual_qty")
 		
+		self.assertEqual(actual_qty, -2)
+
+		set_perpetual_inventory(0)
+
 	def test_purchase_return_for_serialized_items(self):
 		def _check_serial_no_values(serial_no, field_values):
 			serial_no = frappe.get_doc("Serial No", serial_no)
@@ -193,6 +207,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 		po = create_purchase_order()
 		
 		pr1 = make_purchase_receipt(po.name)
+		pr1.posting_date = today()
 		pr1.posting_time = "10:00"
 		pr1.get("items")[0].received_qty = 2
 		pr1.get("items")[0].qty = 2
@@ -209,6 +224,7 @@ class TestPurchaseReceipt(unittest.TestCase):
 		pi2.submit()
 		
 		pr2 = make_purchase_receipt(po.name)
+		pr2.posting_date = today()
 		pr2.posting_time = "08:00"
 		pr2.get("items")[0].received_qty = 5
 		pr2.get("items")[0].qty = 5
@@ -236,8 +252,7 @@ def set_perpetual_inventory(enable=1):
 def make_purchase_receipt(**args):
 	pr = frappe.new_doc("Purchase Receipt")
 	args = frappe._dict(args)
-	if args.posting_date:
-		pr.posting_date = args.posting_date
+	pr.posting_date = args.posting_date or today()
 	if args.posting_time:
 		pr.posting_time = args.posting_time
 	pr.company = args.company or "_Test Company"
@@ -247,17 +262,23 @@ def make_purchase_receipt(**args):
 	pr.currency = args.currency or "INR"
 	pr.is_return = args.is_return
 	pr.return_against = args.return_against
-	
+	qty = args.qty or 5
+	received_qty = args.received_qty or qty
+	rejected_qty = args.rejected_qty or flt(received_qty) - flt(qty)
+
 	pr.append("items", {
 		"item_code": args.item or args.item_code or "_Test Item",
 		"warehouse": args.warehouse or "_Test Warehouse - _TC",
-		"qty": args.qty or 5,
-		"received_qty": args.qty or 5,
+		"qty": qty,
+		"received_qty": received_qty,
+		"rejected_qty": rejected_qty,
+		"rejected_warehouse": args.rejected_warehouse or "_Test Rejected Warehouse - _TC" if rejected_qty != 0 else "",
 		"rate": args.rate or 50,
 		"conversion_factor": 1.0,
 		"serial_no": args.serial_no,
 		"stock_uom": "_Test UOM"
 	})
+
 	if not args.do_not_save:
 		pr.insert()
 		if not args.do_not_submit:

@@ -1,6 +1,7 @@
 Accounts
 CRM
 Buying
+Fleet Management
 Projects
 Selling
 Setup
@@ -11,3 +12,6 @@ Support
 Utilities
 Shopping Cart
 Hub Node
+Portal
+Maintenance
+Schools

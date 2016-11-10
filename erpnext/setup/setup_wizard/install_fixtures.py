@@ -7,31 +7,32 @@ import frappe
 
 from frappe import _
 
+default_lead_sources = ["Existing Customer", "Reference", "Advertisement",
+	"Cold Calling", "Exhibition", "Supplier Reference", "Mass Mailing",
+	"Customer's Vendor", "Campaign", "Walk In"]
+
 def install(country=None):
 	records = [
-
 		# address template
 		{'doctype':"Address Template", "country": country},
 
 		# item group
 		{'doctype': 'Item Group', 'item_group_name': _('All Item Groups'),
-			'is_group': 'Yes', 'parent_item_group': ''},
+			'is_group': 1, 'parent_item_group': ''},
 		{'doctype': 'Item Group', 'item_group_name': _('Products'),
-			'is_group': 'No', 'parent_item_group': _('All Item Groups'), "show_in_website": 1 },
+			'is_group': 0, 'parent_item_group': _('All Item Groups'), "show_in_website": 1 },
 		{'doctype': 'Item Group', 'item_group_name': _('Raw Material'),
-			'is_group': 'No', 'parent_item_group': _('All Item Groups') },
+			'is_group': 0, 'parent_item_group': _('All Item Groups') },
 		{'doctype': 'Item Group', 'item_group_name': _('Services'),
-			'is_group': 'No', 'parent_item_group': _('All Item Groups') },
+			'is_group': 0, 'parent_item_group': _('All Item Groups') },
 		{'doctype': 'Item Group', 'item_group_name': _('Sub Assemblies'),
-			'is_group': 'No', 'parent_item_group': _('All Item Groups') },
+			'is_group': 0, 'parent_item_group': _('All Item Groups') },
 		{'doctype': 'Item Group', 'item_group_name': _('Consumable'),
-			'is_group': 'No', 'parent_item_group': _('All Item Groups') },
+			'is_group': 0, 'parent_item_group': _('All Item Groups') },
 
-		# deduction type
-		{'doctype': 'Deduction Type', 'name': _('Income Tax'), 'description': _('Income Tax'), 'deduction_name': _('Income Tax')},
-
-		# earning type
-		{'doctype': 'Earning Type', 'name': _('Basic'), 'description': _('Basic'), 'earning_name': _('Basic'), 'taxable': 'Yes'},
+		# salary component
+		{'doctype': 'Salary Component', 'salary_component': _('Income Tax'), 'description': _('Income Tax')},
+		{'doctype': 'Salary Component', 'salary_component': _('Basic'), 'description': _('Basic')},
 
 		# expense claim type
 		{'doctype': 'Expense Claim Type', 'name': _('Calls'), 'expense_type': _('Calls')},
@@ -95,14 +96,14 @@ def install(country=None):
 		{'doctype': 'Designation', 'designation_name': _('Researcher')},
 
 		# territory
-		{'doctype': 'Territory', 'territory_name': _('All Territories'), 'is_group': 'Yes', 'name': _('All Territories'), 'parent_territory': ''},
+		{'doctype': 'Territory', 'territory_name': _('All Territories'), 'is_group': 1, 'name': _('All Territories'), 'parent_territory': ''},
 
 		# customer group
-		{'doctype': 'Customer Group', 'customer_group_name': _('All Customer Groups'), 'is_group': 'Yes', 	'name': _('All Customer Groups'), 'parent_customer_group': ''},
-		{'doctype': 'Customer Group', 'customer_group_name': _('Individual'), 'is_group': 'No', 'parent_customer_group': _('All Customer Groups')},
-		{'doctype': 'Customer Group', 'customer_group_name': _('Commercial'), 'is_group': 'No', 'parent_customer_group': _('All Customer Groups')},
-		{'doctype': 'Customer Group', 'customer_group_name': _('Non Profit'), 'is_group': 'No', 'parent_customer_group': _('All Customer Groups')},
-		{'doctype': 'Customer Group', 'customer_group_name': _('Government'), 'is_group': 'No', 'parent_customer_group': _('All Customer Groups')},
+		{'doctype': 'Customer Group', 'customer_group_name': _('All Customer Groups'), 'is_group': 1, 	'name': _('All Customer Groups'), 'parent_customer_group': ''},
+		{'doctype': 'Customer Group', 'customer_group_name': _('Individual'), 'is_group': 0, 'parent_customer_group': _('All Customer Groups')},
+		{'doctype': 'Customer Group', 'customer_group_name': _('Commercial'), 'is_group': 0, 'parent_customer_group': _('All Customer Groups')},
+		{'doctype': 'Customer Group', 'customer_group_name': _('Non Profit'), 'is_group': 0, 'parent_customer_group': _('All Customer Groups')},
+		{'doctype': 'Customer Group', 'customer_group_name': _('Government'), 'is_group': 0, 'parent_customer_group': _('All Customer Groups')},
 
 		# supplier type
 		{'doctype': 'Supplier Type', 'supplier_type': _('Services')},
@@ -114,12 +115,15 @@ def install(country=None):
 		{'doctype': 'Supplier Type', 'supplier_type': _('Distributor')},
 
 		# Sales Person
-		{'doctype': 'Sales Person', 'sales_person_name': _('Sales Team'), 'is_group': "Yes", "parent_sales_person": ""},
+		{'doctype': 'Sales Person', 'sales_person_name': _('Sales Team'), 'is_group': 1, "parent_sales_person": ""},
 
 		# UOM
 		{'uom_name': _('Unit'), 'doctype': 'UOM', 'name': _('Unit'), "must_be_whole_number": 1},
 		{'uom_name': _('Box'), 'doctype': 'UOM', 'name': _('Box'), "must_be_whole_number": 1},
 		{'uom_name': _('Kg'), 'doctype': 'UOM', 'name': _('Kg')},
+		{'uom_name': _('Meter'), 'doctype': 'UOM', 'name': _('Meter')},
+		{'uom_name': _('Litre'), 'doctype': 'UOM', 'name': _('Litre')},
+		{'uom_name': _('Gram'), 'doctype': 'UOM', 'name': _('Gram')},
 		{'uom_name': _('Nos'), 'doctype': 'UOM', 'name': _('Nos'), "must_be_whole_number": 1},
 		{'uom_name': _('Pair'), 'doctype': 'UOM', 'name': _('Pair'), "must_be_whole_number": 1},
 		{'uom_name': _('Set'), 'doctype': 'UOM', 'name': _('Set'), "must_be_whole_number": 1},
@@ -127,11 +131,17 @@ def install(country=None):
 		{'uom_name': _('Minute'), 'doctype': 'UOM', 'name': _('Minute')},
 
 		# Mode of Payment
-		{'doctype': 'Mode of Payment', 'mode_of_payment': 'Check' if country=="United States" else _('Cheque')},
-		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Cash')},
-		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Credit Card')},
-		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Wire Transfer')},
-		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Bank Draft')},
+		{'doctype': 'Mode of Payment',
+			'mode_of_payment': 'Check' if country=="United States" else _('Cheque'),
+			'type': 'Bank'},
+		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Cash'),
+			'type': 'Cash'},
+		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Credit Card'),
+			'type': 'Bank'},
+		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Wire Transfer'),
+			'type': 'Bank'},
+		{'doctype': 'Mode of Payment', 'mode_of_payment': _('Bank Draft'),
+			'type': 'Bank'},
 
 		# Activity Type
 		{'doctype': 'Activity Type', 'activity_type': _('Planning')},
@@ -140,6 +150,7 @@ def install(country=None):
 		{'doctype': 'Activity Type', 'activity_type': _('Execution')},
 		{'doctype': 'Activity Type', 'activity_type': _('Communication')},
 
+		# Lead Source
 		{'doctype': "Item Attribute", "attribute_name": _("Size"), "item_attribute_values": [
 			{"attribute_value": _("Extra Small"), "abbr": "XS"},
 			{"attribute_value": _("Small"), "abbr": "S"},
@@ -174,12 +185,17 @@ def install(country=None):
 		{"doctype": "Offer Term", "offer_term": _("Incentives")},
 
 		{'doctype': "Print Heading", 'print_heading': _("Credit Note")},
-		{'doctype': "Print Heading", 'print_heading': _("Debit Note")}
+		{'doctype': "Print Heading", 'print_heading': _("Debit Note")},
+
+		{"doctype": "Salary Component", "salary_component": _("Basic")},
+		{"doctype": "Salary Component", "salary_component": _("Income Tax")},
 	]
 
 	from erpnext.setup.setup_wizard.industry_type import get_industry_types
 	records += [{"doctype":"Industry Type", "industry": d} for d in get_industry_types()]
 	# records += [{"doctype":"Operation", "operation": d} for d in get_operations()]
+
+	records += [{'doctype': 'Lead Source', 'source_name': _(d)} for d in default_lead_sources]
 
 	from frappe.modules import scrub
 	for r in records:
@@ -200,4 +216,3 @@ def install(country=None):
 				pass
 			else:
 				raise
-

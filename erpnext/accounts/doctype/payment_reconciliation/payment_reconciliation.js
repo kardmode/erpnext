@@ -4,7 +4,6 @@
 frappe.provide("erpnext.accounts");
 
 erpnext.accounts.PaymentReconciliationController = frappe.ui.form.Controller.extend({
-
 	onload: function() {
 		var me = this
 		this.frm.set_query('party_type', function() {
@@ -106,12 +105,14 @@ erpnext.accounts.PaymentReconciliationController = frappe.ui.form.Controller.ext
 				invoices.push(row.invoice_type + " | " + row.invoice_number);
 		});
 
-		frappe.meta.get_docfield("Payment Reconciliation Payment", "invoice_number",
-			me.frm.doc.name).options = invoices.join("\n");
+		if (invoices) {
+			frappe.meta.get_docfield("Payment Reconciliation Payment", "invoice_number",
+				me.frm.doc.name).options = "\n" + invoices.join("\n");
 
-		$.each(me.frm.doc.payments || [], function(i, p) {
-			if(!inList(invoices, cstr(p.invoice_number))) p.invoice_number = null;
-		});
+			$.each(me.frm.doc.payments || [], function(i, p) {
+				if(!inList(invoices, cstr(p.invoice_number))) p.invoice_number = null;
+			});
+		}
 
 		refresh_field("payments");
 	},

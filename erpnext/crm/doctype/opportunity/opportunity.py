@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, json
-from frappe.utils import cstr, cint
+from frappe.utils import cstr, cint, get_fullname
 from frappe import msgprint, _
 from frappe.model.mapper import get_mapped_doc
 from erpnext.setup.utils import get_exchange_rate
@@ -43,14 +43,28 @@ class Opportunity(TransactionBase):
 
 	def make_new_lead_if_required(self):
 		"""Set lead against new opportunity"""
-		if not (self.lead or self.customer):
+		if not (self.lead or self.customer) and self.contact_email:
 			lead_name = frappe.db.get_value("Lead", {"email_id": self.contact_email})
 			if not lead_name:
+				sender_name = get_fullname(self.contact_email)
+				if sender_name == self.contact_email:
+					sender_name = None
+
+				if not sender_name and ('@' in self.contact_email):
+					email_name = self.contact_email.split('@')[0]
+
+					email_split = email_name.split('.')
+					sender_name = ''
+					for s in email_split:
+						sender_name += s.capitalize() + ' '
+
 				lead = frappe.get_doc({
 					"doctype": "Lead",
 					"email_id": self.contact_email,
-					"lead_name": self.contact_email
+					"lead_name": sender_name
 				})
+
+				lead.flags.ignore_email_validation = True
 				lead.insert(ignore_permissions=True)
 				lead_name = lead.name
 
@@ -180,14 +194,16 @@ def make_quotation(source_name, target_doc=None):
 		quotation = frappe.get_doc(target)
 
 		company_currency = frappe.db.get_value("Company", quotation.company, "default_currency")
-		party_account_currency = get_party_account_currency("Customer", quotation.customer, quotation.company)
-
-		if company_currency == party_account_currency:
-			exchange_rate = 1
-		else:
-			exchange_rate = get_exchange_rate(party_account_currency, company_currency)
+		party_account_currency = get_party_account_currency("Customer", quotation.customer,
+			quotation.company) if quotation.customer else company_currency
 
 		quotation.currency = party_account_currency or company_currency
+
+		if company_currency == quotation.currency:
+			exchange_rate = 1
+		else:
+			exchange_rate = get_exchange_rate(quotation.currency, company_currency)
+
 		quotation.conversion_rate = exchange_rate
 
 		quotation.run_method("set_missing_values")
@@ -212,6 +228,25 @@ def make_quotation(source_name, target_doc=None):
 			"add_if_empty": True
 		}
 	}, target_doc, set_missing_values)
+
+	return doclist
+
+@frappe.whitelist()
+def make_supplier_quotation(source_name, target_doc=None):
+	doclist = get_mapped_doc("Opportunity", source_name, {
+		"Opportunity": {
+			"doctype": "Supplier Quotation",
+			"field_map": {
+				"name": "opportunity"
+			}
+		},
+		"Opportunity Item": {
+			"doctype": "Supplier Quotation Item",
+			"field_map": {
+				"uom": "stock_uom"
+			}
+		}
+	}, target_doc)
 
 	return doclist
 

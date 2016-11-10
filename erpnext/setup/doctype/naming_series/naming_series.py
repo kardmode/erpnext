@@ -24,7 +24,8 @@ class NamingSeries(Document):
 			try:
 				options = self.get_options(d)
 			except frappe.DoesNotExistError:
-				frappe.pass_does_not_exist_error()
+				frappe.msgprint('Unable to find DocType {0}'.format(d))
+				#frappe.pass_does_not_exist_error()
 				continue
 
 			if options:

@@ -45,6 +45,32 @@ class TestPurchaseOrder(unittest.TestCase):
 
 		po.load_from_db()
 		self.assertEquals(po.get("items")[0].received_qty, 4)
+		
+	def test_ordered_qty_against_pi_with_update_stock(self):
+		existing_ordered_qty = get_ordered_qty()
+
+		po = create_purchase_order()
+		
+		self.assertEqual(get_ordered_qty(), existing_ordered_qty + 10)
+
+		frappe.db.set_value('Item', '_Test Item', 'tolerance', 50)
+
+		pi = make_purchase_invoice(po.name)
+		pi.update_stock = 1
+		pi.items[0].qty = 12
+		pi.insert()
+		pi.submit()
+		
+		self.assertEqual(get_ordered_qty(), existing_ordered_qty)
+
+		po.load_from_db()
+		self.assertEquals(po.get("items")[0].received_qty, 12)
+
+		pi.cancel()
+		self.assertEqual(get_ordered_qty(), existing_ordered_qty + 10)
+
+		po.load_from_db()
+		self.assertEquals(po.get("items")[0].received_qty, 0)
 
 	def test_make_purchase_invoice(self):
 		po = create_purchase_order(do_not_submit=True)
@@ -84,6 +110,37 @@ class TestPurchaseOrder(unittest.TestCase):
 		po.update_status("Closed")
 
 		self.assertEquals(get_ordered_qty(item_code="_Test Item", warehouse="_Test Warehouse - _TC"), existing_ordered_qty)
+		
+	def test_group_same_items(self):
+		frappe.get_doc({
+			"doctype": "Purchase Order",
+			"company": "_Test Company",
+			"supplier" : "_Test Supplier",
+			"is_subcontracted" : "No",
+			"currency" : frappe.db.get_value("Company", "_Test Company", "default_currency"),
+			"conversion_factor" : 1,
+			"items" : get_same_items(),
+			"group_same_items": 1
+		}).insert()
+
+		
+def get_same_items():	
+	return [
+				{
+					"item_code": "_Test FG Item",
+					"warehouse": "_Test Warehouse - _TC",
+					"qty": 1,
+					"rate": 500,
+					"schedule_date": add_days(nowdate(), 1)
+				},
+				{
+					"item_code": "_Test FG Item",
+					"warehouse": "_Test Warehouse - _TC",
+					"qty": 4,
+					"rate": 500,
+					"schedule_date": add_days(nowdate(), 1)
+				}
+			]		
 
 def create_purchase_order(**args):
 	po = frappe.new_doc("Purchase Order")

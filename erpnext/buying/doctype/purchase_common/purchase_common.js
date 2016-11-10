@@ -4,16 +4,39 @@
 frappe.provide("erpnext.buying");
 
 cur_frm.cscript.tax_table = "Purchase Taxes and Charges";
-{% include 'accounts/doctype/purchase_taxes_and_charges_template/purchase_taxes_and_charges_template.js' %}
 
-frappe.require("assets/erpnext/js/controllers/transaction.js");
+{% include 'erpnext/accounts/doctype/purchase_taxes_and_charges_template/purchase_taxes_and_charges_template.js' %}
 
 cur_frm.email_field = "contact_email";
 
 erpnext.buying.BuyingController = erpnext.TransactionController.extend({
+	setup: function() {
+		this._super();
+	},
+
 	onload: function() {
 		this.setup_queries();
 		this._super();
+
+		if(this.frm.get_field('shipping_address')) {
+			this.frm.set_query("shipping_address", function(){
+				if(me.frm.doc.customer){
+					return{
+						filters:{
+							"customer": me.frm.doc.customer
+						}
+					}
+				}
+				else{
+					return{
+						filters:{
+							"is_your_company_address": 1,
+							"company": me.frm.doc.company
+						}
+					}
+				}
+			});
+		}
 	},
 
 	setup_queries: function() {
@@ -42,14 +65,14 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 
 		this.frm.set_query("item_code", "items", function() {
 			if(me.frm.doc.is_subcontracted == "Yes") {
-				 return{
+				return{
 					query: "erpnext.controllers.queries.item_query",
 					filters:{ 'is_sub_contracted_item': 1 }
 				}
 			} else {
 				return{
 					query: "erpnext.controllers.queries.item_query",
-					filters: { 'is_purchase_item': 1 }
+					filters: {'is_purchase_item': 1}
 				}
 			}
 		});
@@ -76,7 +99,7 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 
 	refresh: function(doc) {
 		this.frm.toggle_display("supplier_name",
-			(this.supplier_name && this.frm.doc.supplier_name!==this.frm.doc.supplier));
+			(this.frm.doc.supplier_name && this.frm.doc.supplier_name!==this.frm.doc.supplier));
 
 		if(this.frm.docstatus==0 &&
 			(this.frm.doctype==="Purchase Order" || this.frm.doctype==="Material Request")) {
@@ -134,8 +157,36 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 	},
 
 	qty: function(doc, cdt, cdn) {
+		var item = frappe.get_doc(cdt, cdn);
+		if ((doc.doctype == "Purchase Receipt") || (doc.doctype == "Purchase Invoice" && doc.update_stock)) {
+			frappe.model.round_floats_in(item, ["qty", "received_qty"]);
+			if(!(item.received_qty || item.rejected_qty) && item.qty) {
+				item.received_qty = item.qty;
+			}
+
+			frappe.model.round_floats_in(item, ["qty", "received_qty"]);
+			item.rejected_qty = flt(item.received_qty - item.qty, precision("rejected_qty", item));
+		}
+
 		this._super(doc, cdt, cdn);
 		this.conversion_factor(doc, cdt, cdn);
+
+	},
+
+	received_qty: function(doc, cdt, cdn) {
+		this.calculate_accepted_qty(doc, cdt, cdn)
+	},
+
+	rejected_qty: function(doc, cdt, cdn) {
+		this.calculate_accepted_qty(doc, cdt, cdn)
+	},
+
+	calculate_accepted_qty: function(doc, cdt, cdn){
+		var item = frappe.get_doc(cdt, cdn);
+		frappe.model.round_floats_in(item, ["received_qty", "rejected_qty"]);
+
+		item.qty = flt(item.received_qty - item.rejected_qty, precision("qty", item));
+		this.qty(doc, cdt, cdn);
 	},
 
 	conversion_factor: function(doc, cdt, cdn) {
@@ -151,7 +202,7 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 		var item = frappe.get_doc(cdt, cdn);
 		if(item.item_code && item.warehouse) {
 			return this.frm.call({
-				method: "erpnext.stock.get_item_details.get_projected_qty",
+				method: "erpnext.stock.get_item_details.get_bin_details",
 				child: item,
 				args: {
 					item_code: item.item_code,
@@ -190,20 +241,16 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 			erpnext.buying.get_items_from_product_bundle(me.frm);
 		}, __("Get items from"));
 	},
-	
-	company: function() {
-		var me = this;
-		if (frappe.meta.get_docfield(this.frm.doctype, "shipping_address") 
-			&& !this.frm.doc.shipping_address) {
-				erpnext.utils.get_shipping_address(this.frm)
-		}
-	},
-	
+
 	shipping_address: function(){
 		
 		
 		erpnext.utils.get_address_display(this.frm, "shipping_address", 
 			"shipping_address_display", is_your_company_address=true)
+	},
+
+	tc_name: function() {
+		this.get_terms();
 	}
 });
 

@@ -8,13 +8,13 @@ def load_address_and_contact(doc, key):
 	"""Loads address list and contact list in `__onload`"""
 	from erpnext.utilities.doctype.address.address import get_address_display
 
-	doc.get("__onload").addr_list = [a.update({"display": get_address_display(a)}) \
+	doc.get("__onload")["addr_list"] = [a.update({"display": get_address_display(a)}) \
 		for a in frappe.get_all("Address",
 			fields="*", filters={key: doc.name},
 			order_by="is_primary_address desc, modified desc")]
 
 	if doc.doctype != "Lead":
-		doc.get("__onload").contact_list = frappe.get_all("Contact",
+		doc.get("__onload")["contact_list"] = frappe.get_all("Contact",
 			fields="*", filters={key: doc.name},
 			order_by="is_primary_contact desc, modified desc")
 
@@ -29,7 +29,6 @@ def has_permission(doc, ptype, user):
 	for df in (links.get("permitted_links") + links.get("not_permitted_links")):
 		doctype = df.options
 		name = doc.get(df.fieldname)
-
 		names.append(name)
 
 		if name and frappe.has_permission(doctype, ptype, doc=name):
@@ -37,9 +36,7 @@ def has_permission(doc, ptype, user):
 
 	if not any(names):
 		return True
-
-	else:
-		return False
+	return False
 
 def get_permission_query_conditions_for_contact(user):
 	return get_permission_query_conditions("Contact")
@@ -80,7 +77,7 @@ def get_permitted_and_not_permitted_links(doctype):
 	meta = frappe.get_meta(doctype)
 
 	for df in meta.get_link_fields():
-		if df.options not in ("Customer", "Supplier", "Sales Partner"):
+		if df.options not in ("Customer", "Supplier", "Company", "Sales Partner"):
 			continue
 
 		if frappe.has_permission(df.options):

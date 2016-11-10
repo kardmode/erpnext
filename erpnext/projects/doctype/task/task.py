@@ -28,7 +28,9 @@ class Task(Document):
 
 	def validate(self):
 		self.validate_dates()
+		self.validate_progress()
 		self.validate_status()
+		self.update_depends_on()
 
 	def validate_dates(self):
 		if self.exp_start_date and self.exp_end_date and getdate(self.exp_start_date) > getdate(self.exp_end_date):
@@ -45,6 +47,16 @@ class Task(Document):
 
 			from frappe.desk.form.assign_to import clear
 			clear(self.doctype, self.name)
+			
+	def validate_progress(self):
+		if self.progress > 100:
+			frappe.throw(_("Progress % for a task cannot be more than 100."))
+
+	def update_depends_on(self):
+		depends_on_tasks = ""
+		for d in self.depends_on:
+			depends_on_tasks += d.task + ","
+		self.depends_on_tasks = depends_on_tasks
 
 	def on_update(self):
 		self.check_recursion()
@@ -58,7 +70,7 @@ class Task(Document):
 	def update_time_and_costing(self):
 		tl = frappe.db.sql("""select min(from_time) as start_date, max(to_time) as end_date,
 			sum(billing_amount) as total_billing_amount, sum(costing_amount) as total_costing_amount,
-			sum(hours) as time from `tabTime Log` where task = %s and docstatus=1"""
+			sum(hours) as time from `tabTimesheet Detail` where task = %s and docstatus=1"""
 			,self.name, as_dict=1)[0]
 		if self.status == "Open":
 			self.status = "Working"
@@ -101,6 +113,11 @@ class Task(Document):
 					task.exp_end_date = add_days(task.exp_start_date, task_duration)
 					task.flags.ignore_recursion_check = True
 					task.save()
+					
+	def has_webform_permission(doc):
+		project_user = frappe.db.get_value("Project User", {"parent": doc.project, "user":frappe.session.user} , "user")
+		if project_user:
+			return True				
 
 @frappe.whitelist()
 def get_events(start, end, filters=None):
@@ -134,7 +151,7 @@ def get_project(doctype, txt, searchfield, start, page_len, filters):
 			order by name
 			limit %(start)s, %(page_len)s """ % {'key': searchfield,
 			'txt': "%%%s%%" % frappe.db.escape(txt), 'mcond':get_match_cond(doctype),
-			'start': start, 'page_len': page_len})
+			'start': start, 'page_len': page_len})			
 
 
 @frappe.whitelist()
@@ -150,3 +167,4 @@ def set_tasks_as_overdue():
 		where exp_end_date is not null
 		and exp_end_date < CURDATE()
 		and `status` not in ('Closed', 'Cancelled')""")
+		

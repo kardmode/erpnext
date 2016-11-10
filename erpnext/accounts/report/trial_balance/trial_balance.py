@@ -65,7 +65,7 @@ def get_data(filters):
 	gl_entries_by_account = {}
 
 	set_gl_entries_by_account(filters.company, filters.from_date,
-		filters.to_date, min_lft, max_rgt, gl_entries_by_account, ignore_closing_entries=not flt(filters.with_period_closing_entry))
+		filters.to_date, min_lft, max_rgt, filters, gl_entries_by_account, ignore_closing_entries=not flt(filters.with_period_closing_entry))
 
 	opening_balances = get_opening_balances(filters)
 
@@ -87,8 +87,10 @@ def get_opening_balances(filters):
 
 
 def get_rootwise_opening_balances(filters, report_type):
-	additional_conditions = " and posting_date >= %(year_start_date)s" \
-		if report_type == "Profit and Loss" else ""
+	additional_conditions = ""
+	if not filters.show_unclosed_fy_pl_balances:
+		additional_conditions = " and posting_date >= %(year_start_date)s" \
+			if report_type == "Profit and Loss" else ""
 
 	if not flt(filters.with_period_closing_entry):
 		additional_conditions += " and ifnull(voucher_type, '')!='Period Closing Voucher'"
@@ -161,6 +163,8 @@ def accumulate_values_into_parents(accounts, accounts_by_name):
 
 def prepare_data(accounts, filters, total_row, parent_children_map):
 	data = []
+	company_currency = frappe.db.get_value("Company", filters.company, "default_currency")
+	
 	for d in accounts:
 		has_value = False
 		row = {
@@ -169,7 +173,8 @@ def prepare_data(accounts, filters, total_row, parent_children_map):
 			"parent_account": d.parent_account,
 			"indent": d.indent,
 			"from_date": filters.from_date,
-			"to_date": filters.to_date
+			"to_date": filters.to_date,
+			"currency": company_currency
 		}
 
 		prepare_opening_and_closing(d)
@@ -201,37 +206,50 @@ def get_columns():
 			"fieldname": "opening_debit",
 			"label": _("Opening (Dr)"),
 			"fieldtype": "Currency",
+			"options": "currency",
 			"width": 120
 		},
 		{
 			"fieldname": "opening_credit",
 			"label": _("Opening (Cr)"),
 			"fieldtype": "Currency",
+			"options": "currency",
 			"width": 120
 		},
 		{
 			"fieldname": "debit",
 			"label": _("Debit"),
 			"fieldtype": "Currency",
+			"options": "currency",
 			"width": 120
 		},
 		{
 			"fieldname": "credit",
 			"label": _("Credit"),
 			"fieldtype": "Currency",
+			"options": "currency",
 			"width": 120
 		},
 		{
 			"fieldname": "closing_debit",
 			"label": _("Closing (Dr)"),
 			"fieldtype": "Currency",
+			"options": "currency",
 			"width": 120
 		},
 		{
 			"fieldname": "closing_credit",
 			"label": _("Closing (Cr)"),
 			"fieldtype": "Currency",
+			"options": "currency",
 			"width": 120
+		},
+		{
+			"fieldname": "currency",
+			"label": _("Currency"),
+			"fieldtype": "Link",
+			"options": "Currency",
+			"hidden": 1
 		}
 	]
 

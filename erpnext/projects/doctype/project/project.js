@@ -11,44 +11,30 @@ frappe.ui.form.on("Project", {
 				"project_name": frm.doc.name
 			}
 		}
-	}
-});
 
-frappe.ui.form.on("Project Task", "edit_task", function(frm, doctype, name) {
-	var doc = frappe.get_doc(doctype, name);
-	if(doc.task_id) {
-		frappe.set_route("Form", "Task", doc.task_id);
-	} else {
-		msgprint(__("Save the document first."));
-	}
-})
+		frm.set_query('customer', 'erpnext.controllers.queries.customer_query');
+		
+		frm.set_query("user", "users", function() {
+					return {
+						query:"erpnext.projects.doctype.project.project.get_users_for_project"
+					}
+				});
 
-// show tasks
-cur_frm.cscript.refresh = function(doc) {
-	if(!doc.__islocal) {
-		if(frappe.model.can_read("Task")) {
-			cur_frm.add_custom_button(__("Gantt Chart"), function() {
-				frappe.route_options = {"project": doc.name, "start": doc.expected_start_date, "end": doc.expected_end_date};
-				frappe.set_route("Gantt", "Task");
-			}, __("View"), true);
-			cur_frm.add_custom_button(__("Tasks"), function() {
-				frappe.route_options = {"project": doc.name}
-				frappe.set_route("List", "Task");
-			}, __("View"), true);
-		}
-		if(frappe.model.can_read("Time Log")) {
-			cur_frm.add_custom_button(__("Time Logs"), function() {
-				frappe.route_options = {"project": doc.name}
-				frappe.set_route("List", "Time Log");
-			}, __("View"), true);
-		}
+		// sales order
+		frm.set_query('sales_order', function() {
+			var filters = {
+				'project': ["in", frm.doc.__islocal ? [""] : [frm.doc.name, ""]]
+			};
+			
+			if (frm.doc.customer) {
+				filters["customer"] = frm.doc.customer;
+			}
 
-		if(frappe.model.can_read("Expense Claim")) {
-			cur_frm.add_custom_button(__("Expense Claims"), function() {
-				frappe.route_options = {"project": doc.name}
-				frappe.set_route("List", "Expense Claim");
-			}, __("View"), true);
-		}
+			return {
+				filters: filters
+			}
+		});
+
 		
 		cur_frm.add_custom_button(__("Sales"), function() {
 				calculate_sales();
@@ -74,28 +60,72 @@ cur_frm.cscript.refresh = function(doc) {
 			}, __("Print"), true);
 		} */
 		
-	}
-}
+	
+	},
+	refresh: function(frm) {
+		if(frm.doc.__islocal) {
+			frm.web_link && frm.web_link.remove();
+		} else {
+			frm.add_web_link("/projects?project=" + encodeURIComponent(frm.doc.name));
 
-cur_frm.fields_dict.customer.get_query = function(doc,cdt,cdn) {
-	return{
-		query: "erpnext.controllers.queries.customer_query"
-	}
-}
+			if(frappe.model.can_read("Task")) {
+				frm.add_custom_button(__("Gantt Chart"), function() {
+					frappe.route_options = {"project": frm.doc.name};
+					frappe.set_route("List", "Task", "Gantt");
+				});
+			}
 
-cur_frm.fields_dict['sales_order'].get_query = function(doc) {
-	var filters = {
-		'project': ["in", doc.__islocal ? [""] : [doc.name, ""]]
-	};
+			frm.trigger('show_dashboard');
+		}
+	},
+	tasks_refresh: function(frm) {
+		var grid = frm.get_field('tasks').grid;
+		grid.wrapper.find('select[data-fieldname="status"]').each(function() {
+			if($(this).val()==='Open') {
+				$(this).addClass('input-indicator-open');
+			} else {
+				$(this).removeClass('input-indicator-open');
+			}
+		});
+	},
+	show_dashboard: function(frm) {
+		if(frm.doc.__onload.activity_summary.length) {
+			var hours = $.map(frm.doc.__onload.activity_summary, function(d) { return d.total_hours });
+			var max_count = Math.max.apply(null, hours);
+			var sum = hours.reduce(function(a, b) { return a + b; }, 0);
+			var section = frm.dashboard.add_section(
+				frappe.render_template('project_dashboard',
+					{
+						data: frm.doc.__onload.activity_summary,
+						max_count: max_count,
+						sum: sum
+					}));
 
-	if (doc.customer) {
-		filters["customer"] = doc.customer;
-	}
+			section.on('click', '.time-sheet-link', function() {
+				var activity_type = $(this).attr('data-activity_type');
+				frappe.set_route('List', 'Timesheet',
+					{'activity_type': activity_type, 'project': frm.doc.name, 'status': ["!=", "Cancelled"]});
+			});
+		}
+	},
 
-	return {
-		filters: filters
-	}
-}
+	
+});
+
+frappe.ui.form.on("Project Task", {
+	edit_task: function(frm, doctype, name) {
+		var doc = frappe.get_doc(doctype, name);
+		if(doc.task_id) {
+			frappe.set_route("Form", "Task", doc.task_id);
+		} else {
+			msgprint(__("Save the document first."));
+		}
+	},
+	status: function(frm, doctype, name) {
+		frm.trigger('tasks_refresh');
+	},
+});
+
 
 calculate_sales = function(){
 	var doc = cur_frm.doc;
@@ -162,4 +192,5 @@ print_summary = function(doctype){
 		
 
 }
+
 

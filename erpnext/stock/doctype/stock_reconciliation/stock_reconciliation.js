@@ -1,12 +1,12 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: GNU General Public License v3. See license.txt
 
-frappe.require("assets/erpnext/js/controllers/stock_controller.js");
-frappe.require("assets/erpnext/js/utils.js");
 frappe.provide("erpnext.stock");
 
 frappe.ui.form.on("Stock Reconciliation", {
 	onload: function(frm) {
+		frm.add_fetch("item_code", "item_name", "item_name");
+
 		// end of life
 		frm.set_query("item_code", "items", function(doc, cdt, cdn) {
 			return {
@@ -17,6 +17,12 @@ frappe.ui.form.on("Stock Reconciliation", {
 				}
 			}
 		});
+
+		if (frm.doc.company) {
+			erpnext.queries.setup_queries(frm, "Warehouse", function() {
+				return erpnext.queries.warehouse(frm.doc);
+			});
+		}
 	},
 
 	refresh: function(frm) {
@@ -69,19 +75,54 @@ frappe.ui.form.on("Stock Reconciliation", {
 					frappe.model.set_value(cdt, cdn, "valuation_rate", r.message.rate);
 					frappe.model.set_value(cdt, cdn, "current_qty", r.message.qty);
 					frappe.model.set_value(cdt, cdn, "current_valuation_rate", r.message.rate);
+					frappe.model.set_value(cdt, cdn, "current_amount", r.message.rate * r.message.qty);
+					frappe.model.set_value(cdt, cdn, "amount", r.message.rate * r.message.qty);
+					
 				}
 			});
+		}
+	},
+	set_item_code: function(doc, cdt, cdn) {
+		var d = frappe.model.get_doc(cdt, cdn);
+		if (d.barcode) {
+			frappe.call({
+				method: "erpnext.stock.get_item_details.get_item_code",
+				args: {"barcode": d.barcode },
+				callback: function(r) {
+					if (!r.exe){
+						frappe.model.set_value(cdt, cdn, "item_code", r.message);
+					}
+				}
+			});
+		}
+	},
+	set_amount_quantity: function(doc, cdt, cdn) {
+		var d = frappe.model.get_doc(cdt, cdn);
+		if (d.qty & d.valuation_rate) {
+			frappe.model.set_value(cdt, cdn, "amount", flt(d.qty) * flt(d.valuation_rate));
+			frappe.model.set_value(cdt, cdn, "quantity_difference", flt(d.qty) - flt(d.current_qty));
+			frappe.model.set_value(cdt, cdn, "amount_difference", flt(d.amount) - flt(d.current_amount));
 		}
 	}
 });
 
 frappe.ui.form.on("Stock Reconciliation Item", {
+	barcode: function(frm, cdt, cdn) {
+		frm.events.set_item_code(frm, cdt, cdn);
+	},
 	warehouse: function(frm, cdt, cdn) {
 		frm.events.set_valuation_rate_and_qty(frm, cdt, cdn);
 	},
 	item_code: function(frm, cdt, cdn) {
 		frm.events.set_valuation_rate_and_qty(frm, cdt, cdn);
+	},
+	qty: function(frm, cdt, cdn) {
+		frm.events.set_amount_quantity(frm, cdt, cdn);
+	},
+	valuation_rate: function(frm, cdt, cdn) {
+		frm.events.set_amount_quantity(frm, cdt, cdn);
 	}
+	
 });
 
 erpnext.stock.StockReconciliation = erpnext.stock.StockController.extend({

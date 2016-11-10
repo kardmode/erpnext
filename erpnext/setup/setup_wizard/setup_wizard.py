@@ -4,15 +4,17 @@
 from __future__ import unicode_literals
 import frappe, copy
 
+import os
+import json
 from frappe.utils import cstr, flt, getdate
 from frappe import _
 from frappe.utils.file_manager import save_file
 from .default_website import website_maker
 import install_fixtures
 from .sample_data import make_sample_data
-from erpnext.accounts.utils import FiscalYearError
 from erpnext.accounts.doctype.account.account import RootNotEditable
 from frappe.core.doctype.communication.comment import add_info_comment
+from erpnext.setup.setup_wizard.domainify import setup_domain
 
 def setup_complete(args=None):
 	if frappe.db.sql("select name from tabCompany"):
@@ -20,11 +22,12 @@ def setup_complete(args=None):
 
 	install_fixtures.install(args.get("country"))
 
+	create_price_lists(args)
 	create_fiscal_year_and_company(args)
+	create_sales_tax(args)
 	create_users(args)
 	set_defaults(args)
 	create_territories()
-	create_price_lists(args)
 	create_feed_and_todo()
 	create_email_digest()
 	create_letter_head(args)
@@ -32,13 +35,26 @@ def setup_complete(args=None):
 	create_items(args)
 	create_customers(args)
 	create_suppliers(args)
-	frappe.local.message_log = []
 
-	website_maker(args.company_name.strip(), args.company_tagline, args.name)
+	if args.domain.lower() == 'education':
+		create_academic_year()
+		create_academic_term()
+		create_program(args)
+		create_course(args)
+		create_instructor(args)
+		create_room(args)
+
+	if args.get('setup_website'):
+		website_maker(args)
+
 	create_logo(args)
+
+	frappe.local.message_log = []
+	setup_domain(args.get('domain'))
 
 	frappe.db.commit()
 	login_as_first_user(args)
+
 	frappe.db.commit()
 	frappe.clear_cache()
 
@@ -46,13 +62,13 @@ def setup_complete(args=None):
 		try:
 			make_sample_data()
 			frappe.clear_cache()
-		except FiscalYearError:
+		except:
 			# clear message
 			if frappe.message_log:
 				frappe.message_log.pop()
 
 			pass
-
+ 
 def create_fiscal_year_and_company(args):
 	if (args.get('fy_start_date')):
 		curr_fiscal_year = get_fy_details(args.get('fy_start_date'), args.get('fy_end_date'))
@@ -76,8 +92,21 @@ def create_fiscal_year_and_company(args):
 			'domain': args.get('domain')
 		}).insert()
 
+		#Enable shopping cart
+		enable_shopping_cart(args)
+
 		# Bank Account
 		create_bank_account(args)
+
+def enable_shopping_cart(args):
+	frappe.get_doc({
+		"doctype": "Shopping Cart Settings",
+		"enabled": 1,
+		'company': args.get('company_name').strip(),
+		'price_list': frappe.db.get_value("Price List", {"selling": 1}),
+		'default_customer_group': _("Individual"),
+		'quotation_series': "QTN-",
+	}).insert()
 
 def create_bank_account(args):
 	if args.get("bank_account"):
@@ -136,6 +165,7 @@ def set_defaults(args):
 	stock_settings = frappe.get_doc("Stock Settings")
 	stock_settings.item_naming_by = "Item Code"
 	stock_settings.valuation_method = "FIFO"
+	stock_settings.default_warehouse = frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')})
 	stock_settings.stock_uom = _("Nos")
 	stock_settings.auto_indent = 1
 	stock_settings.auto_insert_price_list_rate_if_missing = 1
@@ -214,48 +244,78 @@ def get_fy_details(fy_start_date, fy_end_date):
 	else:
 		fy = cstr(start_year) + '-' + cstr(start_year + 1)
 	return fy
+	
+def create_sales_tax(args):
+	country_wise_tax = get_country_wise_tax(args.get("country"))
+	if country_wise_tax and len(country_wise_tax) > 0:
+		for sales_tax, tax_data in country_wise_tax.items():
+			make_tax_account_and_template(args.get("company_name").strip(), 
+				tax_data.get('account_name'), tax_data.get('tax_rate'), sales_tax)
+
+def get_country_wise_tax(country):
+	data = {}
+	with open (os.path.join(os.path.dirname(__file__), "data", "country_wise_tax.json")) as countrywise_tax:
+		data = json.load(countrywise_tax).get(country)
+
+	return data
 
 def create_taxes(args):
-
 	for i in xrange(1,6):
 		if args.get("tax_" + str(i)):
 			# replace % in case someone also enters the % symbol
 			tax_rate = cstr(args.get("tax_rate_" + str(i)) or "").replace("%", "")
+			account_name = args.get("tax_" + str(i))
 
-			try:
-				tax_group = frappe.db.get_value("Account", {"company": args.get("company_name"),
-					"is_group": 1, "account_type": "Tax", "root_type": "Liability"})
-				if tax_group:
-					account = make_tax_head(args, i, tax_group, tax_rate)
-					make_sales_and_purchase_tax_templates(account)
+			make_tax_account_and_template(args.get("company_name").strip(), account_name, tax_rate)
+			
+def make_tax_account_and_template(company, account_name, tax_rate, template_name=None):
+	try:
+		account = make_tax_account(company, account_name, tax_rate)
+		if account:
+			make_sales_and_purchase_tax_templates(account, template_name)
+	except frappe.NameError, e:
+		if e.args[2][0]==1062:
+			pass
+		else:
+			raise
+	except RootNotEditable, e:
+		pass
+				
+def get_tax_account_group(company):
+	tax_group = frappe.db.get_value("Account", 
+		{"account_name": "Duties and Taxes", "is_group": 1, "company": company})
+	if not tax_group:
+		tax_group = frappe.db.get_value("Account", {"is_group": 1, "root_type": "Liability", 
+				"account_type": "Tax", "company": company})
+				
+	return tax_group
 
-			except frappe.NameError, e:
-				if e.args[2][0]==1062:
-					pass
-				else:
-					raise
-			except RootNotEditable, e:
-				pass
+def make_tax_account(company, account_name, tax_rate):
+	tax_group = get_tax_account_group(company)
+	if tax_group:
+		return frappe.get_doc({
+			"doctype":"Account",
+			"company": company,
+			"parent_account": tax_group,
+			"account_name": account_name,
+			"is_group": 0,
+			"report_type": "Balance Sheet",
+			"root_type": "Liability",
+			"account_type": "Tax",
+			"tax_rate": flt(tax_rate) if tax_rate else None
+		}).insert(ignore_permissions=True)
 
-def make_tax_head(args, i, tax_group, tax_rate):
-	return frappe.get_doc({
-		"doctype":"Account",
-		"company": args.get("company_name").strip(),
-		"parent_account": tax_group,
-		"account_name": args.get("tax_" + str(i)),
-		"is_group": 0,
-		"report_type": "Balance Sheet",
-		"account_type": "Tax",
-		"tax_rate": flt(tax_rate) if tax_rate else None
-	}).insert(ignore_permissions=True)
-
-def make_sales_and_purchase_tax_templates(account):
-	doc = {
+def make_sales_and_purchase_tax_templates(account, template_name=None):
+	if not template_name:
+		template_name = account.name
+		
+	sales_tax_template = {
 		"doctype": "Sales Taxes and Charges Template",
-		"title": account.name,
+		"title": template_name,
+		"company": account.company,
 		"taxes": [{
-		    "category": "Valuation and Total",
-		    "charge_type": "On Net Total",
+			"category": "Valuation and Total",
+			"charge_type": "On Net Total",
 			"account_head": account.name,
 			"description": "{0} @ {1}".format(account.account_name, account.tax_rate),
 			"rate": account.tax_rate
@@ -263,11 +323,12 @@ def make_sales_and_purchase_tax_templates(account):
 	}
 
 	# Sales
-	frappe.get_doc(copy.deepcopy(doc)).insert()
+	frappe.get_doc(copy.deepcopy(sales_tax_template)).insert(ignore_permissions=True)
 
 	# Purchase
-	doc["doctype"] = "Purchase Taxes and Charges Template"
-	frappe.get_doc(copy.deepcopy(doc)).insert()
+	purchase_tax_template = copy.deepcopy(sales_tax_template)
+	purchase_tax_template["doctype"] = "Purchase Taxes and Charges Template"
+	frappe.get_doc(purchase_tax_template).insert(ignore_permissions=True)
 
 def create_items(args):
 	for i in xrange(1,6):
@@ -277,7 +338,6 @@ def create_items(args):
 			is_sales_item = args.get("is_sales_item_" + str(i))
 			is_purchase_item = args.get("is_purchase_item_" + str(i))
 			is_stock_item = item_group!=_("Services")
-			is_pro_applicable = item_group!=_("Services")
 			default_warehouse = ""
 			if is_stock_item:
 				default_warehouse = frappe.db.get_value("Warehouse", filters={
@@ -291,11 +351,10 @@ def create_items(args):
 					"item_code": item,
 					"item_name": item,
 					"description": item,
-					"is_sales_item": 1 if is_sales_item else 0,
-					"is_purchase_item": 1 if is_purchase_item else 0,
 					"show_in_website": 1,
+					"is_sales_item": is_sales_item,
+					"is_purchase_item": is_purchase_item,
 					"is_stock_item": is_stock_item and 1 or 0,
-					"is_pro_applicable": is_pro_applicable and 1 or 0,
 					"item_group": item_group,
 					"stock_uom": args.get("item_uom_" + str(i)),
 					"default_warehouse": default_warehouse
@@ -423,10 +482,13 @@ def login_as_first_user(args):
 		frappe.local.login_manager.login_as(args.get("email"))
 
 def create_users(args):
+	if frappe.session.user == 'Administrator':
+		return
+
 	# create employee for self
 	emp = frappe.get_doc({
 		"doctype": "Employee",
-		"full_name": " ".join(filter(None, [args.get("first_name"), args.get("last_name")])),
+		"employee_name": " ".join(filter(None, [args.get("first_name"), args.get("last_name")])),
 		"user_id": frappe.session.user,
 		"status": "Active",
 		"company": args.get("company_name")
@@ -470,11 +532,58 @@ def create_users(args):
 				# create employee
 				emp = frappe.get_doc({
 					"doctype": "Employee",
-					"full_name": fullname,
+					"employee_name": fullname,
 					"user_id": email,
 					"status": "Active",
 					"company": args.get("company_name")
 				})
 				emp.flags.ignore_mandatory = True
 				emp.insert(ignore_permissions = True)
+
+def create_academic_term():
+	at = ["Semester 1", "Semester 2", "Semester 3"]
+	ay = ["2013-14", "2014-15", "2015-16", "2016-17", "2017-18"]
+	for y in ay:
+		for t in at:
+			academic_term = frappe.new_doc("Academic Term")
+			academic_term.academic_year = y
+			academic_term.term_name = t
+			academic_term.save()
+
+def create_academic_year():
+	ac = ["2013-14", "2014-15", "2015-16", "2016-17", "2017-18"]
+	for d in ac:
+		academic_year = frappe.new_doc("Academic Year")
+		academic_year.academic_year_name = d
+		academic_year.save()
+
+def create_program(args):
+	for i in xrange(1,6):
+		if args.get("program_" + str(i)):
+			program = frappe.new_doc("Program")
+			program.program_name = args.get("program_" + str(i))
+			program.save()
+
+def create_course(args):
+	for i in xrange(1,6):
+		if args.get("course_" + str(i)):
+			course = frappe.new_doc("Course")
+			course.course_name = args.get("course_" + str(i))
+			course.save()
+
+def create_instructor(args):
+	for i in xrange(1,6):
+		if args.get("instructor_" + str(i)):
+			instructor = frappe.new_doc("Instructor")
+			instructor.instructor_name = args.get("instructor_" + str(i))
+			instructor.save()
+
+def create_room(args):
+	for i in xrange(1,6):
+		if args.get("room_" + str(i)):
+			room = frappe.new_doc("Room")
+			room.room_name = args.get("room_" + str(i))
+			room.seating_capacity = args.get("room_capacity_" + str(i))
+			room.save()
+
 

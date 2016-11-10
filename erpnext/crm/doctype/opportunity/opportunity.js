@@ -2,20 +2,53 @@
 // License: GNU General Public License v3. See license.txt
 
 frappe.provide("erpnext.crm");
-frappe.require("assets/erpnext/js/utils.js");
+
 cur_frm.email_field = "contact_email";
 frappe.ui.form.on("Opportunity", {
 	customer: function(frm) {
 		erpnext.utils.get_party_details(frm);
 	},
-	customer_address: erpnext.utils.get_address_display,
+
+	customer_address: function(frm, cdt, cdn) {
+		erpnext.utils.get_address_display(frm, 'customer_address', 'address_display', false);
+	},
+
 	contact_person: erpnext.utils.get_contact_details,
+
 	enquiry_from: function(frm) {
 		frm.toggle_reqd("lead", frm.doc.enquiry_from==="Lead");
 		frm.toggle_reqd("customer", frm.doc.enquiry_from==="Customer");
 	},
+
 	refresh: function(frm) {
+		var doc = frm.doc;
 		frm.events.enquiry_from(frm);
+
+		if(doc.status!=="Lost") {
+			if(doc.with_items){
+				frm.add_custom_button(__('Supplier Quotation'),
+					function() {
+						frm.trigger("make_supplier_quotation")
+					}, __("Make"));
+
+				frm.add_custom_button(__('Quotation'),
+					cur_frm.cscript.create_quotation, __("Make"));
+
+				frm.page.set_inner_btn_group_as_primary(__("Make"));
+			}
+
+			if(doc.status!=="Quotation") {
+				frm.add_custom_button(__('Lost'),
+					cur_frm.cscript['Declare Opportunity Lost']);
+			}
+		}
+	},
+
+	make_supplier_quotation: function(frm) {
+		frappe.model.open_mapped_doc({
+			method: "erpnext.crm.doctype.opportunity.opportunity.make_supplier_quotation",
+			frm: cur_frm
+		})
 	}
 })
 
@@ -50,7 +83,7 @@ erpnext.crm.Opportunity = frappe.ui.form.Controller.extend({
 		this.frm.set_query("item_code", "items", function() {
 			return {
 				query: "erpnext.controllers.queries.item_query",
-				filters: {"is_sales_item": 1}
+				filters: {'is_sales_item': 1}
 			};
 		});
 
@@ -81,25 +114,14 @@ cur_frm.cscript.refresh = function(doc, cdt, cdn) {
 			frm.add_custom_button(__("Close"), function() {
 				frm.set_value("status", "Closed");
 				frm.save();
-			}, __("Status"));
+			});
 		} else {
 			frm.add_custom_button(__("Reopen"), function() {
 				frm.set_value("status", "Open");
 				frm.save();
-			}, __("Status"));
+			});
 		}
 	}
-
-	if(doc.status!=="Lost") {
-		if(doc.status!=="Quotation") {
-			cur_frm.add_custom_button(__('Lost'),
-				cur_frm.cscript['Declare Opportunity Lost'], __("Status"));
-		}
-
-		cur_frm.add_custom_button(__('Quotation'),cur_frm.cscript.create_quotation, __("Make"));
-		cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
-	}
-
 }
 
 cur_frm.cscript.onload_post_render = function(doc, cdt, cdn) {
@@ -127,7 +149,7 @@ cur_frm.cscript.item_code = function(doc, cdt, cdn) {
 
 cur_frm.cscript.lead = function(doc, cdt, cdn) {
 	cur_frm.toggle_display("contact_info", doc.customer || doc.lead);
-	frappe.model.map_current_doc({
+	erpnext.utils.map_current_doc({
 		method: "erpnext.crm.doctype.lead.lead.make_opportunity",
 		source_name: cur_frm.doc.lead,
 		frm: cur_frm

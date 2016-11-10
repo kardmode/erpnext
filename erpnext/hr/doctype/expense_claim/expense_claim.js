@@ -7,39 +7,30 @@ erpnext.hr.ExpenseClaimController = frappe.ui.form.Controller.extend({
 	make_bank_entry: function() {
 		var me = this;
 		return frappe.call({
-			method: "erpnext.accounts.doctype.journal_entry.journal_entry.get_default_bank_cash_account",
+			method: "erpnext.hr.doctype.expense_claim.expense_claim.make_bank_entry",
 			args: {
-				"company": cur_frm.doc.company,
-				"voucher_type": "Bank Entry"
+				"docname": cur_frm.doc.name,
 			},
 			callback: function(r) {
-				var jv = frappe.model.make_new_doc_and_get_name('Journal Entry');
-				jv = locals['Journal Entry'][jv];
-				jv.voucher_type = 'Bank Entry';
-				jv.company = cur_frm.doc.company;
-				jv.remark = 'Payment against Expense Claim: ' + cur_frm.doc.name;
-				var expense = cur_frm.doc.expenses || [];
-				for(var i = 0; i < expense.length; i++){
-					var d1 = frappe.model.add_child(jv, 'Journal Entry Account', 'accounts');
-					d1.account = expense[i].default_account;
-					d1.debit_in_account_currency = expense[i].sanctioned_amount;
-					d1.reference_type = cur_frm.doc.doctype;
-					d1.reference_name = cur_frm.doc.name;
-				}
+				var doc = frappe.model.sync(r.message);
+				frappe.set_route('Form', 'Journal Entry', r.message.name);
+			}
+		});
+	},
+	
+	expense_type: function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
 
-				// credit to bank
-				var d1 = frappe.model.add_child(jv, 'Journal Entry Account', 'accounts');
-				d1.credit_in_account_currency = cur_frm.doc.total_sanctioned_amount;
-				d1.reference_type = cur_frm.doc.doctype;
-				d1.reference_name = cur_frm.doc.name;
-				if(r.message) {
-					d1.account = r.message.account;
-					d1.balance = r.message.balance;
-					d1.account_currency = r.message.account_currency;
-					d1.account_type = r.message.account_type;
+		return frappe.call({
+			method: "erpnext.hr.doctype.expense_claim.expense_claim.get_expense_claim_account",
+			args: {
+				"expense_claim_type": d.expense_type,
+				"company": frm.company
+			},
+			callback: function(r) {
+				if (r.message) {
+					d.default_account = r.message.account;
 				}
-
-				loaddoc('Journal Entry', jv.name);
 			}
 		});
 	}
@@ -49,7 +40,6 @@ $.extend(cur_frm.cscript, new erpnext.hr.ExpenseClaimController({frm: cur_frm}))
 
 cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('employee','employee_name','employee_name');
-cur_frm.add_fetch('expense_type', 'default_account', 'default_account');
 
 cur_frm.cscript.onload = function(doc,cdt,cdn) {
 	if(!doc.approval_status)
@@ -139,9 +129,6 @@ cur_frm.cscript.calculate_total = function(doc,cdt,cdn){
 	doc.total_sanctioned_amount = 0;
 	$.each((doc.expenses || []), function(i, d) {
 		doc.total_claimed_amount += d.claim_amount;
-		if(d.sanctioned_amount==null) {
-			d.sanctioned_amount = d.claim_amount;
-		}
 		doc.total_sanctioned_amount += d.sanctioned_amount;
 	});
 
@@ -151,17 +138,6 @@ cur_frm.cscript.calculate_total = function(doc,cdt,cdn){
 }
 
 cur_frm.cscript.calculate_total_amount = function(doc,cdt,cdn){
-	cur_frm.cscript.calculate_total(doc,cdt,cdn);
-}
-
-cur_frm.cscript.claim_amount = function(doc,cdt,cdn){
-	cur_frm.cscript.calculate_total(doc,cdt,cdn);
-
-	var child = locals[cdt][cdn];
-	refresh_field("sanctioned_amount", child.name, child.parentfield);
-}
-
-cur_frm.cscript.sanctioned_amount = function(doc,cdt,cdn){
 	cur_frm.cscript.calculate_total(doc,cdt,cdn);
 }
 
@@ -181,6 +157,25 @@ erpnext.expense_claim = {
 		}
 	}
 }
+
+frappe.ui.form.on("Expense Claim Detail", {
+	claim_amount: function(frm, cdt, cdn) {
+		var child = locals[cdt][cdn];
+		var doc = frm.doc;
+
+		if(!child.sanctioned_amount){
+			frappe.model.set_value(cdt, cdn, 'sanctioned_amount', child.claim_amount)
+		}
+
+		cur_frm.cscript.calculate_total(doc,cdt,cdn);
+	},
+
+	sanctioned_amount: function(frm, cdt, cdn) {
+		var doc = frm.doc;
+		cur_frm.cscript.calculate_total(doc,cdt,cdn);
+	}
+})
+
 
 frappe.ui.form.on("Expense Claim", "employee_name", function(frm) {
 	erpnext.expense_claim.set_title(frm);

@@ -2,7 +2,6 @@
 // License: GNU General Public License v3. See license.txt
 
 frappe.provide("erpnext.support");
-frappe.require("assets/erpnext/js/utils.js");
 
 frappe.ui.form.on("Warranty Claim", {
 	customer: function(frm) {
@@ -38,7 +37,7 @@ $.extend(cur_frm.cscript, new erpnext.support.WarrantyClaim({frm: cur_frm}));
 
 cur_frm.cscript.onload = function(doc,cdt,cdn){
 	if(!doc.status)
-		set_multiple(dt,dn,{status:'Open'});
+		set_multiple(cdt,cdn,{status:'Open'});
 }
 
 cur_frm.fields_dict['customer_address'].get_query = function(doc, cdt, cdn) {
@@ -85,13 +84,18 @@ cur_frm.add_fetch('item_code', 'description', 'description');
 cur_frm.fields_dict['item_code'].get_query = function(doc, cdt, cdn) {
 	if(doc.serial_no) {
 		return{
-			filters:{ 'serial_no': doc.serial_no}
+			doctype: "Serial No",
+			fields: "item_code",
+			filters:{
+				name: doc.serial_no
+			}
 		}
 	}
 	else{
 		return{
 			filters:[
-				['Item', 'docstatus', '!=', 2]
+				['Item', 'docstatus', '!=', 2],
+				['Item', 'disabled', '=', 0]
 			]
 		}
 	}

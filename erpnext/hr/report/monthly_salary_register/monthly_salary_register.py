@@ -17,8 +17,8 @@ def execute(filters=None):
 	
 	data = []
 	for ss in salary_slips:
-		row = [ss.employee, ss.employee_name, ss.branch, ss.department, ss.designation, 
-			ss.company, ss.month, ss.leave_without_pay, ss.payment_days]
+		row = [ss.name, ss.employee, ss.employee_name, ss.branch, ss.department, ss.designation,
+			ss.company, ss.month, ss.leave_withut_pay, ss.payment_days]
 			
 		for e in earning_types:
 			row.append(ss_earning_map.get(ss.name, {}).get(e))
@@ -36,27 +36,27 @@ def execute(filters=None):
 	
 def get_columns(salary_slips):
 	columns = [
-		_("Employee") + ":Link/Employee:120", _("Employee Name") + "::140", _("Branch") + ":Link/Branch:120", 
+		_("Salary Slip ID") + ":Link/Salary Slip:150",_("Employee") + ":Link/Employee:120", _("Employee Name") + "::140", _("Branch") + ":Link/Branch:120",
 		_("Department") + ":Link/Department:120", _("Designation") + ":Link/Designation:120",
-		 _("Company") + ":Link/Company:120", _("Month") + "::80", _("Leave Without Pay") + ":Float:130", 
+		_("Company") + ":Link/Company:120", _("Month") + "::80", _("Leave Without Pay") + ":Float:130",
 		_("Payment Days") + ":Float:120"
 	]
 	
-	earning_types = frappe.db.sql_list("""select distinct e_type from `tabSalary Slip Earning`
-		where e_modified_amount != 0 and parent in (%s)""" % 
-		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]))
-		
-	ded_types = frappe.db.sql_list("""select distinct d_type from `tabSalary Slip Deduction`
-		where d_modified_amount != 0 and parent in (%s)""" % 
-		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]))
-		
-	columns = columns + [(e + ":Currency:120") for e in earning_types] + \
-		["Arrear Amount:Currency:120", "Leave Encashment Amount:Currency:150", 
-		"Gross Pay:Currency:120"] + [(d + ":Currency:120") for d in ded_types] + \
-		["Total Deduction:Currency:120", "Net Pay:Currency:120"]
+	salary_components = {_("Earning"): [], _("Deduction"): []}
 
-	return columns, earning_types, ded_types
-	
+	for component in frappe.db.sql("""select distinct sd.salary_component, sc.type
+		from `tabSalary Detail` sd, `tabSalary Component` sc
+		where sc.name=sd.salary_component and sd.amount != 0 and sd.parent in (%s)""" %
+		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1):
+		salary_components[component.type].append(component.salary_component)
+
+	columns = columns + [(e + ":Currency:120") for e in salary_components[_("Earning")]] + \
+		[ _("Arrear Amount") + ":Currency:120", _("Leave Encashment Amount") + ":Currency:150",
+		_("Gross Pay") + ":Currency:120"] + [(d + ":Currency:120") for d in salary_components[_("Deduction")]] + \
+		[_("Total Deduction") + ":Currency:120", _("Net Pay") + ":Currency:120"]
+
+	return columns, salary_components[_("Earning")], salary_components[_("Deduction")]
+
 def get_salary_slips(filters):
 	conditions, filters = get_conditions(filters)
 	salary_slips = frappe.db.sql("""select * from `tabSalary Slip` where docstatus < 2 %s
@@ -83,25 +83,25 @@ def get_conditions(filters):
 	return conditions, filters
 	
 def get_ss_earning_map(salary_slips):
-	ss_earnings = frappe.db.sql("""select parent, e_type, e_modified_amount 
-		from `tabSalary Slip Earning` where parent in (%s)""" %
+	ss_earnings = frappe.db.sql("""select parent, salary_component, amount 
+		from `tabSalary Detail` where parent in (%s)""" %
 		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1)
 	
 	ss_earning_map = {}
 	for d in ss_earnings:
-		ss_earning_map.setdefault(d.parent, frappe._dict()).setdefault(d.e_type, [])
-		ss_earning_map[d.parent][d.e_type] = flt(d.e_modified_amount)
+		ss_earning_map.setdefault(d.parent, frappe._dict()).setdefault(d.salary_component, [])
+		ss_earning_map[d.parent][d.salary_component] = flt(d.amount)
 	
 	return ss_earning_map
 
 def get_ss_ded_map(salary_slips):
-	ss_deductions = frappe.db.sql("""select parent, d_type, d_modified_amount 
-		from `tabSalary Slip Deduction` where parent in (%s)""" %
+	ss_deductions = frappe.db.sql("""select parent, salary_component, amount 
+		from `tabSalary Detail` where parent in (%s)""" %
 		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1)
 	
 	ss_ded_map = {}
 	for d in ss_deductions:
-		ss_ded_map.setdefault(d.parent, frappe._dict()).setdefault(d.d_type, [])
-		ss_ded_map[d.parent][d.d_type] = flt(d.d_modified_amount)
+		ss_ded_map.setdefault(d.parent, frappe._dict()).setdefault(d.salary_component, [])
+		ss_ded_map[d.parent][d.salary_component] = flt(d.amount)
 	
 	return ss_ded_map

@@ -148,8 +148,9 @@ def update_bin_qty(item_code, warehouse, qty_dict=None):
 			mismatch = True
 
 	if mismatch:
-		bin.projected_qty = flt(bin.actual_qty) + flt(bin.ordered_qty) + \
+		bin.projected_qty = (flt(bin.actual_qty) + flt(bin.ordered_qty) +
 			flt(bin.indented_qty) + flt(bin.planned_qty) - flt(bin.reserved_qty)
+			- flt(bin.reserved_qty_for_production))
 
 		bin.save()
 
@@ -229,8 +230,9 @@ def reset_serial_no_status_and_warehouse(serial_nos=None):
 				pass
 
 def repost_all_stock_vouchers():
-	warehouses_with_account = frappe.db.sql_list("""select master_name from tabAccount
-		where ifnull(account_type, '') = 'Warehouse'""")
+	warehouses_with_account = frappe.db.sql_list("""select warehouse from tabAccount
+		where ifnull(account_type, '') = 'Stock' and (warehouse is not null and warehouse != '')
+		and is_group=0""")
 
 	vouchers = frappe.db.sql("""select distinct voucher_type, voucher_no
 		from `tabStock Ledger Entry` sle
@@ -242,7 +244,7 @@ def repost_all_stock_vouchers():
 	i = 0
 	for voucher_type, voucher_no in vouchers:
 		i+=1
-		print i, "/", len(vouchers)
+		print i, "/", len(vouchers), voucher_type, voucher_no
 		try:
 			for dt in ["Stock Ledger Entry", "GL Entry"]:
 				frappe.db.sql("""delete from `tab%s` where voucher_type=%s and voucher_no=%s"""%

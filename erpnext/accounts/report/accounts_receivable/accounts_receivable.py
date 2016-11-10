@@ -16,7 +16,10 @@ class ReceivablePayableReport(object):
 
 	def run(self, args):
 		party_naming_by = frappe.db.get_value(args.get("naming_by")[0], None, args.get("naming_by")[1])
-		return self.get_columns(party_naming_by, args), self.get_data(party_naming_by, args)
+		columns = self.get_columns(party_naming_by, args)
+		data = self.get_data(party_naming_by, args)
+		chart = self.get_chart_data(columns, data)
+		return columns, data, None, chart
 
 	def get_columns(self, party_naming_by, args):
 		columns = [_("Posting Date") + ":Date:80", _(args.get("party_type")) + ":Link/" + args.get("party_type") + ":200"]
@@ -39,6 +42,8 @@ class ReceivablePayableReport(object):
 			})
 
 		columns += [_("Age (Days)") + ":Int:80"]
+		
+		self.ageing_col_idx_start = len(columns)
 
 		if not "range1" in self.filters:
 			self.filters["range1"] = "30"
@@ -46,11 +51,11 @@ class ReceivablePayableReport(object):
 			self.filters["range2"] = "60"
 		if not "range3" in self.filters:
 			self.filters["range3"] = "90"
-
-		for label in ("0-{range1}".format(**self.filters),
-			"{range1}-{range2}".format(**self.filters),
-			"{range2}-{range3}".format(**self.filters),
-			"{range3}-{above}".format(range3=self.filters.range3, above=_("Above"))):
+			
+		for label in ("0-{range1}".format(range1=self.filters["range1"]),
+			"{range1}-{range2}".format(range1=cint(self.filters["range1"])+ 1, range2=self.filters["range2"]),
+			"{range2}-{range3}".format(range2=cint(self.filters["range2"])+ 1, range3=self.filters["range3"]),
+			"{range3}-{above}".format(range3=cint(self.filters["range3"])+ 1, above=_("Above"))):
 				columns.append({
 					"label": label,
 					"fieldtype": "Currency",
@@ -58,21 +63,20 @@ class ReceivablePayableReport(object):
 					"width": 120
 				})
 
+		columns.append({
+			"fieldname": "currency",
+			"label": _("Currency"),
+			"fieldtype": "Link",
+			"options": "Currency",
+			"width": 100
+		})
 		if args.get("party_type") == "Customer":
 			columns += [_("Territory") + ":Link/Territory:80"]
 		if args.get("party_type") == "Supplier":
 			columns += [_("Supplier Type") + ":Link/Supplier Type:80"]
-		columns += [
-			{
-				"fieldname": "currency",
-				"label": _("Currency"),
-				"fieldtype": "Data",
-				"width": 100,
-				"hidden": 1
-			},
-			_("Remarks") + "::200"
-		]
-
+			
+		columns.append(_("Remarks") + "::200")
+		
 		return columns
 
 	def get_data(self, party_naming_by, args):
@@ -89,9 +93,10 @@ class ReceivablePayableReport(object):
 		data = []
 		for gle in self.get_entries_till(self.filters.report_date, args.get("party_type")):
 			if self.is_receivable_or_payable(gle, dr_or_cr, future_vouchers):
-				outstanding_amount = self.get_outstanding_amount(gle, self.filters.report_date, dr_or_cr)
+				outstanding_amount = flt(self.get_outstanding_amount(gle, 
+					self.filters.report_date, dr_or_cr), currency_precision)
+					
 				if abs(outstanding_amount) > 0.1/10**currency_precision:
-
 					row = [gle.posting_date, gle.party]
 
 					# customer / supplier name
@@ -120,16 +125,20 @@ class ReceivablePayableReport(object):
 					row += get_ageing_data(cint(self.filters.range1), cint(self.filters.range2),
 						cint(self.filters.range3), self.age_as_on, entry_date, outstanding_amount)
 
-					# customer territory / supplier type
-					if args.get("party_type") == "Customer":
-						row += [self.get_territory(gle.party)]
-					if args.get("party_type") == "Supplier":
-						row += [self.get_supplier_type(gle.party)]
+					# issue 6371-Ageing buckets should not have amounts if due date is not reached
+					if self.filters.ageing_based_on == "Due Date" and getdate(due_date) > getdate(self.filters.report_date):
+						row[-1]=row[-2]=row[-3]=row[-4]=0
 
 					if self.filters.get(scrub(args.get("party_type"))):
 						row.append(gle.account_currency)
 					else:
 						row.append(company_currency)
+
+					# customer territory / supplier type
+					if args.get("party_type") == "Customer":
+						row += [self.get_territory(gle.party)]
+					if args.get("party_type") == "Supplier":
+						row += [self.get_supplier_type(gle.party)]
 
 					row.append(gle.remarks)
 					data.append(row)
@@ -210,14 +219,16 @@ class ReceivablePayableReport(object):
 			conditions, values = self.prepare_conditions(party_type)
 
 			if self.filters.get(scrub(party_type)):
-				select_fields = "debit_in_account_currency as debit, credit_in_account_currency as credit"
+				select_fields = "sum(debit_in_account_currency) as debit, sum(credit_in_account_currency) as credit"
 			else:
-				select_fields = "debit, credit"
+				select_fields = "sum(debit) as debit, sum(credit) as credit"
 
-			self.gl_entries = frappe.db.sql("""select name, posting_date, account, party_type, party,
-				voucher_type, voucher_no, against_voucher_type, against_voucher, account_currency, remarks, {0}
+			self.gl_entries = frappe.db.sql("""select name, posting_date, account, party_type, party, 
+				voucher_type, voucher_no, against_voucher_type, against_voucher, 
+				account_currency, remarks, {0}
 				from `tabGL Entry`
 				where docstatus < 2 and party_type=%s and (party is not null and party != '') {1}
+				group by voucher_type, voucher_no, against_voucher_type, against_voucher, party
 				order by posting_date, party"""
 				.format(select_fields, conditions), values, as_dict=True)
 
@@ -252,6 +263,23 @@ class ReceivablePayableReport(object):
 		return self.gl_entries_map.get(party, {})\
 			.get(against_voucher_type, {})\
 			.get(against_voucher, [])
+			
+	def get_chart_data(self, columns, data):
+		ageing_columns = columns[self.ageing_col_idx_start : self.ageing_col_idx_start+4]
+		
+		rows = []
+		for d in data:
+			rows.append(d[self.ageing_col_idx_start : self.ageing_col_idx_start+4])
+
+		if rows:
+			rows.insert(0, [[d.get("label")] for d in ageing_columns])
+		
+		return {
+			"data": {
+				'rows': rows
+			},
+			"chart_type": 'pie'
+		}
 
 def execute(filters=None):
 	args = {

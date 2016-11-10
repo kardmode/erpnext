@@ -3,11 +3,13 @@
  "allow_import": 1, 
  "allow_rename": 1, 
  "autoname": "field:department_name", 
+ "beta": 0, 
  "creation": "2013-02-05 11:48:26", 
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
  "document_type": "Setup", 
+ "editable_grid": 0, 
  "fields": [
   {
    "allow_on_submit": 0, 
@@ -66,14 +68,14 @@
  "hide_toolbar": 0, 
  "icon": "icon-sitemap", 
  "idx": 1, 
+ "image_view": 0, 
  "in_create": 0, 
  "in_dialog": 0, 
  "is_submittable": 0, 
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "menu_index": 0, 
- "modified": "2016-10-06 11:55:45.563417", 
+ "modified": "2016-08-01 12:44:43.338689", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Department", 
@@ -118,8 +120,31 @@
    "share": 1, 
    "submit": 0, 
    "write": 1
+  }, 
+  {
+   "amend": 0, 
+   "apply_user_permissions": 0, 
+   "cancel": 0, 
+   "create": 1, 
+   "delete": 1, 
+   "email": 1, 
+   "export": 1, 
+   "if_owner": 0, 
+   "import": 0, 
+   "permlevel": 0, 
+   "print": 1, 
+   "read": 1, 
+   "report": 1, 
+   "role": "Academics User", 
+   "set_user_permissions": 0, 
+   "share": 1, 
+   "submit": 0, 
+   "write": 1
   }
  ], 
+ "quick_entry": 1, 
  "read_only": 0, 
- "read_only_onload": 0
+ "read_only_onload": 0, 
+ "sort_order": "ASC", 
+ "track_seen": 0
 }

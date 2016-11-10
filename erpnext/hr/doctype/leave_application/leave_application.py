@@ -37,6 +37,7 @@ class LeaveApplication(Document):
 		self.validate_max_days()
 		self.show_block_day_warning()
 		self.validate_block_days()
+		self.validate_salary_processed_days()
 		self.validate_leave_approver()
 
 	def on_update(self):
@@ -95,6 +96,22 @@ class LeaveApplication(Document):
 		if future_allocation:
 			frappe.throw(_("Leave cannot be applied/cancelled before {0}, as leave balance has already been carry-forwarded in the future leave allocation record {1}")
 				.format(formatdate(future_allocation[0].from_date), future_allocation[0].name))
+
+	def validate_salary_processed_days(self):
+		if not frappe.db.get_value("Leave Type", self.leave_type, "is_lwp"):
+			return
+			
+		last_processed_pay_slip = frappe.db.sql("""
+			select start_date, end_date from `tabSalary Slip`
+			where docstatus != 2 and employee = %s 
+			and ((%s between start_date and end_date) or (%s between start_date and end_date)) 
+			order by modified desc limit 1
+		""",(self.employee, self.to_date, self.from_date))
+
+		if last_processed_pay_slip:
+			frappe.throw(_("Salary already processed for period between {0} and {1}, Leave application period cannot be between this date range.").format(formatdate(last_processed_pay_slip[0][0]), 
+				formatdate(last_processed_pay_slip[0][1])))
+
 
 	def show_block_day_warning(self):
 		block_dates = get_applicable_block_dates(self.from_date, self.to_date,
@@ -177,7 +194,7 @@ class LeaveApplication(Document):
 
 	def validate_max_days(self):
 		max_days = frappe.db.get_value("Leave Type", self.leave_type, "max_days_allowed")
-		if max_days and self.total_leave_days > max_days:
+		if max_days and self.total_leave_days > cint(max_days):
 			frappe.throw(_("Leave of type {0} cannot be longer than {1}").format(self.leave_type, max_days))
 
 	def validate_leave_approver(self):
@@ -240,7 +257,7 @@ class LeaveApplication(Document):
 
 	def notify(self, args):
 		args = frappe._dict(args)
-		from frappe.desk.page.messages.messages import post
+		from frappe.desk.page.chat.chat import post
 		post(**{"txt": args.message, "contact": args.message_to, "subject": args.subject,
 			"notify": cint(self.follow_via_email)})
 
@@ -336,16 +353,14 @@ def get_leave_allocation_records(date, employee=None):
 
 
 def get_holidays(employee, from_date, to_date):
-	tot_hol = frappe.db.sql("""select count(*) from `tabHoliday` h1, `tabHoliday List` h2, `tabEmployee` e1
-		where e1.name = %s and h1.parent = h2.name and e1.holiday_list = h2.name
-		and h1.holiday_date between %s and %s""", (employee, from_date, to_date))[0][0]
+	'''get holidays between two dates for the given employee'''
+	holiday_list = get_holiday_list_for_employee(employee)
 
-	if not tot_hol:
-		tot_hol = frappe.db.sql("""select count(distinct holiday_date) from `tabHoliday` h1, `tabHoliday List` h2
-			where h1.parent = h2.name and h1.holiday_date between %s and %s
-			and h2.is_default = 1""", (from_date, to_date))[0][0]
+	holidays = frappe.db.sql("""select count(distinct holiday_date) from `tabHoliday` h1, `tabHoliday List` h2
+		where h1.parent = h2.name and h1.holiday_date between %s and %s
+		and h2.name = %s""", (from_date, to_date, holiday_list))[0][0]
 
-	return tot_hol
+	return holidays
 
 def is_lwp(leave_type):
 	lwp = frappe.db.sql("select is_lwp from `tabLeave Type` where name = %s", leave_type)
@@ -357,10 +372,11 @@ def get_events(start, end):
 
 	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, ["name", "company"],
 		as_dict=True)
-	if not employee:
-		return events
-
-	employee, company = employee.name, employee.company
+	if employee:
+		employee, company = employee.name, employee.company
+	else:
+		employee=''
+		company=frappe.db.get_value("Global Defaults", None, "default_company")
 
 	from frappe.desk.reportview import build_match_conditions
 	match_conditions = build_match_conditions("Leave Application")

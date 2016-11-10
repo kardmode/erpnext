@@ -1,5 +1,5 @@
 <div style="margin-bottom: 7px;" class="text-center">
-	{%= frappe.boot.letter_heads[frappe.defaults.get_default("letter_head")] %}
+	{%= frappe.boot.letter_heads[frappe.get_doc(":Company", filters.company).default_letter_head || frappe.defaults.get_default("letter_head")] %}
 </div>
 <h2 class="text-center">{%= __(report.report_name) %}</h2>
 <h4 class="text-center">{%= filters.customer || filters.supplier %} </h4>
@@ -37,9 +37,12 @@
 						<br>{%= data[i][__("Voucher No")] %}</td>
 					<td>{%= data[i][__("Customer Name")] || data[i][__("Customer")] || data[i][__("Supplier Name")] || data[i][__("Supplier")] %}
 						<br>{%= __("Remarks") %}: {%= data[i][__("Remarks")] %}</td>
-					<td style="text-align: right">{%= format_currency(data[i][__("Invoiced Amount")]) %}</td>
-					<td style="text-align: right">{%= format_currency(data[i][__("Paid Amount")]) %}</td>
-					<td style="text-align: right">{%= format_currency(data[i][__("Outstanding Amount")]) %}</td>
+					<td style="text-align: right">
+						{%= format_currency(data[i][__("Invoiced Amount")], data[i]["currency"]) %}</td>
+					<td style="text-align: right">
+						{%= format_currency(data[i][__("Paid Amount")], data[i]["currency"]) %}</td>
+					<td style="text-align: right">
+						{%= format_currency(data[i][__("Outstanding Amount")], data[i]["currency"]) %}</td>
 				{% } else { %}
 					<td></td>
 					<td></td>
