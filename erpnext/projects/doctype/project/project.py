@@ -4,11 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 
-<<<<<<< HEAD
-from frappe.utils import flt, getdate, fmt_money
-=======
-from frappe.utils import flt, getdate, get_url
->>>>>>> 176577b549bf91e1e0d4ff63a1432801a002ebed
+from frappe.utils import flt, getdate, fmt_money,get_url
 from frappe import _
 
 from frappe.model.document import Document
