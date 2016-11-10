@@ -20,10 +20,13 @@ form_grid_templates = {
 }
 
 class PurchaseOrder(BuyingController):
-	def autoname(self):
-		import datetime
-		year = (getdate(self.transaction_date)).year
-		self.name = make_autoname('PO-'+ str(year) + '.#####')
+	# def autoname(self):
+		# import datetime
+		# year = (getdate(self.transaction_date)).year
+		# lasttwo= year % 100
+		# month = (getdate(self.transaction_date)).month
+		
+		# self.name = make_autoname('PO-'+ str(year) + '.#####')
 	def __init__(self, arg1, arg2=None):
 		super(PurchaseOrder, self).__init__(arg1, arg2)
 		self.status_updater = [{
@@ -41,6 +44,8 @@ class PurchaseOrder(BuyingController):
 
 	def validate(self):
 		super(PurchaseOrder, self).validate()
+		
+		
 
 		self.set_status()
 		pc_obj = frappe.get_doc('Purchase Common')
