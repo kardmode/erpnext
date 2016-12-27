@@ -3,10 +3,6 @@
 
 cur_frm.add_fetch('time_sheet', 'total_hours', 'working_hours');
 
-/* cur_frm.add_fetch('employee', 'company', 'company');
-cur_frm.add_fetch('employee', 'designation', 'designation');
-cur_frm.add_fetch('employee', 'department', 'department');
-*/
 
 frappe.ui.form.on("Salary Slip", {
 	setup: function(frm) {
@@ -33,21 +29,12 @@ frappe.ui.form.on("Salary Slip", {
 		})
 	},
 
-	/*
-	company: function(frm) {
-		var company = locals[':Company'][frm.doc.company];
-		if(!frm.doc.letter_head && company.default_letter_head) {
-			frm.set_value('letter_head', company.default_letter_head);
-		}
-	},
-
-	*/
 
 	refresh: function(frm) {
 		frm.trigger("toggle_fields")
-		salary_detail_fields = ['formula', 'abbr']
-		cur_frm.fields_dict['earnings'].grid.set_column_disp(salary_detail_fields,false);
-		cur_frm.fields_dict['deductions'].grid.set_column_disp(salary_detail_fields,false);
+		salary_detail_fields = ['formula', 'abbr','rate']
+		cur_frm.fields_dict['earnings'].grid.set_column_disp(salary_detail_fields,true);
+		cur_frm.fields_dict['deductions'].grid.set_column_disp(salary_detail_fields,true);
 	},	
 
 	salary_slip_based_on_timesheet: function(frm) {
@@ -100,7 +87,7 @@ cur_frm.cscript.fiscal_year = function(doc,dt,dn){
 }
 
 cur_frm.cscript.month = cur_frm.cscript.enable_attendance = cur_frm.cscript.employee = cur_frm.cscript.fiscal_year;
-cur_frm.cscript.month = cur_frm.cscript.salary_slip_based_on_timesheet = cur_frm.cscript.fiscal_year;
+cur_frm.cscript.salary_slip_based_on_timesheet = cur_frm.cscript.fiscal_year;
 cur_frm.cscript.start_date = cur_frm.cscript.end_date = cur_frm.cscript.fiscal_year;
 
 cur_frm.cscript.employee = function(doc,dt,dn){
@@ -153,9 +140,16 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 	for(var i = 0; i < tbl.length; i++){
 		if(cint(tbl[i].depends_on_lwp) == 1) {
 
-			if(tbl[i].e_type == "Salary"){
-				modified_amount =  Math.round(tbl[i].default_amount) - doc.leave_without_pay * tbl[i].rate * 9;
-				tbl[i].amount = (modified_amount >= 0) ? modified_amount : 0;
+			if(tbl[i].salary_component == "Basic Salary"){
+				
+					
+				var payment_days = doc.payment_days;
+					
+				if (doc.payment_days == doc.total_days_in_month)
+					payment_days = 30;
+				var total_days_in_month = 30;
+				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(payment_days) / 
+					cint(total_days_in_month)*100)/100;
 			}
 			else{
 				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(doc.payment_days) / 
@@ -237,14 +231,14 @@ frappe.ui.form.on("Salary Slip Deduction", "deductions_remove", function(frm,dt,
 	calculate_net_pay(frm.doc, dt, dn);
 })
 
-frappe.ui.form.on("Salary Slip Earning", "e_type", function(frm,dt,dn){
+frappe.ui.form.on("Salary Slip Earning", "salary_component", function(frm,dt,dn){
 	calculate_earnings(doc, dt, dn);	
 })
 
-frappe.ui.form.on("Salary Slip Deduction", "d_type", function(frm,dt,dn){
+frappe.ui.form.on("Salary Slip Deduction", "salary_component", function(frm,dt,dn){
 	
 	var doc = locals[dt][dn];
-	if (doc.d_type == "Loan Repayment"){
+	if (doc.salary_component == "Loan Repayment"){
 		frappe.msgprint("Do NOT manually place loan deductions. Go to Employee Loans and input it there. Then open the required salary slip and press refresh loan deduction.");
 	}
 })
@@ -262,19 +256,11 @@ cur_frm.cscript.refresh_loan_deduction = function(doc,dt,dn){
 }
 
 
-
-var calculate_net_pays = function(doc, dt, dn) {
-	return $c_obj(cur_frm.doc, 'calculate_net_pay','',function(r, rt) {
-		refresh_many(['deductions','d_modified_amount','total_deduction']);
-		refresh_many(['earnings','encash_leave','leave_calculation','leave_encashment_amount','e_modified_amount', 'gross_pay','net_pay','rounded_total']);
-	});
-}
-
 // ----------------------------------
 var calculate_earnings = function(doc, dt, dn) {
 	return $c_obj(doc, 'calculate_earning_total','',function(r, rt) {
 	var doc = locals[dt][dn];
-	refresh_many(['earnings','encash_leave','leave_calculation','leave_encashment_amount','e_modified_amount', 'gross_pay']);
+	refresh_many(['earnings','encash_leave','leave_calculation','leave_encashment_amount','amount', 'gross_pay']);
 	calculate_net_pay(doc, dt, dn);
 	});
 }
@@ -282,7 +268,7 @@ var calculate_earnings = function(doc, dt, dn) {
 var calculate_deductions = function(doc, dt, dn) {
 	return $c_obj(doc, 'calculate_ded_total','',function(r, rt) {
 	var doc = locals[dt][dn];
-		refresh_many(['deductions','d_modified_amount','total_deduction']);
+		refresh_many(['deductions','amount','total_deduction']);
 		calculate_net_pay(doc, dt, dn);
 	});
 }

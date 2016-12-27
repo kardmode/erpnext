@@ -14,8 +14,11 @@ class OverlapError(frappe.ValidationError): pass
 
 class Workstation(Document):
 	def validate(self):
-		self.hour_rate = (flt(self.hour_rate_labour) + flt(self.hour_rate_electricity) +
-			flt(self.hour_rate_consumable) + flt(self.hour_rate_rent))
+		total_operating_costs = 0.0
+		for d in self.get('operating_costs'):
+			total_operating_costs = flt(total_operating_costs) + flt(d.percent)
+		
+		self.hour_rate = total_operating_costs
 
 	def on_update(self):
 		self.validate_overlap_for_operation_timings()

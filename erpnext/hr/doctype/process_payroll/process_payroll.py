@@ -44,20 +44,20 @@ class ProcessPayroll(Document):
 		
 		sal_struct = frappe.db.sql("""
 				select name from `tabSalary Structure`
-				where docstatus != 2 and company = %(company)s and
+				where docstatus != 2 and is_active = 'Yes' and company = %(company)s and
 				ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s""",
 				{"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
 		
-
 		if sal_struct:
 			cond += "and t2.parent IN %(sal_struct)s "
-		
+
 			emp_list = frappe.db.sql("""
 				select t1.name
 				from `tabEmployee` t1, `tabSalary Structure Employee` t2
-				where t1.docstatus!=2 and t1.status !='Left' and t2.docstatus != 2
-				and t2.is_active = 'Yes' and t1.name = t2.employee
+				where t1.docstatus!=2 and t1.status !='Left' and t1.name = t2.employee
 			%s """% cond, {"sal_struct": sal_struct})
+
+
 			
 			m = get_month_details(self.fiscal_year, self.month)
 			
@@ -146,10 +146,12 @@ class ProcessPayroll(Document):
 		
 		if emp_list:
 			for emp in emp_list:
-				if not frappe.db.sql("""select name from `tabSalary Slip`
+				
+				if self.salary_slip_based_on_timesheet:
+				
+					if not frappe.db.sql("""select name from `tabSalary Slip`
 						where docstatus!= 2 and employee = %s and start_date >= %s and end_date <= %s and company = %s
 						""", (emp[0], self.from_date, self.to_date, self.company)):
-					if self.salary_slip_based_on_timesheet:
 						ss = frappe.get_doc({
 							"doctype": "Salary Slip",
 							"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
@@ -160,7 +162,12 @@ class ProcessPayroll(Document):
 							"company": self.company,
 							"posting_date": self.posting_date
 						})
-					else:
+						ss.insert()
+						ss_list.append(ss.name)
+				else:
+					if not frappe.db.sql("""select name from `tabSalary Slip`
+							where docstatus!= 2 and employee = %s and month = %s and fiscal_year = %s and company = %s
+							""", (emp[0], self.month, self.fiscal_year, self.company)):
 						ss = frappe.get_doc({
 							"doctype": "Salary Slip",
 							"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
@@ -171,8 +178,8 @@ class ProcessPayroll(Document):
 							"company": self.company,
 							"posting_date": self.posting_date
 						})	
-					ss.insert()
-					ss_list.append(ss.name)
+						ss.insert()
+						ss_list.append(ss.name)
 		
 		return self.create_log(ss_list)
 
@@ -190,12 +197,19 @@ class ProcessPayroll(Document):
 			Returns list of salary slips based on selected criteria
 		"""
 		cond = self.get_filter_condition()
-			
-		ss_list = frappe.db.sql("""
-			select t1.name, t1.salary_structure from `tabSalary Slip` t1
-			where t1.docstatus = %s and t1.start_date >= %s and t1.end_date <= %s 
-			and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s
-		""" % ('%s', '%s', '%s','%s', cond), (ss_status, self.from_date, self.to_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
+		
+		if not self.salary_slip_based_on_timesheet:
+			# EDIT - SALARY SLIP STATUS disabled
+			ss_list = frappe.db.sql("""
+				select t1.name, t1.salary_structure from `tabSalary Slip` t1
+				where t1.docstatus < %s and month = %s and fiscal_year = %s %s
+			""" % ('%s', '%s','%s', cond), (2,self.month, self.fiscal_year), as_dict=as_dict)
+		else:
+			ss_list = frappe.db.sql("""
+				select t1.name, t1.salary_structure from `tabSalary Slip` t1
+				where t1.docstatus < %s and t1.start_date >= %s and t1.end_date <= %s 
+				and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s
+			""" % ('%s', '%s', '%s','%s', cond), (2, self.from_date, self.to_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
 		return ss_list
 
 
@@ -223,7 +237,8 @@ class ProcessPayroll(Document):
 		"""
 			Print all salary slips based on selected criteria
 		"""
-		ss_list = self.get_sal_slip_list()
+		ss_list = self.get_sal_slip_list(ss_status=1)
+
 
 		return ss_list
 

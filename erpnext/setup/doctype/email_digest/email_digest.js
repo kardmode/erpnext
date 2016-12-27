@@ -30,9 +30,8 @@ cur_frm.cscript.refresh = function(doc, dt, dn) {
 				return $c_obj(doc, 'send', '', function(r, rt) {
 					if(r.exc) {
 						msgprint(err_msg);
-						console.log(r.exc);
+						//console.log(r);
 					} else {
-						//console.log(arguments);
 						msgprint(__('Message Sent'));
 					}
 				});

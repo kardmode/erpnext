@@ -27,8 +27,11 @@ class Warehouse(NestedSet):
 			self.set_onload('account', account)
 
 	def validate(self):
+	
+			
 		if self.email_id:
 			validate_email_add(self.email_id, True)
+			
 
 		self.update_parent_account()
 
@@ -49,6 +52,9 @@ class Warehouse(NestedSet):
 					acc_doc.save()
 
 	def on_update(self):
+		if self.disabled:
+			self.on_disable()
+
 		self.create_account_head()
 		self.update_nsm_model()
 
@@ -99,9 +105,33 @@ class Warehouse(NestedSet):
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
+	
+	def on_disable(self):
+	
+		if self.check_if_child_exists():
+				throw(_("Child warehouse exists for this warehouse. You can not disable this warehouse."))
+		# delete bin
+		bins = frappe.db.sql("select * from `tabBin` where warehouse = %s",
+			self.name, as_dict=1)
+			
+		
+		for d in bins:
+			if d['actual_qty'] or d['reserved_qty'] or d['ordered_qty'] or \
+					d['indented_qty'] or d['projected_qty'] or d['planned_qty']:
+				throw(_("Warehouse {0} can not be disabled as quantity exists for Item {1}").format(self.name, d['item_code']))
+
+		
+
 
 	def on_trash(self):
 		# delete bin
+		
+		if self.check_if_sle_exists():
+			throw(_("Warehouse can not be deleted as stock ledger entry exists for this warehouse."))
+
+		if self.check_if_child_exists():
+			throw(_("Child warehouse exists for this warehouse. You can not delete this warehouse."))
+		
 		bins = frappe.db.sql("select * from `tabBin` where warehouse = %s",
 			self.name, as_dict=1)
 		for d in bins:
@@ -115,11 +145,7 @@ class Warehouse(NestedSet):
 		if warehouse_account:
 			frappe.delete_doc("Account", warehouse_account)
 
-		if self.check_if_sle_exists():
-			throw(_("Warehouse can not be deleted as stock ledger entry exists for this warehouse."))
-
-		if self.check_if_child_exists():
-			throw(_("Child warehouse exists for this warehouse. You can not delete this warehouse."))
+		
 
 		self.update_nsm_model()
 

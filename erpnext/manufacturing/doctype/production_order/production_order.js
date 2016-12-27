@@ -197,14 +197,16 @@ erpnext.production_order = {
 	},
 
 	set_default_warehouse: function(frm) {
-		if (!(frm.doc.wip_warehouse || frm.doc.fg_warehouse)) {
+		if (!(frm.doc.wip_warehouse || frm.doc.fg_warehouse || frm.doc.source_warehouse)) {
 			frappe.call({
 				method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
 
 				callback: function(r) {
-					if(!r.exe) {
+					if(!r.exc) {
 						frm.set_value("wip_warehouse", r.message.wip_warehouse);
-						frm.set_value("fg_warehouse", r.message.fg_warehouse)
+						frm.set_value("fg_warehouse", r.message.fg_warehouse);
+						frm.set_value("source_warehouse", r.message.source_warehouse);
+
 					}
 				}
 			});

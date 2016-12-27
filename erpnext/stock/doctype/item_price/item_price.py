@@ -39,5 +39,5 @@ class ItemPrice(Document):
 				["buying", "selling", "currency"])
 
 	def update_item_details(self):
-		self.item_name, self.item_description = frappe.db.get_value("Item",
-			self.item_code, ["item_name", "description"])
+		self.item_name, self.item_description,self.stock_uom = frappe.db.get_value("Item",
+			self.item_code, ["item_name", "description","stock_uom"])

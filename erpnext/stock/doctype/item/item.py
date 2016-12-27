@@ -46,10 +46,58 @@ class Item(WebsiteGenerator):
 
 		self.item_code = strip(self.item_code)
 		self.name = self.item_code
+		
+	def processString(self, word):
 
+		code = word
+
+		
+		words = code.split()
+		newword = ""
+		for s in words:
+			if str(s).lower() in ["x"]:
+				s = str(s).lower()
+				
+				if newword == "":
+					newword = s
+				else:
+					newword = newword + ' ' + s
+			elif str(s).lower() in ["mm","ft","in","cm","m"]:
+				s = str(s).lower()
+				
+				if newword == "":
+					newword = s
+				else:
+					newword = newword + s
+			else:
+				s = str(s).capitalize()
+				if newword == "":
+					newword = s
+				else:
+					newword = newword + ' ' + s
+					
+		code = str(code).replace(" x ", "x")
+		code = str(code).replace(" X ", "x")
+		
+		return code.strip()
 	def before_insert(self):
+		
+		
+		
+		self.item_code = self.processString(self.item_code)
+		
+		if not self.item_name:
+			self.item_name = self.item_code
+		else:
+			self.item_name = self.item_name.strip()
+		
+		import string
 		if not self.description:
 			self.description = self.item_name
+		else:
+			self.description = string.capwords(self.description)
+			self.description = self.description.strip()
+		
 
 		self.publish_in_hub = 1
 
@@ -60,9 +108,13 @@ class Item(WebsiteGenerator):
 
 		if self.opening_stock:
 			self.set_opening_stock()
+	
 
 	def validate(self):
 		super(Item, self).validate()
+		
+		# self.item_name = self.item_code
+
 
 		if not self.description:
 			self.description = self.item_name
@@ -91,9 +143,11 @@ class Item(WebsiteGenerator):
 			self.default_warehouse = ""
 
 		else:
-			self.is_stock_item = 1
+			
 			if not self.default_warehouse:
-				self.default_warehouse = "Finished Goods - AMLS"
+				default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
+				or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores')
+				or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores - SLI')}))
 			
 		self.validate_fixed_asset()
 
@@ -139,16 +193,26 @@ class Item(WebsiteGenerator):
 
 		from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 
+		if not self.opening_warehouse:
+			frappe.throw(_("Opening Warehouse is mandatory if Opening Stock entered"))
+		
 		# default warehouse, or Stores
-		default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
-			or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
+		# default_warehouse = self.get_default_warehouse()
 
+		default_warehouse = self.opening_warehouse
+		
 		if default_warehouse:
 			stock_entry = make_stock_entry(item_code=self.name, target=default_warehouse,
 				qty=self.opening_stock, rate=self.valuation_rate)
 
 			stock_entry.add_comment("Comment", _("Opening Stock"))
 
+	def get_default_warehouse(self):
+		default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
+				or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores')
+				or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
+		return default_warehouse
+		
 	def make_route(self):
 		if not self.route:
 			return frappe.db.get_value('Item Group', self.item_group, 'route') + '/' + self.scrub(self.item_name)
@@ -550,6 +614,7 @@ class Item(WebsiteGenerator):
 			clear_cache(self.route)
 
 		frappe.db.set_value("Item", new_name, "item_code", new_name)
+		frappe.db.set_value("Item", new_name, "item_name", new_name)
 
 		if merge:
 			self.set_last_purchase_rate(new_name)
@@ -666,6 +731,9 @@ class Item(WebsiteGenerator):
 
 			validate_item_variant_attributes(self, args)
 
+
+	
+			
 def get_timeline_data(doctype, name):
 	'''returns timeline data based on stock ledger entry'''
 	return dict(frappe.db.sql('''select unix_timestamp(posting_date), count(*)

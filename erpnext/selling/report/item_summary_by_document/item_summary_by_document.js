@@ -14,14 +14,14 @@ frappe.query_reports["Item Summary By Document"] = {
 			"label": __("Document"),
 			"fieldtype": "Link",
 			"options": function() {
-				var format = frappe.query_report.filters_by_name.format.get_value();
+				var format = frappe.query_report_filters_by_name.format.get_value();
 				if (format == "Quotation")
 					return "Quotation";
 				else	
 					return "Sales Order";
 			},
 			"get_query": function() {
-				var format = frappe.query_report.filters_by_name.format.get_value();
+				var format = frappe.query_report_filters_by_name.format.get_value();
 				if (format == "Quotation")
 				{
 					return{
@@ -37,15 +37,19 @@ frappe.query_reports["Item Summary By Document"] = {
 				
 			},
 			"on_change":function(me) {
-				var format = frappe.query_report.filters_by_name.format.get_value();
-				var docname = frappe.query_report.filters_by_name.name.get_value();
+				var format = frappe.query_report_filters_by_name.format.get_value();
+				var docname = frappe.query_report_filters_by_name.name.get_value();
+
 				
 				frappe.call({
 					method: "erpnext.selling.report.item_summary_by_document.item_summary_by_document.get_title",
 					args: { "docname": docname,"doctype":format },
 					callback: function(r) {
 						if(r.message) {
-							frappe.query_report.filters_by_name.title.set_value(r.message);
+							
+							var title_filter = frappe.query_report_filters_by_name.title;
+							title_filter.set_input(r.message);
+				
 						}
 					}
 				})
@@ -68,7 +72,8 @@ frappe.query_reports["Item Summary By Document"] = {
 			fieldtype: "Select",
 			options: [
 				{ "value": "Without BOM", "label": __("Without BOM") },
-				{ "value": "With BOM", "label": __("With BOM") }
+				{ "value": "With BOM", "label": __("With BOM") },
+				{ "value": "Combined", "label": __("Combined") }
 			],
 			default: "Without BOM"
 		}

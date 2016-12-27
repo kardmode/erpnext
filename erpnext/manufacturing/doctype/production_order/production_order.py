@@ -466,6 +466,9 @@ def get_item_details(item):
 		if variant_of:
 			res["bom_no"] = frappe.db.get_value("BOM", filters={"item": variant_of, "is_default": 1})
 
+	if not res["bom_no"]:
+		frappe.throw(_("Default BOM for {0} not found").format(item))
+
 	res.update(check_if_scrap_warehouse_mandatory(res["bom_no"]))
 
 	return res
@@ -556,7 +559,10 @@ def get_default_warehouse():
 		"default_wip_warehouse")
 	fg_warehouse = frappe.db.get_single_value("Manufacturing Settings",
 		"default_fg_warehouse")
-	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse}
+	source_warehouse = frappe.db.get_single_value("Stock Settings",
+		"default_warehouse")	
+	
+	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse}
 
 @frappe.whitelist()
 def make_new_timesheet(source_name, target_doc=None):

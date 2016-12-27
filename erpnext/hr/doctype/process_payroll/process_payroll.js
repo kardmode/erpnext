@@ -149,19 +149,19 @@ cur_frm.cscript.reference_entry = function(doc,cdt,cdn){
 cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 	cur_frm.cscript.display_activity_log("");
     if(doc.company && doc.month && doc.fiscal_year){
-		
 		var callback = function(r, rt){
+
 			if (r.message)
 			{
 				var docname = [];
-				
+
 				r.message.forEach(function (element, index) {
 					docname.push(element[0]);
 				});
 				
 				if(docname.length >= 1){
 					var json_string = JSON.stringify(docname);								
-					var w = window.open("/api/method/frappe.templates.pages.print.download_multi_pdf?"
+					var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
 						+"doctype="+encodeURIComponent("Salary Slip")
 						+"&name="+encodeURIComponent(json_string)
 						+"&format="+encodeURIComponent("Salary Slip Multi")

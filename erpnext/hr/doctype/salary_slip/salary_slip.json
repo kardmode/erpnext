@@ -5,11 +5,7 @@
  "beta": 0, 
  "creation": "2013-01-10 16:34:15", 
  "custom": 0, 
-<<<<<<< HEAD
  "default_print_format": "Salary Slip", 
-=======
- "default_print_format": "", 
->>>>>>> 176577b549bf91e1e0d4ff63a1432801a002ebed
  "docstatus": 0, 
  "doctype": "DocType", 
  "document_type": "Setup", 
@@ -139,7 +135,6 @@
    "ignore_xss_filter": 0, 
    "in_filter": 1, 
    "in_list_view": 0, 
-   "in_standard_filter": 0, 
    "label": "Department", 
    "length": 0, 
    "no_copy": 0, 
@@ -170,7 +165,6 @@
    "ignore_xss_filter": 0, 
    "in_filter": 1, 
    "in_list_view": 0, 
-   "in_standard_filter": 0, 
    "label": "Designation", 
    "length": 0, 
    "no_copy": 0, 
@@ -200,7 +194,6 @@
    "ignore_xss_filter": 0, 
    "in_filter": 1, 
    "in_list_view": 0, 
-   "in_standard_filter": 0, 
    "label": "Branch", 
    "length": 0, 
    "no_copy": 0, 
@@ -320,7 +313,7 @@
    "print_hide": 0, 
    "print_hide_if_no_value": 0, 
    "read_only": 0, 
-   "remember_last_selected_value": 1, 
+   "remember_last_selected_value": 0, 
    "report_hide": 0, 
    "reqd": 1, 
    "search_index": 0, 
@@ -1352,11 +1345,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
-<<<<<<< HEAD
- "modified": "2016-11-08 13:38:02.030307", 
-=======
- "modified": "2016-11-06 09:54:36.478329", 
->>>>>>> 176577b549bf91e1e0d4ff63a1432801a002ebed
+ "modified": "2016-11-11 13:42:35.598800", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Salary Slip", 
@@ -1402,30 +1391,6 @@
    "role": "HR Manager", 
    "set_user_permissions": 0, 
    "share": 1, 
-<<<<<<< HEAD
-=======
-   "submit": 1, 
-   "write": 1
-  }, 
-  {
-   "amend": 0, 
-   "apply_user_permissions": 0, 
-   "cancel": 0, 
-   "create": 0, 
-   "delete": 0, 
-   "email": 0, 
-   "export": 0, 
-   "if_owner": 0, 
-   "import": 0, 
-   "is_custom": 0, 
-   "permlevel": 0, 
-   "print": 0, 
-   "read": 1, 
-   "report": 0, 
-   "role": "Employee", 
-   "set_user_permissions": 0, 
-   "share": 0, 
->>>>>>> 176577b549bf91e1e0d4ff63a1432801a002ebed
    "submit": 0, 
    "write": 1
   }

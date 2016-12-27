@@ -23,7 +23,7 @@ class DeliveryNote(SellingController):
 
 	def autoname(self):
 		import datetime
-		year = (getdate(self.transaction_date)).year
+		year = (getdate(self.posting_date)).year
 		self.name = make_autoname('DN-'+ str(year) + '.#####')
 		
 	def __init__(self, arg1, arg2=None):

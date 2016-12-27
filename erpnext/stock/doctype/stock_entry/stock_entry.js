@@ -256,6 +256,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 				},
 				callback: function(r) {
 					if (!r.exc) {
+						console.log(r.message);
 						$.extend(d, r.message);
 						me.calculate_basic_amount(d);
 					}
@@ -265,6 +266,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 	},
 
 	calculate_basic_amount: function(item) {
+		console.log(item.basic_rate);
 		item.basic_amount = flt(flt(item.transfer_qty) * flt(item.basic_rate),
 			precision("basic_amount", item));
 
@@ -294,7 +296,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 				+ (flt(item.additional_cost) / flt(item.transfer_qty)),
 				precision("valuation_rate", item));
 		}
-
+		
 		refresh_field('items');
 	},
 
@@ -317,7 +319,51 @@ cur_frm.cscript.toggle_related_fields = function(doc) {
 	cur_frm.fields_dict["items"].grid.set_column_disp("t_warehouse", doc.purpose!='Material Issue');
 
 	cur_frm.cscript.toggle_enable_bom();
+	
+	if (doc.purpose === 'Manufacture'){
+		cur_frm.set_value("from_bom", true);
+		cur_frm.set_value("fg_completed_qty", 1);
+		//cur_frm.set_value("title", "Manufacture "+ cstr(d.item));
+		//frm.set_value("bom_no", r.message);
 
+
+		frappe.call({
+			method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+			callback: function(r) {
+				if(!r.exc) {
+					cur_frm.set_value("from_warehouse", r.message.wip_warehouse);
+					cur_frm.set_value("to_warehouse", r.message.fg_warehouse);
+					cur_frm.call({
+						doc: cur_frm.doc,
+						method: "get_items",
+						callback: function(r) {
+							if(!r.exc) refresh_field("items");
+						 }                   
+					});
+				}
+			}
+		});
+		
+	}
+	else if (doc.purpose === 'Material Transfer for Manufacture'){
+		frappe.call({
+			method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+			callback: function(r) {
+				if(!r.exc) {
+					cur_frm.set_value("from_warehouse", r.message.source_warehouse);
+					cur_frm.set_value("to_warehouse", r.message.wip_warehouse);
+					cur_frm.call({
+						doc: cur_frm.doc,
+						method: "get_items",
+						callback: function(r) {
+							if(!r.exc) refresh_field("items");
+						 }                   
+					});
+				}
+			}
+		});
+	
+	}
 	if (doc.purpose == 'Subcontract') {
 		doc.customer = doc.customer_name = doc.customer_address =
 			doc.delivery_note_no = doc.sales_invoice_no = null;
@@ -496,3 +542,5 @@ frappe.ui.form.on('Stock Entry', {
 			});
 		},
 })
+
+cur_frm.add_fetch("company", "default_letter_head", "letter_head");

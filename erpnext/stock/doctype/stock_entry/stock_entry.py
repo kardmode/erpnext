@@ -25,6 +25,12 @@ form_grid_templates = {
 class StockEntry(StockController):
 	def get_feed(self):
 		return _("From {0} to {1}").format(self.from_warehouse, self.to_warehouse)
+		
+	def get_company_letterhead(self, company):
+		
+		letter_head = frappe.db.get_value("Company", company, "default_letter_head")
+		if letter_head:
+			self.letter_head = letter_head
 
 	def onload(self):
 		for item in self.get("items"):
@@ -34,6 +40,8 @@ class StockEntry(StockController):
 		self.pro_doc = frappe._dict()
 		if self.production_order:
 			self.pro_doc = frappe.get_doc('Production Order', self.production_order)
+
+		self.get_company_letterhead(self.company)
 
 		self.validate_posting_time()
 		self.validate_purpose()
@@ -121,6 +129,8 @@ class StockEntry(StockController):
 				d.s_warehouse = None
 
 		for d in self.get('items'):
+			frappe.errprint(d.s_warehouse)
+
 			if not d.s_warehouse and not d.t_warehouse:
 				d.s_warehouse = self.from_warehouse
 				d.t_warehouse = self.to_warehouse
@@ -158,6 +168,7 @@ class StockEntry(StockController):
 
 			if cstr(d.s_warehouse) == cstr(d.t_warehouse) and not self.purpose == "Material Transfer for Manufacture":
 				frappe.throw(_("Source and target warehouse cannot be same for row {0}").format(d.idx))
+			frappe.errprint(d.s_warehouse)
 
 	def validate_production_order(self):
 		if self.purpose in ("Manufacture", "Material Transfer for Manufacture"):
@@ -216,7 +227,7 @@ class StockEntry(StockController):
 
 			# get actual stock at source warehouse
 			d.actual_qty = previous_sle.get("qty_after_transaction") or 0
-
+			frappe.errprint(d.actual_qty)	
 			# validate qty during submit
 			if d.docstatus==1 and d.s_warehouse and not allow_negative_stock and d.actual_qty < d.transfer_qty:
 				frappe.throw(_("Row {0}: Qty not available for {4} in warehouse {1} at posting time of the entry ({2} {3})".format(d.idx,

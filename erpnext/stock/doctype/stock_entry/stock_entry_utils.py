@@ -46,7 +46,7 @@ def make_stock_entry(**args):
 		elif args.target:
 			args.company = frappe.db.get_value('Warehouse', args.target, 'company')
 
-	# set vales from test
+	# set values from test
 	if frappe.flags.in_test:
 		if not args.company:
 			args.company = '_Test Company'

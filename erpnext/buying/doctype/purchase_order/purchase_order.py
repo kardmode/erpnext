@@ -44,8 +44,8 @@ class PurchaseOrder(BuyingController):
 
 	def validate(self):
 		super(PurchaseOrder, self).validate()
-		
-		
+	
+
 
 		self.set_status()
 		pc_obj = frappe.get_doc('Purchase Common')
@@ -60,6 +60,8 @@ class PurchaseOrder(BuyingController):
 		self.validate_minimum_order_qty()
 		self.create_raw_materials_supplied("supplied_items")
 		self.set_received_qty_for_drop_ship_items()
+		
+		
 
 	def validate_with_previous_doc(self):
 		super(PurchaseOrder, self).validate_with_previous_doc({
@@ -213,6 +215,9 @@ class PurchaseOrder(BuyingController):
 			self.company, self.base_grand_total)
 
 		purchase_controller.update_last_purchase_rate(self, is_submit = 1)
+		
+		
+		
 
 	def on_cancel(self):
 		if self.is_against_so():

@@ -92,11 +92,14 @@ class EmailDigest(Document):
 		if self.get("project"):
 			context.project_list = self.get_project_list()
 			context.project_count = self.get_project_count()
-
+			
+		if self.get("custom_message"):
+			context["custom_message"] = self.get("custom_message")
+			
 		quote = get_random_quote()
 		context.quote = {"text": quote[0], "author": quote[1]}
 
-		if not (context.events or context.todo_list or context.notifications or context.cards):
+		if not (context.events or context.todo_list or context.notifications or context.cards or context.custom_message):
 			return None
 
 		frappe.flags.ignore_account_permission = False

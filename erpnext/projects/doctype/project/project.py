@@ -75,20 +75,7 @@ class Project(Document):
 
 	def onload(self):
 		"""Load project tasks for quick view"""
-<<<<<<< HEAD
-		if not self.get("tasks"):
-			for task in self.get_tasks():
-				self.append("tasks", {
-					"title": task.subject,
-					"status": task.status,
-					"start_date": task.exp_start_date,
-					"end_date": task.exp_end_date,
-					"description": task.description,
-					"task_id": task.name
-				})
-				
-		
-=======
+
 		if not self.get('__unsaved') and not self.get("tasks"):
 			self.load_tasks()
 
@@ -96,7 +83,6 @@ class Project(Document):
 			sum(hours) as total_hours
 			from `tabTimesheet Detail` where project=%s and docstatus < 2 group by activity_type
 			order by total_hours desc''', self.name, as_dict=True))
->>>>>>> 176577b549bf91e1e0d4ff63a1432801a002ebed
 
 	def __setup__(self):
 		self.onload()
@@ -123,11 +109,8 @@ class Project(Document):
 		self.validate_weights()
 		self.sync_tasks()
 		self.tasks = []
-<<<<<<< HEAD
 		self.calculate_sales()
-=======
 		self.send_welcome_email()
->>>>>>> 176577b549bf91e1e0d4ff63a1432801a002ebed
 
 	def validate_dates(self):
 		if self.expected_start_date and self.expected_end_date:

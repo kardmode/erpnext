@@ -64,7 +64,75 @@ frappe.ui.form.on("Production Planning Tool", {
 			doc: frm.doc,
 			method: "raise_material_requests"
 		});
+	},
+	
+	make_stock_entries: function(frm) {
+		frappe.call({
+			doc: frm.doc,
+			args: {
+				"purpose" : "Material Transfer for Manufacture",
+				"all" : true
+			},
+			method: "make_stock_entries",
+			callback: function(r) {
+				frappe.call({
+					doc: frm.doc,
+					args: {
+						"purpose" : "Manufacture",
+						"all" : true
+					},
+					method: "make_stock_entries"
+				});
+			},
+		});
+		
+	},
+	
+	
+	transfer_to_manufacture: function(frm) {
+		frappe.call({
+			doc: frm.doc,
+			args: {
+				"purpose" : "Material Transfer for Manufacture",
+				"all" : false
+			},
+			method: "make_stock_entries",
+			callback: function(r) {
+				frappe.call({
+					doc: frm.doc,
+					args: {
+						"purpose" : "Manufacture",
+						"all" : false
+					},
+					method: "make_stock_entries"
+				});
+			},
+		});
+	},
+	submit_to_manufacture: function(frm) {
+		frappe.call({
+			doc: frm.doc,
+			args: {
+				"purpose" : "Material Transfer for Manufacture",
+				"all" : false
+			},
+			method: "submit_stock_entry",
+			callback: function(r) {
+				frappe.call({
+						doc: frm.doc,
+						args: {
+							"purpose" : "Manufacture",
+							"all" : false
+						},
+						method: "submit_stock_entry"
+				});
+			},
+		});
 	}
+		
+
+	
+	
 });
 
 cur_frm.cscript.item_code = function(doc,cdt,cdn) {
@@ -114,6 +182,16 @@ cur_frm.fields_dict['items'].grid.get_field('bom_no').get_query = function(doc, 
 		}
 	} else msgprint(__("Please enter Item first"));
 }
+
+cur_frm.fields_dict['items'].grid.get_field('warehouse').get_query = function(doc, cdt, cdn) {
+	return {
+		filters: {
+			"company": cur_frm.doc.company,
+			'is_group': 0
+		}
+	}
+}
+
 
 cur_frm.fields_dict.customer.get_query = function(doc,cdt,cdn) {
 	return{

@@ -35,6 +35,7 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 				query: "erpnext.controllers.queries.item_query"
 			}
 		});
+		console.log("hello");
 	},
 
 	refresh: function(doc) {

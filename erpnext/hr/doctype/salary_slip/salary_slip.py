@@ -58,8 +58,7 @@ class SalarySlip(TransactionBase):
 		for key in ('earnings', 'deductions'):
 			for struct_row in self._salary_structure_doc.get(key):
 				amount = self.eval_condition_and_formula(struct_row, data)	
-				if amount:
-					self.update_component_row(struct_row, amount, key)
+				self.update_component_row(struct_row, amount, key)
 					
 					
 	def update_component_row(self, struct_row, amount, key):
@@ -167,14 +166,9 @@ class SalarySlip(TransactionBase):
 		'''First time, load all the components from salary structure'''
 		if self.employee:
 	
-			vars = frappe.db.sql("""select department,designation,company from tabEmployee where employee = %(employee)s""",{"employee": self.employee}, as_dict=True)
-			if vars:
-				employee_data = vars[0]
-				self.designation = employee_data["designation"]
-				self.department = employee_data["department"]
-				self.company = employee_data["company"]
-
 			
+
+			self.pull_emp_details()
 			self.get_company_letterhead(self.company)
 			
 			self.set("earnings", [])
@@ -186,9 +180,11 @@ class SalarySlip(TransactionBase):
 				["date_of_joining", "relieving_date"])
 			
 			self.get_leave_details(joining_date, relieving_date)
+			self.get_attendance_details()
+
+			
 			struct = self.check_sal_struct(joining_date, relieving_date)
 
-			self.get_attendance_details()
 			if struct:
 			
 				self._salary_structure_doc = frappe.get_doc('Salary Structure', struct)
@@ -231,12 +227,11 @@ class SalarySlip(TransactionBase):
 			return st_name and st_name[0][0] or ''
 		else:
 			self.salary_structure = None
-			frappe.msgprint(_("No active or default Salary Structure found for employee {0} for the given dates")
-				.format(self.employee), title=_('Salary Structure Missing'))
-
-			# frappe.throw(_("No active Salary Structure found for employee {0} and the month")
-				# .format(self.employee))
-			# self.employee = None				
+			# frappe.msgprint(_("No active or default Salary Structure found for employee {0} for the given dates")
+				# .format(self.employee), title=_('Salary Structure Missing'))
+			frappe.throw(_("No active Salary Structure found for employee {0} and the month")
+				.format(self.employee))
+			self.employee = None				
 
 	def pull_sal_struct(self):
 		from erpnext.hr.doctype.salary_structure.salary_structure import make_salary_slip
@@ -270,10 +265,17 @@ class SalarySlip(TransactionBase):
 			earnings.amount = self.hour_rate * self.total_working_hours
 
 	def pull_emp_details(self):
-		emp = frappe.db.get_value("Employee", self.employee, ["bank_name", "bank_ac_no"], as_dict=1)
+	
+	
+		emp = frappe.db.sql("""select department,designation,company,bank_name,bank_ac_no from tabEmployee where employee = %(employee)s""",{"employee": self.employee}, as_dict=True)
 		if emp:
-			self.bank_name = emp.bank_name
-			self.bank_account_no = emp.bank_ac_no
+			employee_data = emp[0]
+			self.designation = employee_data["designation"]
+			self.department = employee_data["department"]
+			self.company = employee_data["company"]
+			self.bank_name = employee_data["bank_name"]
+			self.bank_account_no = employee_data["bank_ac_no"]
+		
 
 
 	def get_leave_details(self, joining_date=None, relieving_date=None, lwp=None):
@@ -304,9 +306,6 @@ class SalarySlip(TransactionBase):
 		payment_days = flt(self.get_payment_days(joining_date, relieving_date)) - flt(lwp)
 		self.payment_days = payment_days > 0 and payment_days or 0
 		
-		# if self.payment_days == self.total_days_in_month:
-			# self.payment_days = 30
-		# self.total_days_in_month = 30
 		
 
 	def get_payment_days(self, joining_date, relieving_date):
@@ -362,7 +361,7 @@ class SalarySlip(TransactionBase):
 				where t2.name = t1.leave_type
 				and t2.is_lwp = 1
 				and t1.docstatus < 2
-				and t1.status = 'approved'
+				and t1.status in ('Approved','Back From Leave')
 				and t1.employee = %(employee)s
 				and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date
 				WHEN t2.include_holiday THEN %(dt)s between from_date and to_date
@@ -374,14 +373,51 @@ class SalarySlip(TransactionBase):
 						
 
 
+	
+			
+	
+				
+
+	def check_existing(self):
+		if not self.salary_slip_based_on_timesheet:
+			ret_exist = frappe.db.sql("""select name from `tabSalary Slip`
+						where month = %s and fiscal_year = %s and docstatus != 2
+						and employee = %s and name != %s""",
+						(self.month, self.fiscal_year, self.employee, self.name))
+			if ret_exist:
+				self.employee = ''
+				frappe.throw(_("Salary Slip of employee {0} already created for this period").format(self.employee))
+		else:
+			for data in self.timesheets:
+				if frappe.db.get_value('Timesheet', data.time_sheet, 'status') == 'Payrolled':
+					frappe.throw(_("Salary Slip of employee {0} already created for time sheet {1}").format(self.employee, data.time_sheet))
+
+	def sum_components(self, component_type, total_field):
+	
+		if component_type == 'earnings':
+			self.calculate_earning_total()
+		elif component_type == 'deductions':
+			self.calculate_ded_total()
+			
+		else:
+			for d in self.get(component_type):
+				if cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet:
+					d.amount = rounded((flt(d.amount) * flt(self.payment_days)
+						/ cint(self.total_days_in_month)), self.precision("amount", component_type))
+				elif not self.payment_days and not self.salary_slip_based_on_timesheet:
+					d.amount = 0
+				elif not d.amount:
+					d.amount = d.default_amount
+				self.set(total_field, self.get(total_field) + flt(d.amount))
+
 	def calculate_earning_total(self):
 		self.gross_pay = flt(self.arrear_amount)
 		
 		salaryperday = 0
 		hourlyrate = 0
 		for d in self.get("earnings"):
-			if(d.e_type == "Salary"):
-				salaryperday = 	flt(d.e_amount)/30
+			if(d.salary_component == "Basic Salary"):
+				salaryperday = 	flt(d.default_amount)/30
 				hourlyrate = flt(salaryperday)/ 9
 				d.rate = hourlyrate
 				break
@@ -391,38 +427,41 @@ class SalarySlip(TransactionBase):
 
 
 		for d in self.get("earnings"):
-			
-			# if(d.rate_type == "Hourly Based On Salary"):
-				# d.e_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
-			# elif(d.e_type == "Hourly"):
-
-			
-			if(d.e_type == "Overtime Weekdays"):
+			if(d.salary_component == "Overtime Weekdays"):
 				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
-				d.e_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
-			elif(d.e_type == "Overtime Fridays"):
+				d.default_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
+			elif(d.salary_component == "Overtime Fridays"):
 				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_fridays_rate"))
-				d.e_amount = flt(self.overtime_hours_fridays) * flt(d.rate) * flt(hourlyrate)
-			elif(d.e_type == "Overtime Holidays"):
+				d.default_amount = flt(self.overtime_hours_fridays) * flt(d.rate) * flt(hourlyrate)
+			elif(d.salary_component == "Overtime Holidays"):
 				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
-				d.e_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
+				d.default_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
 				
 			
-			if cint(d.e_depends_on_lwp) == 1:
-				d.e_modified_amount = rounded((flt(d.e_amount) * flt(self.payment_days)
-					/ cint(self.total_days_in_month)), self.precision("e_modified_amount", "earnings"))
+			if cint(d.depends_on_lwp) == 1:
+				d.amount = rounded((flt(d.default_amount) * flt(self.payment_days)
+					/ cint(self.total_days_in_month)), self.precision("amount", "earnings"))
 				
-				if(d.e_type == "Salary"):
-					d.e_modified_amount = rounded((flt(d.e_amount) - (flt(self.leave_without_pay)*flt(d.rate)*9)), self.precision("e_modified_amount", "earnings"))
+				if(d.salary_component == "Basic Salary"):
+					payment_days = self.payment_days
+					
+					if self.payment_days == self.total_days_in_month:
+						payment_days = 30
+					total_days_in_month = 30
+					
+					d.amount = rounded((flt(d.default_amount) * flt(payment_days)
+						/ cint(total_days_in_month)), self.precision("amount", "earnings"))
 				
-				d.e_modified_amount = d.e_modified_amount > 0 and d.e_modified_amount or 0
+				
+				
+				d.amount = d.amount > 0 and d.amount or 0
 
 			elif not self.payment_days:
-				d.e_modified_amount = 0
-			elif not d.e_modified_amount:
-				d.e_modified_amount = d.e_amount	
+				d.amount = 0
+			elif not d.amount:
+				d.amount = d.default_amount	
 
-			self.gross_pay += flt(d.e_modified_amount)
+			self.gross_pay += flt(d.amount)
 		
 		self.calculate_leave_and_gratuity(salaryperday)
 	
@@ -447,26 +486,10 @@ class SalarySlip(TransactionBase):
 		
 		self.gross_pay += flt(self.gratuity_encashment) + flt(self.leave_encashment_amount)
 
-			
-	
-				
-
-	def check_existing(self):
-		if not self.salary_slip_based_on_timesheet:
-			ret_exist = frappe.db.sql("""select name from `tabSalary Slip`
-						where month = %s and fiscal_year = %s and docstatus != 2
-						and employee = %s and name != %s""",
-						(self.month, self.fiscal_year, self.employee, self.name))
-			if ret_exist:
-				self.employee = ''
-				frappe.throw(_("Salary Slip of employee {0} already created for this period").format(self.employee))
-		else:
-			for data in self.timesheets:
-				if frappe.db.get_value('Timesheet', data.time_sheet, 'status') == 'Payrolled':
-					frappe.throw(_("Salary Slip of employee {0} already created for time sheet {1}").format(self.employee, data.time_sheet))
-
-	def sum_components(self, component_type, total_field):
-		for d in self.get(component_type):
+	def calculate_ded_total(self):
+		self.check_loan_deductions()
+		self.total_deduction = 0
+		for d in self.get("deductions"):
 			if cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet:
 				d.amount = rounded((flt(d.amount) * flt(self.payment_days)
 					/ cint(self.total_days_in_month)), self.precision("amount", component_type))
@@ -474,11 +497,8 @@ class SalarySlip(TransactionBase):
 				d.amount = 0
 			elif not d.amount:
 				d.amount = d.default_amount
-			self.set(total_field, self.get(total_field) + flt(d.amount))
+			self.total_deduction += flt(d.amount)
 
-	def calculate_ded_total(self):
-	
-		self.check_loan_deductions()
 
 	def check_loan_deductions(self):
 		# m = get_month_details(self.fiscal_year, self.month)
@@ -508,14 +528,14 @@ class SalarySlip(TransactionBase):
 			
 		dtypefound = 0
 		for d in self.get('deductions'):
-			if d.d_type == "Loan Repayment":
+			if d.salary_component == "Loan Repayment":
 				if dtypefound:
 					self.get('deductions').remove(d)
 				else:
 					if total_loan_deduction > 0:
-						d.d_amount = total_loan_deduction
+						d.default_amount = total_loan_deduction
 						dtypefound = 1
-						d.d_modified_amount = d.d_amount
+						d.amount = d.default_amount
 
 					else:
 						self.get('deductions').remove(d)
@@ -527,9 +547,9 @@ class SalarySlip(TransactionBase):
 		if total_loan_deduction > 0:
 			if not dtypefound:
 				newd = self.append('deductions', {})
-				newd.d_type = "Loan Repayment"
-				newd.d_amount = total_loan_deduction
-				newd.d_modified_amount = newd.d_amount
+				newd.salary_component = "Loan Repayment"
+				newd.default_amount = total_loan_deduction
+				newd.amount = newd.default_amount
 			frappe.msgprint(_("Employee has loan deductions this month totalling {0}.").format(total_loan_deduction))		
 		else:
 			frappe.msgprint(_("Employee has no loan deductions for this month."))		
@@ -542,12 +562,10 @@ class SalarySlip(TransactionBase):
 		if self.salary_structure:
 			self.calculate_component_amounts()
 
-		# self.calculate_earning_total()
-		# self.calculate_ded_total()
 		
 		disable_rounded_total = cint(frappe.db.get_value("Global Defaults", None, "disable_rounded_total"))
 
-		self.gross_pay = flt(self.arrear_amount) + flt(self.leave_encashment_amount)
+		self.gross_pay = 0
 		self.total_deduction = 0
 
 		self.sum_components('earnings', 'gross_pay')
@@ -576,7 +594,7 @@ class SalarySlip(TransactionBase):
 				from `tabLeave Application` t1
 				where (t1.leave_type = 'Vacation Leave' OR t1.leave_type = 'Encash Leave')
 				and t1.docstatus < 2
-				and t1.status = 'Approved'
+				and t1.status in ('Approved','Back From Leave')
 				and t1.employee = %s
 				and t1.from_date <= %s
 				ORDER BY to_date DESC LIMIT 2""", (self.employee, dt), as_dict=True)
