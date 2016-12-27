@@ -40,20 +40,17 @@ frappe.ui.form.on("Salary Slip", {
 	salary_slip_based_on_timesheet: function(frm) {
 		frm.trigger("toggle_fields")
 	},
+	
+	payroll_frequency: function(frm) {
+		frm.trigger("toggle_fields")
+	},
 
 	toggle_fields: function(frm) {
-		frm.toggle_display(['start_date', 'end_date', 'hourly_wages', 'timesheets'],
+		frm.toggle_display(['hourly_wages', 'timesheets'],
 			cint(frm.doc.salary_slip_based_on_timesheet)==1);
-		frm.toggle_display(['fiscal_year', 'month', 'total_days_in_month', 'leave_without_pay', 'payment_days'],
-			cint(frm.doc.salary_slip_based_on_timesheet)==0);
-	}
-})
 
-
-frappe.ui.form.on("Salary Slip Timesheet", {
-	time_sheet: function(frm, cdt, cdn) {
-		doc = frm.doc;
-		cur_frm.cscript.fiscal_year(doc, cdt, cdn)
+		frm.toggle_display(['payment_days', 'total_working_days', 'leave_without_pay'],
+			frm.doc.payroll_frequency!="");
 	}
 })
 
@@ -76,27 +73,32 @@ cur_frm.cscript.onload = function(doc,dt,dn){
 
 }
 
+
 // Get leave details
 //---------------------------------------------------------------------
-cur_frm.cscript.fiscal_year = function(doc,dt,dn){
-		return $c_obj(doc, 'get_emp_and_leave_details','',function(r, rt) {
-			var doc = locals[dt][dn];
+cur_frm.cscript.start_date = function(doc, dt, dn){
+	return frappe.call({
+		method: 'get_emp_and_leave_details',
+		doc: locals[dt][dn],
+		callback: function(r, rt) {
 			cur_frm.refresh();
 			calculate_all(doc, dt, dn);
-		});
+		}
+	});
 }
 
 cur_frm.cscript.month = cur_frm.cscript.enable_attendance = cur_frm.cscript.employee = cur_frm.cscript.fiscal_year;
 cur_frm.cscript.salary_slip_based_on_timesheet = cur_frm.cscript.fiscal_year;
 cur_frm.cscript.start_date = cur_frm.cscript.end_date = cur_frm.cscript.fiscal_year;
+cur_frm.cscript.payroll_frequency = cur_frm.cscript.salary_slip_based_on_timesheet = cur_frm.cscript.start_date;
 
 cur_frm.cscript.employee = function(doc,dt,dn){
 	doc.salary_structure = ''
-	cur_frm.cscript.fiscal_year(doc, dt, dn)
+	cur_frm.cscript.start_date(doc, dt, dn)
 }
 
 cur_frm.cscript.leave_without_pay = function(doc,dt,dn){
-	if (doc.employee && doc.fiscal_year && doc.month) {
+	if (doc.employee && doc.start_date && doc.end_date) {
 		return $c_obj(doc, 'get_leave_details', {"lwp": doc.leave_without_pay}, function(r, rt) {
 			var doc = locals[dt][dn];
 			cur_frm.refresh();
@@ -112,22 +114,15 @@ var calculate_all = function(doc, dt, dn) {
 }
 
 cur_frm.cscript.amount = function(doc,dt,dn){
-	calculate_earning_total(doc, dt, dn);
-	calculate_net_pay(doc, dt, dn);
+	var child = locals[dt][dn];
+	if(!doc.salary_structure){
+		frappe.model.set_value(dt,dn, "default_amount", child.amount)
+	}
+	calculate_all(doc, dt, dn);
 }
 
 cur_frm.cscript.depends_on_lwp = function(doc,dt,dn){
 	calculate_earning_total(doc, dt, dn, true);
-	calculate_net_pay(doc, dt, dn);
-}
-// Trigger on earning modified amount and depends on lwp
-// ------------------------------------------------------------------------
-cur_frm.cscript.amount = function(doc,dt,dn){
-	calculate_ded_total(doc, dt, dn);
-	calculate_net_pay(doc, dt, dn);
-}
-
-cur_frm.cscript.depends_on_lwp = function(doc, dt, dn) {
 	calculate_ded_total(doc, dt, dn, true);
 	calculate_net_pay(doc, dt, dn);
 };
@@ -155,6 +150,7 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(doc.payment_days) / 
 					cint(doc.total_days_in_month)*100)/100;
 			}
+
 			refresh_field('amount', tbl[i].name, 'earnings');
 
 		} else if(reset_amount) {
@@ -175,7 +171,7 @@ var calculate_ded_total = function(doc, dt, dn, reset_amount) {
 	var total_ded = 0;
 	for(var i = 0; i < tbl.length; i++){
 		if(cint(tbl[i].depends_on_lwp) == 1) {
-			tbl[i].amount = Math.round(tbl[i].default_amount)*(flt(doc.payment_days)/cint(doc.total_days_in_month)*100)/100;
+			tbl[i].amount = Math.round(tbl[i].default_amount)*(flt(doc.payment_days)/cint(doc.total_working_days)*100)/100;
 			refresh_field('amount', tbl[i].name, 'deductions');
 		} else if(reset_amount) {
 			tbl[i].amount = tbl[i].default_amount;
