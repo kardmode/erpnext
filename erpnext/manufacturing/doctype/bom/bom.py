@@ -121,7 +121,7 @@ class BOM(Document):
 			'conversion_factor'	: conversion_factor,
 			'bom_no'	: args['bom_no'],
 			'required_rate'		: required_rate,
-			'rate'		: rate
+			'rate'		: rate,
 			 'base_rate'	: rate if self.company_currency() == self.currency else rate * self.conversion_rate
 		}
 		return ret_item
@@ -320,9 +320,9 @@ class BOM(Document):
 		self.base_total_cost = self.base_operating_cost + self.base_raw_material_cost - self.base_scrap_material_cost
 		
 		if self.duty:
-			self.grand_total = self.operating_cost*(1+flt(self.duty)/100) + self.raw_material_cost
+			self.grand_total = self.operating_cost*(1+flt(self.duty)/100) + self.raw_material_cost - self.scrap_material_cost
 		else:
-			self.grand_total = self.operating_cost + self.raw_material_cost
+			self.grand_total = self.operating_cost + self.raw_material_cost - self.scrap_material_cost
 
 
 	def calculate_op_cost(self):
@@ -512,7 +512,7 @@ class BOM(Document):
 		
 		for i, item in enumerate(merged):
 			d = merged[item]
-			newd = self.append('items', {})
+			newd = self.append('items')
 			newd.item_code = d["item_code"]
 			newd.qty = d["qty"]
 			newd.required_qty = d["qty"]
@@ -522,6 +522,7 @@ class BOM(Document):
 			newd.rate = ret_item["rate"]
 			newd.stock_uom = ret_item["stock_uom"]
 			
+			newd.amount = flt(ret_item["rate"])*flt(d["qty"])
 			
 			# newd.required_qty = d["required_qty"]
 			# newd.required_uom = d["required_uom"]

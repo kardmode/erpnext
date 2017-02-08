@@ -36,29 +36,7 @@ frappe.ui.form.on("Project", {
 		});
 
 		
-		cur_frm.add_custom_button(__("Sales"), function() {
-				calculate_sales();
-				
-				
-			}, __("Calculate"), true);
 		
-		/* if(frappe.model.can_read("Quotation")) {
-			cur_frm.add_custom_button(__("Quotation"), function() {
-				print_summary("Quotation");
-				
-				
-			}, __("Print"), true);
-			cur_frm.add_custom_button(__("Sales Invoice"), function() {
-				print_summary("Sales Invoice");
-				
-				
-			}, __("Print"), true);
-			cur_frm.add_custom_button(__("Delivery Note"), function() {
-				print_summary("Delivery Note");
-				
-				
-			}, __("Print"), true);
-		} */
 		
 	
 	},
@@ -74,6 +52,30 @@ frappe.ui.form.on("Project", {
 					frappe.set_route("List", "Task", "Gantt");
 				});
 			}
+			
+			cur_frm.add_custom_button(__("Sales"), function() {
+				calculate_sales();
+				
+				
+			}, __("Calculate"), true);
+		
+		if(frappe.model.can_read("Quotation")) {
+			cur_frm.add_custom_button(__("Quotation"), function() {
+				print_summary("Quotation");
+				
+				
+			}, __("Print"), true);
+			cur_frm.add_custom_button(__("Sales Invoice"), function() {
+				print_summary("Sales Invoice");
+				
+				
+			}, __("Print"), true);
+			cur_frm.add_custom_button(__("Delivery Note"), function() {
+				print_summary("Delivery Note");
+				
+				
+			}, __("Print"), true);
+		}
 
 			frm.trigger('show_dashboard');
 		}
@@ -142,23 +144,18 @@ print_summary = function(doctype){
 		var dialog = new frappe.ui.Dialog({
 			title: "Print Documents",
 			fields: [
-				{"fieldtype": "Check", "label": __("Print Letterhead"), "fieldname": "print_letterhead"},
+				{"fieldtype": "Check", "label": __("With Letterhead"), "fieldname": "with_letterhead"},
 				{"fieldtype": "Select", "label": __("Print Format"), "fieldname": "print_sel"},
 				{"fieldtype": "Button", "label": __("Print"), "fieldname": "print"},
 			]
 		});
-
-		print_formats = frappe.meta.get_print_formats("Project");
-		dialog.fields_dict.print_sel.$input.empty().add_options(print_formats);
 		
 		
-
 		dialog.fields_dict.print.$input.click(function() {
 			args = dialog.get_values();
 			if(!args) return;
-			var default_print_format = locals.DocType["Project"].default_print_format;
-			with_letterhead = args.print_letterhead ? 1 : 0;
-			print_format = args.print_sel ? args.print_sel:default_print_format;
+			with_letterhead = args.with_letterhead ? 1 : 0;
+			print_format = args.print_sel;
 			
 			
 			return $c_obj(doc, 'print_summary', {"document": doctype}, function(r, rt) {
@@ -186,7 +183,36 @@ print_summary = function(doctype){
 				}
 			});
 		});
-		dialog.show();
+		
+		frappe.call({
+				doc: doc,
+				method: "get_print_formats",
+				args: {
+				"doctype" : doctype
+				},
+				callback: function(r) {
+					
+					var print_formats = [];
+					r.message.forEach(function (element, index) {
+						print_formats.push(element.name);
+					});
+					if(print_formats)
+					{
+						console.log(print_formats);
+						dialog.fields_dict.print_sel.$input.empty().add_options(print_formats);
+						dialog.show();
+					}
+				}
+			});
+
+
+	
+
+		
+		
+
+		
+		
 		
 
 		

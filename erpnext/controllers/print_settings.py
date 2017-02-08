@@ -7,10 +7,16 @@ from frappe.utils import cint
 
 def print_settings_for_item_table(doc):
 
-	doc.print_templates = {
-		"description": "templates/print_formats/includes/item_table_description.html",
-		"qty": "templates/print_formats/includes/item_table_qty.html"
-	}
+	if doc.doctype in ["Delivery Note Item","Purchase Order Item"]:
+		doc.print_templates = {
+			"description": "templates/print_formats/includes/buying_item_table_description.html",
+			"qty": "templates/print_formats/includes/item_table_qty.html"
+		}
+	else:
+		doc.print_templates = {
+			"description": "templates/print_formats/includes/item_table_description.html",
+			"qty": "templates/print_formats/includes/item_table_qty.html"
+		}
 	
 	doc.hide_in_print_layout = ["item_code", "item_name", "image", "uom", "stock_uom"]
 	

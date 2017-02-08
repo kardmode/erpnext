@@ -487,9 +487,6 @@
    "create": 1, 
    "delete": 1, 
    "email": 1, 
-<<<<<<< HEAD
-   "export": 1, 
-=======
    "export": 0, 
    "if_owner": 0, 
    "import": 0, 
@@ -512,7 +509,6 @@
    "delete": 1, 
    "email": 1, 
    "export": 0, 
->>>>>>> a6be7c71edf5361ea0d4d7406e71363052295c37
    "if_owner": 0, 
    "import": 0, 
    "is_custom": 0, 

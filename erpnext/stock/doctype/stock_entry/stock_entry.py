@@ -129,7 +129,6 @@ class StockEntry(StockController):
 				d.s_warehouse = None
 
 		for d in self.get('items'):
-			frappe.errprint(d.s_warehouse)
 
 			if not d.s_warehouse and not d.t_warehouse:
 				d.s_warehouse = self.from_warehouse
@@ -165,10 +164,24 @@ class StockEntry(StockController):
 						d.t_warehouse = None
 						if not d.s_warehouse:
 							frappe.throw(_("Source warehouse is mandatory for row {0}").format(d.idx))
+			elif self.purpose == "Material Transfer for Manufacture":
+				stock_details = frappe.db.sql("select warehouse,actual_qty from `tabBin` where item_code = (%s)",d.item_code ,as_dict=1)
+				best_warehouses = []
+				for stdetail in stock_details:
+					if stdetail.actual_qty >= d.qty:
+						best_warehouses.insert(0,stdetail.warehouse)
+					elif stdetail.actual_qty > 0:
+						best_warehouses.append(stdetail.warehouse)
+
+				if best_warehouses and not d.s_warehouse in best_warehouses:
+					d.s_warehouse = best_warehouses[0]
+
+				# try to find best source warehouse based on stock balances if purpose = "Material Transfer for Manufacture"
+
+					
 
 			if cstr(d.s_warehouse) == cstr(d.t_warehouse) and not self.purpose == "Material Transfer for Manufacture":
 				frappe.throw(_("Source and target warehouse cannot be same for row {0}").format(d.idx))
-			frappe.errprint(d.s_warehouse)
 
 	def validate_production_order(self):
 		if self.purpose in ("Manufacture", "Material Transfer for Manufacture"):

@@ -33,8 +33,10 @@ class SalaryStructure(Document):
 	def validate_joining_date(self):
 		for e in self.get('employees'):
 			joining_date = getdate(frappe.db.get_value("Employee", e.employee, "date_of_joining"))
+			
 			if getdate(self.from_date) < joining_date:
-				frappe.throw(_("From Date in Salary Structure cannot be lesser than Employee Joining Date."))
+				frappe.msgprint(_("From Date in Salary Structure cannot be lesser than Employee Joining Date."))
+			self.from_date = joining_date
 				
 @frappe.whitelist()
 def make_salary_slip(source_name, target_doc = None, employee = None, as_print = False, print_format = None):

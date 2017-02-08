@@ -84,35 +84,18 @@ def get_columns(salary_slips):
 def get_salary_slips(filters):
 	conditions, filters = get_conditions(filters)
 	salary_slips = frappe.db.sql("""select * from `tabSalary Slip` where docstatus < 2 %s
-		order by employee_name, month""" % conditions, filters, as_dict=1)
+		order by employee_name""" % conditions, filters, as_dict=1)
 	
 	return salary_slips
 	
 def get_conditions(filters):
 	conditions = ""
-	if filters.get("month"):
-		month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", 
-			"Dec"].index(filters["month"]) + 1
-		filters["month"] = month
-		conditions += " and month = %(month)s"
+	if filters.get("from_date"): conditions += " and start_date >= %(from_date)s"
+	if filters.get("to_date"): conditions += " and end_date <= %(to_date)s"
 	
-
-	if filters.get("fiscal_year"): conditions += " and fiscal_year = %(fiscal_year)s"
+	
 	if filters.get("employee"): conditions += " and employee = %(employee)s"
 	elif filters.get("company"): conditions += " and company = %(company)s"
-	
-	if frappe.db.get_value("Fiscal Year", filters.fiscal_year,"year_start_date"):
-		year_start_date, year_end_date = frappe.db.get_value("Fiscal Year", filters.fiscal_year,["year_start_date", "year_end_date"])
-	else:
-		msgprint(_("Please select a valid year"), raise_exception=1)
-
-	
-	if filters.month >= year_start_date.strftime("%m"):
-		year = year_start_date.strftime("%Y")
-	else:
-		year = year_end_date.strftime("%Y")
-	
-	filters["total_days_in_month"] = monthrange(cint(year), filters.month)[1]
 	
 	return conditions, filters
 	
@@ -141,3 +124,27 @@ def get_ss_ded_map(salary_slips):
 		ss_ded_map[d.parent][d.salary_component] = flt(d.amount)
 	
 	return ss_ded_map
+
+def get_month_details(year, month):
+	ysd = frappe.db.get_value("Fiscal Year", year, "year_start_date")
+	if ysd:
+		from dateutil.relativedelta import relativedelta
+		import calendar, datetime
+		diff_mnt = cint(month)-cint(ysd.month)
+		if diff_mnt<0:
+			diff_mnt = 12-int(ysd.month)+cint(month)
+		msd = ysd + relativedelta(months=diff_mnt) # month start date
+		month_days = cint(calendar.monthrange(cint(msd.year) ,cint(month))[1]) # days in month
+		mid_start = datetime.date(msd.year, cint(month), 16) # month mid start date
+		mid_end = datetime.date(msd.year, cint(month), 15) # month mid end date
+		med = datetime.date(msd.year, cint(month), month_days) # month end date
+		return frappe._dict({
+			'year': msd.year,
+			'month_start_date': msd,
+			'month_end_date': med,
+			'month_mid_start_date': mid_start,
+			'month_mid_end_date': mid_end,
+			'month_days': month_days
+		})
+	else:
+		frappe.throw(_("Fiscal Year {0} not found").format(year))

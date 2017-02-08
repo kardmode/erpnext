@@ -45,6 +45,11 @@ class Project(Document):
 		joiningtext += """</table><br>"""
 		self.sales_orders = joiningtext
 
+	def get_print_formats(self,doctype):
+		print_formats = frappe.db.sql("""select name FROM `tabPrint Format`
+			WHERE doc_type=%s AND docstatus<2 and disabled=0""", (doctype,), as_dict=1)
+		return print_formats
+	
 	def print_summary(self, document):
 	
 		ss_list = []

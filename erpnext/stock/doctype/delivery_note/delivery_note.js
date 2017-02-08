@@ -94,6 +94,17 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 		var aii_enabled = cint(sys_defaults.auto_accounting_for_stock)
 		cur_frm.fields_dict["items"].grid.set_column_disp(["expense_account", "cost_center"], aii_enabled);
 	},
+	
+	
+	validate: function(doc, dt, dn) {
+		
+		
+		erpnext.stock.delivery_note.set_total_qty(doc, dt, dn);
+
+		this._super();
+		
+
+	},
 
 	make_sales_invoice: function() {
 		frappe.model.open_mapped_doc({
@@ -181,6 +192,15 @@ cur_frm.cscript['Make Packing Slip'] = function() {
 		method: "erpnext.stock.doctype.delivery_note.delivery_note.make_packing_slip",
 		frm: cur_frm
 	})
+}
+
+erpnext.stock.delivery_note.set_total_qty = function(doc, cdt, cdn){
+	total_qty = 0;
+		var cl = doc["items"] || [];
+		for(var i = 0; i < cl.length; i++){
+			total_qty = total_qty + cl[i].qty;
+		}
+		doc.total_qty = total_qty;
 }
 
 erpnext.stock.delivery_note.set_print_hide = function(doc, cdt, cdn){

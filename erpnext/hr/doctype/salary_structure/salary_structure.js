@@ -148,9 +148,24 @@ frappe.ui.form.on('Salary Structure', {
 	}
 });
 
-
 cur_frm.cscript.amount = function(doc, cdt, cdn){
 	calculate_totals(doc, cdt, cdn);
+};
+
+cur_frm.cscript.salary_component = function(doc, cdt, cdn){
+		var child = locals[cdt][cdn];
+							console.log(child);
+
+		if(child.salary_component == "Basic Salary"){
+
+			frappe.model.set_value(child.doctype,child.name, "depends_on_lwp", 1);
+			frappe.model.set_value(child.doctype,child.name, "amount_based_on_formula", 1);
+			frappe.model.set_value(child.doctype,child.name, "formula", "base");
+		}
+		else{
+			frappe.model.set_value(child.doctype,child.name, "depends_on_lwp", 0);
+
+		}
 };
 
 var calculate_totals = function(doc) {
@@ -191,5 +206,6 @@ frappe.ui.form.on('Salary Detail', {
 	
 	deductions_remove: function(frm) {
 		calculate_totals(frm.doc);
-	}
+	},
+
 })

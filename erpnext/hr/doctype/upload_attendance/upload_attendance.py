@@ -119,7 +119,7 @@ def upload():
 		except Exception, e:
 			error = True
 			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-				len(row)>1 and row[1] or "", "Check data"))
+				len(row)>1 and row[1] or "", cstr(e)))
 			frappe.errprint(row_idx)
 			frappe.errprint(frappe.get_traceback())
 	

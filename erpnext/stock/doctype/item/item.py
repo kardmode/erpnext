@@ -103,7 +103,13 @@ class Item(WebsiteGenerator):
 	def after_insert(self):
 		'''set opening stock and item price'''
 		if self.standard_rate:
-			self.add_price()
+			self.add_price(None,self.standard_rate)
+			
+		price_list = (frappe.db.get_single_value('Buying Settings', 'buying_price_list')
+			or frappe.db.get_value('Price List', _('Standard Buying')))
+			
+		if self.standard_buying_rate:
+			self.add_price(price_list,self.standard_buying_rate)
 
 		if self.opening_stock:
 			self.set_opening_stock()
@@ -144,9 +150,7 @@ class Item(WebsiteGenerator):
 		else:
 			
 			if not self.default_warehouse:
-				default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
-				or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores')
-				or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores - SLI')}))
+				default_warehouse = self.get_default_warehouse()
 			
 		self.validate_fixed_asset()
 
@@ -164,7 +168,7 @@ class Item(WebsiteGenerator):
 		self.update_variants()
 		self.update_template_item()
 
-	def add_price(self, price_list=None):
+	def add_price(self, price_list=None,value=0):
 		'''Add a new price'''
 		if not price_list:
 			price_list = (frappe.db.get_single_value('Selling Settings', 'selling_price_list')
@@ -175,7 +179,7 @@ class Item(WebsiteGenerator):
 				"price_list": price_list,
 				"item_code": self.name,
 				"currency": erpnext.get_default_currency(),
-				"price_list_rate": self.standard_rate
+				"price_list_rate": value
 			})
 			item_price.insert()
 
@@ -195,8 +199,6 @@ class Item(WebsiteGenerator):
 		if not self.opening_warehouse:
 			frappe.throw(_("Opening Warehouse is mandatory if Opening Stock entered"))
 		
-		# default warehouse, or Stores
-		# default_warehouse = self.get_default_warehouse()
 
 		default_warehouse = self.opening_warehouse
 		

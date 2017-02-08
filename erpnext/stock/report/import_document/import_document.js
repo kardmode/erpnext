@@ -18,8 +18,7 @@ frappe.query_reports["Import Document"] = {
 			"options": "Warehouse",
 			"get_query": function() {
 				return{
-					filters: [["Warehouse", "disabled", "=", 0],
-					["Warehouse", "parent_warehouse", "=", "Import Docs - SLI"]],
+					filters: [["Warehouse", "disabled", "=", 0]],
 				}
 					
 				

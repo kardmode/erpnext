@@ -2,6 +2,7 @@
 // License: GNU General Public License v3. See license.txt
 
 cur_frm.add_fetch('time_sheet', 'total_hours', 'working_hours');
+cur_frm.add_fetch('employee', 'company', 'company');
 
 
 frappe.ui.form.on("Salary Slip", {
@@ -28,7 +29,13 @@ frappe.ui.form.on("Salary Slip", {
 			}
 		})
 	},
-
+	
+	// company: function(frm) {
+		// var company = locals[':Company'][frm.doc.company];
+		// if(!frm.doc.letter_head && company.default_letter_head) {
+			// frm.set_value('letter_head', company.default_letter_head);
+		// }
+	// },
 
 	refresh: function(frm) {
 		frm.trigger("toggle_fields")
@@ -51,7 +58,26 @@ frappe.ui.form.on("Salary Slip", {
 
 		frm.toggle_display(['payment_days', 'total_working_days', 'leave_without_pay'],
 			frm.doc.payroll_frequency!="");
-	}
+	},
+	
+	set_start_end_dates: function(frm) {
+		if (!frm.doc.salary_slip_based_on_timesheet){
+			frappe.call({
+				method:'erpnext.hr.doctype.process_payroll.process_payroll.get_start_end_dates',
+				args:{
+					payroll_frequency: frm.doc.payroll_frequency,
+					start_date: frm.doc.start_date || frm.doc.posting_date
+				},
+				callback: function(r){
+					if (r.message){
+						frm.set_value('start_date', r.message.start_date);
+						frm.set_value('end_date', r.message.end_date);
+					}
+				}
+			})
+		}
+	},
+	
 })
 
 
@@ -59,15 +85,8 @@ frappe.ui.form.on("Salary Slip", {
 // -------------------------------------------------------------------
 cur_frm.cscript.onload = function(doc,dt,dn){
 	if((cint(doc.__islocal) == 1) && !doc.amended_from){
-		if(!doc.month) {
-			var today=new Date();
-			month = (today.getMonth()+01).toString();
-			if(month.length>1) doc.month = month;
-			else doc.month = '0'+month;
-		}
-		if(!doc.fiscal_year) doc.fiscal_year = sys_defaults['fiscal_year'];
-		doc.employee = "";
-		refresh_many(['month', 'fiscal_year']);
+		doc.payroll_frequency = 'Monthly';
+		refresh_many(['payroll_frequency']);
 	}
 	cur_frm.set_df_property("earnings", "read_only", 1);
 
@@ -82,17 +101,18 @@ cur_frm.cscript.start_date = function(doc, dt, dn){
 		doc: locals[dt][dn],
 		callback: function(r, rt) {
 			cur_frm.refresh();
+			console.log(doc.end_date);
 			calculate_all(doc, dt, dn);
 		}
 	});
 }
 
-cur_frm.cscript.month = cur_frm.cscript.enable_attendance = cur_frm.cscript.employee = cur_frm.cscript.fiscal_year;
-cur_frm.cscript.salary_slip_based_on_timesheet = cur_frm.cscript.fiscal_year;
-cur_frm.cscript.start_date = cur_frm.cscript.end_date = cur_frm.cscript.fiscal_year;
 cur_frm.cscript.payroll_frequency = cur_frm.cscript.salary_slip_based_on_timesheet = cur_frm.cscript.start_date;
+cur_frm.cscript.end_date = cur_frm.cscript.enable_attendance = cur_frm.cscript.start_date;
+
 
 cur_frm.cscript.employee = function(doc,dt,dn){
+	cur_frm.add_fetch('company', 'default_letter_head', 'letter_head');
 	doc.salary_structure = ''
 	cur_frm.cscript.start_date(doc, dt, dn)
 }
@@ -130,6 +150,8 @@ cur_frm.cscript.depends_on_lwp = function(doc,dt,dn){
 // Calculate earning total
 // ------------------------------------------------------------------------
 var calculate_earning_total = function(doc, dt, dn, reset_amount) {
+	
+	
 	var tbl = doc.earnings || [];
 	var total_earn = 0;
 	for(var i = 0; i < tbl.length; i++){
@@ -140,22 +162,25 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 					
 				var payment_days = doc.payment_days;
 					
-				if (doc.payment_days == doc.total_days_in_month)
+				if (doc.payment_days == doc.total_working_days)
 					payment_days = 30;
-				var total_days_in_month = 30;
+				var total_working_days = 30;
 				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(payment_days) / 
-					cint(total_days_in_month)*100)/100;
+					cint(total_working_days)*100)/100;
+				cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
+
 			}
 			else{
 				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(doc.payment_days) / 
-					cint(doc.total_days_in_month)*100)/100;
+					cint(doc.total_working_days)*100)/100;
+				cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
+
 			}
 
-			refresh_field('amount', tbl[i].name, 'earnings');
 
 		} else if(reset_amount) {
 			tbl[i].amount = tbl[i].default_amount;
-			refresh_field('amount', tbl[i].name, 'earnings');
+			cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
 		}
 		total_earn += flt(tbl[i].amount);
 		

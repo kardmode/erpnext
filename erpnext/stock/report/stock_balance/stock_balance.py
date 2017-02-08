@@ -18,16 +18,23 @@ def execute(filters=None):
 	data = []
 	for (company, item, warehouse) in sorted(iwb_map):
 		qty_dict = iwb_map[(company, item, warehouse)]
-		data.append([item, item_map[item]["item_name"],
-			item_map[item]["item_group"],
-			item_map[item]["brand"],
-			item_map[item]["description"], warehouse,
-			item_map[item]["stock_uom"], qty_dict.opening_qty,
-			qty_dict.opening_val, qty_dict.in_qty,
-			qty_dict.in_val, qty_dict.out_qty,
-			qty_dict.out_val, qty_dict.bal_qty,
-			qty_dict.bal_val, qty_dict.val_rate,
-			company
+		data.append([item, 
+			# item_map[item]["item_name"],
+			# item_map[item]["item_group"],
+			# item_map[item]["brand"],
+			# item_map[item]["description"],
+			warehouse,
+			item_map[item]["stock_uom"], 
+			qty_dict.opening_qty,
+			qty_dict.opening_val, 
+			qty_dict.in_qty,
+			qty_dict.in_val, 
+			qty_dict.out_qty,
+			qty_dict.out_val, 
+			qty_dict.bal_qty,
+			qty_dict.bal_val, 
+			qty_dict.val_rate,
+			# company
 		])
 
 	return columns, data
@@ -37,10 +44,10 @@ def get_columns():
 
 	columns = [
 		_("Item")+":Link/Item:100",
-		_("Item Name")+"::150",
-		_("Item Group")+"::100",
-		_("Brand")+"::90",
-		_("Description")+"::140",
+		# _("Item Name")+"::150",
+		# _("Item Group")+"::100",
+		# _("Brand")+"::90",
+		# _("Description")+"::140",
 		_("Warehouse")+":Link/Warehouse:100",
 		_("Stock UOM")+":Link/UOM:90",
 		_("Opening Qty")+":Float:100",
@@ -52,7 +59,7 @@ def get_columns():
 		_("Balance Qty")+":Float:100",
 		_("Balance Value")+":Float:100",
 		_("Valuation Rate")+":Float:90",
-		_("Company")+":Link/Company:100"
+		# _("Company")+":Link/Company:100"
 	]
 
 	return columns

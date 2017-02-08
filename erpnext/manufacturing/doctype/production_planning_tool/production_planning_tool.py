@@ -188,7 +188,6 @@ class ProductionPlanningTool(Document):
 		self.clear_table("items")
 		for p in items:
 			item_details = get_item_details(p['item_code'])
-			frappe.errprint(item_details)
 			pi = self.append('items', {})
 			pi.warehouse				= p['warehouse']
 			pi.item_code				= p['item_code']
@@ -214,18 +213,6 @@ class ProductionPlanningTool(Document):
 
 			if not flt(d.planned_qty):
 				frappe.throw(_("Please enter Planned Qty for Item {0} at row {1}").format(d.item_code, d.idx))
-			
-			# item_map = get_item_details(d.item_code)
-			# iwb_map = get_item_warehouse_map(d.item_code)
-
-			# balance_qty = 0
-			# for (company, item, warehouse) in sorted(iwb_map):
-				# warehouse_details = frappe.db.get_value("Warehouse", warehouse, ["parent_warehouse"], as_dict=1)
-				# qty_dict = iwb_map[(company, item, warehouse)]
-				# balance_qty = balance_qty + qty_dict.bal_qty	
-			
-			if not flt(d.pending_qty) == None:
-				d.pending_qty = flt(d.planned_qty)
 
 			
 
@@ -233,107 +220,182 @@ class ProductionPlanningTool(Document):
 
 	def make_stock_entries(self,purpose=None,all=False):
 		if purpose:
+			conditions = ""
+			
+			pro_list = []
 			if all:
-				report = "Open Production Orders"
-				if purpose == "Manufacture":
-					report = "Production Orders in Progress"
-				elif purpose == "Material Transfer for Manufacture":
-					report = "Open Production Orders"
-						
-				for pro in query_report.run(report)["result"][:100]:
-					make_stock_entry_from_pro(pro[0], purpose)
+				production_orders = frappe.db.sql("""
+				select t1.name, t1.produced_qty, t1.qty
+				from `tabProduction Order` t1
+				where t1.docstatus = 1
+				AND ifnull(t1.produced_qty,0) < t1.qty
+				AND NOT EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name and purpose = %s)
+				""",purpose,as_dict=1)
+				pro_list.append(production_orders)
+				
 		
+			elif self.get_items_from == "Sales Order":
+				for d in self.get('sales_orders'):
+					production_orders = frappe.db.sql("""
+					select t1.name, t1.produced_qty, t1.qty
+					from `tabProduction Order` t1
+					where t1.docstatus = 1 and t1.sales_order = %s
+					AND ifnull(t1.produced_qty,0) < t1.qty
+					AND NOT EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name and purpose = %s)
+					""", (d.sales_order,purpose),as_dict=1)
+					pro_list.append(production_orders)
+	
+			
+			elif self.get_items_from == "Material Request":
+				for d in self.get('material_requests'):
+					production_orders = frappe.db.sql("""
+					select t1.name, t1.produced_qty, t1.qty
+					from `tabProduction Order` t1
+					where t1.docstatus = 1 and t1.material_request = %s
+					AND ifnull(t1.produced_qty,0) < t1.qty
+					AND NOT EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name and purpose = %s)
+					""",(d.material_request,purpose),as_dict=1)
+					pro_list.append(production_orders)
+	
 			else:
-				production_orders = []
-				if self.get_items_from == "Sales Order":
-					for d in self.get('sales_orders'):
-						production_orders = frappe.db.sql("""
-						select t1.name, t1.produced_qty, t1.qty
-						from `tabProduction Order` t1
-						where t1.docstatus = 1 and t1.sales_order = %s
-						AND ifnull(t1.produced_qty,0) < t1.qty
-						AND NOT EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name)
-						""", d.sales_order,as_dict=1)
+				for d in self.get('items'):
+					production_orders = frappe.db.sql("""
+					select t1.name, t1.produced_qty, t1.qty
+					from `tabProduction Order` t1
+					where t1.docstatus = 1 and t1.production_item = %s
+					AND ifnull(t1.produced_qty,0) < t1.qty
+					AND (t1.sales_order IS NULL OR t1.sales_order = ' ')
+					AND NOT EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name and purpose = %s)
+					""",(d.item_code,purpose),as_dict=1)
+					pro_list.append(production_orders)
+	
 				
-				elif self.get_items_from == "Material Request":
-					for d in self.get('material_requests'):
-						production_orders = frappe.db.sql("""
-						select t1.name, t1.produced_qty, t1.qty
-						from `tabProduction Order` t1
-						where t1.docstatus = 1 and t1.material_request = %s
-						AND ifnull(t1.produced_qty,0) < t1.qty
-						AND NOT EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name)
-						""",d.material_request,as_dict=1)
-						
+			if not pro_list:
+				frappe.throw(_("No production orders found. Cannot make stock entries of type {0}".format(purpose)))
+			
+			ste_list = []
+			for pro in production_orders:
+				
+				if purpose == "Manufacture":
+					transferSTE = frappe.db.sql("""SELECT name from `tabStock Entry` where production_order = %s 
+					and purpose = 'Material Transfer for Manufacture' 
+					and docstatus = 1""",pro.name,as_dict=1)
 					
-
-				frappe.errprint(production_orders)
-
-				for pro in production_orders:
-					make_stock_entry_from_pro(pro[0], purpose)
-				
-				
+					if transferSTE:
+						ste_name = make_stock_entry_from_pro(pro.name, purpose)
+						if ste_name:
+							ste_list.append(ste_name)
+				else:
+					ste_name = make_stock_entry_from_pro(pro.name, purpose)
+					if ste_name:
+						ste_list.append(ste_name)
 			
 				
-					
-		
-	def submit_stock_entry(self,purpose=None,all=False):
+				
+			if ste_list:
+				ste_list = ["""<a href="#Form/Stock Entry/%s" target="_blank">%s</a>""" % \
+					(p, p) for p in ste_list]
+				msgprint(_("{0} created for {1}").format(comma_and(ste_list),purpose))
+			else :
+				msgprint(_("No Stock Entries Created for {0}").format(purpose))				
+
+	def submit_stock_entries(self,purpose=None,all=False):
 		if purpose:
+			pro_list = []
+
 			if all:
-				stock_entries = frappe.db.sql("""select name
-							from `tabStock Entry` where docstatus=0 and purpose=%s""",purpose, as_dict=1)
-				frappe.errprint(stock_entries)
+				# stock_entries = frappe.db.sql("""select name
+							# from `tabStock Entry` where docstatus=0 and purpose=%s""",purpose, as_dict=1)
 
-				for ste in stock_entries:
-					doc = frappe.get_doc('Stock Entry', ste["name"])
-					frappe.errprint(doc)
+				# for ste in stock_entries:
+					# doc = frappe.get_doc('Stock Entry', ste["name"])
 					# doc.submit()
-		
-			else:
-				report = "Open Production Orders"
-				if purpose == "Manufacture":
-					report = "Production Orders in Progress"
-				elif purpose == "Material Transfer for Manufacture":
-					report = "Open Production Orders"
+				report = "Production Orders in Progress"
 				production_orders = query_report.run(report)["result"][:100]
+				
+				pro_list.append(production_orders)
+				
+		
+			elif self.get_items_from == "Sales Order":
+				for d in self.get('sales_orders'):
+					production_orders = frappe.db.sql("""
+					select t1.name, t1.produced_qty, t1.qty
+					from `tabProduction Order` t1
+					where t1.docstatus = 1 and t1.sales_order = %s
+					AND ifnull(t1.produced_qty,0) < t1.qty
+					AND EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name)
+					""", d.sales_order,as_dict=1)
+					
+					pro_list.append(production_orders)
 
-				for pro in production_orders:
+			
+			elif self.get_items_from == "Material Request":
+				for d in self.get('material_requests'):
+					production_orders = frappe.db.sql("""
+					select t1.name, t1.produced_qty, t1.qty
+					from `tabProduction Order` t1
+					where t1.docstatus = 1 and t1.material_request = %s
+					AND ifnull(t1.produced_qty,0) < t1.qty
+					AND EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name)
+					""",d.material_request,as_dict=1)
+					
+					pro_list.append(production_orders)
+			else:
+				for d in self.get('items'):
+					production_orders = frappe.db.sql("""
+					select t1.name, t1.produced_qty, t1.qty
+					from `tabProduction Order` t1
+					where t1.docstatus = 1 and t1.production_item = %s
+					AND ifnull(t1.produced_qty,0) < t1.qty
+					AND (t1.sales_order IS NULL OR t1.sales_order = ' ')
+					AND EXISTS (SELECT name from `tabStock Entry` where production_order = t1.name)
+					""",d.item_code,as_dict=1)
+					
+					pro_list.append(production_orders)
+		
+			if not pro_list:
+				frappe.throw(_("No production orders found. Cannot submit stock entries of type {0}".format(purpose)))
 
-					frappe.errprint(pro[0])
-					stock_entries = frappe.db.sql("""select name
-								from `tabStock Entry` where production_order=%s and docstatus=0 and purpose=%s""",pro[0],purpose, as_dict=1)
-					frappe.errprint(stock_entries)
+			ste_list = []
+			for pro in production_orders:
+			
+				if purpose == "Manufacture":
+					transferSTE = frappe.db.sql("""SELECT name from `tabStock Entry` where production_order = %s 
+					and purpose = 'Material Transfer for Manufacture' 
+					and docstatus = 1""",pro.name,as_dict=1)
+					
+					if transferSTE:
+						stock_entries = frappe.db.sql("""select name 
+						from `tabStock Entry` where production_order=%s and docstatus=0 and purpose=%s""",(pro.name,purpose), as_dict=1)
+
+						for ste in stock_entries:
+							doc = frappe.get_doc('Stock Entry', ste["name"])
+							doc.submit()
+							ste_list.append(doc.name)
+				else:
+					stock_entries = frappe.db.sql("""select name 
+					from `tabStock Entry` where production_order=%s and docstatus=0 and purpose=%s""",(pro.name,purpose), as_dict=1)
 
 					for ste in stock_entries:
 						doc = frappe.get_doc('Stock Entry', ste["name"])
-						frappe.errprint(doc)
-						# doc.submit()
-		
-		
-		
+						doc.submit()
+						ste_list.append(doc.name)
+
+				
 					
-		
-		
+			if ste_list:
+				ste_list = ["""<a href="#Form/Stock Entry/%s" target="_blank">%s</a>""" % \
+					(p, p) for p in ste_list]
+				msgprint(_("{0} submitted for {1}").format(comma_and(ste_list),purpose))
+			else :
+				msgprint(_("No Stock Entries Submitted for {0}").format(purpose))
+						
+						
 	def submit_to_manufacture(self):
-		for pro in query_report.run("Production Orders in Progress")["result"][:100]:
-			frappe.errprint(pro[0])
-			
-			
-			stock_entries = frappe.db.sql("""select name
-							from `tabStock Entry` where docstatus=0 and purpose=%s""",'Manufacture', as_dict=1)
-			frappe.errprint(stock_entries)
+		self.submit_stock_entries("Material Transfer for Manufacture")
+		self.make_stock_entries("Manufacture")
 
-			for ste in stock_entries:
-				doc = frappe.get_doc('Stock Entry', ste["name"])
-				frappe.errprint(doc)
-				# doc.submit()
 
-		
-			
-		
-		
-
-		
 	def raise_production_orders(self):
 		"""It will raise production order (Draft) for all distinct FG items"""
 		self.validate_data()
@@ -352,7 +414,6 @@ class ProductionPlanningTool(Document):
 			
 				production_order.submit()
 				make_stock_entry_from_pro(production_order.name, "Material Transfer for Manufacture")
-				make_stock_entry_from_pro(production_order.name, "Manufacture")
 				pro_list.append(production_order.name)
 
 		frappe.flags.mute_messages = False
@@ -367,10 +428,6 @@ class ProductionPlanningTool(Document):
 	def get_production_items(self):
 		item_dict = {}
 		for d in self.get("items"):
-			
-			
-			
-
 			item_details= {
 				"production_item"		: d.item_code,
 				"sales_order"			: d.sales_order,
@@ -392,6 +449,11 @@ class ProductionPlanningTool(Document):
 					"qty": d.planned_qty
 				})
 				item_dict[(d.item_code, d.material_request_item, d.warehouse)] = item_details
+				
+				# item_details.update({
+					# "qty": d.planned_qty
+				# })
+				# item_dict[d.item_code] = item_details
 
 			else:
 				item_details.update({
@@ -400,22 +462,34 @@ class ProductionPlanningTool(Document):
 				})
 				item_dict[(d.item_code, d.sales_order, d.warehouse)] = item_details
 		
+				# item_details.update({
+					# "qty":flt(item_dict.get(d.item_code,{})
+						# .get("qty")) + flt(d.planned_qty)
+				# })
+				# item_dict[d.item_code] = item_details
+		
 		if not self.ignore_stock_balance:
 			remove = []
-			balance_qty = 0
 			for k in item_dict:
-				stock_details = frappe.db.sql("select sum(actual_qty) from `tabBin` where item_code = (%s) group by item_code", item_dict[k]['production_item'])
+				balance_qty = 0
+
+
+				stock_details = frappe.db.sql("select sum(projected_qty) from `tabBin` where item_code = (%s) group by item_code", item_dict[k]['production_item'])
 				if stock_details:
 					balance_qty = stock_details[0][0]
+					frappe.errprint(balance_qty)
 
-				if d.pending_qty < balance_qty:
+
+				if item_dict[k]['qty'] <= balance_qty:
 					remove.append(k)
-			
+				else:
+					item_dict[k]['qty'] = flt(item_dict[k]['qty']) - flt(balance_qty)
 
 			for k in remove:
 				del item_dict[k]
-		
-		
+		# frappe.errprint(item_dict)
+		# frappe.throw(_("Testing"))
+
 		return item_dict
 
 	def create_production_order(self, item_dict):
@@ -653,75 +727,11 @@ class ProductionPlanningTool(Document):
 		else:
 			msgprint(_("Nothing to request"))
 
-			
-def get_conditions(item_code):
-	conditions = ""
-
-	from frappe.utils import flt, today
-	conditions += " and posting_date <= '%s'" % frappe.db.escape(today())
-
-
-	if item_code:
-		conditions += " and item_code = '%s'" % frappe.db.escape(item_code, percent=False)
-	
-
-
-	return conditions
-
-def get_stock_ledger_entries(item_code):
-	conditions = get_conditions(item_code)
-	return frappe.db.sql("""select item_code, warehouse, posting_date, actual_qty, valuation_rate,
-			company, voucher_type, qty_after_transaction, stock_value_difference
-		from `tabStock Ledger Entry` sle force index (posting_sort_index)
-		where docstatus < 2 %s order by posting_date, posting_time, name""" %
-		conditions, as_dict=1)
-
-def get_item_warehouse_map(item_code):
-	iwb_map = {}
-	from frappe.utils import today
-
-	from_date = getdate(today())
-	to_date = getdate(today())
-
-	sle = get_stock_ledger_entries(item_code)
-
-	for d in sle:
-		key = (d.company, d.item_code, d.warehouse)
-		if key not in iwb_map:
-			iwb_map[key] = frappe._dict({
-				"opening_qty": 0.0, "opening_val": 0.0,
-				"in_qty": 0.0, "in_val": 0.0,
-				"out_qty": 0.0, "out_val": 0.0,
-				"bal_qty": 0.0, "bal_val": 0.0,
-				"val_rate": 0.0, "uom": None
-			})
-
-		qty_dict = iwb_map[(d.company, d.item_code, d.warehouse)]
-
-		if d.voucher_type == "Stock Reconciliation":
-			qty_diff = flt(d.qty_after_transaction) - qty_dict.bal_qty
-		else:
-			qty_diff = flt(d.actual_qty)
-
-		value_diff = flt(d.stock_value_difference)
-
-		if d.posting_date < from_date:
-			qty_dict.opening_qty += qty_diff
-			qty_dict.opening_val += value_diff
-
-		elif d.posting_date >= from_date and d.posting_date <= to_date:
-			if qty_diff > 0:
-				qty_dict.in_qty += qty_diff
-				qty_dict.in_val += value_diff
-			else:
-				qty_dict.out_qty += abs(qty_diff)
-				qty_dict.out_val += abs(value_diff)
-
-		qty_dict.val_rate = d.valuation_rate
-		qty_dict.bal_qty += qty_diff
-		qty_dict.bal_val += value_diff
-
-	return iwb_map
+	def get_default_warehouse(self):
+		default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
+		or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores')
+		or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
+		return default_warehouse
 	
 def make_stock_entry_from_pro(pro_id, purpose):
 	from erpnext.manufacturing.doctype.production_order.production_order import make_stock_entry
@@ -736,7 +746,9 @@ def make_stock_entry_from_pro(pro_id, purpose):
 			d.cost_center = "Main - " + frappe.db.get_value('Company', st.company, 'abbr')
 		st.insert()
 		frappe.db.commit()
+		return st.name
 
 	except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
 		OperationsNotCompleteError):
 		frappe.db.rollback()
+

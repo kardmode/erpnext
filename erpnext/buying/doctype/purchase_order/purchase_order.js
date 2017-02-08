@@ -98,6 +98,7 @@ erpnext.buying.PurchaseOrderController = erpnext.buying.BuyingController.extend(
 
 	validate: function() {
 		// set default schedule date as today if missing.
+		
 		(this.frm.doc.items || []).forEach(function(d) {
 			if(!d.schedule_date) {
 				d.schedule_date = frappe.datetime.nowdate();

@@ -546,28 +546,27 @@ frappe.ui.form.on(cur_frm.doctype,"project", function(frm) {
 // ------------------------------------------------------------------------
 
 frappe.ui.form.on(cur_frm.doctype, cur_frm.doctype +"_refresh", function(frm,dt,dn){
-	//frm.cscript.calculate_headers();
-	frm.cscript.refresh_headers();
-	//cur_frm.refresh();
-	//console.log("erererierieirie");
+	// frm.cscript.calculate_headers();
+		// frm.cscript.refresh_headers();
+		// cur_frm.refresh();
+		
 })
 
 frappe.ui.form.on(cur_frm.doctype + " Item", "items_remove", function(frm,dt,dn){
-	//frm.cscript.calculate_headers();
-	//frm.cscript.refresh_headers();
-	//cur_frm.refresh();
-	//console.log("remove item");
+	// frm.cscript.calculate_headers();
+		// frm.cscript.refresh_headers();
+		// cur_frm.refresh();
 	
 })
 
 frappe.ui.form.on(cur_frm.doctype + " Item", "items_add", function(frm,dt,dn){
-	//frm.cscript.calculate_headers();
-	//frm.cscript.refresh_headers();
-	//cur_frm.refresh;
+	// frm.cscript.calculate_headers();
+		// frm.cscript.refresh_headers();
+		// cur_frm.refresh();
 })
 
 frappe.ui.form.on(cur_frm.doctype + " Item", "item_code", function(frm,dt,dn){
-	//frm.cscript.calculate_headers();
-	//frm.cscript.refresh_headers();
-	//cur_frm.refresh;
+	// frm.cscript.calculate_headers();
+		// frm.cscript.refresh_headers();
+		// cur_frm.refresh();
 })

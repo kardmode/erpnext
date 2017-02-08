@@ -6,7 +6,11 @@ frappe.ui.form.on("Process Payroll", {
 		frm.doc.posting_date = frappe.datetime.nowdate();
 		frm.doc.start_date = '';
 		frm.doc.end_date = '';
-		frm.doc.payroll_frequency = '';
+		frm.doc.payroll_frequency = 'Monthly';
+		
+		
+		frm.trigger("set_start_end_dates");
+		
 	},
 
 	refresh: function(frm) {
@@ -149,7 +153,7 @@ cur_frm.cscript.reference_entry = function(doc,cdt,cdn){
 
 cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 	cur_frm.cscript.display_activity_log("");
-    if(doc.company && doc.month && doc.fiscal_year){
+    if(doc.company && doc.start_date && doc.end_date){
 		var callback = function(r, rt){
 
 			if (r.message)
@@ -165,7 +169,7 @@ cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 					var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
 						+"doctype="+encodeURIComponent("Salary Slip")
 						+"&name="+encodeURIComponent(json_string)
-						+"&format="+encodeURIComponent("Salary Slip Multi")
+						+"&format="+encodeURIComponent("Salary Slip")
 						+"&no_letterhead="+"0");
 					if(!w) {
 						msgprint(__("Please enable pop-ups")); return;
@@ -178,7 +182,7 @@ cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 
 		
     } else {
-  	  msgprint(__("Company, Month and Fiscal Year is mandatory"));
+  	  msgprint(__("Company and dates are mandatory"));
     }
 }
 

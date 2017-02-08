@@ -4,7 +4,7 @@
 
 
 cur_frm.cscript.onload = function(doc) {
-	cur_frm.set_value("company", frappe.defaults.get_user_default("Company"))
+	cur_frm.set_value("company", frappe.defaults.get_default("Company"))
 }
 
 cur_frm.cscript.refresh = function(doc) {
@@ -20,7 +20,23 @@ cur_frm.add_fetch("sales_order", "base_grand_total", "grand_total");
 frappe.ui.form.on("Production Planning Tool", {
 	onload_post_render: function(frm) {
 	 		frm.get_field("items").grid.set_multiple_add("item_code", "planned_qty");
-	 },	
+	 },
+	 
+	 onload: function(frm) {
+	 		// frm.set_value("get_items_from", "Sales Order");
+			
+			/* frappe.call({
+				doc: frm.doc,
+				method: "get_default_warehouse",
+				callback: function(r) {
+					if(r.message)
+					{
+						frm.set_value("purchase_request_for_warehouse", r.message);
+					}
+				}
+			}); */
+	 },
+	 
 	 
 	get_sales_orders: function(frm) {
 		frappe.call({
@@ -66,67 +82,33 @@ frappe.ui.form.on("Production Planning Tool", {
 		});
 	},
 	
-	make_stock_entries: function(frm) {
+	transfer_material: function(frm) {
 		frappe.call({
 			doc: frm.doc,
 			args: {
 				"purpose" : "Material Transfer for Manufacture",
-				"all" : true
+				"all" : false
 			},
 			method: "make_stock_entries",
-			callback: function(r) {
-				frappe.call({
-					doc: frm.doc,
-					args: {
-						"purpose" : "Manufacture",
-						"all" : true
-					},
-					method: "make_stock_entries"
-				});
-			},
 		});
+	},
 		
-	},
 	
-	
-	transfer_to_manufacture: function(frm) {
+	start_production: function(frm) {
 		frappe.call({
 			doc: frm.doc,
-			args: {
-				"purpose" : "Material Transfer for Manufacture",
-				"all" : false
-			},
-			method: "make_stock_entries",
-			callback: function(r) {
-				frappe.call({
-					doc: frm.doc,
-					args: {
-						"purpose" : "Manufacture",
-						"all" : false
-					},
-					method: "make_stock_entries"
-				});
-			},
+			method: "submit_to_manufacture",
 		});
 	},
-	submit_to_manufacture: function(frm) {
+	
+	finish_production: function(frm) {
 		frappe.call({
 			doc: frm.doc,
 			args: {
-				"purpose" : "Material Transfer for Manufacture",
+				"purpose" : "Manufacture",
 				"all" : false
 			},
-			method: "submit_stock_entry",
-			callback: function(r) {
-				frappe.call({
-						doc: frm.doc,
-						args: {
-							"purpose" : "Manufacture",
-							"all" : false
-						},
-						method: "submit_stock_entry"
-				});
-			},
+			method: "submit_stock_entries",
 		});
 	}
 		

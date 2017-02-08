@@ -192,10 +192,13 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		//this.show_item_wise_taxes();
 		
 		var me = this;
+		
+		// Modified 
 		if (me.frm.doc.items){
-		if(me.frm.doc.items.length<10){
-			this.set_dynamic_labels();
-		}}
+			if(me.frm.doc.items.length<10){
+				this.set_dynamic_labels();
+			}
+		}
 		
 		//this.setup_sms();
 	},

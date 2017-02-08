@@ -35,7 +35,7 @@ class SellingController(StockController):
 		self.validate_max_discount()
 		self.validate_selling_price()
 		check_active_sales_items(self)
-		check_header_items(self)
+		self.calculate_headers()
 
 	def set_missing_values(self, for_validate=False):
 		super(SellingController, self).set_missing_values(for_validate)
@@ -259,7 +259,7 @@ class SellingController(StockController):
 					frappe.throw(_("Sales Order {0} is {1}").format(d.get(ref_fieldname), status))
 					
 	
-	def calculate_headers(self):	
+	def calculate_headers(self):
 		headers =  ["header1","header2"]
 		items = self.get("items")
 		has_header = 0
@@ -403,40 +403,3 @@ def check_active_sales_items(obj):
 					
 
 			
-def check_header_items(obj):
-
-	headers =  ["header1","header2"]
-	items = obj.get("items")
-	has_header = 0
-	has_headers = 0
-	for i, d in enumerate(items):
-	
-	
-		if str(d.item_group).lower() in headers:
-			sum = 0
-			if i == 0:
-				has_header = 1
-			else:
-				has_headers = 1
-				
-			for j in range(i+1,len(items)): 
-				testitem = items[j]
-
-				if str(testitem.item_group).lower() in headers:
-					break
-				else:
-					sum = sum + testitem.amount
-			d.qty = 0
-			d.rate = sum
-			d.amount = 0
-			d.page_break = 1
-			
-			if i == 0:
-				d.page_break = 0
-			
-			if str(d.item_group).lower() == "header2":
-				d.page_break = 0
-
-					
-	if not has_header and has_headers:
-			frappe.msgprint(_("First section doesn't have a header."))

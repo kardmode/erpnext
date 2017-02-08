@@ -13,19 +13,19 @@ from frappe.model.document import Document
 class ProcessPayroll(Document):
 			
 	
-	def calculate_lwp(self, e, m):
+	def calculate_lwp(self, e, working_days):
 		lwp = 0
 
-		for d in range(m['month_days']):
+		for d in range(working_days):
 		
-			dt = add_days(cstr(m['month_start_date']), d)
+			dt = add_days(cstr(getdate(self.start_date)), d)
 
 			leave = frappe.db.sql("""
 				select t1.name, t1.half_day, t1.leave_type
 				from `tabLeave Application` t1, `tabLeave Type` t2
 				where t1.leave_type <> 'Encash Leave'
 				and t1.docstatus < 2
-				and t1.status = 'Approved'
+				and t1.status in ('Approved','Back From Leave')
 				and t1.employee = %s
 				and %s between from_date and to_date
 			""", (e, dt))
@@ -43,11 +43,6 @@ class ProcessPayroll(Document):
 		cond = self.get_filter_condition()
 		cond += self.get_joining_releiving_condition()
 		
-		# sal_struct = frappe.db.sql("""
-				# select name from `tabSalary Structure`
-				# where docstatus != 2 and is_active = 'Yes' and company = %(company)s and
-				# ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s""",
-
 
 		condition = ''
 		if self.payroll_frequency:
@@ -63,7 +58,6 @@ class ProcessPayroll(Document):
 					ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 					{condition}""".format(condition=condition),
 				{"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
-
 		if sal_struct:
 			cond += "and t2.parent IN %(sal_struct)s "
 			emp_list = frappe.db.sql("""
@@ -73,13 +67,9 @@ class ProcessPayroll(Document):
 			%s """% cond, {"sal_struct": sal_struct})
 
 
-			
-			m = get_month_details(self.fiscal_year, self.month)
-			
-			if not self.fiscal_year:
-				self.fiscal_year = frappe.db.get_default("fiscal_year")
-			if not self.month:
-				self.month = "%02d" % getdate(nowdate()).month
+
+			working_days = date_diff(self.end_date, self.start_date) + 1
+
 			
 			new_emp_list = ()
 			for e in emp_list:
@@ -87,15 +77,15 @@ class ProcessPayroll(Document):
 				joining_date, relieving_date = frappe.db.get_value("Employee", e[0], 
 					["date_of_joining", "relieving_date"])
 			
-				lwp = self.calculate_lwp(e,m)
-				
+				lwp = self.calculate_lwp(e,working_days)
+
 				if cint(self.employees_on_leave):
 					if lwp > 0:
 						new_emp_list = new_emp_list + (e,)
 				
 				else:
 				
-					payment_days = flt(self.get_payment_days(m, joining_date, relieving_date))-flt(lwp)
+					payment_days = flt(self.get_payment_days(joining_date, relieving_date))-flt(lwp)
 					if payment_days > 0:
 						new_emp_list = new_emp_list + (e,)
 
@@ -105,24 +95,28 @@ class ProcessPayroll(Document):
 		
 
 				
-	def get_payment_days(self, month, joining_date, relieving_date):
-		start_date = month['month_start_date']
+	def get_payment_days(self, joining_date, relieving_date):
+		start_date = getdate(self.start_date)
 		if joining_date:
-			if joining_date > month['month_start_date']:
+			if getdate(self.start_date) <= joining_date <= getdate(self.end_date):
 				start_date = joining_date
-			elif joining_date > month['month_end_date']:
-				return
-				
-		end_date = month['month_end_date']
+			elif joining_date > getdate(self.end_date):
+				return 0
+
+		end_date = getdate(self.end_date)
 		if relieving_date:
-			if relieving_date > start_date and relieving_date < month['month_end_date']:
+			if getdate(self.start_date) <= relieving_date <= getdate(self.end_date):
 				end_date = relieving_date
-			elif relieving_date < month['month_start_date']:
+			elif relieving_date < getdate(self.start_date):
 				frappe.throw(_("Employee relieved on {0} must be set as 'Left'")
-					.format(relieving_date))			
-			
+					.format(relieving_date))
+
 		payment_days = date_diff(end_date, start_date) + 1
-			
+		
+		
+		if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
+			holidays = self.get_holidays_for_employee(start_date, end_date)
+			payment_days -= len(holidays)
 		return payment_days
 
 
@@ -162,62 +156,29 @@ class ProcessPayroll(Document):
 		
 		if emp_list:
 			for emp in emp_list:
-				if self.salary_slip_based_on_timesheet:
-				
-					if not frappe.db.sql("""select name from `tabSalary Slip`
-						where docstatus!= 2 and employee = %s and start_date >= %s and end_date <= %s and company = %s
-						""", (emp[0], self.from_date, self.to_date, self.company)):
-						ss = frappe.get_doc({
-							"doctype": "Salary Slip",
-							"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
-							"start_date": self.from_date,
-							"end_date": self.to_date,
-							"employee": emp[0],
-							"employee_name": frappe.get_value("Employee", {"name":emp[0]}, "employee_name"),
-							"company": self.company,
-							"posting_date": self.posting_date
-						})
-						ss.insert()
-						ss_list.append(ss.name)
-				else:
-					if not frappe.db.sql("""select name from `tabSalary Slip`
-							where docstatus!= 2 and employee = %s and month = %s and fiscal_year = %s and company = %s
-							""", (emp[0], self.month, self.fiscal_year, self.company)):
-						ss = frappe.get_doc({
-							"doctype": "Salary Slip",
-							"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
-							"fiscal_year": self.fiscal_year,
-							"month": self.month,
-							"employee": emp[0],
-							"employee_name": frappe.get_value("Employee", {"name":emp[0]}, "employee_name"),
-							"company": self.company,
-							"posting_date": self.posting_date
-						})	
-						ss.insert()
-						ss_list.append(ss.name)
 		
-				# if not frappe.db.sql("""select
-						# name from `tabSalary Slip`
-					# where
-						# docstatus!= 2 and
-						# employee = %s and
-						# start_date >= %s and
-						# end_date <= %s and
-						# company = %s
-						# """, (emp[0], self.start_date, self.end_date, self.company)):
-					# ss = frappe.get_doc({
-						# "doctype": "Salary Slip",
-						# "salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
-						# "payroll_frequency": self.payroll_frequency,
-						# "start_date": self.start_date,
-						# "end_date": self.end_date,
-						# "employee": emp[0],
-						# "employee_name": frappe.get_value("Employee", {"name":emp[0]}, "employee_name"),
-						# "company": self.company,
-						# "posting_date": self.posting_date
-					# })
-					# ss.insert()
-					# ss_list.append(ss.name)
+				if not frappe.db.sql("""select
+						name from `tabSalary Slip`
+					where
+						docstatus!= 2 and
+						employee = %s and
+						start_date >= %s and
+						end_date <= %s and
+						company = %s
+						""", (emp[0], self.start_date, self.end_date, self.company)):
+					ss = frappe.get_doc({
+						"doctype": "Salary Slip",
+						"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
+						"payroll_frequency": self.payroll_frequency,
+						"start_date": self.start_date,
+						"end_date": self.end_date,
+						"employee": emp[0],
+						"employee_name": frappe.get_value("Employee", {"name":emp[0]}, "employee_name"),
+						"company": self.company,
+						"posting_date": self.posting_date
+					})
+					ss.insert()
+					ss_list.append(ss.name)
 					
 					
 		return self.create_log(ss_list)
@@ -236,26 +197,11 @@ class ProcessPayroll(Document):
 			Returns list of salary slips based on selected criteria
 		"""
 		cond = self.get_filter_condition()
-# <<<<<<< HEAD
-		
-		# if not self.salary_slip_based_on_timesheet:
-			EDIT - SALARY SLIP STATUS disabled
-			# ss_list = frappe.db.sql("""
-				# select t1.name, t1.salary_structure from `tabSalary Slip` t1
-				# where t1.docstatus < %s and month = %s and fiscal_year = %s %s
-			# """ % ('%s', '%s','%s', cond), (2,self.month, self.fiscal_year), as_dict=as_dict)
-		# else:
-			# ss_list = frappe.db.sql("""
-				# select t1.name, t1.salary_structure from `tabSalary Slip` t1
-				# where t1.docstatus < %s and t1.start_date >= %s and t1.end_date <= %s 
-				# and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s
-			# """ % ('%s', '%s', '%s','%s', cond), (2, self.from_date, self.to_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
-# =======
 
 		ss_list = frappe.db.sql("""
 			select t1.name, t1.salary_structure from `tabSalary Slip` t1
 			where t1.docstatus = %s and t1.start_date >= %s and t1.end_date <= %s
-			and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s
+			and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s ORDER BY t1.employee_name
 		""" % ('%s', '%s', '%s','%s', cond), (ss_status, self.start_date, self.end_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
 		return ss_list
 
@@ -284,7 +230,7 @@ class ProcessPayroll(Document):
 		"""
 			Print all salary slips based on selected criteria
 		"""
-		ss_list = self.get_sal_slip_list(ss_status=1)
+		ss_list = self.get_sal_slip_list(ss_status=0)
 
 
 		return ss_list
@@ -340,7 +286,7 @@ class ProcessPayroll(Document):
 		return account
 
 	def get_salary_components(self, component_type):
-		salary_slips = self.get_sal_slip_list(ss_status = 1, as_dict = True)
+		salary_slips = self.get_sal_slip_list(ss_status = 0, as_dict = True)
 		if salary_slips:
 			salary_components = frappe.db.sql("""select salary_component, amount, parentfield
 				from `tabSalary Detail` where parentfield = '%s' and parent in (%s)""" %
@@ -418,7 +364,7 @@ class ProcessPayroll(Document):
 		return log
 
 	def update_salary_slip_status(self, jv_name = None):
-		ss_list = self.get_sal_slip_list(ss_status=1)
+		ss_list = self.get_sal_slip_list(ss_status=0)
 		for ss in ss_list:
 			ss_obj = frappe.get_doc("Salary Slip",ss[0])
 			frappe.db.set_value("Salary Slip", ss_obj.name, "status", "Paid")

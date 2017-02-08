@@ -37,6 +37,18 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 				}
 			});
 		}
+		
+		if(this.frm.get_field('company')) {
+			this.frm.set_query("company", function(){
+				return{
+					filters:{
+						"name": frappe.defaults.get_default("Company")
+					}
+				}
+			});
+		}
+		
+		
 	},
 
 	setup_queries: function() {

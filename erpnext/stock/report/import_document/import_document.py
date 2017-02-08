@@ -17,15 +17,13 @@ def execute(filters=None):
 
 	data = []
 	for (company, item, warehouse) in sorted(iwb_map):
-		warehouse_details = frappe.db.get_value("Warehouse", warehouse, ["parent_warehouse"], as_dict=1)
-		if warehouse_details.parent_warehouse == "Import Docs - SLI":
-
-			qty_dict = iwb_map[(company, item, warehouse)]
-			data.append([item, item_map[item]["item_name"],
-				item_map[item]["item_group"], warehouse,
-				item_map[item]["stock_uom"],qty_dict.bal_qty,
-				qty_dict.bal_val, qty_dict.val_rate
-			])
+		
+		qty_dict = iwb_map[(company, item, warehouse)]
+		data.append([item, item_map[item]["item_name"],
+			item_map[item]["item_group"], warehouse,
+			item_map[item]["stock_uom"],qty_dict.bal_qty,
+			qty_dict.bal_val, qty_dict.val_rate
+		])
 
 	return columns, data
 
