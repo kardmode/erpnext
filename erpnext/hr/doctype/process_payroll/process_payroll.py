@@ -141,7 +141,7 @@ class ProcessPayroll(Document):
 
 
 	def check_mandatory(self):
-		for fieldname in ['company', 'payroll_frequency', 'start_date', 'end_date']:
+		for fieldname in ['company', 'start_date', 'end_date']:
 			if not self.get(fieldname):
 				frappe.throw(_("Please set {0}").format(self.meta.get_label(fieldname)))
 
@@ -377,10 +377,8 @@ class ProcessPayroll(Document):
 @frappe.whitelist()
 def get_start_end_dates(payroll_frequency, start_date=None):
 	'''Returns dict of start and end dates for given payroll frequency based on start_date'''
-	if not payroll_frequency:
-		frappe.throw(_("Please set Payroll Frequency first"))
 
-	if payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly":
+	if payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly" or payroll_frequency == "":
 		fiscal_year = get_fiscal_year(start_date)[0]
 		month = "%02d" % getdate(start_date).month
 		m = get_month_details(fiscal_year, month)
