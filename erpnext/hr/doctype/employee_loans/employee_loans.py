@@ -1,20 +1,13 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
-
 from __future__ import unicode_literals
-import frappe
+import frappe, math
+import erpnext
+from frappe import _
+from frappe.utils import flt, rounded, add_months, nowdate
+from erpnext.controllers.accounts_controller import AccountsController
 
-from frappe.utils import add_days, cint, cstr, flt, getdate, nowdate, rounded, date_diff
-from frappe.model.naming import make_autoname
-
-from frappe import msgprint, _
-from erpnext.setup.utils import get_company_currency
-from erpnext.hr.utils import set_employee_name
-from erpnext.hr.doctype.process_payroll.process_payroll import get_month_details
-
-from erpnext.utilities.transaction_base import TransactionBase
-
-class EmployeeLoans(TransactionBase):
+class EmployeeLoans(AccountsController):
 	
 	
 	def calculate_earning_total(self):
@@ -37,11 +30,11 @@ class EmployeeLoans(TransactionBase):
 		set_employee_name(self)
 
 
-	def send_mail_funct(self):
-		receiver = frappe.db.get_value("Employee", self.employee, "company_email")
-		if receiver:
-			subj = 'Employee Loan - ' + cstr(self.month) +'/'+cstr(self.fiscal_year)
-			frappe.sendmail([receiver], subject=subj, message = _("Please see attachment"),
-				attachments=[frappe.attach_print(self.doctype, self.name, file_name=self.name)])
-		else:
-			msgprint(_("Company Email ID not found, hence mail not sent"))
+	# def send_mail_funct(self):
+		# receiver = frappe.db.get_value("Employee", self.employee, "company_email")
+		# if receiver:
+			# subj = 'Employee Loan - ' + cstr(self.month) +'/'+cstr(self.fiscal_year)
+			# frappe.sendmail([receiver], subject=subj, message = _("Please see attachment"),
+				# attachments=[frappe.attach_print(self.doctype, self.name, file_name=self.name)])
+		# else:
+			# msgprint(_("Company Email ID not found, hence mail not sent"))
