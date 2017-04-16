@@ -18,7 +18,7 @@ def print_settings_for_item_table(doc):
 			"qty": "templates/print_formats/includes/item_table_qty.html"
 		}
 	
-	doc.hide_in_print_layout = ["item_code", "item_name", "image", "uom", "stock_uom"]
+	doc.hide_in_print_layout = ["item_code", "item_name", "image", "uom", "stock_uom","brand"]
 	
 	doc.flags.compact_item_print = cint(frappe.db.get_value("Print Settings", None, "compact_item_print"))
 

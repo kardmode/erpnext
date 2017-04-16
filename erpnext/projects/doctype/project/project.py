@@ -4,7 +4,8 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import flt, getdate, fmt_money,get_url
+from frappe.utils import flt, getdate, fmt_money,formatdate,get_url, money_in_words
+6	
 from frappe import _
 
 from frappe.model.document import Document
@@ -13,65 +14,196 @@ from frappe.desk.reportview import get_match_cond
 
 class Project(Document):
 	
-	def calculate_sales(self):
-		ss_list = frappe.db.sql("""
-			select name,title,grand_total,transaction_date from `tabQuotation` where project = %s and docstatus < 2""", self.name,as_dict = 1)
-		frappe.errprint(ss_list)
-		totalsales = 0
+	def calculate_sales(self, doctype):
+		grand_total = 0
+		total_qty = 0
+		company_currency = dict(frappe.db.sql("select name, default_currency from `tabCompany`"))
+
+		joiningtext = ""
 		
+		if doctype in ["Quotation","Sales Order","Sales Invoice"]:
+			# Output summary by sub projects
+			sub_projects = self.get("sub_projects")
+			for i,d in enumerate(sub_projects):
+				if not d.disable_section:
+					output,total,qty = self.build_html_table(doctype,d)
+					grand_total = grand_total + total
+					total_qty = total_qty + qty
+					joiningtext += output
+				
+						
+
+				
+				
+
+					
 		
-		joiningtext = """<table class="table table-bordered table-condensed">
+			
+			if grand_total:
+				total_amount_in_words = money_in_words(grand_total, company_currency.get(self.company))
+			else:
+				total_amount_in_words = ""
+				
+			joiningtext += """<table class="table table-bordered table-condensed">"""
+			joiningtext += """<thead>
+						<tr style>
+							<th style="width: 30px" class="table-sr"></th>
+							<th style="width: 150px;" class="" data-fieldname="items" data-fieldtype="Table"></th>
+							<th style="width: 10px;" class="text-right" data-fieldname="items" data-fieldtype="Table"></th>
+							<th style="width: 80px;" class="text-right" data-fieldname="items" data-fieldtype="Table"></th>
+						</tr>
+					</thead>"""	
+			joiningtext += """<tbody><tr style>
+						<td class="table-sr">Grand Total:</td>
+						<td class="" data-fieldname="items" data-fieldtype="Table">""" + str(total_amount_in_words) +"""</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(total_qty) +""" Rooms</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(fmt_money(grand_total, precision=2)) +"""</td>
+						</tr>"""
+		
+			joiningtext += """</tbody></table>"""
+		
+			if doctype == "Quotation":
+				self.quotations = joiningtext
+			
+			elif doctype == "Sales Order":
+				self.sales_orders = joiningtext
+
+			elif doctype == "Sales Invoice":
+				self.sales_invoices = joiningtext
+
+		
+
+
+
+		elif doctype == "Delivery Note":
+			ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,posting_date from `tabDelivery Note` where project = %s and docstatus < 2""", self.name,as_dict = 1)
+			joiningtext = """<table class="table table-bordered table-condensed">
+						<thead>
 						<tr>
-						<td>Document</td>
-						<td>Title</td>
-						<td>Date</td>
-						<td>Grand Total</td>
-						</tr>"""	
+						<th>Description</th>
+						<th>Date</th>
+						</tr></thead>"""
+			for i, d in enumerate(ss_list):
+				joiningtext += """<tr>
+								<td>""" + str(d["title"]) +"""</td>
+								<td>""" + str(d["posting_date"]) +"""</td>
+								</tr>"""
+				joiningtext += """</table>"""						
+		
+		
+			self.delivery_notes = joiningtext
+
+	def build_html_table(self,doctype,sub_project=None):
+		if sub_project:
+			title = sub_project.sub_project
+			if title == "Misc.":
+				if doctype == "Quotation":
+					ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,room_qty from `tabQuotation` where project = %s and sub_project is NULL and docstatus < 2 order by title * 1""", self.name,as_dict = 1)
+				
+				elif doctype == "Sales Order":
+					ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,room_qty from `tabSales Order` where project = %s and sub_project is NULL and docstatus < 2 order by title * 1""", self.name,as_dict = 1)
+
+				elif doctype == "Sales Invoice":
+					ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,room_qty from `tabSales Invoice` where project = %s and sub_project is NULL and docstatus < 2 order by title * 1""", self.name,as_dict = 1)
+			else:
+			
+				if doctype == "Quotation":
+					ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,room_qty from `tabQuotation` where project = %s and sub_project = %s and docstatus < 2 order by title * 1""", [self.name,title],as_dict = 1)
+				
+				elif doctype == "Sales Order":
+					ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,room_qty from `tabSales Order` where project = %s and sub_project = %s and docstatus < 2 order by title * 1""", [self.name,title],as_dict = 1)
+
+				elif doctype == "Sales Invoice":
+					ss_list = frappe.db.sql("""select name,title,net_total,discount_amount,grand_total,room_qty from `tabSales Invoice` where project = %s and sub_project = %s and docstatus < 2 order by title * 1""", [self.name,title],as_dict = 1)
+		else:
+			frappe.throw(_("No Sub Projects Provided"))
+
+			
+		grand_total = 0
+		total_qty = 0
+		joiningtext = ""
+			
+		joiningtext += """<h5>"""+title+"""</h5><hr>"""
+		joiningtext += """<table class="table table-bordered table-condensed">"""
+		joiningtext += """<thead>
+						<tr style>
+							<th style="width: 30px" class="table-sr">Sr</th>
+							<th style="width: 150px;" class="" data-fieldname="items" data-fieldtype="Table">Description</th>
+							<th style="width: 10px;" class="text-right" data-fieldname="items" data-fieldtype="Table">Quantity</th>
+							<th style="width: 80px;" class="text-right" data-fieldname="items" data-fieldtype="Table">Rate</th>
+							<th style="width: 80px;" class="text-right" data-fieldname="items" data-fieldtype="Table">Amount</th>
+						</tr>
+					</thead><tbody>"""	
+		
+	
 		
 		for i, d in enumerate(ss_list):
-			joiningtext += """<tr>
-						<td>""" + str(d["name"]) +"""</td>
-						<td>""" + str(d["title"]) +"""</td>
-						<td>""" + str(d["transaction_date"]) +"""</td>
-						<td>""" + str(fmt_money(d["grand_total"], precision=2)) +"""</td>
+			if d["room_qty"]:
+				qty = d["room_qty"]
+			else:
+				qty = 1
+			
+
+			
+			total = d["grand_total"]
+			unit_price = flt(total)/flt(qty)
+			joiningtext += """<tr style>
+						<td class="table-sr">""" + str(i+1) +"""</td>
+						<td class="" data-fieldname="items" data-fieldtype="Table">""" + str(d["title"]) +"""</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(qty) +"""</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(fmt_money(unit_price, precision=2)) +"""</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(fmt_money(total, precision=2)) +"""</td>
+						</tr>"""
+			total_qty = total_qty + qty
+			grand_total = grand_total + flt(total)
+
+
+		if grand_total:
+			# total_amount_in_words = money_in_words(grand_total, company_currency.get(self.company))
+			total_amount_in_words = ""
+		else:
+			total_amount_in_words = ""
+		
+		joiningtext += """<tr style>
+						<td class="table-sr"></td>
+						<td class="" data-fieldname="items" data-fieldtype="Table">Total""" + str(total_amount_in_words) +"""</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(total_qty) +"""</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table"></td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">""" + str(fmt_money(grand_total, precision=2)) +"""</td>
 						</tr>"""
 		
-			totalsales = totalsales + flt(d["grand_total"])
-		
-		joiningtext += """<tr>
-						<td>Project Total</td>
-						<td></td>
-						<td></td>
-						<td>""" + str(fmt_money(totalsales, precision=2)) +"""</td>
-						</tr>"""
-		joiningtext += """</table><br>"""
-		self.sales_orders = joiningtext
+				
+		joiningtext += """</tbody></table>"""		
+		return joiningtext,grand_total,total_qty
+
 
 	def get_print_formats(self,doctype):
 		print_formats = frappe.db.sql("""select name FROM `tabPrint Format`
 			WHERE doc_type=%s AND docstatus<2 and disabled=0""", (doctype,), as_dict=1)
-		return print_formats
+			
+		project_print_formats = frappe.db.sql("""select name FROM `tabPrint Format`
+			WHERE doc_type=%s AND docstatus<2 and disabled=0""", (self.doctype,), as_dict=1)
+		return print_formats,project_print_formats
 	
-	def print_summary(self, document):
+	def print_summary(self, doctype):
 	
 		ss_list = []
-		format = ""
-		doctype = ""
-		if document.lower() == "quotation":
-			doctype = "Quotation"
+		if doctype == "Quotation":
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabQuotation` t1 
-				where project = %s and docstatus < 2""", self.name)
-		elif document.lower() == "sales invoice":
-			doctype = "Sales Invoice"
+				where project = %s and docstatus < 2 order by title * 1""", self.name)
+		elif doctype == "Sales Order":
+			ss_list = frappe.db.sql("""
+				select t1.name from `tabSales Order` t1 
+				where project = %s and docstatus < 2 order by title * 1""", self.name)
+		elif doctype == "Sales Invoice":
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabSales Invoice` t1 
-				where project = %s and docstatus < 2""", self.name)
-		elif document.lower() == "delivery note":
-			doctype = "Delivery Note"
+				where project = %s and docstatus < 2 order by title * 1""", self.name)
+		elif doctype == "Delivery Note":
 			ss_list = frappe.db.sql("""
 				select t1.name from `tabDelivery Note` t1 
-				where project = %s and docstatus < 2""", self.name)
+				where project = %s and docstatus < 2 order by title * 1""", self.name)
 		
 		
 		return ss_list,doctype
@@ -116,7 +248,11 @@ class Project(Document):
 		self.validate_weights()
 		self.sync_tasks()
 		self.tasks = []
-		self.calculate_sales()
+		# self.calculate_sales("Quotation")
+		# self.calculate_sales("Sales Order")
+		# self.calculate_sales("Sales Invoice")
+		# self.calculate_sales("Delivery Note")
+
 		self.send_welcome_email()
 
 	def validate_dates(self):

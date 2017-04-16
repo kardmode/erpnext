@@ -75,7 +75,7 @@ def execute(filters=None):
 
 		row = ['', '', '','']
 
-		row += ['Total','', '',total_nt,total_ot, total_otf, total_oth]
+		row += ['Total',total_nt,'', '',total_ot, total_otf, total_oth]
 		data.append(row)
 	return columns, data
 

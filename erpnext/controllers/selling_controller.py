@@ -31,11 +31,11 @@ class SellingController(StockController):
 					item.warehouse))
 
 	def validate(self):
+		self.calculate_headers()
 		super(SellingController, self).validate()
 		self.validate_max_discount()
 		self.validate_selling_price()
 		check_active_sales_items(self)
-		self.calculate_headers()
 
 	def set_missing_values(self, for_validate=False):
 		super(SellingController, self).set_missing_values(for_validate)
@@ -281,7 +281,7 @@ class SellingController(StockController):
 						break
 					else:
 						sum = sum + testitem.amount
-				d.qty = 0
+				# d.qty = 0
 				d.rate = sum
 				d.amount = 0
 				d.page_break = 1

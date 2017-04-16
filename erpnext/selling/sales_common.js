@@ -115,18 +115,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		this.toggle_editable_price_list_rate();
 		
 		if (cur_frm.doc.items){
-			cur_frm.add_custom_button(__("Refresh Items"), function() {
-				frappe.msgprint("Refreshing Items. This process will take a few minutes. Your browser might become unresponsive.");
-				cur_frm.cscript.refresh_items();
-				
-				
-				cur_frm.dirty();
-				frappe.hide_msgprint(false);	
-				/* return $c_obj(cur_frm.doc, 'refresh_items','',function(r, rt) {
-					cur_frm.refresh();
-					cur_frm.dirty();
-				}); */
-			});
+			this.refresh_headers();
 		}
 		cur_frm.add_custom_button(__("Quotation Report"), function() {
 			window.location.href = 'desk#query-report/Quotation%20Report';
@@ -223,8 +212,173 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				
 			}, __("Get items from"), "btn-default");
 	
+		if (this.frm.doc.docstatus!=2) {
+			cur_frm.add_custom_button(__('Collection'),
+				function() {
+					/* erpnext.utils.map_current_doc({
+						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
+						source_doctype: "Product Bundle",
+						get_query_filters: {
+						}
+					}) */
+					cur_frm.trigger('add_bundle');
+					
+				}, __("Get items from"), "btn-default");
+			
+			cur_frm.add_custom_button(__('Room'),
+				function() {
+					/* erpnext.utils.map_current_doc({
+						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
+						source_doctype: "Product Bundle",
+						get_query_filters: {
+						}
+					}) */
+					cur_frm.trigger('multiply_room');
+					
+				}, __("Modify Quantity"), "btn-default");
+				
+			cur_frm.add_custom_button(__('Items'),
+				function() {
+					/* erpnext.utils.map_current_doc({
+						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
+						source_doctype: "Product Bundle",
+						get_query_filters: {
+						}
+					}) */
+					cur_frm.trigger('multiply_items');
+					
+				}, __("Modify Quantity"), "btn-default");
+			
+		}
 		
+	},
+	
+	add_bundle:function (frm) {
+		var dialog = new frappe.ui.Dialog({
+			title: __("Get Items From Collection"),
+			fields: [
+				{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				{fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Int', label: __('Quantity'),default:1},
+			]
+		});
+		dialog.set_primary_action(__("Add"), function() {
 		
+		var filters = dialog.get_values();
+/* 		if ('base' in filters) {
+			delete filters.base
+		} */
+		frappe.call({
+			method:'erpnext.selling.doctype.quotation.quotation.get_product_bundle_items',
+			args:{
+				item_code: filters.bundle
+			},
+			callback:function (r) {
+				//console.log(r);
+				
+				var qty =1;
+				if ( dialog.get_value('qty') >0)
+					qty = dialog.get_value('qty');
+				
+				cur_frm.set_value("room_qty",qty);
+					
+				for (var i=0; i< r.message.length; i++) {
+					var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.items.df.options, cur_frm.fields_dict.items.df.fieldname);
+					row.item_code = r.message[i].item_code;
+					
+					
+
+					row.qty = r.message[i].qty * qty;
+					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
+
+
+				}
+				cur_frm.refresh_field('items');
+				dialog.hide();
+			}
+		})
+		});
+		dialog.show();
+	},
+	
+	
+	multiply_room:function (frm) {
+		var me=this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Multiply Room"),
+			fields: [
+				// {fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				// {fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Int', label: __('Quantity'),default:'1'},
+			]
+		});
+		dialog.set_primary_action(__("Change"), function() {
+		
+			var filters = dialog.get_values();
+
+			var qty =1;
+			var filter_qty = 1;
+			if ( dialog.get_value('qty') > 0)
+				filter_qty = dialog.get_value('qty');
+			
+			original_qty = cur_frm.doc.room_qty;
+			qty = flt(filter_qty)/flt(original_qty);
+			cur_frm.set_value("room_qty",filter_qty);
+			
+			var items = cur_frm.doc.items;
+			$.each(items, function(i, item) {
+				item.qty = flt(item.qty) * flt(qty);
+				cur_frm.script_manager.trigger("item_qty", item.doctype, item.name);
+
+			});
+			cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+
+			dialog.hide();
+		});
+		dialog.show();
+	},
+	
+	multiply_items:function (frm) {
+		var me = this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Multiply All Items"),
+			fields: [
+				//{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				//{fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Float', label: __('Quantity'),default:'1'},
+			]
+		});
+		dialog.set_primary_action(__("Multiply"), function() {
+		
+			var filters = dialog.get_values();
+			var qty =1;
+			var filter_qty = 1;
+			if ( dialog.get_value('qty') > 0)
+				filter_qty = dialog.get_value('qty');
+			
+			original_qty = cur_frm.doc.room_qty;
+			qty = filter_qty;
+
+			//cur_frm.set_value("room_qty",qty);
+			
+			var items = cur_frm.doc.items;
+
+			$.each(items, function(i, item) {
+				item.qty = flt(item.qty) * flt(qty);
+				cur_frm.script_manager.trigger("item_code", item.doctype, item.name);
+
+			});
+			
+			cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+
+			dialog.hide();
+		});
+		dialog.show();
 	},
 
 	customer: function() {
@@ -474,19 +628,6 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		
 	},
 	
-	refresh_items : function(){
-
-		var items = cur_frm.doc.items;
-		if (!items){
-			return;
-		}
-		$.each(items, function(i, d) {
-			cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
-		});
-		
-		refresh_field("items");
-			
-	},
 	
 	calculate_headers : function(){
 		console.log("calculating headers")

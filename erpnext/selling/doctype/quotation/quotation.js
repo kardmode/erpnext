@@ -45,13 +45,16 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 			
 			
 		}
+		
+		
 
 		this.toggle_reqd_lead_customer();
 
 	},
 	
 	
-
+	
+	
 	quotation_to: function() {
 		var me = this;
 		if (this.frm.doc.quotation_to == "Lead") {

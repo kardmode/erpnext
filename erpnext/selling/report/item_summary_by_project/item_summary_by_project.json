@@ -7,12 +7,12 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2016-03-11 22:54:14.056668", 
+ "modified": "2017-04-14 21:39:53.975817", 
  "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Item Summary By Project", 
  "owner": "Administrator", 
- "ref_doctype": "Sales Order", 
+ "ref_doctype": "Quotation", 
  "report_name": "Item Summary By Project", 
  "report_type": "Script Report"
 }

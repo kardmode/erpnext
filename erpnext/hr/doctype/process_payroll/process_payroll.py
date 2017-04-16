@@ -378,7 +378,7 @@ class ProcessPayroll(Document):
 def get_start_end_dates(payroll_frequency, start_date=None):
 	'''Returns dict of start and end dates for given payroll frequency based on start_date'''
 
-	if payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly" or payroll_frequency == "":
+	if payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly" or payroll_frequency == "" or not payroll_frequency:
 		fiscal_year = get_fiscal_year(start_date)[0]
 		month = "%02d" % getdate(start_date).month
 		m = get_month_details(fiscal_year, month)

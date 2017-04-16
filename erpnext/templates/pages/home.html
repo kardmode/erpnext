@@ -9,7 +9,7 @@
 			<h1 class="text-center">{{ homepage.tag_line or '' }}</h1>
 			<p class="text-center">{{ homepage.description or '' }}</p>
 		</div>
-		{% if homepage.products %}
+		{% if not homepage.disable_products and homepage.products %}
 		<div class='featured-products-section' itemscope itemtype="http://schema.org/Product">
 			<h5 class='featured-product-heading'>{{ _("Featured Products") }}</h5>
 			<div class="featured-products">
@@ -38,8 +38,8 @@
 {% block style %}
 <style>
 	.hero {
-		padding-top: 50px;
-		padding-bottom: 100px;
+		padding-top: 10px;
+		padding-bottom: 20px;
 	}
 
 	.hero h1 {

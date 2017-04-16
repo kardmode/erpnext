@@ -643,7 +643,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2016-12-15 14:52:32.240406", 
+ "modified": "2017-04-15 23:16:32.441775", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Material Request", 
@@ -692,9 +692,9 @@
    "write": 1
   }, 
   {
-   "amend": 1, 
+   "amend": 0, 
    "apply_user_permissions": 0, 
-   "cancel": 1, 
+   "cancel": 0, 
    "create": 1, 
    "delete": 1, 
    "email": 1, 
@@ -709,7 +709,7 @@
    "role": "Stock User", 
    "set_user_permissions": 0, 
    "share": 1, 
-   "submit": 1, 
+   "submit": 0, 
    "write": 1
   }, 
   {

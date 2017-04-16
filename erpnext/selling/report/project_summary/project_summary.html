@@ -1,0 +1,100 @@
+
+		{% for(var i=1, l=data.length; i<l; i++) { %}
+			{% if(data[i][__("Sr")] == "" && (data[i][__("Item Name")] != "Total" && data[i][__("Item Name")] != "Project Total")) { %}
+			
+				<div class="print-heading">
+					<h2>{%= filters.project %} - {%= filters.format %}<br>
+						
+						{% if (filters.format == "Summary"){ %}
+
+						<small>{%= dateutil.str_to_user(data[0][__("Description")]) %} - {%= (data[i][__("Item Name")]) %}</small>
+						{% } else { %}
+						<small>{%= filters.project %} - {%= dateutil.str_to_user(data[0][__("Description")]) %} - {%= data[i][__("Description")] %} - {%= (data[i][__("Item Name")]) %} - Qty {%= (data[i][__("Qty")]) %}</small>
+						{% } %}
+					</h2>
+				</div>
+				
+				<table class="table table-bordered table-condensed">
+					<thead>
+						<tr style>
+							<th style="width: 30px" class="table-sr">Sr</th>
+							<th style="width: 150px;" class="" data-fieldname="items" data-fieldtype="Table">Description</th>
+							<th style="width: 10px;" class="text-right" data-fieldname="items" data-fieldtype="Table">Quantity</th>
+							
+							{% if (filters.format != "BOQ"){ %}
+
+							<th style="width: 80px;" class="text-right" data-fieldname="items" data-fieldtype="Table">Rate</th>
+							<th style="width: 80px;" class="text-right" data-fieldname="items" data-fieldtype="Table">Amount</th>
+							{% } %}
+							
+						</tr>
+					</thead>
+					<tbody>
+				
+			{% } else if(data[i][__("Sr")] > 0){ %}
+				
+					<tr>
+						<td class="table-sr">{%= (data[i][__("Sr")]) %}</td>
+						<td class="" data-fieldname="items" data-fieldtype="Table">{%= data[i][__("Item Name")] %}</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= data[i][__("Qty")] %}</td>
+						
+						{% if (filters.format != "BOQ"){ %}
+							<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= format_currency(data[i][__("Rate")],2) %}</td>
+						<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= format_currency(data[i][__("Amount")],2) %}</td>
+					
+						{% } %}
+					</tr>
+
+
+			{% } else if(data[i][__("Sr")] == "" && data[i][__("Item Name")] == "Total") { %}
+					<tr style="font-weight:bold;">
+							<td class="table-sr">{%= (data[i][__("Sr")]) %}</td>
+							<td class="" data-fieldname="items" data-fieldtype="Table">{%= data[i][__("Item Name")] %}</td>
+							<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= data[i][__("Qty")] %}</td>
+							
+							{% if (filters.format != "BOQ"){ %}
+							<td class="text-right" data-fieldname="items" data-fieldtype="Table"></td>
+							<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= format_currency(data[i][__("Amount")],2) %}</td>
+
+						{% } %}
+							
+							
+						</tr>
+						
+					</tbody>
+							</table>
+							
+					{% if(data[i+1] && data[i+1][__("Item Name")] != "Project Total") { %}
+								<p style="page-break-after:always;"></p>
+							{% } %}
+			{% } else if(data[i][__("Sr")] == "" && data[i][__("Item Name")] == "Project Total") { %}
+
+					<table class="table table-bordered table-condensed">
+						<thead>
+							<tr style>
+								<th style="width: 30px" class="table-sr"></th>
+								<th style="width: 150px;" class="" data-fieldname="items" data-fieldtype="Table"></th>
+								<th style="width: 10px;" class="text-right" data-fieldname="items" data-fieldtype="Table"></th>
+								
+								{% if (filters.format != "BOQ"){ %}
+									<th style="width: 80px;" class="text-right" data-fieldname="items" data-fieldtype="Table"></th>
+								{% } %}
+								
+							</tr>
+						</thead>	
+						<tbody>
+					<tr style="font-weight:bold;">
+								<td class="table-sr">{%= (data[i][__("Item Name")]) %}</td>
+								<td class="" data-fieldname="items" data-fieldtype="Table">{%= (data[i][__("Description")]) %}</td>
+								<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= data[i][__("Qty")] %}</td>
+								
+								{% if (filters.format != "BOQ"){ %}
+								<td class="text-right" data-fieldname="items" data-fieldtype="Table">{%= format_currency(data[i][__("Amount")],2) %}</td>
+								{% } %}
+								
+								</tr>
+						</tbody></table>
+			{% } %}
+			
+			
+		{% } %}

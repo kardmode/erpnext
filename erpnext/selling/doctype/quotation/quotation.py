@@ -234,3 +234,117 @@ def upload():
 		
 
 	return {"items":ret,"messages": messages, "error": error}
+
+
+@frappe.whitelist()
+def make_quotation(source_name, target_doc=None):
+	def set_missing_values(source, target):
+		quotation = frappe.get_doc(target)
+
+		company_currency = frappe.db.get_value("Company", quotation.company, "default_currency")
+		# party_account_currency = get_party_account_currency("Customer", quotation.customer,
+			# quotation.company) if quotation.customer else company_currency
+
+		# quotation.currency = party_account_currency or company_currency
+
+		# if company_currency == quotation.currency:
+			# exchange_rate = 1
+		# else:
+			# exchange_rate = get_exchange_rate(quotation.currency, company_currency,
+				# quotation.transaction_date)
+
+		# quotation.conversion_rate = exchange_rate
+
+		quotation.run_method("set_missing_values")
+		quotation.run_method("calculate_taxes_and_totals")
+		
+
+
+	doclist = get_mapped_doc("Product Collection", source_name, {
+		"Product Collection": {
+			"doctype": "Quotation",
+		},
+		"Product Collection Item": {
+			"doctype": "Quotation Item",
+			"field_map": {
+					"parent": "prevdoc_docname"
+				}
+		}
+	}, target_doc, set_missing_values)
+
+	return doclist
+
+@frappe.whitelist()
+def get_product_bundle_items(item_code):
+	new_dict = frappe.db.sql("""select t1.item_code, t1.qty, t1.uom, t1.description
+		from `tabProduct Collection Item` t1, `tabProduct Collection` t2
+		where t2.new_item_code=%s and t1.parent = t2.name order by t1.idx""", item_code, as_dict=1)
+	frappe.errprint(new_dict)
+	return new_dict
+		
+# @frappe.whitelist()
+# def build_item_summary(items = None):
+
+	
+	# if not (items):
+		# frappe.throw(_("No items provided"))
+	
+	# import json
+	# bomitems = json.loads(items)
+	
+	# custom = []
+	# # glue = []
+	# summary = ""
+	# for i, d in enumerate(bomitems):
+
+		# d['qty'] = flt(d['qty'])*flt(qtyOriginal)
+		# qty = flt(d['qty'])
+		
+		# item = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", d['item_code'], as_dict = 1)
+
+		# conversion_factor = 1.0
+		# stock_uom = item[0].stock_uom
+		# required_uom = item[0].stock_uom
+		# from math import ceil
+
+		# if d['side'] in ["hardware","custom",""]:
+
+			# required_qty = d['qty']
+			# qty = d['qty']
+			# newitem = {"side":d['side'],"item_code":d['item_code'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+			# custom.append(newitem)
+		
+			
+	# for dicts in (custom):
+		# if len(dicts)> 0 :
+			
+
+			# joiningtext = """<table class="table table-bordered table-condensed">
+						# <tr>
+						# <th>Sr</th>
+						# <th width="20%">Item Code</th>
+						# <th>Part</th>
+						# <th>Length (m)</th>
+						# <th>Width (m)</th>
+						# <th>Required Qty</th>
+						# <th width="20%">Stock Details</th>
+						# <th width="20%">Stock Qty</th>
+						# </tr>"""
+			# for i, d in enumerate(dicts):
+				# d["qty"] = round(flt(d["qty"]),5)
+				# d["conversion_factor"] = round(flt(d["conversion_factor"]),5)
+				# joiningtext += """<tr>
+							# <td>""" + str(i+1) +"""</td>
+							# <td>""" + str(d["item_code"]) +"""</td>
+							# <td>""" + str(d["side"]) +"""</td>
+							# <td>""" + str(d["length"]) +"""</td>
+							# <td>""" + str(d["width"]) +"""</td>
+							# <td>""" + str(d["required_qty"]) + " " +str(d["required_uom"])+"""</td>
+							# <td>""" + str(d["conversion_factor"]) + (" " + str(d["required_uom"]) + "/" + str(d["stock_uom"]) if d["conversion_factor"] else "")+"""</td>
+							# <td>""" + str(d["qty"]) + " " +str(d["stock_uom"])+"""</td>
+							# </tr>"""
+			# joiningtext += """</table><br>"""
+			# summary = summary + joiningtext
+	
+
+	# return custom,summary

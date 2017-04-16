@@ -14,9 +14,21 @@ frappe.query_reports["Project Summary"] = {
 			label: __("Format"),
 			fieldtype: "Select",
 			options: [
-				{ "value": "Boq", "label": __("Boq") },
+				{ "value": "BOQ", "label": __("BOQ") },
 				{ "value": "Quotation", "label": __("Quotation") },
 				{ "value": "Summary", "label": __("Summary") }
+			],
+			default: "Summary"
+		},
+		{
+			fieldname: "document",
+			label: __("Document"),
+			fieldtype: "Select",
+			options: [
+				{ "value": "Quotation", "label": __("Quotation") },
+				{ "value": "Sales Order", "label": __("Sales Order") },
+				{ "value": "Sales Invoice", "label": __("Sales Invoice") },
+				{ "value": "Delivery Note", "label": __("Delivery Note") },
 			],
 			default: "Quotation"
 		}

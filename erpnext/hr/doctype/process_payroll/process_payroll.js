@@ -177,6 +177,7 @@ cur_frm.cscript.print_salary_slips = function(doc,cdt,cdn){
 						+"doctype="+encodeURIComponent("Salary Slip")
 						+"&name="+encodeURIComponent(json_string)
 						+"&format="+encodeURIComponent("Salary Slip")
+						+"&orientation="+encodeURIComponent("Portrait")
 						+"&no_letterhead="+"0");
 					if(!w) {
 						msgprint(__("Please enable pop-ups")); return;

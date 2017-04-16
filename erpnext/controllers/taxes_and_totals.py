@@ -65,7 +65,13 @@ class calculate_taxes_and_totals(object):
 						if item.total_margin > 0 else item.rate
 
 				item.net_rate = item.rate
-				item.amount = flt(item.rate * item.qty,	item.precision("amount"))
+				
+				if str(item.item_group).lower() in ['header1','header2']:
+					item.amount = 0
+				else:
+					item.amount = flt(item.rate * item.qty,	item.precision("amount"))
+
+
 				item.net_amount = item.amount
 
 				self._set_in_company_currency(item, ["price_list_rate", "rate", "net_rate", "amount", "net_amount"])
