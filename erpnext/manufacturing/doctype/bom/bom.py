@@ -6,8 +6,12 @@ import frappe
 from frappe.utils import cint, cstr, flt
 from frappe import _
 from erpnext.setup.utils import get_exchange_rate
+<<<<<<< HEAD
 from frappe.model.document import Document
 from erpnext.stock.get_item_details import get_conversion_factor
+=======
+from frappe.website.website_generator import WebsiteGenerator
+>>>>>>> 68a8b0c2a94c0d33b2b2ae5e6e791e2ec2680116
 
 from operator import itemgetter
 
@@ -15,7 +19,13 @@ form_grid_templates = {
 	"items": "templates/form_grid/item_grid.html"
 }
 
-class BOM(Document):
+class BOM(WebsiteGenerator):
+	website = frappe._dict(
+		# page_title_field = "item_name",
+		condition_field = "show_in_website",
+		template = "templates/generators/bom.html"
+	)
+
 	def autoname(self):
 		names = frappe.db.sql_list("""select name from `tabBOM` where item=%s""", self.item)
 
@@ -35,6 +45,8 @@ class BOM(Document):
 		self.name = 'BOM-' + self.item + ('-%.3i' % idx)
 
 	def validate(self):
+		# if not self.route:
+		self.route = frappe.scrub(self.name).replace('_', '-')
 		self.clear_operations()
 		self.validate_main_item()
 
@@ -48,6 +60,9 @@ class BOM(Document):
 		self.set_bom_material_details()
 		self.validate_operations()
 		self.calculate_cost()
+
+	def get_context(self, context):
+		context.parents = [{'name': 'boms', 'title': _('All BOMs') }]
 
 	def on_update(self):
 		self.check_recursion()
@@ -294,12 +309,15 @@ class BOM(Document):
 
 		return bom_list
 
-	def traverse_tree(self, bom_list=[]):
+	def traverse_tree(self, bom_list=None):
 		def _get_children(bom_no):
 			return [cstr(d[0]) for d in frappe.db.sql("""select bom_no from `tabBOM Item`
 				where parent = %s and ifnull(bom_no, '') != ''""", bom_no)]
 
 		count = 0
+		if not bom_list:
+			bom_list = []
+		
 		if self.name not in bom_list:
 			bom_list.append(self.name)
 
@@ -351,9 +369,9 @@ class BOM(Document):
 			if d.bom_no:
 				d.rate = self.get_bom_unitcost(d.bom_no)
 
-			d.base_rate = d.rate * self.conversion_rate
+			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
 			d.amount = flt(d.rate, self.precision("rate", d)) * flt(d.qty, self.precision("qty", d))
-			d.base_amount = d.amount * self.conversion_rate
+			d.base_amount = d.amount * flt(self.conversion_rate)
 			d.qty_consumed_per_unit = flt(d.qty, self.precision("qty", d)) / flt(self.quantity, self.precision("quantity"))
 			total_rm_cost += d.amount
 			base_total_rm_cost += d.base_amount
@@ -544,6 +562,10 @@ class BOM(Document):
 		
 			
 
+
+def get_list_context(context):
+	context.title = _("Bill of Materials")
+	# context.introduction = _('Boms')
 
 def get_bom_items_as_dict(bom, company, qty=1, fetch_exploded=1, fetch_scrap_items=0):
 	item_dict = {}
@@ -902,6 +924,7 @@ def validate_bom_no(item, bom_no):
 @frappe.whitelist()
 def get_children():
 	if frappe.form_dict.parent:
+<<<<<<< HEAD
 		return frappe.db.sql("""select item_code,
 			bom_no as value, qty,
 			if(ifnull(bom_no, "")!="", 1, 0) as expandable
@@ -909,3 +932,17 @@ def get_children():
 			where parent=%s
 			order by idx
 			""", frappe.form_dict.parent, as_dict=True)
+=======
+		return frappe.db.sql("""select
+			bom_item.item_code,
+			bom_item.bom_no as value,
+			bom_item.qty,
+			if(ifnull(bom_item.bom_no, "")!="", 1, 0) as expandable,
+			item.image,
+			item.description
+			from `tabBOM Item` bom_item, tabItem item
+			where bom_item.parent=%s
+			and bom_item.item_code = item.name
+			order by bom_item.idx
+			""", frappe.form_dict.parent, as_dict=True)
+>>>>>>> 68a8b0c2a94c0d33b2b2ae5e6e791e2ec2680116

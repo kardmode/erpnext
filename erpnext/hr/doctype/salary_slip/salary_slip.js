@@ -39,9 +39,10 @@ frappe.ui.form.on("Salary Slip", {
 
 	refresh: function(frm) {
 		frm.trigger("toggle_fields")
-		salary_detail_fields = ['formula', 'abbr','rate']
-		cur_frm.fields_dict['earnings'].grid.set_column_disp(salary_detail_fields,true);
-		cur_frm.fields_dict['deductions'].grid.set_column_disp(salary_detail_fields,true);
+		frm.trigger("toggle_reqd_fields")
+		salary_detail_fields = ['formula', 'abbr', 'statistical_component']
+		cur_frm.fields_dict['earnings'].grid.set_column_disp(salary_detail_fields,false);
+		cur_frm.fields_dict['deductions'].grid.set_column_disp(salary_detail_fields,false);
 	},	
 
 	salary_slip_based_on_timesheet: function(frm) {
@@ -77,9 +78,18 @@ frappe.ui.form.on("Salary Slip", {
 			})
 		}
 	},
+
 	
 })
 
+frappe.ui.form.on('Salary Detail', {
+	earnings_remove: function(frm, dt, dn) {
+		calculate_all(frm.doc, dt, dn);
+	},
+	deductions_remove: function(frm, dt, dn) {
+		calculate_all(frm.doc, dt, dn);
+	}
+})
 
 // On load
 // -------------------------------------------------------------------
@@ -145,6 +155,7 @@ cur_frm.cscript.depends_on_lwp = function(doc,dt,dn){
 	calculate_earning_total(doc, dt, dn, true);
 	calculate_ded_total(doc, dt, dn, true);
 	calculate_net_pay(doc, dt, dn);
+	refresh_many(['amount','gross_pay', 'rounded_total', 'net_pay', 'loan_repayment']);
 };
 
 // Calculate earning total
@@ -183,9 +194,9 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 			cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
 		}
 		total_earn += flt(tbl[i].amount);
-		
 	}
 	doc.gross_pay = total_earn + flt(doc.arrear_amount) + flt(doc.leave_encashment_amount) + flt(doc.gratuity_encashment);
+
 	refresh_many(['amount','gross_pay']);
 }
 

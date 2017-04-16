@@ -10,6 +10,8 @@ frappe.ui.form.on("Employee Attendance Tool", {
 			doc.departure_time = "23:30:00";
 			refresh_many(['date','arrival_time','departure_time']);
 		
+		frm.doc.department = frm.doc.branch = frm.doc.company = "All";
+
 		erpnext.employee_attendance_tool.load_employees(frm);
 	},
 

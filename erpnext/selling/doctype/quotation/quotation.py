@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.naming import make_autoname
+from frappe.utils import flt
 from frappe import _
 from frappe.utils import getdate
 
@@ -109,6 +110,10 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 		if source.project:
 			target.project = source.project
 		
+
+	def update_item(obj, target, source_parent):
+		target.stock_qty = flt(obj.qty) * flt(obj.conversion_factor)	
+
 	doclist = get_mapped_doc("Quotation", source_name, {
 			"Quotation": {
 				"doctype": "Sales Order",
@@ -120,7 +125,8 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 				"doctype": "Sales Order Item",
 				"field_map": {
 					"parent": "prevdoc_docname"
-				}
+				},
+				"postprocess": update_item
 			},
 			"Sales Taxes and Charges": {
 				"doctype": "Sales Taxes and Charges",

@@ -14,11 +14,12 @@ from erpnext.hr.utils import set_employee_name
 
 class Attendance(Document):
 	def validate_duplicate_record(self):
-		res = frappe.db.sql("""select name from `tabAttendance` where employee = %s and att_date = %s
+		res = frappe.db.sql("""select name from `tabAttendance` where employee = %s and attendance_date = %s
 			and name != %s""",
-			(self.employee, self.att_date, self.name))
+			(self.employee, self.attendance_date, self.name))
+
 		if res:
-			frappe.throw(_("Attendance for employee {0} is already marked, date {1}").format(self.employee,self.att_date))
+			frappe.throw(_("Attendance for employee {0} is already marked, date {1}").format(self.employee,self.attendance_date))
 
 		set_employee_name(self)
 	
@@ -65,10 +66,10 @@ class Attendance(Document):
 
 		self.working_time = totalworkhours
 
-		weekday = get_datetime(self.att_date).weekday()
+		weekday = get_datetime(self.attendance_date).weekday()
 		
 		working_hours = frappe.db.sql("""select working_hours from `tabWorking Hours`
-				where %s between from_date and to_date and docstatus < 2""", (self.att_date))
+				where %s between from_date and to_date and docstatus < 2""", (self.attendance_date))
 
 		if working_hours:
 			self.normal_time = flt(working_hours[0][0])
@@ -80,7 +81,7 @@ class Attendance(Document):
 		self.overtime_holidays = 0
 		self.status = 'Present'
 		
-		if len(self.get_holidays_for_employee(self.att_date,self.att_date)):
+		if len(self.get_holidays_for_employee(self.attendance_date,self.attendance_date)):
 			self.normal_time = 0
 			self.overtime_holidays = flt(totalworkhours) - flt(self.normal_time)
 		elif weekday == 4:
@@ -92,33 +93,42 @@ class Attendance(Document):
 			elif totalworkhours > 2:
 				self.normal_time = totalworkhours
 			elif totalworkhours > 0:
-				frappe.throw(_("Work Hours under 2. Please check the time for employee {0}, date {1}").format(self.employee,self.att_date))
+				frappe.throw(_("Work Hours under 2. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
 			elif totalworkhours < 0:
-				frappe.throw(_("Work Hours negative. Please check the time for employee {0}, date {1}").format(self.employee,self.att_date))
+				frappe.throw(_("Work Hours negative. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
 			else:
 				if self.arrival_time == "00:00:00" and self.departure_time == "00:00:00":
 					self.normal_time = 0
 					self.status = 'Absent'
 				else:
-					frappe.throw(_("Please check the time for employee {0}, date {1}").format(self.employee,self.att_date))
+					frappe.throw(_("Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
 
 
 
 		
 	def check_leave_record(self):
-		if self.status == 'Present':
-			leave = frappe.db.sql("""select name from `tabLeave Application`
-				where employee = %s and %s between from_date and to_date and status = 'Approved'
-				and docstatus < 2 and leave_type <> 'Encash Leave'""", (self.employee, self.att_date))
 
-			if leave:
-				frappe.throw(_("Employee {0} was on leave on {1}. Cannot mark attendance.").format(self.employee,
-					self.att_date))
+		leave_record = frappe.db.sql("""select name from `tabLeave Application`
+			where employee = %s and %s between from_date and to_date and status = 'Approved'
+			and docstatus < 2 and leave_type <> 'Encash Leave'""", (self.employee, self.attendance_date), as_dict=True)
 
-	def validate_att_date(self):
-		from datetime import timedelta
-		if get_datetime(self.att_date) > get_datetime(nowdate()) + timedelta(days=30):
-			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.att_date))
+		if leave_record:
+			if leave_record[0].half_day:
+				self.status = 'Half Day'
+				frappe.msgprint(_("Employee {0} on Half day on {1}").format(self.employee, self.attendance_date))
+			else:
+				self.status = 'On Leave'
+				self.leave_type = leave_record[0].leave_type
+				frappe.msgprint(_("Employee {0} on Leave on {1}").format(self.employee, self.attendance_date))
+		if self.status == "On Leave" and not leave_record:
+			frappe.throw(_("No leave record found for employee {0} for {1}").format(self.employee, self.attendance_date))
+		
+
+	def validate_attendance_date(self):
+		if getdate(self.attendance_date) > getdate(nowdate()):
+			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))
+		elif getdate(self.attendance_date) < frappe.db.get_value("Employee", self.employee, "date_of_joining"):
+			frappe.throw(_("Attendance date can not be less than employee's joining date"))
 
 	def validate_employee(self):
 		emp = frappe.db.sql("select name from `tabEmployee` where name = %s and status = 'Active'",
@@ -128,13 +138,13 @@ class Attendance(Document):
 
 	def validate(self):
 		from erpnext.controllers.status_updater import validate_status
-		validate_status(self.status, ["Present", "Absent", "Half Day"])
-		self.validate_att_date()
+		validate_status(self.status, ["Present", "Absent", "On Leave", "Half Day"])
+		self.validate_attendance_date()
 		self.validate_duplicate_record()
 		self.check_leave_record()
 		self.calculate_total_hours()
 		if self.normal_time < 0:
-			frappe.throw(_("Working Time cannot be less than 0, date {0}").format(self.att_date))
+			frappe.throw(_("Working Time cannot be less than 0, date {0}").format(self.attendance_date))
 
 			
 
@@ -149,3 +159,4 @@ class Attendance(Document):
 
 		naming_series = "ATT-"
 		frappe.db.set(self, 'naming_series', naming_series)
+

@@ -100,7 +100,12 @@ function load_erpnext_slides() {
 						fy = ["01-01", "12-31"];
 						next_year = current_year;
 					}
-
+					
+					var year_start_date = current_year + "-" + fy[0];
+					if(year_start_date > get_today()) {
+						next_year = current_year
+						current_year -= 1;
+					}
 					slide.get_field("fy_start_date").set_input(current_year + "-" + fy[0]);
 					slide.get_field("fy_end_date").set_input(next_year + "-" + fy[1]);
 				}
@@ -192,7 +197,7 @@ function load_erpnext_slides() {
 						{fieldtype:"Data", fieldname:"user_fullname_"+ i,
 							label:__("Full Name")},
 						{fieldtype:"Data", fieldname:"user_email_" + i,
-							label:__("Email ID"), placeholder:__("user@example.com"),
+							label:__("Email Address"), placeholder:__("user@example.com"),
 							options: "Email"},
 						{fieldtype:"Column Break"},
 						{fieldtype: "Check", fieldname: "user_sales_" + i,

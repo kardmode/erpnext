@@ -38,7 +38,7 @@ frappe.ui.form.on("Journal Entry", {
 	},
 	
 	posting_date: function(frm) {
-		if(!frm.doc.multi_currency) return;
+		if(!frm.doc.multi_currency || !frm.doc.posting_date) return;
 		
 		$.each(frm.doc.accounts || [], function(i, row) {
 			erpnext.journal_entry.set_exchange_rate(frm, row.doctype, row.name);
@@ -86,9 +86,9 @@ erpnext.accounts.JournalEntry = frappe.ui.form.Controller.extend({
 			};
 		});
 
-		me.frm.set_query("party_type", "accounts", function(doc, cdt, cdn) {
-			return {
-				filters: {"name": ["in", ["Customer", "Supplier"]]}
+		me.frm.set_query("party_type", "accounts", function() {
+			return{
+				query: "erpnext.setup.doctype.party_type.party_type.get_party_type"
 			}
 		});
 
