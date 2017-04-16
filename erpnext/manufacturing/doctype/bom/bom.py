@@ -6,12 +6,8 @@ import frappe
 from frappe.utils import cint, cstr, flt
 from frappe import _
 from erpnext.setup.utils import get_exchange_rate
-<<<<<<< HEAD
-from frappe.model.document import Document
 from erpnext.stock.get_item_details import get_conversion_factor
-=======
 from frappe.website.website_generator import WebsiteGenerator
->>>>>>> 68a8b0c2a94c0d33b2b2ae5e6e791e2ec2680116
 
 from operator import itemgetter
 
@@ -924,15 +920,6 @@ def validate_bom_no(item, bom_no):
 @frappe.whitelist()
 def get_children():
 	if frappe.form_dict.parent:
-<<<<<<< HEAD
-		return frappe.db.sql("""select item_code,
-			bom_no as value, qty,
-			if(ifnull(bom_no, "")!="", 1, 0) as expandable
-			from `tabBOM Item`
-			where parent=%s
-			order by idx
-			""", frappe.form_dict.parent, as_dict=True)
-=======
 		return frappe.db.sql("""select
 			bom_item.item_code,
 			bom_item.bom_no as value,
@@ -945,4 +932,3 @@ def get_children():
 			and bom_item.item_code = item.name
 			order by bom_item.idx
 			""", frappe.form_dict.parent, as_dict=True)
->>>>>>> 68a8b0c2a94c0d33b2b2ae5e6e791e2ec2680116
