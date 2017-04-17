@@ -7,12 +7,20 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2017-01-11 20:25:04.165594", 
+ "modified": "2017-04-17 03:29:56.696463", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Import Document", 
  "owner": "Administrator", 
  "ref_doctype": "Stock Ledger Entry", 
  "report_name": "Import Document", 
- "report_type": "Script Report"
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "Stock User"
+  }, 
+  {
+   "role": "Accounts Manager"
+  }
+ ]
 }

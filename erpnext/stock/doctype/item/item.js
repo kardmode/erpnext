@@ -22,7 +22,7 @@ frappe.ui.form.on("Item", {
 	},
 
 	refresh: function(frm) {
-		refresh_field("item_group");
+		// refresh_field("item_group");
 
 
 		if(frm.doc.is_stock_item) {

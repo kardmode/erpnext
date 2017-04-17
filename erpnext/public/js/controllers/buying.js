@@ -28,10 +28,6 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 					};
 				} else{
 
-					return {
-						query: 'frappe.geo.doctype.address.address.address_query',
-						filters: {/*  link_doctype: 'Customer', link_name: me.frm.doc.customer  */}
-					};
 				} 
 			});
 		}

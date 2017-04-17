@@ -5,10 +5,10 @@ frappe.provide("erpnext.bom");
 
 frappe.ui.form.on("BOM", {
 	setup: function(frm) {
-		frm.add_fetch('buying_price_list', 'currency', 'currency');
-		frm.add_fetch('buying_price_list', 'currency', 'price_list_currency');
+		// frm.add_fetch('buying_price_list', 'currency', 'currency');
+		// frm.add_fetch('buying_price_list', 'currency', 'price_list_currency');
 
-		frm.set_value('plc_conversion_rate',1.0);
+		frm.set_value('conversion_rate',1.0);
 		frm.fields_dict["items"].grid.get_field("bom_no").get_query = function(doc, cdt, cdn){
 			return {
 				filters: {'currency': frm.doc.currency}

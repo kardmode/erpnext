@@ -1,8 +1,8 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: GNU General Public License v3. See license.txt
 
-cur_frm.add_fetch('time_sheet', 'total_hours', 'working_hours');
 cur_frm.add_fetch('employee', 'company', 'company');
+cur_frm.add_fetch('time_sheet', 'total_hours', 'working_hours');
 
 
 frappe.ui.form.on("Salary Slip", {
@@ -30,17 +30,18 @@ frappe.ui.form.on("Salary Slip", {
 		})
 	},
 	
-	// company: function(frm) {
-		// var company = locals[':Company'][frm.doc.company];
-		// if(!frm.doc.letter_head && company.default_letter_head) {
-			// frm.set_value('letter_head', company.default_letter_head);
-		// }
-	// },
+	company: function(frm) {
+		var company = locals[':Company'][frm.doc.company];
+		if(!frm.doc.letter_head && company.default_letter_head) {
+			frm.set_value('letter_head', company.default_letter_head);
+		}
+	},
 
 	refresh: function(frm) {
 		frm.trigger("toggle_fields")
-		frm.trigger("toggle_reqd_fields")
-		salary_detail_fields = ['formula', 'abbr', 'statistical_component']
+		/* frm.trigger("toggle_reqd_fields")
+		salary_detail_fields = ['formula', 'abbr', 'statistical_component'] */
+		salary_detail_fields = ['formula', 'abbr','rate']
 		cur_frm.fields_dict['earnings'].grid.set_column_disp(salary_detail_fields,false);
 		cur_frm.fields_dict['deductions'].grid.set_column_disp(salary_detail_fields,false);
 	},	
@@ -60,25 +61,6 @@ frappe.ui.form.on("Salary Slip", {
 		frm.toggle_display(['payment_days', 'total_working_days', 'leave_without_pay'],
 			frm.doc.payroll_frequency!="");
 	},
-	
-	set_start_end_dates: function(frm) {
-		if (!frm.doc.salary_slip_based_on_timesheet){
-			frappe.call({
-				method:'erpnext.hr.doctype.process_payroll.process_payroll.get_start_end_dates',
-				args:{
-					payroll_frequency: frm.doc.payroll_frequency,
-					start_date: frm.doc.start_date || frm.doc.posting_date
-				},
-				callback: function(r){
-					if (r.message){
-						frm.set_value('start_date', r.message.start_date);
-						frm.set_value('end_date', r.message.end_date);
-					}
-				}
-			})
-		}
-	},
-
 	
 })
 
@@ -111,7 +93,6 @@ cur_frm.cscript.start_date = function(doc, dt, dn){
 		doc: locals[dt][dn],
 		callback: function(r, rt) {
 			cur_frm.refresh();
-			console.log(doc.end_date);
 			calculate_all(doc, dt, dn);
 		}
 	});
@@ -122,8 +103,6 @@ cur_frm.cscript.end_date = cur_frm.cscript.enable_attendance = cur_frm.cscript.s
 
 
 cur_frm.cscript.employee = function(doc,dt,dn){
-	cur_frm.add_fetch('company', 'default_letter_head', 'letter_head');
-	doc.salary_structure = ''
 	cur_frm.cscript.start_date(doc, dt, dn)
 }
 
@@ -193,7 +172,8 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 			tbl[i].amount = tbl[i].default_amount;
 			cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
 		}
-		total_earn += flt(tbl[i].amount);
+		if(tbl[i].salary_component != "Leave Encashment" || tbl[i].salary_component != "Arrears")
+			total_earn += flt(tbl[i].amount);
 	}
 	doc.gross_pay = total_earn + flt(doc.arrear_amount) + flt(doc.leave_encashment_amount) + flt(doc.gratuity_encashment);
 

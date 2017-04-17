@@ -57,8 +57,9 @@ class SalarySlip(TransactionBase):
 		for key in ('earnings', 'deductions'):
 			for struct_row in self._salary_structure_doc.get(key):
 				amount = self.eval_condition_and_formula(struct_row, data)
-				if amount and struct_row.statistical_component == 0:
-					self.update_component_row(struct_row, amount, key)
+				self.update_component_row(struct_row, amount, key)
+				# if amount and struct_row.statistical_component == 0:
+					# self.update_component_row(struct_row, amount, key)
 
 	def update_component_row(self, struct_row, amount, key):
 		component_row = None
@@ -85,9 +86,9 @@ class SalarySlip(TransactionBase):
 			if d.amount_based_on_formula:
 				if d.formula:
 					amount = frappe.safe_eval(d.formula, None, data)
-			# if amount:
-				# data[d.abbr] = amount
-			data[d.abbr] = amount
+			if amount:
+				data[d.abbr] = amount
+
 			return amount
 
 		except NameError as err:
@@ -185,7 +186,6 @@ class SalarySlip(TransactionBase):
 			struct = self.check_sal_struct(joining_date, relieving_date)
 
 			if struct:
-			
 				self._salary_structure_doc = frappe.get_doc('Salary Structure', struct)
 				self.salary_slip_based_on_timesheet = self._salary_structure_doc.salary_slip_based_on_timesheet or 0
 				self.set_time_sheet()
@@ -216,12 +216,15 @@ class SalarySlip(TransactionBase):
 			cond = """and payroll_frequency = '%(payroll_frequency)s'""" % {"payroll_frequency": self.payroll_frequency}
 
 		st_name = frappe.db.sql("""select parent from `tabSalary Structure Employee`
-			where employee=%s and (from_date <= %s or from_date <= %s)
-			and (to_date is null or to_date >= %s or to_date >= %s)
+			where employee=%s
 			and parent in (select name from `tabSalary Structure`
-				where is_active = 'Yes'%s)
+				where is_active = 'Yes'
+				and (from_date <= %s or from_date <= %s)
+				and (to_date is null or to_date >= %s or to_date >= %s) %s)
 			"""% ('%s', '%s', '%s','%s','%s', cond),(self.employee, self.start_date, joining_date, self.end_date, relieving_date))
+	
 
+	
 		if st_name:
 			if len(st_name) > 1:
 				frappe.msgprint(_("Multiple active Salary Structures found for employee {0} for the given dates")
@@ -229,11 +232,8 @@ class SalarySlip(TransactionBase):
 			return st_name and st_name[0][0] or ''
 		else:
 			self.salary_structure = None
-			# frappe.msgprint(_("No active or default Salary Structure found for employee {0} for the given dates")
-				# .format(self.employee), title=_('Salary Structure Missing'))
-			frappe.throw(_("No active Salary Structure found for employee {0} and the month")
-				.format(self.employee))
-			self.employee = None				
+			frappe.msgprint(_("No active or default Salary Structure found for employee {0} for the given dates")
+				.format(self.employee), title=_('Salary Structure Missing'))			
 
 
 	def pull_sal_struct(self):
@@ -418,6 +418,8 @@ class SalarySlip(TransactionBase):
 		
 		salaryperday = 0
 		hourlyrate = 0
+		
+			
 		for d in self.get("earnings"):
 			if(d.salary_component == "Basic Salary"):
 				salaryperday = 	flt(d.default_amount)/30
@@ -439,9 +441,9 @@ class SalarySlip(TransactionBase):
 			elif(d.salary_component == "Overtime Holidays"):
 				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
 				d.default_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
+
 				
-			if ((cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet) or 
-				getdate(self.start_date) < joining_date or getdate(self.end_date) > relieving_date):
+			if cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet:
 				d.amount = rounded((flt(d.default_amount) * flt(self.payment_days)
 					/ cint(self.total_working_days)), self.precision("amount", "earnings"))
 				
@@ -464,7 +466,8 @@ class SalarySlip(TransactionBase):
 			elif not d.amount:
 				d.amount = d.default_amount	
 
-			self.gross_pay += flt(d.amount)
+			if(d.salary_component not in ["Leave Encashment","Arrears"] ):
+				self.gross_pay += flt(d.amount)
 		
 		self.calculate_leave_and_gratuity(salaryperday)
 	
@@ -493,8 +496,7 @@ class SalarySlip(TransactionBase):
 		self.check_loan_deductions()
 		self.total_deduction = 0
 		for d in self.get("deductions"):
-			if ((cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet) or 
-				getdate(self.start_date) < joining_date or getdate(self.end_date) > relieving_date):
+			if cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet:
 				d.amount = rounded((flt(d.default_amount) * flt(self.payment_days)
 					/ cint(self.total_working_days)), self.precision("amount", component_type))
 			elif not self.payment_days and not self.salary_slip_based_on_timesheet:
