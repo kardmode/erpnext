@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, json
+from frappe import _
 from frappe.utils import nowdate
 from erpnext.setup.utils import get_exchange_rate
 from frappe.core.doctype.communication.email import make
@@ -20,6 +21,7 @@ def get_pos_data():
 
 	if pos_profile.get('name'):
 		pos_profile = frappe.get_doc('POS Profile', pos_profile.get('name'))
+		pos_profile.validate()
 
 	company_data = get_company_data(doc.company)
 	update_pos_profile_data(doc, pos_profile, company_data)
@@ -32,9 +34,10 @@ def get_pos_data():
 		'doc': doc,
 		'default_customer': pos_profile.get('customer'),
 		'items': get_items_list(pos_profile),
-		'item_groups': get_item_group(pos_profile),
+		'item_groups': get_item_groups(pos_profile),
 		'customers': customers,
 		'address': get_customers_address(customers),
+		'contacts': get_contacts(customers),
 		'serial_no_data': get_serial_no_data(pos_profile, doc.company),
 		'batch_no_data': get_batch_no_data(),
 		'tax_data': get_item_tax_data(),
@@ -132,7 +135,7 @@ def get_items_list(pos_profile):
 	if pos_profile.get('item_groups'):
 		# Get items based on the item groups defined in the POS profile
 		for d in pos_profile.get('item_groups'):
-			item_groups.extend(get_child_nodes('Item Group', d.item_group))
+			item_groups.extend([d.name for d in get_child_nodes('Item Group', d.item_group)])
 		cond = "item_group in (%s)"%(', '.join(['%s']*len(item_groups)))
 
 	return frappe.db.sql(""" 
@@ -146,26 +149,31 @@ def get_items_list(pos_profile):
 			disabled = 0 and has_variants = 0 and is_sales_item = 1 and {cond}
 		""".format(cond=cond), tuple(item_groups), as_dict=1)
 
-def get_item_group(pos_profile):
+def get_item_groups(pos_profile):
+	item_group_dict = {}
 	if pos_profile.get('item_groups'):
 		item_groups = []
 		for d in pos_profile.get('item_groups'):
 			item_groups.extend(get_child_nodes('Item Group', d.item_group))
-		return item_groups
 	else:
-		return frappe.db.sql_list("""Select name from `tabItem Group` order by name""")
+		item_groups = frappe.db.sql("""Select name,
+			lft, rgt from `tabItem Group` order by lft""", as_dict=1)
 
-def get_customers_list(pos_profile):
+	for data in item_groups:
+		item_group_dict[data.name] = [data.lft, data.rgt]
+	return item_group_dict
+
+def get_customers_list(pos_profile={}):
 	cond = "1=1"
 	customer_groups = []
 	if pos_profile.get('customer_groups'):
 		# Get customers based on the customer groups defined in the POS profile
 		for d in pos_profile.get('customer_groups'):
-			customer_groups.extend(get_child_nodes('Customer Group', d.customer_group))
+			customer_groups.extend([d.name for d in get_child_nodes('Customer Group', d.customer_group)])
 		cond = "customer_group in (%s)"%(', '.join(['%s']*len(customer_groups)))
 
 	return frappe.db.sql(""" select name, customer_name, customer_group,
-		territory from tabCustomer where disabled = 0
+		territory, customer_pos_id from tabCustomer where disabled = 0
 		and {cond}""".format(cond=cond), tuple(customer_groups), as_dict=1) or {}
 
 def get_customers_address(customers):
@@ -178,17 +186,33 @@ def get_customers_address(customers):
 			email_id, phone, fax, pincode from `tabAddress` where is_primary_address =1 and name in
 			(select parent from `tabDynamic Link` where link_doctype = 'Customer' and link_name = %s
 			and parenttype = 'Address')""", data.name, as_dict=1)
-		if address:
-			address_data = address[0]
-			address_data.update({'full_name': data.customer_name})
-			customer_address[data.name] = address_data
+		address_data = {}
+		if address: address_data = address[0]
+
+		address_data.update({'full_name': data.customer_name, 'customer_pos_id': data.customer_pos_id})
+		customer_address[data.name] = address_data
 
 	return customer_address
 
+def get_contacts(customers):
+	customer_contact = {}
+	if isinstance(customers, basestring):
+		customers = [frappe._dict({'name': customers})]
+
+	for data in customers:
+		contact = frappe.db.sql(""" select email_id, phone, mobile_no from `tabContact` 
+			where is_primary_contact =1 and name in
+			(select parent from `tabDynamic Link` where link_doctype = 'Customer' and link_name = %s
+			and parenttype = 'Contact')""", data.name, as_dict=1)
+		if contact: 
+			customer_contact[data.name] = contact[0]
+
+	return customer_contact
+
 def get_child_nodes(group_type, root):
 	lft, rgt = frappe.db.get_value(group_type, root, ["lft", "rgt"])
-	return frappe.db.sql_list(""" Select name from `tab{tab}` where
-			lft >= {lft} and rgt <= {rgt}""".format(tab=group_type, lft=lft, rgt=rgt))
+	return frappe.db.sql(""" Select name, lft, rgt from `tab{tab}` where
+			lft >= {lft} and rgt <= {rgt} order by lft""".format(tab=group_type, lft=lft, rgt=rgt), as_dict=1)
 
 def get_serial_no_data(pos_profile, company):
 	# get itemwise serial no data
@@ -289,7 +313,7 @@ def make_invoice(doc_list={}, email_queue_list={}, customers_list={}):
 	if isinstance(customers_list, basestring):
 		customers_list = json.loads(customers_list)
 
-	customers = make_customer_and_address(customers_list)
+	customers_list = make_customer_and_address(customers_list)
 	name_list = []
 	for docs in doc_list:
 		for name, doc in docs.items():
@@ -298,6 +322,8 @@ def make_invoice(doc_list={}, email_queue_list={}, customers_list={}):
 				si_doc = frappe.new_doc('Sales Invoice')
 				si_doc.offline_pos_name = name
 				si_doc.update(doc)
+				si_doc.set_posting_time = 1
+				si_doc.customer = get_customer_id(doc)
 				si_doc.due_date = doc.get('posting_date')
 				submit_invoice(si_doc, name, doc)
 				name_list.append(name)
@@ -305,35 +331,99 @@ def make_invoice(doc_list={}, email_queue_list={}, customers_list={}):
 				name_list.append(name)
 
 	email_queue = make_email_queue(email_queue_list)
+	customers = get_customers_list()
 	return {
 		'invoice': name_list,
 		'email_queue': email_queue,
-		'customers': customers
+		'customers': customers_list,
+		'synced_customers_list': customers,
+		'synced_address': get_customers_address(customers),
+		'synced_contacts': get_contacts(customers)
 	}
 
 def validate_records(doc):
 	validate_item(doc)
 
-def make_customer_and_address(customers):
-	customer_list = []
-	for name, data in customers.items():
-		if not frappe.db.exists('Customer', name):
-			name = add_customer(name)
-		data = json.loads(data)
-		make_address(data, name)
-		customer_list.append(name)
-	return customer_list
+def get_customer_id(doc, customer=None):
+	cust_id = None
+	if doc.get('customer_pos_id'):
+		cust_id = frappe.db.get_value('Customer',
+			{'customer_pos_id': doc.get('customer_pos_id')}, 'name')
 
-def add_customer(name):
+	if not cust_id:
+		customer = customer or doc.get('customer')
+		if frappe.db.exists('Customer', customer):
+			cust_id = customer
+		else:
+			cust_id = add_customer(doc)
+
+	return cust_id
+
+def make_customer_and_address(customers):
+	customers_list = []
+	for customer, data in customers.items():
+		data = json.loads(data)
+		cust_id = get_customer_id(data, customer)
+		if not cust_id:
+			cust_id = add_customer(data)
+		else:
+			frappe.db.set_value("Customer", cust_id, "customer_name", data.get('full_name'))
+
+		make_contact(data, cust_id)
+		make_address(data, cust_id)
+		customers_list.append(customer)
+	frappe.db.commit()
+	return customers_list
+
+def add_customer(data):
 	customer_doc = frappe.new_doc('Customer')
-	customer_doc.customer_name = name
+	customer_doc.customer_name = data.get('full_name') or data.get('customer')
+	customer_doc.customer_pos_id = data.get('customer_pos_id')
 	customer_doc.customer_type = 'Company'
-	customer_doc.customer_group = frappe.db.get_single_value('Selling Settings', 'customer_group')
-	customer_doc.territory = frappe.db.get_single_value('Selling Settings', 'territory')
+	customer_doc.customer_group = get_customer_group(data)
+	customer_doc.territory = get_territory(data)
 	customer_doc.flags.ignore_mandatory = True
 	customer_doc.save(ignore_permissions = True)
 	frappe.db.commit()
 	return customer_doc.name
+
+def get_territory(data):
+	if data.get('territory'):
+		return data.get('territory')
+
+	return frappe.db.get_single_value('Selling Settings',
+		'territory') or _('All Territories')
+
+def get_customer_group(data):
+	if data.get('customer_group'):
+		return data.get('customer_group')
+
+	return frappe.db.get_single_value('Selling Settings',
+		'customer_group') or frappe.db.get_value('Customer Group', {'is_group': 0}, 'name')
+
+def make_contact(args,customer):
+	if args.get('email_id') or args.get('phone'):
+		name = frappe.db.get_value('Dynamic Link',
+			{'link_doctype': 'Customer', 'link_name': customer, 'parenttype': 'Contact'}, 'parent')
+
+		args = {
+			'first_name': args.get('full_name'),
+			'email_id': args.get('email_id'),
+			'phone': args.get('phone')
+		}
+
+		doc = frappe.new_doc('Contact')
+		if name:
+			doc = frappe.get_doc('Contact', name)
+
+		doc.update(args)
+		doc.is_primary_contact = 1
+		if not name:
+			doc.append('links',{
+				'link_doctype': 'Customer',
+				'link_name': customer
+			})
+		doc.save(ignore_permissions=True)
 
 def make_address(args, customer):
 	if not args.get('address_line1'): return
@@ -395,7 +485,7 @@ def submit_invoice(si_doc, name, doc):
 		si_doc.insert()
 		si_doc.submit()
 		frappe.db.commit()
-	except Exception, e:
+	except Exception as e:
 		if frappe.message_log: frappe.message_log.pop()
 		frappe.db.rollback()
 		save_invoice(e, si_doc, name)

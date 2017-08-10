@@ -41,8 +41,7 @@ def before_tests():
 			"email"				:"test@erpnext.com",
 			"password"			:"test",
 			"chart_of_accounts" : "Standard",
-			"domain"			: "Manufacturing",
-
+			"domain"			: "Manufacturing"
 		})
 
 	frappe.db.sql("delete from `tabLeave Allocation`")
@@ -51,6 +50,7 @@ def before_tests():
 	frappe.db.sql("delete from `tabItem Price`")
 
 	frappe.db.set_value("Stock Settings", None, "auto_insert_price_list_rate_if_missing", 0)
+	enable_all_roles_and_domains()
 
 	frappe.db.commit()
 
@@ -116,8 +116,33 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None):
 			
 			value = flt(response.json()["rates"][to_currency]) * flt(conversion_factor)
 			cache.setex(key, value, 6 * 60 * 60)
-
 		return flt(value)
 	except:
-		frappe.msgprint(_("Unable to find exchange rate for {0} to {1} for key date {2}").format(from_currency, to_currency, transaction_date))
+		frappe.msgprint(_("Unable to find exchange rate for {0} to {1} for key date {2}. Please create a Currency Exchange record manually").format(from_currency, to_currency, transaction_date))
 		return 0.0
+
+def enable_all_roles_and_domains():
+	""" enable all roles and domain for testing """
+	roles = frappe.get_list("Role", filters={"disabled": 1})
+	for role in roles:
+		_role = frappe.get_doc("Role", role.get("name"))
+		_role.disabled = 0
+		_role.flags.ignore_mandatory = True
+		_role.flags.ignore_permissions = True
+		_role.save()
+
+	# add all roles to users
+	user = frappe.get_doc("User", "Administrator")
+	user.add_roles(*[role.get("name") for role in roles])
+
+	domains = frappe.get_list("Domain")
+	if not domains:
+		return
+
+	domain_settings = frappe.get_doc("Domain Settings", "Domain Settings")
+	domain_settings.set("active_domains", [])
+	for domain in domains:
+		row = domain_settings.append("active_domains", {})
+		row.domain=domain.get("name")
+
+	domain_settings.save()

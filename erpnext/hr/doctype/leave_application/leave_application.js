@@ -13,7 +13,7 @@ frappe.ui.form.on("Leave Application", {
 		} */
 				
 		if (!frm.doc.posting_date) {
-			frm.set_value("posting_date", get_today());
+			frm.set_value("posting_date", frappe.datetime.get_today());
 		}
 
 		frm.set_query("leave_approver", function() {
@@ -83,9 +83,9 @@ frappe.ui.form.on("Leave Application", {
 		frm.set_value('half_day_date', '');
 		var half_day_datepicker = frm.fields_dict.half_day_date.datepicker;
 		half_day_datepicker.update({
-				minDate: frappe.datetime.str_to_obj(frm.doc.from_date),
-				maxDate: frappe.datetime.str_to_obj(frm.doc.to_date)
-			})
+			minDate: frappe.datetime.str_to_obj(frm.doc.from_date),
+			maxDate: frappe.datetime.str_to_obj(frm.doc.to_date)
+		})
 	},
 
 	get_leave_balance: function(frm) {

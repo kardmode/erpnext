@@ -50,17 +50,18 @@ frappe.ui.form.on("Warehouse", {
 				}
 			}
 		}
-	}
-});
 
-cur_frm.set_query("create_account_under", function() {
-	return {
-		filters: {
-			"company": cur_frm.doc.company,
-			'is_group': 1
+		frm.fields_dict['account'].get_query = function(doc) {
+			return {
+				filters: {
+					"is_group": 0,
+					"account_type": "Stock",
+					"company": frm.doc.company
+				}
+			}
 		}
 	}
-})
+});
 
 cur_frm.set_query("parent_warehouse", function() {
 	return {

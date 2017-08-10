@@ -54,7 +54,7 @@ class AccountsController(TransactionBase):
 		self.validate_currency()
 
 		if self.meta.get_field("is_recurring"):
-			if self.amended_from and self.recurring_id:
+			if self.amended_from and self.recurring_id == self.amended_from:
 				self.recurring_id = None
 			if not self.get("__islocal"):
 				validate_recurring_document(self)
@@ -160,6 +160,7 @@ class AccountsController(TransactionBase):
 	def set_missing_item_details(self, for_validate=False):
 		"""set missing item values"""
 		from erpnext.stock.get_item_details import get_item_details
+		from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
 
 		if hasattr(self, "items"):
 			parent_dict = {}
@@ -186,14 +187,18 @@ class AccountsController(TransactionBase):
 
 					ret = get_item_details(args)
 
-
 					for fieldname, value in ret.items():
 						if item.meta.get_field(fieldname) and value is not None:
 							if (item.get(fieldname) is None or fieldname in force_item_fields):
 								item.set(fieldname, value)
 
-							elif fieldname == "cost_center" and not item.get("cost_center"):
+							elif fieldname in ['cost_center', 'conversion_factor'] and not item.get(fieldname):
 								item.set(fieldname, value)
+
+							elif fieldname == "serial_no":
+								stock_qty = item.get("stock_qty") * -1 if item.get("stock_qty") < 0 else item.get("stock_qty")
+								if stock_qty != len(get_serial_nos(item.get('serial_no'))):
+									item.set(fieldname, value)
 
 							elif fieldname == "conversion_factor" and not item.get("conversion_factor"):
 								item.set(fieldname, value)
@@ -270,7 +275,9 @@ class AccountsController(TransactionBase):
 		if not account_currency:
 			account_currency = get_account_currency(gl_dict.account)
 
-		if self.doctype not in ["Journal Entry", "Period Closing Voucher", "Payment Entry"]:
+		if gl_dict.account and self.doctype not in ["Journal Entry", 
+			"Period Closing Voucher", "Payment Entry"]:
+			
 			self.validate_account_currency(gl_dict.account, account_currency)
 			set_balance_in_account_currency(gl_dict, account_currency, self.get("conversion_rate"), self.company_currency)
 

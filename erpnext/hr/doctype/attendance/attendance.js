@@ -34,6 +34,7 @@ var calculate_all = function(doc, dt, dn) {
 		refresh_many(['working_time','normal_time','overtime','overtime_fridays','overtime_holidays','status']);
 	});
 
+
 }
 
 cur_frm.fields_dict.employee.get_query = function(doc,cdt,cdn) {

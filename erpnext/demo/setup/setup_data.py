@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import random, json
 import frappe, erpnext
+from frappe.utils.nestedset import get_root_of
 from frappe.utils import flt, now_datetime, cstr, random_string
 from frappe.utils.make_random import add_random_children, get_random
 from erpnext.demo.domains import data
@@ -116,7 +117,7 @@ def setup_user():
 	for u in json.loads(open(frappe.get_app_path('erpnext', 'demo', 'data', 'user.json')).read()):
 		user = frappe.new_doc("User")
 		user.update(u)
-		user.flags.no_welcome_mail
+		user.flags.no_welcome_mail = True
 		user.new_password = 'demo'
 		user.insert()
 
@@ -316,6 +317,8 @@ def setup_account():
 		doc.parent_account = frappe.db.get_value('Account', {'account_name': doc.parent_account})
 		doc.insert()
 
+	frappe.flags.in_import = False
+
 def setup_account_to_expense_type():
 	company_abbr = frappe.db.get_value("Company", erpnext.get_default_company(), "abbr")
 	expense_types = [{'name': _('Calls'), "account": "Sales Expenses - "+ company_abbr},
@@ -359,10 +362,13 @@ def setup_pos_profile():
 	pos.update_stock = 0
 	pos.write_off_account = 'Cost of Goods Sold - '+ company_abbr
 	pos.write_off_cost_center = 'Main - '+ company_abbr
+	pos.customer_group = get_root_of('Customer Group')
+	pos.territory = get_root_of('Territory')
 
 	pos.append('payments', {
 		'mode_of_payment': frappe.db.get_value('Mode of Payment', {'type': 'Cash'}, 'name'),
-		'amount': 0.0
+		'amount': 0.0,
+		'default': 1
 	})
 
 	pos.insert()
@@ -379,5 +385,7 @@ def import_json(doctype, submit=False, values=None):
 			doc.submit()
 
 	frappe.db.commit()
+
+	frappe.flags.in_import = False
 
 

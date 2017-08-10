@@ -3,7 +3,8 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,fmt_money
+from dateutil.relativedelta import relativedelta
+from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,fmt_money, add_to_date, DATE_FORMAT
 from frappe import _
 from erpnext.accounts.utils import get_fiscal_year
 
@@ -119,7 +120,6 @@ class ProcessPayroll(Document):
 		return payment_days
 
 
-
 	def get_filter_condition(self):
 		self.check_mandatory()
 
@@ -130,14 +130,12 @@ class ProcessPayroll(Document):
 
 		return cond
 
-
 	def get_joining_releiving_condition(self):
 		cond = """
 			and ifnull(t1.date_of_joining, '0000-00-00') <= '%(end_date)s'
 			and ifnull(t1.relieving_date, '2199-12-31') >= '%(start_date)s'
 		""" % {"start_date": self.start_date, "end_date": self.end_date}
 		return cond
-
 
 	def check_mandatory(self):
 		for fieldname in ['company', 'start_date', 'end_date']:
@@ -185,16 +183,15 @@ class ProcessPayroll(Document):
 					ss_list.append(ss_dict)
 		return self.create_log(ss_list)
 
-
 	def create_log(self, ss_list):
-		if not ss_list:
+		if not ss_list or len(ss_list) < 1: 
 			log = "<p>" + _("No employee for the above selected criteria OR salary slip already created") + "</p>"
 		else:
 			log = frappe.render_template("templates/includes/salary_slip_log.html",
 						dict(ss_list=ss_list,
 							keys=sorted(ss_list[0].keys()),
 							title=_('Created Salary Slips')))
-			return log
+		return log
 
 	def get_sal_slip_list(self, ss_status, as_dict=False):
 		"""
@@ -208,7 +205,6 @@ class ProcessPayroll(Document):
 			and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s ORDER BY t1.employee_name
 		""" % ('%s', '%s', '%s','%s', cond), (ss_status, self.start_date, self.end_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
 		return ss_list
-
 
 	def submit_salary_slips(self):
 		"""
@@ -269,7 +265,6 @@ class ProcessPayroll(Document):
 
 	def format_as_links(self, salary_slip):
 		return ['<a href="#Form/Salary Slip/{0}">{0}</a>'.format(salary_slip)]
-
 
 	def get_total_salary_and_loan_amounts(self):
 		"""
@@ -333,7 +328,6 @@ class ProcessPayroll(Document):
 
 		return payroll_payable_account	
 
-
 	def make_accural_jv_entry(self):
 		self.check_permission('write')
 		earnings = self.get_salary_component_total(component_type = "earnings") or {}
@@ -393,7 +387,7 @@ class ProcessPayroll(Document):
 				journal_entry.submit()
 				jv_name = journal_entry.name
 				self.update_salary_slip_status(jv_name = jv_name)
-			except Exception, e:
+			except Exception as e:
 				frappe.msgprint(e)
 		return jv_name
 
@@ -421,7 +415,12 @@ class ProcessPayroll(Document):
 					"debit_in_account_currency": total_salary_amount.rounded_total
 				})	
 			journal_entry.set("accounts", account_amt_list)
-		return journal_entry.as_dict()
+			return journal_entry.as_dict()
+		else:
+			frappe.msgprint(
+				_("There are no submitted Salary Slips to process."),
+				title="Error", indicator="red"
+			)
 
 	def update_salary_slip_status(self, jv_name = None):
 		ss_list = self.get_sal_slip_list(ss_status=0)
@@ -442,7 +441,6 @@ class ProcessPayroll(Document):
 
 
 		return ss_list
-
 
 @frappe.whitelist()
 def get_start_end_dates(payroll_frequency, start_date=None, company=None):
@@ -475,7 +473,30 @@ def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 	return frappe._dict({
 		'start_date': start_date, 'end_date': end_date
 	})
-	
+
+def get_frequency_kwargs(frequency_name):
+	frequency_dict = {
+		'monthly': {'months': 1},
+		'fortnightly': {'days': 14},
+		'weekly': {'days': 7},
+		'daily': {'days': 1}
+	}
+	return frequency_dict.get(frequency_name)
+
+@frappe.whitelist()
+def get_end_date(start_date, frequency):
+	start_date = getdate(start_date)
+	frequency = frequency.lower() if frequency else 'monthly'
+	kwargs = get_frequency_kwargs(frequency) if frequency != 'bimonthly' else get_frequency_kwargs('monthly')
+
+	# weekly, fortnightly and daily intervals have fixed days so no problems
+	end_date = add_to_date(start_date, **kwargs) - relativedelta(days=1)
+	if frequency != 'bimonthly':
+		return dict(end_date=end_date.strftime(DATE_FORMAT))
+
+	else:
+		return dict(end_date='')
+
 @frappe.whitelist()
 def get_month_details(year, month):
 	ysd = frappe.db.get_value("Fiscal Year", year, "year_start_date")

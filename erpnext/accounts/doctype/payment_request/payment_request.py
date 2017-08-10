@@ -20,11 +20,16 @@ class PaymentRequest(Document):
 		self.name = make_autoname('PI-'+ str(year) + '.#####')
 			
 	def validate(self):
+		self.validate_reference_document()
 		self.validate_payment_request()
 		self.validate_currency()
 		
 		self.request_in_words = money_in_words(self.advance_required, self.currency)
 
+
+	def validate_reference_document(self):
+		if not self.reference_doctype or not self.reference_name:
+			frappe.throw(_("To create a Payment Request reference document is required"))
 
 	def validate_payment_request(self):
 		if self.outstanding_amount <= 0:
@@ -83,8 +88,8 @@ class PaymentRequest(Document):
 
 		return controller.get_payment_url(**{
 			"amount": flt(self.grand_total, self.precision("grand_total")),
-			"title": data.company,
-			"description": self.subject,
+			"title": data.company.encode("utf-8"),
+			"description": self.subject.encode("utf-8"),
 			"reference_doctype": "Payment Request",
 			"reference_docname": self.name,
 			"payer_email": self.email_to or frappe.session.user,

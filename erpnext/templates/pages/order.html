@@ -80,12 +80,30 @@
 			<div class="page-header-actions-block" data-html-block="header-actions">
 				<p>
 				    <a href="/api/method/erpnext.accounts.doctype.payment_request.payment_request.make_payment_request?dn={{ doc.name }}&dt={{ doc.doctype }}&submit_doc=1"
-				        class="btn btn-primary btn-sm">Pay {{ doc.get_formatted("grand_total") }} </a>
+				        class="btn btn-primary btn-sm">{{ _("Pay") }} {{ doc.get_formatted("grand_total") }} </a>
 				</p>
 			</div>
 			{% endif %}
 		{% endif %}
 	</div>
+	
+{% if attachments %}
+<div class="order-item-table">
+	<div class="row order-items order-item-header text-muted">
+		<div class="col-sm-12 h6 text-uppercase">
+			{{ _("Attachments") }}
+		</div>
+	</div>
+	<div class="row order-items">
+		<div class="col-sm-12">
+			{% for attachment in attachments %}
+			<p class="small">
+				<a href="{{ attachment.file_url }}" target="blank"> {{ attachment.file_name }} </a>
+			</p>
+			{% endfor %}
+		</div>
+	</div>
 </div>
-
+{% endif %}
+</div>
 {% endblock %}

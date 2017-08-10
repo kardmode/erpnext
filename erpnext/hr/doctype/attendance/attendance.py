@@ -135,13 +135,14 @@ class Attendance(Document):
 
 	def validate_attendance_date(self):
 		from datetime import timedelta
+		date_of_joining = frappe.db.get_value("Employee", self.employee, "date_of_joining")
 
 		if get_datetime(self.attendance_date) > get_datetime(nowdate()) + timedelta(days=30):
 			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))
 
 		# if getdate(self.attendance_date) > getdate(nowdate()):
 			# frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))				
-		elif getdate(self.attendance_date) < frappe.db.get_value("Employee", self.employee, "date_of_joining"):
+		elif date_of_joining and getdate(self.attendance_date) < getdate(date_of_joining):
 			frappe.throw(_("Attendance date can not be less than employee's joining date"))
 
 	def validate_employee(self):

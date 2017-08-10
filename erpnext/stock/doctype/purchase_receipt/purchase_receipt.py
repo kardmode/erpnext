@@ -50,8 +50,11 @@ class PurchaseReceipt(BuyingController):
 		self.validate_posting_time()
 		super(PurchaseReceipt, self).validate()
 
-		if not self._action=="submit":
+		if self._action=="submit":
+			self.make_batches('warehouse')
+		else:
 			self.set_status()
+
 		self.po_required()
 		self.validate_with_previous_doc()
 		self.validate_uom_is_integer("uom", ["qty", "received_qty"])
@@ -62,7 +65,6 @@ class PurchaseReceipt(BuyingController):
 		if getdate(self.posting_date) > getdate(nowdate()):
 			throw(_("Posting Date cannot be future date"))
 
-
 	def validate_with_previous_doc(self):
 		super(PurchaseReceipt, self).validate_with_previous_doc({
 			"Purchase Order": {
@@ -72,7 +74,8 @@ class PurchaseReceipt(BuyingController):
 			"Purchase Order Item": {
 				"ref_dn_field": "purchase_order_item",
 				"compare_fields": [["project", "="], ["uom", "="], ["item_code", "="]],
-				"is_child_table": True
+				"is_child_table": True,
+				"allow_duplicate_prev_row_id": True
 			}
 		})
 
@@ -116,7 +119,8 @@ class PurchaseReceipt(BuyingController):
 		frappe.db.set(self, 'status', 'Submitted')
 
 		self.update_prevdoc_status()
-		self.update_billing_status()
+		if self.per_billed < 100:
+			self.update_billing_status()
 
 		if not self.is_return:
 			update_last_purchase_rate(self, 1)
@@ -186,7 +190,7 @@ class PurchaseReceipt(BuyingController):
 					if not stock_value_diff:
 						continue
 					gl_entries.append(self.get_gl_dict({
-						"account": warehouse_account[d.warehouse]["name"],
+						"account": warehouse_account[d.warehouse]["account"],
 						"against": stock_rbnb,
 						"cost_center": d.cost_center,
 						"remarks": self.get("remarks") or _("Accounting Entry for Stock"),
@@ -197,7 +201,7 @@ class PurchaseReceipt(BuyingController):
 					stock_rbnb_currency = get_account_currency(stock_rbnb)
 					gl_entries.append(self.get_gl_dict({
 						"account": stock_rbnb,
-						"against": warehouse_account[d.warehouse]["name"],
+						"against": warehouse_account[d.warehouse]["account"],
 						"cost_center": d.cost_center,
 						"remarks": self.get("remarks") or _("Accounting Entry for Stock"),
 						"credit": flt(d.base_net_amount, d.precision("base_net_amount")),
@@ -211,7 +215,7 @@ class PurchaseReceipt(BuyingController):
 					if flt(d.landed_cost_voucher_amount):
 						gl_entries.append(self.get_gl_dict({
 							"account": expenses_included_in_valuation,
-							"against": warehouse_account[d.warehouse]["name"],
+							"against": warehouse_account[d.warehouse]["account"],
 							"cost_center": d.cost_center,
 							"remarks": self.get("remarks") or _("Accounting Entry for Stock"),
 							"credit": flt(d.landed_cost_voucher_amount),
@@ -221,8 +225,8 @@ class PurchaseReceipt(BuyingController):
 					# sub-contracting warehouse
 					if flt(d.rm_supp_cost) and warehouse_account.get(self.supplier_warehouse):
 						gl_entries.append(self.get_gl_dict({
-							"account": warehouse_account[self.supplier_warehouse]["name"],
-							"against": warehouse_account[d.warehouse]["name"],
+							"account": warehouse_account[self.supplier_warehouse]["account"],
+							"against": warehouse_account[d.warehouse]["account"],
 							"cost_center": d.cost_center,
 							"remarks": self.get("remarks") or _("Accounting Entry for Stock"),
 							"credit": flt(d.rm_supp_cost)
@@ -243,7 +247,7 @@ class PurchaseReceipt(BuyingController):
 
 						gl_entries.append(self.get_gl_dict({
 							"account": loss_account,
-							"against": warehouse_account[d.warehouse]["name"],
+							"against": warehouse_account[d.warehouse]["account"],
 							"cost_center": d.cost_center,
 							"remarks": self.get("remarks") or _("Accounting Entry for Stock"),
 							"debit": divisional_loss,

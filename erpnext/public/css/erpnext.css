@@ -104,7 +104,7 @@ body[data-route="pos"] .pos-payment-row {
 }
 body[data-route="pos"] .pos-payment-row:hover,
 body[data-route="pos"] .pos-keyboard-key:hover {
-  background-color: #FAFBFC;
+  background-color: #fafbfc;
   cursor: pointer;
 }
 body[data-route="pos"] .pos-keyboard-key,
@@ -214,7 +214,7 @@ body[data-route="pos"] .amount-label {
   font-size: 16px;
 }
 body[data-route="pos"] .selected-payment-mode {
-  background-color: #FAFBFC;
+  background-color: #fafbfc;
   cursor: pointer;
 }
 body[data-route="pos"] .pos-invoice-list {
@@ -270,6 +270,11 @@ body[data-route="pos"] .item-cart-items {
   border: 1px solid #d1d8dd;
   border-top: none;
 }
+@media (max-width: 767px) {
+  body[data-route="pos"] .item-cart-items {
+    height: 30vh;
+  }
+}
 body[data-route="pos"] .no-items-message {
   min-height: 200px;
   display: flex;
@@ -296,6 +301,9 @@ body[data-route="pos"] .item-list {
 }
 body[data-route="pos"] .item-list .image-field {
   height: 140px;
+}
+body[data-route="pos"] .item-list .image-field .placeholder-text {
+  font-size: 50px;
 }
 body[data-route="pos"] .item-list .pos-item-wrapper {
   position: relative;

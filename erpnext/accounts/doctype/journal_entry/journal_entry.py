@@ -72,6 +72,7 @@ class JournalEntry(AccountsController):
 		self.update_expense_claim()
 		self.update_employee_loan()
 		self.unlink_advance_entry_reference()
+		self.unlink_asset_reference()
 
 	def unlink_advance_entry_reference(self):
 		for d in self.get("accounts"):
@@ -81,6 +82,18 @@ class JournalEntry(AccountsController):
 				d.reference_type = ''
 				d.reference_name = ''
 				d.db_update()
+				
+	def unlink_asset_reference(self):
+		for d in self.get("accounts"):
+			if d.reference_type=="Asset" and d.reference_name:
+				asset = frappe.get_doc("Asset", d.reference_name)
+				for s in asset.get("schedules"):
+					if s.journal_entry == self.name:
+						s.db_set("journal_entry", None)
+						asset.value_after_depreciation += s.depreciation_amount
+
+						asset.db_set("value_after_depreciation", asset.value_after_depreciation)
+						asset.set_status()
 
 	def validate_party(self):
 		for d in self.get("accounts"):
@@ -501,7 +514,7 @@ class JournalEntry(AccountsController):
 
 	def update_expense_claim(self):
 		for d in self.accounts:
-			if d.reference_type=="Expense Claim" and d.party:
+			if d.reference_type=="Expense Claim" and d.reference_name:
 				doc = frappe.get_doc("Expense Claim", d.reference_name)
 				update_reimbursed_amount(doc)
 
@@ -720,11 +733,10 @@ def get_opening_accounts(company):
 	accounts = frappe.db.sql_list("""select
 			name from tabAccount
 		where
-			is_group=0 and
-			report_type='Balance Sheet' and
-			ifnull(warehouse, '') = '' and
-			company=%s
-		order by name asc""", company)
+			is_group=0 and report_type='Balance Sheet' and company=%s and
+			name not in(select distinct account from tabWarehouse where
+			account is not null and account != '')
+		order by name asc""", frappe.db.escape(company))
 
 	return [{"account": a, "balance": get_balance_on(a)} for a in accounts]
 
@@ -858,14 +870,9 @@ def get_exchange_rate(posting_date, account=None, account_currency=None, company
 		if reference_type in ("Sales Invoice", "Purchase Invoice") and reference_name:
 			exchange_rate = frappe.db.get_value(reference_type, reference_name, "conversion_rate")
 
-		elif account_details and account_details.account_type == "Bank" and \
-			((account_details.root_type == "Asset" and flt(credit) > 0) or
-				(account_details.root_type == "Liability" and debit)):
-			exchange_rate = get_average_exchange_rate(account)
-
 		# The date used to retreive the exchange rate here is the date passed
 		# in as an argument to this function.
-		if not exchange_rate and account_currency and posting_date:
+		elif (not exchange_rate or exchange_rate==1) and account_currency and posting_date:
 			exchange_rate = get_exchange_rate(account_currency, company_currency, posting_date)
 	else:
 		exchange_rate = 1

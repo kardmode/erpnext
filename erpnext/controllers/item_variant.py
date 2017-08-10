@@ -42,10 +42,8 @@ def make_variant_based_on_manufacturer(template, manufacturer, manufacturer_part
 
 	copy_attributes_to_variant(template, variant)
 
-	variant.append("manufacturers", {
-		"manufacturer": manufacturer,
-		"manufacturer_part_no": manufacturer_part_no
-	})
+	variant.manufacturer = manufacturer
+	variant.manufacturer_part_no = manufacturer_part_no
 
 	variant.item_code = append_number_if_name_exists('Item', template.name)
 
@@ -167,7 +165,7 @@ def create_variant(item, args):
 
 	variant.set("attributes", variant_attributes)
 	copy_attributes_to_variant(template, variant)
-	make_variant_item_code(template.item_code, variant)
+	make_variant_item_code(template.item_code, template.item_name, variant)
 
 	return variant
 
@@ -183,12 +181,15 @@ def copy_attributes_to_variant(item, variant):
 		exclude_fields += ['manufacturer', 'manufacturer_part_no']
 
 	for field in item.meta.fields:
-		if field.fieldtype not in no_value_fields and (not field.no_copy)\
-			and field.fieldname not in exclude_fields:
+		# "Table" is part of `no_value_field` but we shouldn't ignore tables
+		if (field.fieldtype == 'Table' or field.fieldtype not in no_value_fields) \
+			and (not field.no_copy) and field.fieldname not in exclude_fields:
 			if variant.get(field.fieldname) != item.get(field.fieldname):
 				variant.set(field.fieldname, item.get(field.fieldname))
 	variant.variant_of = item.name
 	variant.has_variants = 0
+	if not variant.description:
+		variant.description = ''
 
 	if item.variant_based_on=='Item Attribute':
 		if variant.attributes:
@@ -196,7 +197,7 @@ def copy_attributes_to_variant(item, variant):
 			for d in variant.attributes:
 				variant.description += "<p>" + d.attribute + ": " + cstr(d.attribute_value) + "</p>"
 
-def make_variant_item_code(template_item_code, variant):
+def make_variant_item_code(template_item_code, template_item_name, variant):
 	"""Uses template's item code and abbreviations to make variant's item code"""
 	if variant.item_code:
 		return
@@ -222,6 +223,4 @@ def make_variant_item_code(template_item_code, variant):
 
 	if abbreviations:
 		variant.item_code = "{0}-{1}".format(template_item_code, "-".join(abbreviations))
-
-	if variant.item_code:
-		variant.item_name = variant.item_code
+		variant.item_name = "{0}-{1}".format(template_item_name, "-".join(abbreviations))

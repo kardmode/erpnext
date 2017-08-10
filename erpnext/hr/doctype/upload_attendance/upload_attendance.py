@@ -179,6 +179,7 @@ def upload(import_settings = None):
 		ret.append('Error reading csv file')
 	
 
+
 	if error:
 		frappe.db.rollback()
 	else:

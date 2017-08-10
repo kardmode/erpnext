@@ -67,7 +67,7 @@ def get_price(item_code, template_item_code, price_list, qty=1):
 		price = frappe.get_all("Item Price", fields=["price_list_rate", "currency"],
 			filters={"price_list": price_list, "item_code": item_code})
 
-		if not price:
+		if template_item_code and not price:
 			price = frappe.get_all("Item Price", fields=["price_list_rate", "currency"],
 				filters={"price_list": price_list, "item_code": template_item_code})
 
@@ -85,7 +85,7 @@ def get_price(item_code, template_item_code, price_list, qty=1):
 
 			if pricing_rule:
 				if pricing_rule.pricing_rule_for == "Discount Percentage":
-					price[0].price_list_rate = flt(price[0].price_list_rate * (1.0 - (pricing_rule.discount_percentage / 100.0)))
+					price[0].price_list_rate = flt(price[0].price_list_rate * (1.0 - (flt(pricing_rule.discount_percentage) / 100.0)))
 
 				if pricing_rule.pricing_rule_for == "Price":
 					price[0].price_list_rate = pricing_rule.price_list_rate

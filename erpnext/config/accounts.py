@@ -35,7 +35,7 @@ def get_data():
 				{
 					"type": "report",
 					"name": "Accounts Receivable",
-					"doctype": "Sales Invoice",	
+					"doctype": "Sales Invoice",
 					"is_query_report": True
 				},
 				{
@@ -159,6 +159,11 @@ def get_data():
 					"is_query_report": True,
 					"doctype": "Journal Entry"
 				},
+				{
+					"type": "doctype",
+					"name": "Bank Guarantee",
+					"doctype": "Bank Guarantee"
+				},
 			]
 		},
 		{
@@ -189,6 +194,39 @@ def get_data():
 					"type": "report",
 					"name": "Purchase Register",
 					"doctype": "Purchase Invoice",
+					"is_query_report": True
+				},
+			]
+		},
+		{
+			"label": _("Goods and Services Tax (GST India)"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "GST Settings",
+				},
+				{
+					"type": "doctype",
+					"name": "GST HSN Code",
+				},
+				{
+					"type": "report",
+					"name": "GST Sales Register",
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "GST Purchase Register",
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "GST Itemised Sales Register",
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "GST Itemised Purchase Register",
 					"is_query_report": True
 				},
 			]

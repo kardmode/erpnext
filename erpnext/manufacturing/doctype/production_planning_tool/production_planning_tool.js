@@ -38,6 +38,7 @@ frappe.ui.form.on("Production Planning Tool", {
 	 },
 	 
 	 
+
 	get_sales_orders: function(frm) {
 		frappe.call({
 			doc: frm.doc,
@@ -146,11 +147,11 @@ cur_frm.fields_dict['sales_orders'].grid.get_field('sales_order').get_query = fu
 		args["customer"] = doc.customer;
 	}
 
- 	return { filters: args }
+	return { filters: args }
 }
 
 cur_frm.fields_dict['items'].grid.get_field('item_code').get_query = function(doc) {
- 	return erpnext.queries.item({
+	return erpnext.queries.item({
 		'is_stock_item': 1
 	});
 }
@@ -162,7 +163,7 @@ cur_frm.fields_dict['items'].grid.get_field('bom_no').get_query = function(doc, 
 			query: "erpnext.controllers.queries.bom",
 			filters:{'item': cstr(d.item_code)}
 		}
-	} else msgprint(__("Please enter Item first"));
+	} else frappe.msgprint(__("Please enter Item first"));
 }
 
 cur_frm.fields_dict['items'].grid.get_field('warehouse').get_query = function(doc, cdt, cdn) {
