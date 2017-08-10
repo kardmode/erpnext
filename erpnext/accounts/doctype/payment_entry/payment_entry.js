@@ -67,7 +67,7 @@ frappe.ui.form.on('Payment Entry', {
 
 		frm.set_query("reference_doctype", "references", function() {
 			if (frm.doc.party_type=="Customer") {
-				var doctypes = ["Sales Order", "Sales Invoice", "Journal Entry"];
+				var doctypes = [/* "Sales Order",  */"Sales Invoice", "Journal Entry"];
 			} else if (frm.doc.party_type=="Supplier") {
 				var doctypes = ["Purchase Order", "Purchase Invoice", "Journal Entry"];
 			} else {
@@ -77,6 +77,20 @@ frappe.ui.form.on('Payment Entry', {
 			return {
 				filters: { "name": ["in", doctypes] }
 			};
+		});
+		
+		frm.set_query("reference_name", "references", function() {
+			if (frm.doc.party_type=="Customer") {
+				return {
+				filters: { "Customer": ["in", frm.doc.party] }
+				};
+			} else if (frm.doc.party_type=="Supplier") {
+				return {
+				filters: { "Supplier": ["in", frm.doc.party] }
+				};
+			} 
+
+			
 		});
 	},
 

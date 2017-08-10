@@ -539,3 +539,12 @@ def get_serial_no(args):
 			args = process_args(args)
 			serial_no = get_serial_nos_by_fifo(args)
 			return serial_no
+
+@frappe.whitelist()
+def get_default_uom(item_code=None):
+	if item_code:
+		uom = frappe.db.get_value("Item", {"name": item_code},"stock_uom")
+		if uom:
+			return uom
+		else:
+			frappe.throw(_("No default UOM exists for Item {0}").format(item_code))

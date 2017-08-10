@@ -535,7 +535,8 @@ def make_stock_entry(production_order_id, purpose, qty=None):
 		stock_entry.from_warehouse = production_order.wip_warehouse
 		stock_entry.to_warehouse = production_order.fg_warehouse
 		additional_costs = get_additional_costs(production_order, fg_qty=stock_entry.fg_completed_qty)
-		stock_entry.project = frappe.db.get_value("Stock Entry",{"production_order": production_order_id,"purpose": "Material Transfer for Manufacture"}, "project")
+		# stock_entry.project = frappe.db.get_value("Stock Entry",{"production_order": production_order_id,"purpose": "Material Transfer for Manufacture"}, "project")
+		stock_entry.project = production_order.project
 		stock_entry.set("additional_costs", additional_costs)
 
 	stock_entry.get_items()
@@ -585,14 +586,16 @@ def add_timesheet_detail(timesheet, args):
 
 @frappe.whitelist()
 def get_default_warehouse():
-	wip_warehouse = frappe.db.get_single_value("Manufacturing Settings",
-		"default_wip_warehouse")
-	fg_warehouse = frappe.db.get_single_value("Manufacturing Settings",
-		"default_fg_warehouse")
-	source_warehouse = frappe.db.get_single_value("Stock Settings",
-		"default_warehouse")	
+
+	source_warehouse = (frappe.db.get_single_value("Stock Settings","default_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores') or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
+
+	wip_warehouse = (frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'wip_warehouse'))
+		
+	fg_warehouse = (frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'fg_warehouse'))
 	
-	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse}
+	scrap_warehouse = (frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'scrap_warehouse'))	
+	
+	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse,"scrap_warehouse": scrap_warehouse}
 
 @frappe.whitelist()
 def make_new_timesheet(source_name, target_doc=None):

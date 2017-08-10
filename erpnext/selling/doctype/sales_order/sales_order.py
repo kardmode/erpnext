@@ -424,6 +424,13 @@ def make_delivery_note(source_name, target_doc=None):
 				target.po_no = ", ".join(list(set(target_po_no))) if len(target_po_no) > 1 else target_po_no[0]
 			else:
 				target.po_no = source.po_no
+				
+		if source.project:
+			target.project = source.project
+		if source.room_qty:
+			target.room_qty = source.room_qty
+		if source.sub_project:
+			target.sub_project = source.sub_project
 
 		target.ignore_pricing_rule = 1
 		target.run_method("set_missing_values")
@@ -471,11 +478,19 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 		target.set_advances()
 
 	def set_missing_values(source, target):
+		if source.project:
+			target.project = source.project
+		if source.room_qty:
+			target.room_qty = source.room_qty
+		if source.sub_project:
+			target.sub_project = source.sub_project
 		target.is_pos = 0
 		target.ignore_pricing_rule = 1
 		target.flags.ignore_permissions = True
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
+		
+		
 
 	def update_item(source, target, source_parent):
 		target.amount = flt(source.amount) - flt(source.billed_amt)

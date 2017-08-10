@@ -695,7 +695,7 @@ def set_balance_in_account_currency(gl_dict, account_currency=None, conversion_r
 		gl_dict.credit_in_account_currency = gl_dict.credit if account_currency==company_currency \
 			else flt(gl_dict.credit / conversion_rate, 2)
 
-
+@frappe.whitelist()
 def get_advance_journal_entries(party_type, party, party_account, amount_field,
 		order_doctype, order_list, include_unallocated=True):
 
@@ -728,7 +728,8 @@ def get_advance_journal_entries(party_type, party, party_account, amount_field,
 		[party_account, party_type, party] + order_list, as_dict=1)
 
 	return list(journal_entries)
-
+	
+@frappe.whitelist()
 def get_advance_payment_entries(party_type, party, party_account,
 		order_doctype, order_list=None, include_unallocated=True, against_all_orders=False):
 	party_account_field = "paid_from" if party_type == "Customer" else "paid_to"

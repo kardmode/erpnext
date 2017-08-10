@@ -118,9 +118,9 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		}
 		this.toggle_editable_price_list_rate();
 		
-		if (cur_frm.doc.items){
+		/* if (cur_frm.doc.items){
 			this.refresh_headers();
-		}
+		} */
 		cur_frm.add_custom_button(__("Quotation Report"), function() {
 			window.location.href = 'desk#query-report/Quotation%20Report';
 		}, __("Reports"), "btn-default");
@@ -133,7 +133,12 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 					window.location.href = 'desk#query-report/Item%20Summary%20By%20Document';
 				}, __("Reports"), "btn-default");
 		
-		cur_frm.add_custom_button(__('CSV'),
+		cur_frm.add_custom_button(__("Project Summary"), function() {
+					window.location.href = 'desk#query-report/Project%20Summary';
+				}, __("Reports"), "btn-default");
+		
+		if (this.frm.doc.docstatus==0) {
+			cur_frm.add_custom_button(__('CSV'),
 			function() {
 				var me = this;
 
@@ -183,7 +188,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 								 cur_frm.doc.items = [];
 							}
 							$.each(items, function(i, item) {
-								var d = frappe.model.add_child(cur_frm.doc, "Quotation Item", "items");
+								var d = frappe.model.add_child(cur_frm.doc, cur_frm.doctype + " Item", "items");
 									d.item_code = item.item_code;
 									d.qty = item.qty;
 									d.page_break = item.page_break;
@@ -192,7 +197,10 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 									
 								});
 							//me.calculate_headers();
-							me.refresh_headers();
+							//me.refresh_headers();
+							cur_frm.refresh_field('items');
+							me.calculate_taxes_and_totals();
+
 						}
 						
 						$.each(r.messages, function(i, v) {
@@ -216,7 +224,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				
 			}, __("Get items from"), "btn-default");
 	
-		if (this.frm.doc.docstatus!=2) {
+			
 			cur_frm.add_custom_button(__('Collection'),
 				function() {
 					/* erpnext.utils.map_current_doc({
@@ -229,7 +237,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 					
 				}, __("Get items from"), "btn-default");
 			
-			cur_frm.add_custom_button(__('Room'),
+			cur_frm.add_custom_button(__('Room Quantity'),
 				function() {
 					/* erpnext.utils.map_current_doc({
 						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
@@ -239,9 +247,9 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 					}) */
 					cur_frm.trigger('multiply_room');
 					
-				}, __("Modify Quantity"), "btn-default");
+				}, __("Modify"), "btn-default");
 				
-			cur_frm.add_custom_button(__('Items'),
+			cur_frm.add_custom_button(__('Items Quantity'),
 				function() {
 					/* erpnext.utils.map_current_doc({
 						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
@@ -251,13 +259,14 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 					}) */
 					cur_frm.trigger('multiply_items');
 					
-				}, __("Modify Quantity"), "btn-default");
+				}, __("Modify"), "btn-default");
 			
 		}
 		
 	},
 	
 	add_bundle:function (frm) {
+		var me=this;
 		var dialog = new frappe.ui.Dialog({
 			title: __("Get Items From Collection"),
 			fields: [
@@ -299,6 +308,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 
 				}
 				cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+
 				dialog.hide();
 			}
 		})

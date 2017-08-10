@@ -83,13 +83,38 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None):
 
 		if not value:
 			import requests
+			
+			conversion_factor = 1.0
+			
+			if to_currency == "AED":
+			
+				if from_currency == "USD":
+					value = 3.68
+					cache.setex(key, value, 6 * 60 * 60)
+					return flt(value)
+					
+				to_currency = "USD"
+				conversion_factor = 3.68
+			
+			if from_currency == "AED":
+			
+				if to_currency == "USD":
+					value = 1/3.68
+					cache.setex(key, value, 6 * 60 * 60)
+					return flt(value)
+					
+				from_currency = "USD"
+				conversion_factor = 1/3.68
+				
 			response = requests.get("http://api.fixer.io/latest", params={
 				"base": from_currency,
 				"symbols": to_currency
 			})
 			# expire in 6 hours
 			response.raise_for_status()
-			value = response.json()["rates"][to_currency]
+			
+			
+			value = flt(response.json()["rates"][to_currency]) * flt(conversion_factor)
 			cache.setex(key, value, 6 * 60 * 60)
 
 		return flt(value)

@@ -281,7 +281,11 @@ class ProductionPlanningTool(Document):
 					and purpose = 'Material Transfer for Manufacture' 
 					and docstatus = 1""",pro.name,as_dict=1)
 					
-					if transferSTE:
+					if self.skip_transfer:
+						ste_name = make_stock_entry_from_pro(pro.name, purpose)
+						if ste_name:
+							ste_list.append(ste_name)
+					elif transferSTE:
 						ste_name = make_stock_entry_from_pro(pro.name, purpose)
 						if ste_name:
 							ste_list.append(ste_name)
@@ -364,7 +368,15 @@ class ProductionPlanningTool(Document):
 					and purpose = 'Material Transfer for Manufacture' 
 					and docstatus = 1""",pro.name,as_dict=1)
 					
-					if transferSTE:
+					if self.skip_transfer:
+						stock_entries = frappe.db.sql("""select name 
+						from `tabStock Entry` where production_order=%s and docstatus=0 and purpose=%s""",(pro.name,purpose), as_dict=1)
+
+						for ste in stock_entries:
+							doc = frappe.get_doc('Stock Entry', ste["name"])
+							doc.submit()
+							ste_list.append(doc.name)
+					elif transferSTE:
 						stock_entries = frappe.db.sql("""select name 
 						from `tabStock Entry` where production_order=%s and docstatus=0 and purpose=%s""",(pro.name,purpose), as_dict=1)
 
@@ -392,7 +404,8 @@ class ProductionPlanningTool(Document):
 						
 						
 	def submit_to_manufacture(self):
-		self.submit_stock_entries("Material Transfer for Manufacture")
+		if not self.skip_transfer:
+			self.submit_stock_entries("Material Transfer for Manufacture")
 		self.make_stock_entries("Manufacture")
 
 
@@ -445,28 +458,30 @@ class ProductionPlanningTool(Document):
 
 			""" Club similar BOM and item for processing in case of Sales Orders """
 			if self.get_items_from == "Material Request":
-				item_details.update({
-					"qty": d.planned_qty
-				})
-				item_dict[(d.item_code, d.material_request_item, d.warehouse)] = item_details
-				
-				# item_details.update({
-					# "qty": d.planned_qty
-				# })
-				# item_dict[d.item_code] = item_details
+				if self.combine_duplicate_items:
+					item_details.update({
+						"qty": d.planned_qty
+					})
+					item_dict[(d.item_code, d.material_request_item, d.warehouse)] = item_details
+				else:
+					item_details.update({
+						"qty": d.planned_qty
+					})
+					item_dict[d.item_code] = item_details
 
 			else:
-				item_details.update({
-					"qty":flt(item_dict.get((d.item_code, d.sales_order, d.warehouse),{})
-						.get("qty")) + flt(d.planned_qty)
-				})
-				item_dict[(d.item_code, d.sales_order, d.warehouse)] = item_details
-		
-				# item_details.update({
-					# "qty":flt(item_dict.get(d.item_code,{})
-						# .get("qty")) + flt(d.planned_qty)
-				# })
-				# item_dict[d.item_code] = item_details
+				if self.combine_duplicate_items:
+					item_details.update({
+						"qty":flt(item_dict.get((d.item_code, d.sales_order, d.warehouse),{})
+							.get("qty")) + flt(d.planned_qty)
+					})
+					item_dict[(d.item_code, d.sales_order, d.warehouse)] = item_details
+				else:
+					item_details.update({
+						"qty":flt(item_dict.get(d.item_code,{})
+							.get("qty")) + flt(d.planned_qty)
+					})
+					item_dict[d.item_code] = item_details
 		
 		if not self.ignore_stock_balance:
 			remove = []

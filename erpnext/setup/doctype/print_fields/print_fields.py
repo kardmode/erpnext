@@ -10,7 +10,7 @@ from frappe.utils.jinja import validate_template
 
 class PrintFields(Document):
 	def validate(self):
-		validate_template(self.terms)
+		validate_template(self.print_field)
 
 @frappe.whitelist()
 def get_print_fields(template_name, doc):

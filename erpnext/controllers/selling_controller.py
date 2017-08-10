@@ -30,7 +30,7 @@ class SellingController(StockController):
 					item.warehouse))
 
 	def validate(self):
-		self.calculate_headers()
+		# self.calculate_headers()
 		super(SellingController, self).validate()
 		self.validate_max_discount()
 		self.validate_selling_price()

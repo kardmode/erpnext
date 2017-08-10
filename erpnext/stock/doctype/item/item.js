@@ -102,8 +102,13 @@ frappe.ui.form.on("Item", {
 
 	validate: function(frm){
 		erpnext.item.weight_to_validate(frm);
+		calculate_conversion_factor(frm);
 		
-		
+	},
+	
+	calculate_conversion: function(frm){
+		calculate_conversion_factor(frm);
+		frm.refresh_field("uoms");
 	},
 
 	image: function(frm) {
@@ -533,3 +538,86 @@ $.extend(erpnext.item, {
 		}
 	}
 });
+
+var calculate_conversion_factor = function(frm) {
+	if (frm.doc.depth > 0 && frm.doc.width > 0 && check_current_units(frm.doc.stock_uom) 
+	&& (frm.doc.parent_item_group == "Raw Material" || frm.doc.item_group == "Raw Material")){
+			
+			var conversion_factors = get_dimensions(frm);
+			var conversion_factor = conversion_factors[0];
+			var cft_conversion_factor = conversion_factors[1];
+			conversion_factor = flt(conversion_factor.toFixed(5));
+			cft_conversion_factor = flt(cft_conversion_factor.toFixed(5));
+
+			check_conversion_factor(frm,"sqm",conversion_factor);
+			check_conversion_factor(frm,"cft",cft_conversion_factor);
+
+	}
+	
+}
+
+var check_current_units = function(unit) {
+	if (["sqm","cft","ft","m","cm","in","mm"].indexOf(unit) < 0){
+		return true;
+	}
+		
+	return false;
+}
+
+
+var check_conversion_factor = function(frm,unit,conversion_factor) {
+	if(flt(conversion_factor) > 0)
+	{
+		var uoms = frm.doc.uoms || [];
+	
+		var hasUOM = false;
+		for(var i=0;i<uoms.length;i++) {
+			if(uoms[i].uom === unit){
+				hasUOM = true;
+				if(flt(uoms[i].conversion_factor) != conversion_factor){
+					frappe.msgprint(__("Dimensions given calculate conversion factor {0}", [conversion_factor]));
+					uoms[i].conversion_factor = conversion_factor;
+				}
+				break;
+			}
+			
+		}
+		
+		if(hasUOM == false){
+			var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.uoms.df.options, cur_frm.fields_dict.uoms.df.fieldname);
+			row.uom = unit;
+			row.conversion_factor = conversion_factor;
+		}
+		
+	}
+	
+}
+var convert_units = function(unit,value) {
+	if (unit == "ft")
+		finalvalue = flt(value) * flt(.3048);
+	else if (unit == "cm")
+		finalvalue = flt(value) * flt(.01);
+	else if (unit == "mm")
+		finalvalue = flt(value) * flt(0.001);
+	else if (unit == "in")
+		finalvalue = flt(value) * flt(.0254);
+	else
+		finalvalue = flt(value);
+	return finalvalue;
+}
+
+var get_dimensions = function(frm) {
+	
+	var length = convert_units(frm.doc.depthunit,frm.doc.depth);
+	var width = convert_units(frm.doc.widthunit,frm.doc.width);
+	var height = convert_units(frm.doc.heightunit,frm.doc.height);
+	
+	var perimeter = 2*flt(length)+2*flt(width);
+	var farea = flt(length) * flt(width);
+	var fvolume = flt(length) * flt(width) * flt(height);
+	var fvolumecft = fvolume * 35.3147;
+	
+	var conversion_factor = 1/flt(farea);
+	var cft_conversion_factor = 1/flt(fvolumecft);
+	return [conversion_factor, cft_conversion_factor];
+}

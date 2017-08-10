@@ -43,3 +43,21 @@ class PriceList(Document):
 
 		for module in ["Selling", "Buying"]:
 			_update_default_price_list(module)
+
+@frappe.whitelist()
+def get_price_list_with_currency(currency,doctype):
+
+	if currency:
+		price_lists = []
+		if doctype in ["Purchase Order","Purchase Invoice"]:
+			price_lists = frappe.db.sql("""select name from `tabPrice List` where currency=%s and enabled = 1 and buying = 1""", currency, as_dict = 1)
+		elif doctype in ["Quotation","Sales Order","Sales Invoice","Delivery Note"]:
+			price_lists = frappe.db.sql("""select name from `tabPrice List` where currency=%s and enabled = 1 and selling = 1""", currency, as_dict = 1)
+		else:
+			return None;
+		if price_lists:
+			return price_lists[0]
+		else:
+			throw(_("No Price List Found"))
+	else:
+		throw(_("Currency Not Set"))

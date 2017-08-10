@@ -244,19 +244,48 @@ class BOM(WebsiteGenerator):
 			self.uom = ret[1]
 			self.item_name= ret[2]
 			
-			self.depth = ret[3]
-			self.width = ret[4]
-			self.height= ret[5]
-			self.depthunit = ret[6]
-			self.widthunit = ret[7]
-			self.heightunit= ret[8]
+			depth = flt(ret[3]) or 0.0
+			width = flt(ret[4]) or 0.0
+			height = flt(ret[5]) or 0.0
 			
-			
-			
+			if depth > 0.0:
+				if not self.depth or self.depth == 0.0:
+					self.depth = depth
+					self.depthunit = ret[6]
+					
+			if width > 0.0:
+				if not self.width or self.width == 0.0:
+					self.width = width
+					self.widthunit = ret[7]
+			if height > 0.0:
+				if not self.height or self.height == 0.0:
+					self.height= height
+					self.heightunit= ret[8]
+
 
 		if not self.quantity:
 			frappe.throw(_("Quantity should be greater than 0"))
 			
+	def get_main_item_dimensions(self):
+		""" Validate main FG item"""
+		item = self.get_item_det(self.item)
+		if not item:
+			frappe.throw(_("Item {0} does not exist in the system or has expired").format(self.item))
+		else:
+			ret = frappe.db.get_value("Item", self.item, ["description", "stock_uom", "item_name",
+			"depth","width","height","depthunit","widthunit","heightunit"])
+		
+			depth = flt(ret[3]) or 0.0
+			width = flt(ret[4]) or 0.0
+			height = flt(ret[5]) or 0.0
+			self.depth = depth
+			self.depthunit = ret[6]
+			self.width = width
+			self.widthunit = ret[7]
+			self.height= height
+			self.heightunit= ret[8]
+
+					
 
 	def validate_currency(self):
 		if self.rm_cost_as_per == 'Price List' and \
@@ -333,12 +362,10 @@ class BOM(WebsiteGenerator):
 		self.total_cost = self.operating_cost + self.raw_material_cost - self.scrap_material_cost
 		self.base_total_cost = self.base_operating_cost + self.base_raw_material_cost - self.base_scrap_material_cost
 		
-		if self.duty:
-			self.grand_total = self.operating_cost*(1+flt(self.duty)/100) + self.raw_material_cost - self.scrap_material_cost
-		else:
-			self.grand_total = self.operating_cost + self.raw_material_cost - self.scrap_material_cost
-
-
+		# self.total_duty = flt(25/100) * flt(self.total_cost)
+		# frappe.errprint(self.duty)
+		# frappe.errprint(self.total_cost)
+		
 	def calculate_op_cost(self):
 		"""Update workstation rate and calculates totals"""
 		self.operating_cost = 0
@@ -471,7 +498,7 @@ class BOM(WebsiteGenerator):
 			for d in self.operations:
 				if not d.description:
 					d.description = frappe.db.get_value('Operation', d.operation, 'description')
-	
+		self.operation_summary = self.update_operation_summary()
 	def update_operation_summary(self):
 		
 						
@@ -498,9 +525,8 @@ class BOM(WebsiteGenerator):
 		joiningtext = """<table class="table table-bordered table-condensed">
 						<tr>
 						<th>Sr</th>
-						<th width="20%">Operation</th>
+						<th width="50%">Description</th>
 						<th>Percent</th>
-						<th>Applied To</th>
 						<th>Operating Cost</th>
 						</tr>"""
 		
@@ -511,41 +537,199 @@ class BOM(WebsiteGenerator):
 						<td>""" + str(i+1) +"""</td>
 						<td>""" + str(d['type']) +"""</td>
 						<td>""" + str(d['percent']) +"""</td>
-						<td>""" + str(round(flt(self.raw_material_cost),2)) +"""</td>
 						<td>""" + str(round(flt(operating_cost),2)) +"""</td>
 						</tr>"""
 		joiningtext += """</table><br>"""
 		summary = summary + joiningtext
-		self.operation_summary = summary
+		return(summary)
 
 		
+
+	def build_bom(self):
 		
+		bomitems = self.bomitems
+		if not (bomitems):
+			frappe.throw(_("No items provided"))
+		
+		depthOriginal = self.depth
+		widthOriginal = self.width
+		heightOriginal = self.height
+		
+		if (not depthOriginal) or (depthOriginal == 0):
+			frappe.throw(_("No depth provided"))
+					
+		if (not widthOriginal) or (widthOriginal == 0):
+			frappe.throw(_("No width provided"))
+		
+		if (not heightOriginal) or (heightOriginal == 0):
+			frappe.throw(_("No height provided"))
+			
+		qtyOriginal = self.quantity
+		if (not qtyOriginal) or (qtyOriginal == 0):
+			frappe.throw(_("No quantity provided"))
+		
+		
+		edgebanding = []
+		laminate = []
+		mdf = []
+		custom = []
+		# glue = []
+		
+		for i, d in enumerate(bomitems):
+
+			length = d.length
+			width = d.width
+			side = d.side
+			bb_item = d.bb_item
+			bb_qty = d.bb_qty
+			requom = d.requom
+			
+			edging = d.edging
+			edging_sides = d.edgebanding
+			d_laminate = d.laminate
+			laminate_sides = d.laminate_sides
+					
+			perimeter = 2*flt(length)+2*flt(width)
+			farea = flt(length) *flt(width)
+			required_qty = 0
+			
+			
+			
+			bb_qty = flt(bb_qty)*flt(qtyOriginal)
+			qty = flt(bb_qty)
+			
+			item = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", bb_item, as_dict = 1)
+
+			conversion_factor = 1.0
+			stock_uom = item[0].stock_uom
+			required_uom = item[0].stock_uom
+			
+			if not side:
+				frappe.throw(_("No part provided"))
+
+			if side in ["hardware","custom",""]:
+				required_qty = bb_qty
+				required_uom = requom
+				stock_uom = item[0].stock_uom
+				conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+				
+				if not conversion_factor:
+					frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
+				
+				conversion_factor = flt(1/conversion_factor)
+				
+				qty = flt(required_qty)/flt(conversion_factor)
+				newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+				custom.append(newitem)
+			elif side in ["manufactured legs"]:
+				required_qty = length * bb_qty
+				required_uom = "m"
+				stock_uom = item[0].stock_uom
+				conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor") 
+				
+				if not conversion_factor:
+					frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
+				
+				conversion_factor = flt(1/conversion_factor)
+				
+				qty = flt(required_qty)/flt(conversion_factor)
+				newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+				mdf.append(newitem)
+
+			elif side in ["door frame","frame"]:
+				required_qty = perimeter * bb_qty
+				if side in ["door frame"]:
+					required_qty = (perimeter - width) * bb_qty
+					
+				required_uom = "m"
+				stock_uom = item[0].stock_uom
+				conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+				
+				if not conversion_factor:
+					frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
+				
+				conversion_factor = flt(1/conversion_factor)
+				
+				qty = flt(required_qty)/flt(conversion_factor)
+				newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+				mdf.append(newitem)
+				
+				new_edging = process_edging(bb_item,bb_qty,side,edging,edging_sides,length,width,perimeter)
+				if new_edging:
+					edgebanding.append(new_edging)
+				
+			else:
+				item = frappe.db.sql("""select depth,width,height,depthunit,widthunit,heightunit from `tabItem` where name=%s""", bb_item, as_dict = 1)
+				if item[0].depth == 0:
+					frappe.throw(_("Item {0} has no dimensions").format(bb_item))
+				
+				if item[0].width == 0:
+					frappe.throw(_("Item {0} has no dimensions").format(bb_item))
+					
+				item[0].depth = convert_units(item[0].depthunit,item[0].depth)
+				item[0].width = convert_units(item[0].widthunit,item[0].width)
+				
+				required_qty = farea * bb_qty
+				required_uom = "sqm"
+				conversion_factor = flt(item[0].depth * item[0].width) or 1.0
+				# calculate stock required_qty using dimensions of item
+				qty = flt(required_qty) / flt(conversion_factor)
+				
+				newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+				mdf.append(newitem)
+				
+				new_laminate = process_laminate(bb_item,bb_qty,side,laminate_sides,d_laminate,length,width,farea)
+				if new_laminate:
+					laminate.append(new_laminate)
+
+				new_edging = process_edging(bb_item,bb_qty,side,edging,edging_sides,length,width,perimeter)
+				if new_edging:
+					edgebanding.append(new_edging)
+
+				
+				
+		
+		summary = ""
+		if len(custom)> 0 :
+			summary = str(create_condensed_table(custom))
+				
+		materials = mdf + laminate + edgebanding
+		if len(materials)> 0 :
+			summary = str(summary) + str(create_custom_table(materials))
+		
+		merged = merge(custom + materials)
+		return merged,summary
+		
+	
 	def update_bom_builder(self,merged):
 		self.set('items', [])
 
 		
 		for i, item in enumerate(merged):
+			
 			d = merged[item]
+
 			newd = self.append('items')
 			newd.item_code = d["item_code"]
 			newd.qty = d["qty"]
-			newd.required_qty = d["qty"]
+			
 			
 			ret_item = self.get_bom_material_detail({"item_code": d["item_code"], "bom_no": "","qty": d["qty"]})
 			
-			newd.rate = ret_item["rate"]
+			newd.rate = flt(ret_item["rate"])
 			newd.stock_uom = ret_item["stock_uom"]
 			
 			newd.amount = flt(ret_item["rate"])*flt(d["qty"])
 			
-			# newd.required_qty = d["required_qty"]
-			# newd.required_uom = d["required_uom"]
-			# newd.conversion_factor = d["conversion_factor"]
-			# newd.required_rate = rate * conversion_factor
+			newd.required_qty = flt(d["required_qty"])
+			newd.required_uom = d["required_uom"]
+			newd.conversion_factor = 1/flt(d["conversion_factor"])
+			newd.required_rate = flt(ret_item["rate"]) / flt(d["conversion_factor"])
 			
-			newd.required_uom = ret_item["required_uom"]
-			newd.conversion_factor = ret_item["conversion_factor"]
-			newd.required_rate = ret_item["required_rate"]
+			# newd.required_qty = d["qty"]
+			# newd.required_uom = ret_item["required_uom"]
+			# newd.conversion_factor = ret_item["conversion_factor"]
+			# newd.required_rate = ret_item["required_rate"]
 			
 			newd.item_name = ret_item["item_name"]
 			newd.description = ret_item["description"]
@@ -614,285 +798,27 @@ def get_bom_items_as_dict(bom, company, qty=1, fetch_exploded=1, fetch_scrap_ite
 
 	return item_dict
 	
-@frappe.whitelist()
-def build_bom(items = None,glueitem = None,depthOriginal=None,widthOriginal=None,heightOriginal=None,
-depthunit=None,widthunit=None,heightunit=None,qtyOriginal = None):
 
-	
-	if not (items):
-		frappe.throw(_("No items provided"))
-	
-	import json
-	bomitems = json.loads(items)
-	
-	if not (depthOriginal):
-		frappe.throw(_("No depth provided"))
-				
-	if not (widthOriginal):
-		frappe.throw(_("No width provided"))
-	
-	if not (heightOriginal):
-		frappe.throw(_("No height provided"))
-		
-	if not (depthunit):
-		frappe.throw(_("No units provided"))
-				
-	if not (widthunit):
-		frappe.throw(_("No units provided"))
-	
-	if not (heightunit):
-		frappe.throw(_("No units provided"))
-		
-	if not (qtyOriginal):
-		qtyOriginal = 1
-	
-	depthOriginal = convert_units(depthunit,depthOriginal)
-	widthOriginal = convert_units(widthunit,widthOriginal)
-	heightOriginal = convert_units(heightunit,heightOriginal)
-	
-	edgebanding = []
-	laminate = []
-	mdf = []
-	custom = []
-	# glue = []
-	summary = ""
-	for i, d in enumerate(bomitems):
-
-		if d['side'] in ["top","bottom","shelves"]:
-			length = depthOriginal
-			width = widthOriginal
-		elif d['side'] in ["right","left"]:
-			length = heightOriginal
-			width = depthOriginal
-		elif d['side'] in ["front","back","single door","double door"]:
-			length = heightOriginal
-			width = widthOriginal
-		elif d['side'] in ["AngledSingleDoor","AngledDoubleDoor"]:
-			length = heightOriginal
-			width = (depthOriginal ** 2.0 + widthOriginal ** 2.0) ** 0.5
-		elif d['side'] in ["door frame"]:
-			length = depthOriginal
-			width = 2*flt(heightOriginal)+flt(widthOriginal)
-		elif d['side'] in ["frame"]:
-			length = depthOriginal
-			width = widthOriginal
-		else:
-			length = depthOriginal
-			width = widthOriginal
-		
-		length = round(length,2)
-		width = round(width,2)
-		
-		perimeter = 2*flt(length)+2*flt(width)
-		farea = flt(length) *flt(width)
-		required_qty = 0
-		d['qty'] = flt(d['qty'])*flt(qtyOriginal)
-		qty = flt(d['qty'])
-		
-		item = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", d['item_code'], as_dict = 1)
-
-		conversion_factor = 1.0
-		stock_uom = item[0].stock_uom
-		required_uom = item[0].stock_uom
-		from math import ceil
-
-		if d['side'] in ["hardware","custom",""]:
-
-			required_qty = d['qty']
-			qty = d['qty']
-			newitem = {"side":d['side'],"item_code":d['item_code'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			custom.append(newitem)
-		elif d['side'] in ["frame"]:
-			required_qty = perimeter * d['qty']
-
-			required_uom = "m"
-			stock_uom = item[0].stock_uom
-			conversion_factor = get_conversion_factor(d['item_code'], required_uom).get("conversion_factor") or 1.0
-			conversion_factor = flt(1/conversion_factor)
-			
-			qty = flt(required_qty)/flt(conversion_factor)
-			newitem = {"side":d['side'],"item_code":d['item_code'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			custom.append(newitem)
-			
-		else:
-			item = frappe.db.sql("""select depth,width,height,depthunit,widthunit,heightunit from `tabItem` where name=%s""", d['item_code'], as_dict = 1)
-			if not (item[0].depth or item[0].depthunit):
-				frappe.throw(_("Item {0} has no dimensions or units").format(d['item_code']))
-			
-			if not (item[0].width or item[0].widthunit):
-				frappe.throw(_("Item {0} has no dimensions or units").format(d['item_code']))
-				
-			item[0].depth = convert_units(item[0].depthunit,item[0].depth)
-			item[0].width = convert_units(item[0].widthunit,item[0].width)
-			
-			required_qty = farea * d['qty']
-			required_uom = "sqm"
-			conversion_factor = flt(item[0].depth * item[0].width)
-			# calculate stock required_qty using dimensions of item
-			qty = flt(required_qty) / flt(conversion_factor)
-			
-			newitem = {"side":d['side'],"item_code":d['item_code'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
-			
-			
-			
-			if d['laminate_sides'] == "Single Pressed" and d['laminate']:
-			
-				item = frappe.db.sql("""select depth,width,height,depthunit,widthunit,heightunit,stock_uom from `tabItem` where name=%s""", d['item_code'], as_dict = 1)
-				if not (item[0].depth or item[0].depthunit):
-					frappe.throw(_("Item {0} has no dimensions or units").format(d['item_code']))
-				
-				if not (item[0].width or item[0].widthunit):
-					frappe.throw(_("Item {0} has no dimensions or units").format(d['item_code']))
-					
-				item[0].depth = convert_units(item[0].depthunit,item[0].depth)
-				item[0].width = convert_units(item[0].widthunit,item[0].width)
-				
-				required_qty = farea
-				required_uom = "sqm"
-				conversion_factor = flt(item[0].depth) * flt(item[0].width)
-				stock_uom = item[0].stock_uom
-				# calculate stock required_qty using dimensions of item
-				qty = flt(required_qty) / flt(conversion_factor)
-				
-				newitem = {"side":d['side'],"item_code":d['laminate'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-				laminate.append(newitem)
-				
-				
-				
-
-				# if glueitem:
-					# glueinfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", glueitem, as_dict = 1)
-					# required_qty = farea*200
-					# required_uom = "g"
-					# conversion_factor = get_conversion_factor(glueitem, required_uom).get("conversion_factor") or 1.0
-					# stock_uom = glueinfo[0].stock_uom
-					# conversion_factor = flt(1/conversion_factor)
-					# qty = flt(required_qty)/flt(conversion_factor)
-					# newitem = {"side":d['side'],"item_code":glueitem,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-					# glue.append(newitem)
-				# else:
-					# frappe.msgprint(_("Glue Item Not Set"))
-
-			elif d['laminate_sides'] == "Double Pressed" and d['laminate']:
-			
-				item = frappe.db.sql("""select depth,width,height,depthunit,widthunit,heightunit,stock_uom from `tabItem` where name=%s""", d['item_code'], as_dict = 1)
-				if not (item[0].depth or item[0].depthunit):
-					frappe.throw(_("Item {0} has no dimensions or units").format(d['item_code']))
-				
-				if not (item[0].width or item[0].widthunit):
-					frappe.throw(_("Item {0} has no dimensions or units").format(d['item_code']))
-					
-				item[0].depth = convert_units(item[0].depthunit,item[0].depth)
-				item[0].width = convert_units(item[0].widthunit,item[0].width)
-				
-				required_qty = farea * 2
-				required_uom = "sqm"
-				conversion_factor = flt(item[0].depth) * flt(item[0].width)
-				stock_uom = item[0].stock_uom
-				# calculate stock required_qty using dimensions of item
-				qty = flt(required_qty) / flt(conversion_factor)
-				
-				newitem = {"side":d['side'],"item_code":d['laminate'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-				laminate.append(newitem)
-				
-				
-				
-				# if glueitem:
-					# glueinfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", glueitem, as_dict = 1)
-					# required_qty = farea*2*200
-					# required_uom = "g"
-					# conversion_factor = get_conversion_factor(glueitem, required_uom).get("conversion_factor") or 1.0
-					# conversion_factor = flt(1/conversion_factor)
-					# stock_uom = glueinfo[0].stock_uom
-					# qty = flt(required_qty)/flt(conversion_factor)
-					# newitem = {"side":d['side'],"item_code":glueitem,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-					# glue.append(newitem)
-				# else:
-					# frappe.msgprint(_("Glue Item Not Set"))
-			
-			if d['edgebanding'] in ["All Sides","Front Side","Front Side","FrontAndSides"] and d['edging']:
-				edginginfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", d['edging'], as_dict = 1)
-				
-				if d['edgebanding'] == "All Sides" and d['edging']:
-					if d['side'] in ["single door","AngledSingleDoor"]:
-						required_qty = flt(perimeter) * flt(d['qty'])
-					elif d['side'] in ["double door","AngledDoubleDoor"]:
-						required_qty = ( 2*flt(length) + flt(perimeter))*flt(d['qty'])
-					elif d['side'] in ["door frame"]:
-						required_qty = (flt(length))*flt(d['qty'])
-					else:
-						required_qty = perimeter * d['qty']
-
-				elif d['edgebanding'] == "Front Side" and d['edging']:
-					required_qty = width * d['qty']
-				elif d['edgebanding'] == "FrontAndSides" and d['edging']:
-					required_qty = ( flt(perimeter) - flt(width) )*flt(d['qty'])
-				
-				required_uom = "m"
-				stock_uom = edginginfo[0].stock_uom
-				conversion_factor = get_conversion_factor(d['edging'], required_uom).get("conversion_factor") or 1.0
-				conversion_factor = flt(1/conversion_factor)
-						
-				qty = flt(required_qty)/flt(conversion_factor)
-				newitem = {"side":d['side'],"item_code":d['edging'],"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-				edgebanding.append(newitem)
-			
-	dutible = custom
-	nondutible = mdf + laminate + edgebanding
-	for dicts in (dutible,nondutible):
-		if len(dicts)> 0 :
-			
-
-			joiningtext = """<table class="table table-bordered table-condensed">
-						<tr>
-						<th>Sr</th>
-						<th width="20%">Item Code</th>
-						<th>Part</th>
-						<th>Length (m)</th>
-						<th>Width (m)</th>
-						<th>Required Qty</th>
-						<th width="20%">Stock Details</th>
-						<th width="20%">Stock Qty</th>
-						</tr>"""
-			for i, d in enumerate(dicts):
-				d["qty"] = round(flt(d["qty"]),5)
-				d["conversion_factor"] = round(flt(d["conversion_factor"]),5)
-				joiningtext += """<tr>
-							<td>""" + str(i+1) +"""</td>
-							<td>""" + str(d["item_code"]) +"""</td>
-							<td>""" + str(d["side"]) +"""</td>
-							<td>""" + str(d["length"]) +"""</td>
-							<td>""" + str(d["width"]) +"""</td>
-							<td>""" + str(d["required_qty"]) + " " +str(d["required_uom"])+"""</td>
-							<td>""" + str(d["conversion_factor"]) + (" " + str(d["required_uom"]) + "/" + str(d["stock_uom"]) if d["conversion_factor"] else "")+"""</td>
-							<td>""" + str(d["qty"]) + " " +str(d["stock_uom"])+"""</td>
-							</tr>"""
-			joiningtext += """</table><br>"""
-			summary = summary + joiningtext
-	
-	dicts = dutible + nondutible
-	merged = merge(dicts)
-	return merged,summary
 
 def convert_units(unit,value):
-		if unit == "ft":
-			finalvalue = flt(value) * flt(.3048)
-		elif unit == "cm":
-			finalvalue = flt(value) * flt(.01)
-		elif unit == "mm":
-			finalvalue = flt(value) * flt(0.001)
-		elif unit == "in":
-			finalvalue = flt(value) * flt(.0254)
-		else:
-			finalvalue = flt(value)
-		return finalvalue	
+	if unit == "ft":
+		finalvalue = flt(value) * flt(.3048)
+	elif unit == "cm":
+		finalvalue = flt(value) * flt(.01)
+	elif unit == "mm":
+		finalvalue = flt(value) * flt(0.001)
+	elif unit == "in":
+		finalvalue = flt(value) * flt(.0254)
+	else:
+		finalvalue = flt(value)
+	return finalvalue	
 		
 def merge(dicts):
 	item_dict = {}
 	for item in dicts:
 		if item_dict.has_key(item["item_code"]):
 			item_dict[item["item_code"]]["qty"] += flt(item["qty"])
+			item_dict[item["item_code"]]["required_qty"] += flt(item["required_qty"])
 		else:
 			item_dict[item["item_code"]] = item
 			
@@ -932,3 +858,206 @@ def get_children():
 			and bom_item.item_code = item.name
 			order by bom_item.idx
 			""", frappe.form_dict.parent, as_dict=True)
+
+@frappe.whitelist()
+def get_product_bundle_items(item_code):
+	new_dict = frappe.db.sql("""select t1.bb_item, t1.bb_qty, t1.side, t1.requom, t1.edging,t1.edgebanding,t1.laminate,t1.laminate_sides
+		from `tabBOM Builder Item` t1, `tabBOM Collection` t2
+		where t2.collection_name=%s and t1.parent = t2.name order by t1.idx""", item_code, as_dict=1)
+	return new_dict
+	
+@frappe.whitelist()
+def get_part_details(part=None,item_code=None):
+	plane = ""
+	required_uom = "Nos"
+	
+	if part:
+		plane = frappe.db.get_value("BOM Part", {"part": part},"plane")
+		
+		if part in ['top', 'bottom', 'shelves','panel']:
+			required_uom = "sqm"
+		elif part in ["right","left"]:
+			required_uom = "sqm"
+		elif part in ["front","back","single door","double door"]:
+			required_uom = "sqm"
+		elif part in ["AngledSingleDoor","AngledDoubleDoor"]:
+			required_uom = "sqm"
+		elif part in ["door frame"]:
+			required_uom = "m"
+		elif part in ["frame"]:
+			required_uom = "m"
+		elif part in ["manufactured legs"]:
+			required_uom = "m"
+		else:
+			if item_code:
+				from erpnext.stock.get_item_details import get_default_uom
+				required_uom = get_default_uom(item_code)
+			
+	return plane,required_uom
+
+def process_edging(bb_item,bb_qty,side,edging,edging_sides,length,width,perimeter):
+	if edging_sides and edging_sides != "None" and edging:
+		edginginfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", edging, as_dict = 1)
+		required_qty = 0
+			
+		if edging_sides in ["All Sides","All Sides Each"]:
+			required_qty = perimeter
+			
+			if edging_sides == "All Sides Each":
+				required_qty = required_qty * flt(bb_qty)
+				
+		elif edging_sides in ["Front Side","Front Only","Back Only"]:
+			required_qty = width
+			
+			if edging_sides in ["Front Only Each","Back Only Each"]:
+				required_qty = required_qty * flt(bb_qty)
+			
+			
+		elif edging_sides in ["Front & Back"]:
+			required_qty = 2 * width
+			
+			if edging_sides in ["Front & Back Each"]:
+				required_qty = required_qty * flt(bb_qty)
+			
+		elif edging_sides in ["Sides Only"]:
+			required_qty = 2 * length
+			if edging_sides in ["Sides Only Each"]:
+				required_qty = required_qty * flt(bb_qty)
+			
+			
+		elif edging_sides in ["FrontAndSides","Front & Sides"]:
+			required_qty = ( flt(perimeter) - flt(width) )
+			
+			if edging_sides in ["Front & Sides Each"]:
+				required_qty = required_qty * flt(bb_qty)
+			
+		if side in ["door frame"]:
+			required_qty = flt(2*length + width)
+		elif side in ["frame"]:
+			required_qty = flt(perimeter)
+		elif side in ["single door","AngledSingleDoor"]:
+			required_qty = flt(perimeter)
+		elif side in ["double door","AngledDoubleDoor"]:
+			required_qty = ( 2*flt(length) + flt(perimeter))
+			
+		required_uom = "m"
+		stock_uom = edginginfo[0].stock_uom
+		conversion_factor = get_conversion_factor(edging, required_uom).get("conversion_factor")
+		
+		if not conversion_factor:
+			frappe.throw(_("Item {0} has no conversion factor for {1}").format(edging,required_uom))
+		
+		conversion_factor = flt(1/conversion_factor)
+				
+		qty = flt(required_qty)/flt(conversion_factor)
+		detail = side + " " + edging_sides
+
+		
+		newitem = {"side":detail,"item_code":edging,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+		return newitem
+	else:
+		return None
+		
+def process_laminate(bb_item,bb_qty,side,laminate_sides,d_laminate,length,width,farea):
+	if laminate_sides and laminate_sides != "None" and d_laminate:
+		required_qty = 0
+					
+		item = frappe.db.sql("""select depth,width,height,depthunit,widthunit,heightunit,stock_uom from `tabItem` where name=%s""", bb_item, as_dict = 1)
+		if item[0].depth == 0:
+			frappe.throw(_("Item {0} has no dimensions").format(bb_item))
+	
+		if item[0].width == 0:
+			frappe.throw(_("Item {0} has no dimensions").format(bb_item))
+			
+		item[0].depth = convert_units(item[0].depthunit,item[0].depth)
+		item[0].width = convert_units(item[0].widthunit,item[0].width)
+		
+		required_qty = farea
+		if laminate_sides == "Double Pressed":
+			required_qty = farea * 2
+		elif laminate_sides == "Double Pressed Each":
+			required_qty = bb_qty * farea * 2
+		elif laminate_sides == "Single Pressed Each":
+			required_qty = bb_qty * farea
+			
+		required_uom = "sqm"
+		conversion_factor = flt(item[0].depth) * flt(item[0].width) or 1.0
+		stock_uom = item[0].stock_uom
+		# calculate stock required_qty using dimensions of item
+		qty = flt(required_qty) / flt(conversion_factor)
+		
+		detail = side + " " + laminate_sides
+		newitem = {"side":detail,"item_code":d_laminate,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+		return newitem
+		
+
+		# if glueitem:
+			# glueinfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", glueitem, as_dict = 1)
+			# required_qty = required_qty*200
+			# required_uom = "g"
+			# conversion_factor = get_conversion_factor(glueitem, required_uom).get("conversion_factor") or 1.0
+			# stock_uom = glueinfo[0].stock_uom
+			# conversion_factor = flt(1/conversion_factor)
+			# qty = flt(required_qty)/flt(conversion_factor)
+			# newitem = {"side":side,"item_code":glueitem,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+			# glue.append(newitem)
+		# else:
+			# frappe.msgprint(_("Glue Item Not Set"))
+	else:
+		return None
+def create_condensed_table(dict):
+	summary = ""
+	
+	joiningtext = """<table class="table table-bordered table-condensed">"""
+	joiningtext += """<thead>
+			<tr style>
+				<th width="20%">Item Code</th>
+				<th>Part</th>
+				<th>Required Qty</th>
+				<th width="20%">Stock Details</th>
+				<th width="20%">Stock Qty</th>
+				</tr></thead><tbody>"""	
+	for i, d in enumerate(dict):
+		d["qty"] = round(flt(d["qty"]),5)
+		d["conversion_factor"] = round(flt(d["conversion_factor"]),5)
+		joiningtext += """<tr>
+					<td>""" + str(d["item_code"]) +"""</td>
+					<td>""" + str(d["side"]) +"""</td>
+					<td>""" + str(d["required_qty"]) + " " +str(d["required_uom"])+"""</td>
+					<td>""" + str(d["conversion_factor"]) + (" " + str(d["required_uom"]) + "/" + str(d["stock_uom"]) if d["conversion_factor"] else "")+"""</td>
+					<td>""" + str(d["qty"]) + " " +str(d["stock_uom"])+"""</td>
+					</tr>"""
+	joiningtext += """</tbody></table>"""
+	summary += joiningtext
+	return summary
+	
+	
+def create_custom_table(dict):
+	summary = ""
+	
+	joiningtext = """<table class="table table-bordered table-condensed">"""
+	joiningtext += """<thead>
+			<tr style>
+				<th width="20%">Item Code</th>
+				<th>Part</th>
+				<th>Length (m)</th>
+				<th>Width (m)</th>
+				<th>Required Qty</th>
+				<th width="20%">Stock Details</th>
+				<th width="20%">Stock Qty</th>
+				</tr></thead><tbody>"""	
+	for i, d in enumerate(dict):
+		d["qty"] = round(flt(d["qty"]),5)
+		d["conversion_factor"] = round(flt(d["conversion_factor"]),5)
+		joiningtext += """<tr>
+					<td>""" + str(d["item_code"]) +"""</td>
+					<td>""" + str(d["side"]) +"""</td>
+					<td>""" + str(d["length"]) +"""</td>
+					<td>""" + str(d["width"]) +"""</td>
+					<td>""" + str(d["required_qty"]) + " " +str(d["required_uom"])+"""</td>
+					<td>""" + str(d["conversion_factor"]) + (" " + str(d["required_uom"]) + "/" + str(d["stock_uom"]) if d["conversion_factor"] else "")+"""</td>
+					<td>""" + str(d["qty"]) + " " +str(d["stock_uom"])+"""</td>
+					</tr>"""
+	joiningtext += """</tbody></table>"""
+	summary += joiningtext
+	return summary

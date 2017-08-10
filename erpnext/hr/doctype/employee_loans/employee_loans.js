@@ -21,9 +21,7 @@ cur_frm.cscript.employee = function(doc,dt,dn){
 
 
 cur_frm.cscript.transaction_amount = function(doc,dt,dn){
-	if (doc.employee) {
-		calculate_earning_total(doc, dt, dn);
-	}
+	calculate_earning_total(doc, dt, dn);
 }
 
 cur_frm.cscript.transaction_type = cur_frm.cscript.transaction_amount;

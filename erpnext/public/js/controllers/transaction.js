@@ -474,6 +474,24 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		this.set_dynamic_labels();
 
 		var company_currency = this.get_company_currency();
+		
+		/* frappe.call({
+			method:'erpnext.stock.doctype.price_list.price_list.get_price_list_with_currency',
+			args:{
+				currency: this.frm.doc.currency,
+				doctype: this.frm.doctype
+			},
+			callback:function (r) {
+				console.log(r);
+				if (r.message){
+					
+					if(me.frm.doctype === "Purchase Order")
+						me.frm.set_value("buying_price_list",r.message.name);
+				}
+					
+			}
+		}) */
+
 		// Added `ignore_pricing_rule` to determine if document is loading after mapping from another doc
 		if(this.frm.doc.currency && this.frm.doc.currency !== company_currency
 				&& !this.frm.doc.ignore_pricing_rule) {
@@ -575,6 +593,10 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			frappe.model.round_floats_in(item, ["qty", "conversion_factor"]);
 			item.stock_qty = flt(item.qty * item.conversion_factor, precision("stock_qty", item));
 			refresh_field("stock_qty", item.name, item.parentfield);
+			
+			// item.rate = flt(item.price_list_rate * item.conversion_factor, precision("rate", item));
+			// this.calculate_taxes_and_totals();
+			// refresh_field("rate", item.name, item.parentfield);
 		}
 	},
 

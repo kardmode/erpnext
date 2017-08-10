@@ -1,5 +1,6 @@
 {
  "allow_copy": 0, 
+ "allow_guest_to_view": 0, 
  "allow_import": 0, 
  "allow_rename": 0, 
  "autoname": "LAP/.#####", 
@@ -759,18 +760,18 @@
    "unique": 0
   }
  ], 
+ "has_web_view": 0, 
  "hide_heading": 0, 
  "hide_toolbar": 0, 
  "icon": "fa fa-calendar", 
  "idx": 1, 
  "image_view": 0, 
  "in_create": 0, 
- "in_dialog": 0, 
  "is_submittable": 0, 
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 3, 
- "modified": "2017-02-24 07:33:08.907824", 
+ "modified": "2017-04-20 08:41:55.508975", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Leave Application", 

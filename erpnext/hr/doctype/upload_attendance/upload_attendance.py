@@ -5,7 +5,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cstr, add_days, date_diff, get_datetime
+from frappe.utils import cstr, add_days, date_diff, get_datetime,getdate
 from frappe import _
 from frappe.utils.csvutils import UnicodeWriter
 from frappe.model.document import Document
@@ -31,7 +31,7 @@ def get_template():
 	frappe.response['doctype'] = "Attendance"
 
 def add_header(w):
-	w.writerow(["Employee", "Att Date", "Arrival Time", "Departure Time"])
+	w.writerow(["Employee", "Attendance Date", "Arrival Time", "Departure Time"])
 
 
 	return w
@@ -86,7 +86,7 @@ def get_naming_series():
 
 
 @frappe.whitelist()
-def upload():
+def upload(import_settings = None):
 	if not frappe.has_permission("Attendance", "create"):
 		raise frappe.PermissionError
 
@@ -106,8 +106,20 @@ def upload():
 	ret = []
 	error = False
 	started = False
+	
+	import json
+	params = json.loads(frappe.form_dict.get("params") or '{}')
+	
+	
+	if not params.get("import_settings"):
+		import_settings = "default"
+	else:
+		import_settings = params.get("import_settings")
+		
+	
 
 	from frappe.utils.csvutils import check_record, import_doc
+	
 	
 	for i, row in enumerate(rows[1:]):
 		if not row: continue
@@ -115,21 +127,58 @@ def upload():
 		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
+		# frappe.errprint(d.attendance_date)
+		if import_settings == "ignore":
+			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
+			(d.employee, getdate(d.attendance_date)),as_dict=True)
+			if attendance:
+
+				ret.append('Ignored row (#%d) %s : %s' % (row_idx+1,
+					len(row)>1 and row[1] or "", cstr(d.employee)))
+			else:
+				try:
+					check_record(d)
+					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+				except Exception, e:
+					error = True
+					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+						len(row)>1 and row[1] or "", cstr(e)))
+					# frappe.errprint(frappe.get_traceback())
+				
+				
+		elif import_settings == "update":
+			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
+				(d.employee, getdate(d.attendance_date)),as_dict=True)
+			
+			if attendance:
+				d["docstatus"] = attendance[0].docstatus
+				d["name"] = attendance[0].name
+				
+	
 		
-		try:
-			check_record(d)
-			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
-		except Exception, e:
-			error = True
-			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-				len(row)>1 and row[1] or "", cstr(e)))
-			frappe.errprint(row_idx)
-			frappe.errprint(frappe.get_traceback())
+			try:
+				check_record(d)
+				ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+			except Exception, e:
+				error = True
+				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+					len(row)>1 and row[1] or "", cstr(e)))
+				# frappe.errprint(frappe.get_traceback())
+		else:
+			try:
+				check_record(d)
+				ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+			except Exception, e:
+				error = True
+				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+					len(row)>1 and row[1] or "", cstr(e)))
+				# frappe.errprint(frappe.get_traceback())
 	
 	if not started:
 		error = True
 		ret.append('Error reading csv file')
 	
+
 	if error:
 		frappe.db.rollback()
 	else:

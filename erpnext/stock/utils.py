@@ -41,8 +41,8 @@ def get_stock_value_on(warehouse=None, posting_date=None, item_code=None):
 
 	sle_map = {}
 	for sle in stock_ledger_entries:
-		sle_map[sle.item_code] = sle_map.get(sle.item_code, 0.0) + flt(sle.stock_value)
-		
+		if not sle.item_code in sle_map:
+			sle_map[sle.item_code] = sle_map.get(sle.item_code, 0.0) + flt(sle.stock_value)
 	return sum(sle_map.values())
 
 @frappe.whitelist()
@@ -67,6 +67,17 @@ def get_stock_balance(item_code, warehouse, posting_date=None, posting_time=None
 	else:
 		return last_entry.qty_after_transaction or 0.0
 
+@frappe.whitelist()
+def get_actual_qty(item_code):
+
+	actual_qty = 0
+	if item_code:
+		stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item_code, as_dict = 1)
+		if stock_details:
+			actual_qty =flt(stock_details[0])
+	
+	return actual_qty
+		
 def get_latest_stock_balance():
 	bin_map = {}
 	for d in frappe.db.sql("""SELECT item_code, warehouse, stock_value as stock_value

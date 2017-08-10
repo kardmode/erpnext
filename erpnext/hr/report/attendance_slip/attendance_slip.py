@@ -92,7 +92,7 @@ def get_columns(filters):
 	
 def get_attendance_map(conditions, filters):
 	attendance_list = frappe.db.sql("""select employee, day(attendance_date) as day_of_month,attendance_date,
-		arrival_time,departure_time,normal_time,overtime,overtime_fridays,overtime_holidays from tabAttendance where %s order by employee, attendance_date""" %
+		arrival_time,departure_time,normal_time,overtime,overtime_fridays,overtime_holidays,status from tabAttendance where %s order by employee, attendance_date""" %
 		conditions, filters, as_dict=1)
 
 	att_map = {}

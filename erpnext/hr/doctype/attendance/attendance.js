@@ -3,19 +3,20 @@
 
 cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('employee', 'employee_name', 'employee_name');
+cur_frm.add_fetch('employee', 'department', 'department');
 
 cur_frm.cscript.onload = function(doc, cdt, cdn) {
 	if(doc.__islocal) {
-		doc.att_date = get_today();
+		doc.attendance_date = get_today();
 		doc.arrival_time = "05:30:00";
 		doc.departure_time = "23:30:00";
-		refresh_many(['att_date','arrival_time','departure_time']);
+		refresh_many(['attendance_date','arrival_time','departure_time']);
 		calculate_all(doc,cdt,cdn);
 	}
 }
 
 // set hours if to_time is updated
-frappe.ui.form.on("Attendance", "att_date", function(frm) {
+frappe.ui.form.on("Attendance", "attendance_date", function(frm) {
 	calculate_all(frm.doc,frm.dt,frm.dn);
 });
 

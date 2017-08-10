@@ -26,12 +26,13 @@ def execute(filters=None):
 	for ss in salary_slips:
 		row = []
 		
-		vars = frappe.db.sql("""select payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
+		vars = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
 		
 		
 		if vars:
 			for d in vars:
 				row += [d.payroll_agent_code,d.payroll_agent_id]
+				row += [d.mol_id]
 		
 		row += [ss.employee_name]
 
@@ -61,10 +62,12 @@ def execute(filters=None):
 	
 def get_columns(salary_slips):
 	columns = [
-		_("Agent Code") + "::140",_("Agent ID") + "::140",_("Employee Name") + "::140"
+		_("Agent Code") + "::150",_("Agent ID") + "::180"
 	]
+	columns = columns +	["MOL ID::180"]
+
+	columns = columns +	["Employee Name::160"]
 	
-		
 	salary_components = {_("Earning"): [], _("Deduction"): []}
 
 	for component in frappe.db.sql("""select distinct sd.salary_component, sc.type
@@ -72,9 +75,12 @@ def get_columns(salary_slips):
 		where sc.name=sd.salary_component and sd.amount != 0 and sd.parent in (%s)""" %
 		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1):
 		salary_components[component.type].append(component.salary_component)
-		
+	
+	
 	columns = columns +	["Basic Pay:Currency:120", "Variable Pay:Currency:120"]
 
+	
+	
 	return columns, salary_components[_("Earning")], salary_components[_("Deduction")]
 	
 	
@@ -90,6 +96,33 @@ def get_salary_slips(filters):
 	
 def get_conditions(filters):
 	conditions = ""
+	if not (filters.get("month") and filters.get("fiscal_year")):
+		msgprint(_("Please select month and year"), raise_exception=1)
+
+	filters["month"] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
+		"Dec"].index(filters.month) + 1
+
+	if not filters.get("fiscal_year"):
+		msgprint(_("Please select valid year"), raise_exception=1)
+	
+	if frappe.db.get_value("Fiscal Year", filters.fiscal_year,"year_start_date"):
+		year_start_date, year_end_date = frappe.db.get_value("Fiscal Year", filters.fiscal_year, 
+			["year_start_date", "year_end_date"])
+	else:
+		msgprint(_("Please select a valid year"), raise_exception=1)
+
+	
+	if filters.month >= year_start_date.strftime("%m"):
+		year = year_start_date.strftime("%Y")
+	else:
+		year = year_end_date.strftime("%Y")
+	
+	from erpnext.hr.doctype.process_payroll.process_payroll import get_month_details
+	month_details = get_month_details(year, filters.month)
+	frappe.errprint(month_details)
+	filters["from_date"] = month_details.month_start_date
+	filters["to_date"] = month_details.month_end_date
+
 	if filters.get("from_date"): conditions += " and start_date >= %(from_date)s"
 	if filters.get("to_date"): conditions += " and end_date <= %(to_date)s"
 	

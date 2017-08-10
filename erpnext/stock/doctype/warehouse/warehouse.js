@@ -34,7 +34,10 @@ frappe.ui.form.on("Warehouse", {
 		}
 		else{
 			if (!frm.doc.parent_warehouse)
+			{
 				frm.set_value("parent_warehouse", "Import Docs - SLI");
+			}
+				
 		}
 		
 		

@@ -101,6 +101,13 @@ erpnext.stock.PurchaseReceiptController = erpnext.buying.BuyingController.extend
 			total_qty = total_qty + d.qty;
 		})
 		this.frm.doc.total_qty = total_qty;
+		
+		fake_total = 0;
+		
+		(this.frm.doc.items || []).forEach(function(d) {
+			fake_total = fake_total + d.fake_qty;
+		})
+		this.frm.doc.fake_total = fake_total;
 
 		this._super();
 		

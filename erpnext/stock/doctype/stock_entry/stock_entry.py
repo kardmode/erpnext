@@ -127,9 +127,17 @@ class StockEntry(StockController):
 			self.from_warehouse = None
 			for d in self.get('items'):
 				d.s_warehouse = None
+				
+		if self.purpose == "Manufacture":
+		
+			from erpnext.manufacturing.doctype.production_order.production_order import get_default_warehouse
+
+			default_warehouses = get_default_warehouse()
+
+			self.from_warehouse = default_warehouses.get("wip_warehouse")
+			self.to_warehouse = default_warehouses.get("fg_warehouse")
 
 		for d in self.get('items'):
-
 			if not d.s_warehouse and not d.t_warehouse:
 				d.s_warehouse = self.from_warehouse
 				d.t_warehouse = self.to_warehouse
@@ -164,24 +172,10 @@ class StockEntry(StockController):
 						d.t_warehouse = None
 						if not d.s_warehouse:
 							frappe.throw(_("Source warehouse is mandatory for row {0}").format(d.idx))
-			elif self.purpose == "Material Transfer for Manufacture":
-				stock_details = frappe.db.sql("select warehouse,actual_qty from `tabBin` where item_code = (%s)",d.item_code ,as_dict=1)
-				best_warehouses = []
-				for stdetail in stock_details:
-					if stdetail.actual_qty >= d.qty:
-						best_warehouses.insert(0,stdetail.warehouse)
-					elif stdetail.actual_qty > 0:
-						best_warehouses.append(stdetail.warehouse)
-
-				if best_warehouses and not d.s_warehouse in best_warehouses:
-					d.s_warehouse = best_warehouses[0]
-
-				# try to find best source warehouse based on stock balances if purpose = "Material Transfer for Manufacture"
-
-					
 
 			if cstr(d.s_warehouse) == cstr(d.t_warehouse) and not self.purpose == "Material Transfer for Manufacture":
 				frappe.throw(_("Source and target warehouse cannot be same for row {0}").format(d.idx))
+
 
 	def validate_production_order(self):
 		if self.purpose in ("Manufacture", "Material Transfer for Manufacture"):
@@ -238,9 +232,17 @@ class StockEntry(StockController):
 				"posting_time": self.posting_time
 			})
 
+			
+			
 			# get actual stock at source warehouse
 			d.actual_qty = previous_sle.get("qty_after_transaction") or 0
-			frappe.errprint(d.actual_qty)	
+			d.initial_qty = d.actual_qty
+			frappe.errprint(d.initial_qty)
+			if d.s_warehouse:
+				d.balance_qty = flt(d.actual_qty) - flt(d.transfer_qty); 
+			elif d.t_warehouse:
+				d.balance_qty = flt(d.actual_qty) + flt(d.transfer_qty);
+	
 			# validate qty during submit
 			if d.docstatus==1 and d.s_warehouse and not allow_negative_stock and d.actual_qty < d.transfer_qty:
 				frappe.throw(_("Row {0}: Qty not available for {4} in warehouse {1} at posting time of the entry ({2} {3})").format(d.idx,
@@ -249,7 +251,7 @@ class StockEntry(StockController):
 					+ '<br><br>' + _("Available qty is {0}, you need {1}").format(frappe.bold(d.actual_qty),
 						frappe.bold(d.transfer_qty)),
 					NegativeStockError, title=_('Insufficient Stock'))
-
+		
 	def set_serial_nos(self, production_order):
 		previous_se = frappe.db.get_value("Stock Entry", {"production_order": production_order,
 				"purpose": "Material Transfer for Manufacture"}, "name")
@@ -530,7 +532,7 @@ class StockEntry(StockController):
 
 		stock_and_rate = args.get('warehouse') and get_warehouse_details(args) or {}
 		ret.update(stock_and_rate)
-
+		
 		return ret
 
 	def get_items(self):
@@ -565,8 +567,16 @@ class StockEntry(StockController):
 						if self.pro_doc:
 							item["from_warehouse"] = self.pro_doc.wip_warehouse
 
-						item["to_warehouse"] = self.to_warehouse if self.purpose=="Subcontract" else ""
+						if self.purpose in ["Subcontract","Material Transfer for Manufacture"]: 
+							item["to_warehouse"] = self.to_warehouse
+						else:
+							item["to_warehouse"] = ""
+							
+						if self.purpose in ["Material Transfer for Manufacture","Manufacture"]:
+							item["from_warehouse"],enough_stock = get_best_warehouse(item.item_code,item.qty,item.default_warehouse)
 
+						
+						
 					self.add_to_stock_entry_detail(item_dict)
 
 					scrap_item_dict = self.get_bom_scrap_material(self.fg_completed_qty)
@@ -579,7 +589,7 @@ class StockEntry(StockController):
 			if self.production_order and self.purpose == "Manufacture":
 				self.set_serial_nos(self.production_order)
 
-			# add finished goods item
+			# add finished goods item to be manufactured or repacked
 			if self.purpose in ("Manufacture", "Repack"):
 				self.load_items_from_bom()
 
@@ -615,7 +625,7 @@ class StockEntry(StockController):
 		if not self.production_order and not to_warehouse:
 			# in case of BOM
 			to_warehouse = item.default_warehouse
-
+		
 		self.add_to_stock_entry_detail({
 			item.name: {
 				"to_warehouse": to_warehouse,
@@ -638,6 +648,8 @@ class StockEntry(StockController):
 
 		for item in item_dict.values():
 			item.from_warehouse = self.from_warehouse or item.default_warehouse
+
+
 		return item_dict
 
 	def get_bom_scrap_material(self, qty):
@@ -773,7 +785,6 @@ class StockEntry(StockController):
 				se_child.s_warehouse = self.from_warehouse
 			if se_child.t_warehouse==None:
 				se_child.t_warehouse = self.to_warehouse
-
 			# in stock uom
 			se_child.transfer_qty = flt(item_dict[d]["qty"])
 			se_child.conversion_factor = 1.00
@@ -862,7 +873,7 @@ def get_uom_details(item_code, uom, qty):
 
 	:param args: dict with `item_code`, `uom` and `qty`"""
 	conversion_factor = get_conversion_factor(item_code, uom).get("conversion_factor")
-
+	
 	if not conversion_factor:
 		frappe.msgprint(_("UOM coversion factor required for UOM: {0} in Item: {1}")
 			.format(uom, item_code))
@@ -887,9 +898,38 @@ def get_warehouse_details(args):
 			"posting_date": args.posting_date,
 			"posting_time": args.posting_time,
 		})
+		
+		
 		ret = {
 			"actual_qty" : get_previous_sle(args).get("qty_after_transaction") or 0,
 			"basic_rate" : get_incoming_rate(args)
 		}
-
+		
 	return ret
+	
+@frappe.whitelist()
+def get_best_warehouse(item_code,item_qty,default_warehouse = None):
+	stock_details = frappe.db.sql("select warehouse,actual_qty from `tabBin` where item_code = (%s)",item_code ,as_dict=1)
+	best_warehouses = []
+	
+
+	if not default_warehouse:
+		from erpnext.manufacturing.doctype.production_order.production_order import get_default_warehouse
+
+		best_warehouse = get_default_warehouse().get("source_warehouse")
+	else:
+		best_warehouse = default_warehouse
+	
+	enough_stock = False
+	for stdetail in stock_details:
+		if stdetail.actual_qty >= item_qty:
+			best_warehouses.insert(0,stdetail.warehouse)
+			enough_stock = True
+		elif stdetail.actual_qty > 0:
+			best_warehouses.append(stdetail.warehouse)
+
+	if best_warehouses:
+		best_warehouse = best_warehouses[0]
+
+	frappe.errprint(best_warehouse)
+	return best_warehouse,enough_stock

@@ -1,17 +1,32 @@
-
 {%- set compact = doc.flags.compact_item_print -%}
 {%- set compact_fields = doc.flags.compact_item_fields -%}
+{%- set display_columns = visible_columns|map(attribute="fieldname")| list -%}
+{%- set columns = doc.flags.format_columns(display_columns, compact_fields) -%}
 
 <div>
-    {% if doc.in_format_data("item_code") and not doc.is_print_hide("item_code") -%}
+    {% if doc.in_format_data("item_code") and "item_code" in display_columns -%}
 		<div class="primary">
-			<strong>{{ _(doc.item_code) }}</strong>
+			{% if compact %}<strong>{% endif %}
+				{{ _(doc.item_code) }}
+			{% if compact %}</strong>{% endif %}
 		</div>
 	{%- endif %}
-    {% if (doc.in_format_data("item_name") and not doc.is_print_hide("item_name") and
-		(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")
-			or doc.item_code != doc.item_name)) -%}
-		<div class="primary"><strong>{{ doc.get_formatted("item_name", translated=True) }}</strong></div>
+    {%- if doc.in_format_data("item_name") and "item_name" in display_columns and
+		not (doc.in_format_data("item_code") and doc.item_code == doc.item_name) -%}
+		{% if compact %}<strong>{% endif %}
+				{{ _(doc.item_name) }}
+			{% if compact %}</strong>{% endif %}
+	{%- endif %}
+	
+	{% if (doc.in_format_data("description") and doc.description and "description" in display_columns and
+		(
+			(
+				(not doc.in_format_data("item_code") or doc.is_print_hide("item_code")) and
+				(not doc.in_format_data("item_name") or doc.is_print_hide("item_name"))
+			) or not (doc.item_code == doc.item_name == doc.description)
+		))
+	-%}
+	<!-- <p>{{ doc.get_formatted("description", translated=True) }}</p> -->
 	{%- endif %}
 
     

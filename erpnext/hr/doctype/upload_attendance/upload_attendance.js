@@ -9,6 +9,7 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 	onload: function() {
 		this.frm.set_value("att_fr_date", get_today());
 		this.frm.set_value("att_to_date", get_today());
+		this.frm.set_value("import_settings", "default");
 	},
 
 	refresh: function() {
@@ -32,21 +33,27 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 	show_upload: function() {
 		var me = this;
 		var $wrapper = $(cur_frm.fields_dict.upload_html.wrapper).empty();
-
+		
+		
 		// upload
 		frappe.upload.make({
 			parent: $wrapper,
+			get_params: function() {
+				return {
+					import_settings: cur_frm.doc.import_settings
+				}
+			},
 			args: {
 				method: 'erpnext.hr.doctype.upload_attendance.upload_attendance.upload'
 			},
+			allow_multiple: 0,
 			sample_url: "e.g. http://example.com/somefile.csv",
 			callback: function(attachment, r) {
 				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
-				
 				if(!r.messages) r.messages = [];
-				// replace links if error has occured
 				
-				if(r.exc || r.error || r.message.error) {
+				// replace links if error has occured
+				if(r.exc || r.error) {
 					r.messages = $.map(r.message.messages, function(v) {
 						var msg = v.replace("Inserted", "Valid")
 							.replace("Updated", "Valid").split("<");
@@ -58,41 +65,40 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 						return v;
 					});
 
-					
-					var $p = $('<p>').html(["<h4 style='color:red'>"+__("Import Failed!")+"</h4>"]).appendTo($log_wrapper);
-					$p = $('<p>').html(["<h4 style='color:red'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
+					if(r.error || r.message.error){
+						var $p = $('<p>').html(["<h4 style='color:red'>"+__("Import Failed! Scroll Down To Find Error")+"</h4>"]).appendTo($log_wrapper);
+						$p = $('<p>').html(["<h4 style='color:red'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
 
+					}
+					else{
+						var $p = $('<p>').html(["<h4 style='color:green'>"+__("Import Details!")+"</h4>"]).appendTo($log_wrapper);
+					$p = $('<p>').html(["<h4 style='color:green'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
+
+					}
+					
 					
 						
 					$.each(r.messages, function(i, v) {
-						
+					var $p = $('<p>').html(v).appendTo($log_wrapper);
 						if(v.substr(0,5)=='Error') {
-							var $p = $('<p>').html(v).appendTo($log_wrapper);
 							$p.css('color', 'red');
-						} /* else if(v.substr(0,8)=='Inserted') {
+						} else if(v.substr(0,8)=='Inserted') {
 							$p.css('color', 'green');
 						} else if(v.substr(0,7)=='Updated') {
 							$p.css('color', 'green');
 						} else if(v.substr(0,5)=='Valid') {
 							$p.css('color', '#777');
-						} */
+						}
 					});
 					
-					
-				} else {
-					var $p = $('<p>').html(["<h4 style='color:green'>"+__("Import Successful!")+"</h4>"]).appendTo($log_wrapper);
-					$p = $('<p>').html(["<h4 style='color:green'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
-
 					
 				}
 
 				
-			}
+			},
+			is_private: true
 		});
 
-		// rename button
-		$wrapper.find('form input[type="submit"]')
-			.attr('value', 'Upload and Import')
 	}
 })
 

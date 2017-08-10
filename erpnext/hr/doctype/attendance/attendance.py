@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import cstr,time_diff,time_diff_in_seconds,getdate, get_datetime, get_time,flt, nowdate
+from frappe.utils import cstr,time_diff,time_diff_in_seconds,getdate, get_datetime, get_time,flt,cint, nowdate
 from frappe import _
 
 class NegativeHoursError(frappe.ValidationError): pass
@@ -41,7 +41,6 @@ class Attendance(Document):
 		return holidays
 	
 	def calculate_total_hours(self):
-		
 		if self.arrival_time == "#--:--" or self.arrival_time == "00:00" or self.arrival_time == "0:00:00":
 			self.arrival_time = "00:00:00"
 			
@@ -68,8 +67,11 @@ class Attendance(Document):
 
 		weekday = get_datetime(self.attendance_date).weekday()
 		
+		if not self.department:
+			self.department = frappe.db.get_value("Employee", self.employee, "department")
+		
 		working_hours = frappe.db.sql("""select working_hours from `tabWorking Hours`
-				where %s between from_date and to_date and docstatus < 2""", (self.attendance_date))
+				where %s >= from_date AND %s <= to_date and department = %s""", (self.attendance_date,self.attendance_date,self.department))
 
 		if working_hours:
 			self.normal_time = flt(working_hours[0][0])
@@ -79,7 +81,8 @@ class Attendance(Document):
 		self.overtime = 0
 		self.overtime_fridays = 0
 		self.overtime_holidays = 0
-		self.status = 'Present'
+		if self.status not in ["On Leave","Half Day"]:
+			self.status = 'Present'
 		
 		if len(self.get_holidays_for_employee(self.attendance_date,self.attendance_date)):
 			self.normal_time = 0
@@ -90,8 +93,14 @@ class Attendance(Document):
 		else:		
 			if totalworkhours > self.normal_time:
 				self.overtime = flt(totalworkhours) - flt(self.normal_time)
+				if self.status == "On Leave":
+					frappe.throw(_("Employee on leave this day but has attendance. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+
 			elif totalworkhours > 2:
 				self.normal_time = totalworkhours
+				if self.status == "On Leave":
+					frappe.throw(_("Employee on leave this day but has attendance. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+
 			elif totalworkhours > 0:
 				frappe.throw(_("Work Hours under 2. Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
 			elif totalworkhours < 0:
@@ -125,8 +134,13 @@ class Attendance(Document):
 		
 
 	def validate_attendance_date(self):
-		if getdate(self.attendance_date) > getdate(nowdate()):
+		from datetime import timedelta
+
+		if get_datetime(self.attendance_date) > get_datetime(nowdate()) + timedelta(days=30):
 			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))
+
+		# if getdate(self.attendance_date) > getdate(nowdate()):
+			# frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))				
 		elif getdate(self.attendance_date) < frappe.db.get_value("Employee", self.employee, "date_of_joining"):
 			frappe.throw(_("Attendance date can not be less than employee's joining date"))
 
@@ -137,6 +151,7 @@ class Attendance(Document):
 			frappe.throw(_("Employee {0} is not active or does not exist").format(self.employee))
 
 	def validate(self):
+		self.validate_employee()
 		from erpnext.controllers.status_updater import validate_status
 		validate_status(self.status, ["Present", "Absent", "On Leave", "Half Day"])
 		self.validate_attendance_date()
@@ -151,11 +166,18 @@ class Attendance(Document):
 	def on_update(self):
 		# this is done because sometimes user entered wrong employee name
 		# while uploading employee attendance
-		employee_name = frappe.db.get_value("Employee", self.employee, "employee_name")
-		frappe.db.set(self, 'employee_name', employee_name)
+		emp = frappe.db.sql("select employee_name,company,department from `tabEmployee` where name = %s",
+		 	self.employee, as_dict = 1)
+			
+		if emp:
+			employee_name = emp[0].employee_name
+			frappe.db.set(self, 'employee_name', employee_name)
 		
-		employee_company = frappe.db.get_value("Employee", self.employee, "company")
-		frappe.db.set(self, 'company', employee_company)
+			employee_company = emp[0].company
+			frappe.db.set(self, 'company', employee_company)
+			
+			department = emp[0].department
+			frappe.db.set(self, 'department', department)
 
 		naming_series = "ATT-"
 		frappe.db.set(self, 'naming_series', naming_series)

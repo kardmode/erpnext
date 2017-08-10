@@ -17,17 +17,23 @@ def print_settings_for_item_table(doc):
 
 	doc.flags.compact_item_print = cint(frappe.db.get_value("Print Settings", None, "compact_item_print"))
 
-	
-	
+	if doc.doctype == "Purchase Receipt Item":
+		doc.flags.compact_item_print=0
 	
 	if doc.flags.compact_item_print:
 	
-		if doc.doctype in ["Purchase Order Item","Delivery Note Item"]:
-			doc.print_templates["description"] = "templates/print_formats/includes/buying_item_table_description.html"
-		else:
+		if doc.doctype in ["Quotation Item"]:
 			doc.print_templates["description"] = "templates/print_formats/includes/item_table_description.html"
 
-	
+		else:
+			doc.print_templates["description"] = "templates/print_formats/includes/buying_item_table_description.html"
+
+		# if doc.doctype in ["Purchase Order Item","Delivery Note Item","Sales Invoice Item"]:
+			# doc.print_templates["description"] = "templates/print_formats/includes/buying_item_table_description.html"
+		# else:
+			# doc.print_templates["description"] = "templates/print_formats/includes/item_table_description.html"
+
+		
 		doc.flags.compact_item_fields = ["description", "qty", "rate", "amount"]
 		doc.flags.format_columns = format_columns
 

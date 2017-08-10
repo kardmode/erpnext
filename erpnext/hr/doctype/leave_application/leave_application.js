@@ -7,17 +7,14 @@ cur_frm.add_fetch('employee','company','company');
 frappe.ui.form.on("Leave Application", {
 	onload: function(frm) {
 		
-		if(frm.doc.docstatus==0) {
-				frm.set_value("leave_approver", "accounts@maarifagroup.com");
-			}
-
-		
+		/* if((cint(doc.__islocal) == 1) && !doc.amended_from){
+		if(!doc.leave_approver)
+					cur_frm.set_value("leave_approver", "accounts@maarifagroup.com");
+		} */
+				
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
-			
-			
 		}
-		
 
 		frm.set_query("leave_approver", function() {
 			return {
@@ -34,6 +31,7 @@ frappe.ui.form.on("Leave Application", {
 
 	validate: function(frm) {
 		frm.toggle_reqd("half_day_date", frm.doc.half_day == 1);
+		frm.set_value("leave_approver", "accounts@maarifagroup.com");
 	},
 
 	refresh: function(frm) {
@@ -110,13 +108,6 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	calculate_total_days: function(frm) {
-/* <<<<<<< HEAD
-		if(frm.doc.from_date && frm.doc.to_date) {
-			
-			if (cint(frm.doc.half_day)==1) {
-				frm.set_value("total_leave_days", 0.5);
-			} else if (frm.doc.employee && frm.doc.leave_type){
-======= */
 		if(frm.doc.from_date && frm.doc.to_date && frm.doc.employee && frm.doc.leave_type) {
 				// server call is done to include holidays in leave days calculations
 			return frappe.call({

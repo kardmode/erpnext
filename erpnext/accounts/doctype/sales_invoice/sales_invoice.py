@@ -792,6 +792,12 @@ def get_bank_cash_account(mode_of_payment, company):
 @frappe.whitelist()
 def make_delivery_note(source_name, target_doc=None):
 	def set_missing_values(source, target):
+		if source.project:
+			target.project = source.project
+		if source.room_qty:
+			target.room_qty = source.room_qty
+		if source.sub_project:
+			target.sub_project = source.sub_project
 		target.ignore_pricing_rule = 1
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")

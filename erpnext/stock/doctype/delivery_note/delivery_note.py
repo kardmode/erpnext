@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import flt, cint, getdate
+from frappe.utils import flt, cint, getdate,comma_and
 
 from frappe import msgprint, _
 import frappe.defaults
@@ -189,6 +189,9 @@ class DeliveryNote(SellingController):
 					d.projected_qty = flt(bin_qty.projected_qty)
 
 	def on_submit(self):
+		if self.company == "Al Maarifa Lab Supplies LLC":
+			frappe.throw(_("Cannot Submit For This Company"))
+	
 		self.validate_packed_qty()
 
 		# Check for Approving Authority
@@ -292,6 +295,122 @@ class DeliveryNote(SellingController):
 			dn_doc.update_billing_percentage(update_modified=update_modified)
 
 		self.load_from_db()
+		
+	def submit_to_manufacture(self):
+		self.make_stock_entries("Manufacture")
+		
+	def make_stock_entry_from_do(self,bom,purpose,sales_order_no=None,qty=None):
+		from erpnext.stock.stock_ledger import NegativeStockError
+		from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
+			DuplicateEntryForProductionOrderError, OperationsNotCompleteError
+
+		try:
+			st = frappe.get_doc(self.make_stock_entry(bom, purpose,sales_order_no,qty))
+			st.posting_date = frappe.flags.current_date
+			for d in st.get("items"):
+				d.cost_center = "Main - " + frappe.db.get_value('Company', st.company, 'abbr')
+			st.insert()
+			frappe.db.commit()
+			
+			return st.name
+
+		except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
+			OperationsNotCompleteError):
+			frappe.db.rollback()
+			
+	def make_stock_entry(self,bom,purpose,sales_order_no=None,qty=None):
+
+		stock_entry = frappe.new_doc("Stock Entry")
+		stock_entry.purpose = purpose
+		stock_entry.sales_order = sales_order_no
+		stock_entry.delivery_note_no = self.name
+
+		stock_entry.company = self.company
+		stock_entry.from_bom = 1
+		stock_entry.bom_no = bom
+		stock_entry.use_multi_level_bom = 1
+		stock_entry.fg_completed_qty = qty
+
+		if purpose=="Manufacture":
+			# stock_entry.from_warehouse = production_order.wip_warehouse
+			# stock_entry.to_warehouse = production_order.fg_warehouse
+			stock_entry.project = self.project
+		else:
+			# stock_entry.from_warehouse = production_order.source_warehouse
+			# stock_entry.to_warehouse = production_order.wip_warehouse
+			stock_entry.project = self.project
+
+		stock_entry.get_items()
+		return stock_entry.as_dict()
+		
+	def make_stock_entries(self,purpose=None,all=False):
+		if purpose:
+			conditions = ""
+			ste_list = []
+
+			for item in self.get('items'):
+				bom = frappe.db.get_value("BOM", filters={"item": item.item_code, "project": self.project}) or frappe.db.get_value("BOM", filters={"item": item.item_code, "is_default": 1})
+				if bom:
+					if purpose == "Manufacture":
+					
+						stock_entries = frappe.db.sql("""select name 
+						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
+						if not stock_entries:
+							ste_name = self.make_stock_entry_from_do(bom, purpose,item.against_sales_order,item.qty)
+							if ste_name:
+								ste_list.append(ste_name)
+							
+					else:
+						stock_entries = frappe.db.sql("""select name 
+						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
+						
+						if not stock_entries:
+							ste_name = self.make_stock_entry_from_do(bom, purpose,item.against_sales_order,item.qty)
+							if ste_name:
+								ste_list.append(ste_name)
+				
+				
+				
+			if ste_list:
+				ste_list = ["""<a href="#Form/Stock Entry/%s" target="_blank">%s</a>""" % \
+					(p, p) for p in ste_list]
+				msgprint(_("{0} created for {1}").format(comma_and(ste_list),purpose))
+			else :
+				msgprint(_("No Stock Entries Created for {0}").format(purpose))			
+			
+
+	def submit_stock_entries(self,purpose=None,all=False):
+		if purpose:
+			ste_list = []
+			for d in self.get('items'):
+				bom = frappe.db.get_value("BOM", filters={"item": item.item_code, "project": self.project}) or frappe.db.get_value("BOM", filters={"item": item.item_code, "is_default": 1})
+				if bom:
+					if purpose == "Manufacture":
+						stock_entries = frappe.db.sql("""select name 
+						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
+						
+						for ste in stock_entries:
+							doc = frappe.get_doc('Stock Entry', ste["name"])
+							doc.submit()
+							ste_list.append(doc.name)
+					else:
+						stock_entries = frappe.db.sql("""select name 
+						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
+						
+						for ste in stock_entries:
+							doc = frappe.get_doc('Stock Entry', ste["name"])
+							doc.submit()
+							ste_list.append(doc.name)
+
+				
+					
+			if ste_list:
+				ste_list = ["""<a href="#Form/Stock Entry/%s" target="_blank">%s</a>""" % \
+					(p, p) for p in ste_list]
+				msgprint(_("{0} submitted for {1}").format(comma_and(ste_list),purpose))
+			else :
+				msgprint(_("No Stock Entries Submitted for {0}").format(purpose))
+						
 
 def update_billed_amount_based_on_so(so_detail, update_modified=True):
 	# Billed against Sales Order directly
@@ -364,6 +483,13 @@ def make_sales_invoice(source_name, target_doc=None):
 	invoiced_qty_map = get_invoiced_qty_map(source_name)
 
 	def update_accounts(source, target):
+	
+		if source.project:
+			target.project = source.project
+		if source.room_qty:
+			target.room_qty = source.room_qty
+		if source.sub_project:
+			target.sub_project = source.sub_project
 		target.is_pos = 0
 		target.ignore_pricing_rule = 1
 		target.run_method("set_missing_values")
@@ -465,3 +591,8 @@ def make_sales_return(source_name, target_doc=None):
 def update_delivery_note_status(docname, status):
 	dn = frappe.get_doc("Delivery Note", docname)
 	dn.update_status(status)
+	
+
+		
+
+

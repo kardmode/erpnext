@@ -154,10 +154,10 @@ frappe.ui.form.on("Project", {
 		}
 	},
 	customer: function() {
-		var me = this;
 		erpnext.utils.get_party_details(me.frm, null, null, function(){});
 	},
 	customer_address: function() {
+
 		erpnext.utils.get_address_display(me.frm, "customer_address");
 	},
 

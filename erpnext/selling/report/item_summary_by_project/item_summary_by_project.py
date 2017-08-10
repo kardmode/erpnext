@@ -45,19 +45,13 @@ def execute(filters=None):
 		data = data + get_data(filters,quotation_names,company)
 		return columns, data
 
-@frappe.whitelist()
-def get_title(docname,doctype):
-	
-	doc = frappe.db.sql("""select status from `tabProject` where name = %s and docstatus < 2""", docname, as_dict=1)
-	if not doc:
-		return ""
-	title = doc[0]["status"]
-	
-	return title
+
 	
 def get_data(filters,quotation_names,company = None):
-	if filters.get("format") == "SO":
+	if filters.get("format") == "Sales Order":
 		query = 'select item_code,item_name,description,item_group,stock_uom,SUM(qty) AS qty, brand, SUM(delivered_qty) AS delivered_qty from `tabSales Order Item` where  parent IN (%s) GROUP BY item_code' % quotation_names
+	elif filters.get("format") == "Delivery Note":
+		query = 'select item_code,item_name,description,item_group,stock_uom,SUM(qty) AS qty, brand from `tabDelivery Note Item` where parent IN (%s) GROUP BY item_code' % quotation_names
 	else:
 		query = 'select item_code,item_name,description,item_group,stock_uom,SUM(qty) AS qty, brand from `tabQuotation Item` where parent IN (%s) GROUP BY item_code' % quotation_names
 	
@@ -82,7 +76,7 @@ def get_data(filters,quotation_names,company = None):
 		
 		if filters.get("bom_only") == "Without BOM":
 		
-			if filters.get("format") == "SO":
+			if filters.get("format") == "Sales Order":
 				stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item["item_code"], as_dict = 1)
 				actual_qty = 0
 				if stock_details:
@@ -127,7 +121,7 @@ def get_data(filters,quotation_names,company = None):
 			frappe.errprint(bom)
 			
 			if bom:
-				if filters.get("format") == "SO":
+				if filters.get("format") == "Sales Order":
 					stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item["item_code"], as_dict = 1)
 					actual_qty = 0
 					if stock_details:
@@ -165,7 +159,7 @@ def merge(dicts):
 
 def get_columns(filters):
 
-	if filters.get("format") == "SO":
+	if filters.get("format") == "Sales Order":
 		columns = [_("Item Code") + "::150",
 		_("Item Name") + "::150", _("Description") + "::340",_("UOM") + "::50",
 		_("Qty") + "::80",_("Delivered Qty") + "::80",_("Actual Qty") + "::80"
@@ -181,11 +175,14 @@ def get_columns(filters):
 	
 def get_quotation(conditions, filters):
 
-	if filters.get("format") == "SO":
+	if filters.get("format") == "Sales Order":
 		quotation_list = frappe.db.sql("""select * from `tabSales Order` where %s and docstatus < 2""" %
 			conditions, filters, as_dict=1)
-	else:
+	elif filters.get("format") == "Quotation":
 		quotation_list = frappe.db.sql("""select * from `tabQuotation` where %s and docstatus < 2""" %
+			conditions, filters, as_dict=1)
+	else:
+		quotation_list = frappe.db.sql("""select * from `tabDelivery Note` where %s and docstatus < 2""" %
 			conditions, filters, as_dict=1)
 	
 	return quotation_list

@@ -86,9 +86,9 @@ class SalarySlip(TransactionBase):
 			if d.amount_based_on_formula:
 				if d.formula:
 					amount = frappe.safe_eval(d.formula, None, data)
-			if amount:
-				data[d.abbr] = amount
-
+			# if amount:
+				# data[d.abbr] = amount
+			data[d.abbr] = amount
 			return amount
 
 		except NameError as err:
@@ -139,11 +139,12 @@ class SalarySlip(TransactionBase):
 			if vars:
 				for d in vars:
 					total_days += 1
-					if self.enable_attendance:
-						self.overtime_hours_weekdays += flt(d.overtime)
-						self.overtime_hours_fridays += flt(d.overtime_fridays)
-						self.overtime_hours_holidays += flt(d.overtime_holidays)
-					if d.status == "Absent":
+					if d.status == "Present":
+						if self.enable_attendance:
+							self.overtime_hours_weekdays += flt(d.overtime)
+							self.overtime_hours_fridays += flt(d.overtime_fridays)
+							self.overtime_hours_holidays += flt(d.overtime_holidays)
+					elif d.status in ["Absent","On Leave"]:
 						total_absent = total_absent+1
 				
 				holidays = self.get_holidays_for_employee(self.start_date, self.end_date)
@@ -169,7 +170,6 @@ class SalarySlip(TransactionBase):
 			self.set("earnings", [])
 			self.set("deductions", [])
 			
-			self.get_company_letterhead(self.company)
 
 			self.pull_emp_details()
 
@@ -190,6 +190,8 @@ class SalarySlip(TransactionBase):
 				self.salary_slip_based_on_timesheet = self._salary_structure_doc.salary_slip_based_on_timesheet or 0
 				self.set_time_sheet()
 				self.pull_sal_struct()
+				
+
 
 	def set_time_sheet(self):
 		if self.salary_slip_based_on_timesheet:
@@ -215,16 +217,15 @@ class SalarySlip(TransactionBase):
 		if self.payroll_frequency:
 			cond = """and payroll_frequency = '%(payroll_frequency)s'""" % {"payroll_frequency": self.payroll_frequency}
 
-		st_name = frappe.db.sql("""select parent from `tabSalary Structure Employee`
-			where employee=%s
-			and parent in (select name from `tabSalary Structure`
-				where is_active = 'Yes'
-				and (from_date <= %s or from_date <= %s)
-				and (to_date is null or to_date >= %s or to_date >= %s) %s)
-			"""% ('%s', '%s', '%s','%s','%s', cond),(self.employee, self.start_date, joining_date, self.end_date, relieving_date))
-	
 
-	
+		st_name = frappe.db.sql("""select parent from `tabSalary Structure Employee`
+			where employee=%s and (from_date <= %s or from_date <= %s)
+			and (to_date is null or to_date >= %s or to_date >= %s)
+			and parent in (select name from `tabSalary Structure`
+				where is_active = 'Yes'%s)
+			"""% ('%s', '%s', '%s','%s','%s', cond),(self.employee, self.start_date, joining_date, self.end_date, relieving_date))
+
+		
 		if st_name:
 			if len(st_name) > 1:
 				frappe.msgprint(_("Multiple active Salary Structures found for employee {0} for the given dates")
@@ -285,7 +286,9 @@ class SalarySlip(TransactionBase):
 			self.bank_name = employee_data["bank_name"]
 			self.bank_account_no = employee_data["bank_ac_no"]
 			self.employee_name = employee_data["employee_name"]
-
+		
+		self.get_company_letterhead(self.company)
+	
 
 	def get_leave_details(self, joining_date=None, relieving_date=None, lwp=None):
 		if not joining_date:

@@ -72,6 +72,69 @@ frappe.ui.form.on('Stock Entry', {
 	purpose: function(frm) {
 		frm.fields_dict.items.grid.refresh();
 		frm.cscript.toggle_related_fields(frm.doc);
+		var doc = frm.doc
+		
+		if(!doc.docstatus) {
+			if (doc.purpose === 'Manufacture'){
+				
+				// this.frm.set_value("from_bom", 1);
+				// this.frm.set_value("fg_completed_qty", 1);
+
+				frappe.call({
+					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+					callback: function(r) {
+						if(!r.exc) {
+							cur_frm.set_value("from_warehouse", r.message.wip_warehouse);
+							cur_frm.set_value("to_warehouse", r.message.fg_warehouse);
+							cur_frm.call({
+								doc: cur_frm.doc,
+								method: "get_items",
+								callback: function(r) {
+									refresh_field("items");
+								 }                   
+							});
+						}
+					}
+				});
+				
+			}
+			else if (doc.purpose === 'Material Transfer for Manufacture'){
+				
+				// this.frm.set_value("from_bom", 1);
+				// this.frm.set_value("fg_completed_qty", 1);
+				frappe.call({
+					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+					callback: function(r) {
+						if(!r.exc) {
+							cur_frm.set_value("from_warehouse", r.message.source_warehouse);
+							cur_frm.set_value("to_warehouse", r.message.wip_warehouse);
+							cur_frm.call({
+								doc: cur_frm.doc,
+								method: "get_items",
+								callback: function(r) {
+									refresh_field("items");
+								 }                   
+							});
+						}
+					}
+				});
+			
+			}
+			else if (doc.purpose === 'Material Receipt'){
+				frappe.call({
+					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+					callback: function(r) {
+						if(!r.exc) {
+							cur_frm.set_value("to_warehouse", r.message.source_warehouse);
+						}
+					}
+				});
+			}
+			else{
+				cur_frm.set_value("from_warehouse", "");
+				cur_frm.set_value("to_warehouse", "");
+			}
+		}
 	},
 	company: function(frm) {
 		if(frm.doc.company) {
@@ -144,6 +207,7 @@ frappe.ui.form.on('Stock Entry Detail', {
 	item_code: function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
 		if(d.item_code) {
+			
 			args = {
 				'item_code'			: d.item_code,
 				'warehouse'			: cstr(d.s_warehouse) || cstr(d.t_warehouse),
@@ -312,7 +376,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 				doc: me.frm.doc,
 				method: "get_items",
 				callback: function(r) {
-					if(!r.exc) refresh_field("items");
+					me.frm.refresh_field("items");
 				}
 			});
 		}
@@ -460,8 +524,22 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 	calculate_basic_amount: function(item) {
 		item.basic_amount = flt(flt(item.transfer_qty) * flt(item.basic_rate),
 			precision("basic_amount", item));
-
+		
+		this.calculate_balance_qty(item);
+		
 		this.calculate_amount();
+	},
+	
+	calculate_balance_qty: function(item) {
+		if (item.s_warehouse){
+			item.balance_qty = flt(item.actual_qty) - flt(item.transfer_qty); 
+		}else if(item.t_warehouse){
+			item.balance_qty = flt(item.actual_qty) + flt(item.transfer_qty);
+		}
+		item.initial_qty = item.actual_qty;
+		console.log(item.initial_qty);
+				console.log(item.balance_qty);
+
 	},
 
 	calculate_amount: function() {
@@ -508,59 +586,14 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 
 		this.frm.cscript.toggle_enable_bom();
 		
-		if(this.frm.doc.__islocal && this.frm.doc.company && !this.frm.doc.amended_from) {
-			if (doc.purpose === 'Manufacture'){
-				this.frm.set_value("from_bom", true);
-				this.frm.set_value("fg_completed_qty", 1);
-				//cur_frm.set_value("title", "Manufacture "+ cstr(d.item));
-				//frm.set_value("bom_no", r.message);
-
-
-				frappe.call({
-					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
-					callback: function(r) {
-						if(!r.exc) {
-							this.frm.set_value("from_warehouse", r.message.wip_warehouse);
-							this.frm.set_value("to_warehouse", r.message.fg_warehouse);
-							cur_frm.call({
-								doc: cur_frm.doc,
-								method: "get_items",
-								callback: function(r) {
-									if(!r.exc) refresh_field("items");
-								 }                   
-							});
-						}
-					}
-				});
-				
-			}
-			else if (doc.purpose === 'Material Transfer for Manufacture'){
-				frappe.call({
-					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
-					callback: function(r) {
-						if(!r.exc) {
-							this.frm.set_value("from_warehouse", r.message.source_warehouse);
-							this.frm.set_value("to_warehouse", r.message.wip_warehouse);
-							cur_frm.call({
-								doc: cur_frm.doc,
-								method: "get_items",
-								callback: function(r) {
-									if(!r.exc) refresh_field("items");
-								 }                   
-							});
-						}
-					}
-				});
-			
-			}
-		}
+		
 
 		if (doc.purpose == 'Subcontract') {
 			doc.customer = doc.customer_name = doc.customer_address =
 				doc.delivery_note_no = doc.sales_invoice_no = null;
 		} else {
 			doc.customer = doc.customer_name = doc.customer_address =
-				doc.delivery_note_no = doc.sales_invoice_no = doc.supplier =
+				/* doc.delivery_note_no =  */doc.sales_invoice_no = doc.supplier =
 				doc.supplier_name = doc.supplier_address = doc.purchase_receipt_no = 
 				doc.address_display = null;
 		}
