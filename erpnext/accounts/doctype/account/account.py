@@ -175,11 +175,11 @@ class Account(Document):
 				# frappe.throw(_("Warehouse is mandatory for non group Accounts of type Stock"))
 
 			# if self.warehouse:
-				company must be same
+				# # company must be same
 				# if frappe.get_value('Warehouse', self.warehouse, 'company') != self.company:
 					# frappe.throw(_("Warehouse company must be same as Account company"))
 
-				balance must be same
+				# # balance must be same
 				# stock_balance = get_stock_value_on(self.warehouse)
 				# if self.is_new():
 					# account_balance = 0.0
