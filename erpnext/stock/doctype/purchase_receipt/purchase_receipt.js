@@ -32,6 +32,11 @@ frappe.ui.form.on("Purchase Receipt", {
 				]
 			}
 		});
+		
+		
+		/* if(frm.doc.__islocal) {
+			frappe.msgprint("Use Get Items From Button to select a Purchase Order. Purchase Order must be submitted.");
+		} */
 
 	},
 

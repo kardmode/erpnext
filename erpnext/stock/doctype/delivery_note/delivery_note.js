@@ -21,7 +21,7 @@ frappe.ui.form.on("Delivery Note", {
 				return (doc.docstatus==1 || doc.qty<=doc.actual_qty) ? "green" : "orange"
 			})
 
-		erpnext.queries.setup_warehouse_query(frm);
+		//erpnext.queries.setup_warehouse_query(frm);
 
 		frm.set_query('project', function(doc) {
 			return {
@@ -62,7 +62,7 @@ frappe.ui.form.on("Delivery Note", {
 			}
 		});
 
-
+		
 	},
 	print_without_amount: function(frm) {
 		erpnext.stock.delivery_note.set_print_hide(frm.doc);
@@ -83,6 +83,37 @@ frappe.ui.form.on("Delivery Note Item", {
 	cost_center: function(frm, dt, dn) {
 		var d = locals[dt][dn];
 		frm.update_in_all_rows('items', 'cost_center', d.cost_center);
+	},
+	item_code: function(frm, dt, dn) {
+		var d = locals[dt][dn];
+		
+		setTimeout(function() {
+			if(d.manufacturer_part_no)
+			{
+				var item_name = d.item_name;
+				if(d.item_name === d.item_code)
+				{
+					item_name = d.manufacturer_part_no + " " + d.item_code;
+				}
+				else
+				{
+					item_name = d.manufacturer_part_no + " " + d.item_name;
+				}
+				frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
+				
+			}
+			
+		}, 500);
+
+		
+	},
+	manufacturer_part_no: function(frm, dt, dn) {
+		if(d.manufacturer_part_no)
+		{
+			var item_name = d.manufacturer_part_no + " " + d.item_code;
+			frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
+				
+		}
 	}
 });
 
@@ -94,6 +125,20 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 	setup: function(doc) {
 		this.setup_posting_date_time_check();
 		this._super(doc);
+		
+		this.frm.set_query('warehouse', 'items', function(doc, cdt, cdn) {
+			
+			var item = locals[cdt][cdn];
+			if(!item.item_code) {
+				
+			} else {
+				return {
+					query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
+					filters: {"item_code":item.item_code}
+				}
+			}
+		});
+		
 	},
 	
 	refresh: function(doc, dt, dn) {
@@ -117,35 +162,36 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 						frm: me.frm
 					}) }, __("Make"));
 					
-				this.frm.add_custom_button(__('BOM Stock Entries'), function() {
-				me.make_bom_stock_entry() }, __("Make"));
+				// this.frm.add_custom_button(__('Manufacture'), function() {
+				// me.make_bom_stock_entry() });
 				
-				this.frm.add_custom_button(__('Items Warehouse'),
-					function() {
+				// this.frm.add_custom_button(__('Items Warehouse'),
+					// function() {
 						
-						var items = cur_frm.doc.items;
+						// var items = cur_frm.doc.items;
 
-						$.each(items, function(i, item) {
-							frappe.call({
-								method:"erpnext.stock.doctype.stock_entry.stock_entry.get_best_warehouse",
-								args: {item_code: item,item_qty:item.qty,default_warehouse:item.warehouse},
-								callback: function(r){
-									console.log(r);
-									if(r.message[0])
-									{
-										if(!r.message[1])
-											frappe.msgprint(format('Row {0} does not have enough stock</a>', [
-												item.idx
-											]));
+						// $.each(items, function(i, item) {
+							// frappe.call({
+								// method:"erpnext.stock.doctype.stock_entry.stock_entry.get_best_warehouse",
+								// args: {item_code: item.item_code,item_qty:item.qty,default_warehouse:item.warehouse},
+								// callback: function(r){
+									// if(r.message[0])
+									// {
+										// if(!r.message[1]){
+											// frappe.msgprint(format('Row {0} does not have enough stock', [
+												// item.idx
+											// ]));
+										// }
+										
 
-										item.warehouse = r.message[0];
-										cur_frm.script_manager.trigger("warehouse", item.doctype, item.name);
-									}
-								}
-							})
-						});
+										// item.warehouse = r.message[0];
+										// cur_frm.script_manager.trigger("warehouse", item.doctype, item.name);
+									// }
+								// }
+							// })
+						// });
 							
-					}, __("Modify"));
+					// }, __("Modify"));
 				
 				
 			}
@@ -294,6 +340,8 @@ frappe.ui.form.on('Delivery Note', {
 })
 
 
+
+
 erpnext.stock.delivery_note.set_print_hide = function(doc, cdt, cdn){
 	var dn_fields = frappe.meta.docfield_map['Delivery Note'];
 	var dn_item_fields = frappe.meta.docfield_map['Delivery Note Item'];
@@ -320,7 +368,7 @@ erpnext.stock.delivery_note.set_print_hide = function(doc, cdt, cdn){
 }
 
 erpnext.stock.delivery_note.set_total_qty = function(doc, cdt, cdn){
-	total_qty = 0;
+	var total_qty = 0;
 		var cl = doc["items"] || [];
 		for(var i = 0; i < cl.length; i++){
 			total_qty = total_qty + cl[i].qty;

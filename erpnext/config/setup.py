@@ -45,6 +45,7 @@ def get_data():
 		},
 		{
 			"label": _("Help"),
+			"icon": "fa fa-list",
 			"items": [
 				{
 					"type": "help",
@@ -75,7 +76,7 @@ def get_data():
 		},
 		{
 			"label": _("Customize"),
-			"icon": "fa fa-glass",
+			"icon": "fa fa-cog",
 			"items": [
 				{
 					"type": "doctype",
@@ -124,4 +125,5 @@ def get_data():
 
 		add_setup_section(data, "erpnext", module, label, icon)
 
+	
 	return data

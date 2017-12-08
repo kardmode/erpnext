@@ -19,25 +19,30 @@ def execute(filters=None):
 	data = []
 	for (company, item, warehouse) in sorted(iwb_map):
 		qty_dict = iwb_map[(company, item, warehouse)]
-
 		item_reorder_level = 0
 		item_reorder_qty = 0
 		if item + warehouse in item_reorder_detail_map:
 			item_reorder_level = item_reorder_detail_map[item + warehouse]["warehouse_reorder_level"]
 			item_reorder_qty = item_reorder_detail_map[item + warehouse]["warehouse_reorder_qty"]
 			
-		data.append([item, item_map[item]["item_name"],
+		data.append([item, 
+			# item_map[item]["item_name"],
 			item_map[item]["item_group"],
-			item_map[item]["brand"],
-			item_map[item]["description"], warehouse,
-			item_map[item]["stock_uom"], qty_dict.opening_qty,
-			qty_dict.opening_val, qty_dict.in_qty,
-			qty_dict.in_val, qty_dict.out_qty,
-			qty_dict.out_val, qty_dict.bal_qty,
-			qty_dict.bal_val, qty_dict.val_rate,
-			item_reorder_level,
-			item_reorder_qty,
-			company
+			# item_map[item]["brand"],
+			# item_map[item]["description"]
+			warehouse,
+			item_map[item]["stock_uom"],qty_dict.opening_qty
+			# ,qty_dict.opening_val
+			,qty_dict.in_qty
+			# ,qty_dict.in_val
+			,qty_dict.out_qty
+			# ,qty_dict.out_val
+			,qty_dict.bal_qty
+			# ,qty_dict.bal_val
+			,qty_dict.val_rate
+			# ,item_reorder_level,
+			# item_reorder_qty,
+			# company
 		])
 
 	return columns, data
@@ -46,25 +51,25 @@ def get_columns():
 	"""return columns"""
 
 	columns = [
-		_("Item")+":Link/Item:100",
+		_("Item")+":Link/Item:200",
 		# _("Item Name")+"::150",
-		# _("Item Group")+"::100",
+		_("Item Group")+"::100",
 		# _("Brand")+"::90",
 		# _("Description")+"::140",
 		_("Warehouse")+":Link/Warehouse:100",
-		_("Stock UOM")+":Link/UOM:90",
+		_("Stock UOM")+":Link/UOM:50",
 		_("Opening Qty")+":Float:100",
-		_("Opening Value")+":Float:110",
-		_("In Qty")+":Float:80",
-		_("In Value")+":Float:80",
-		_("Out Qty")+":Float:80",
-		_("Out Value")+":Float:80",
+		# _("Opening Value")+":Float:60",
+		_("In Qty")+":Float:100",
+		# _("In Value")+":Float:80",
+		_("Out Qty")+":Float:100",
+		# _("Out Value")+":Float:80",
 		_("Balance Qty")+":Float:100",
-		_("Balance Value")+":Float:100",
-		_("Valuation Rate")+":Float:90",
-		_("Reorder Level")+":Float:80",
-		_("Reorder Qty")+":Float:80",
-		_("Company")+":Link/Company:100"
+		# _("Balance Value")+":Float:100",
+		_("Valuation Rate")+":Float:100"
+		# ,_("Reorder Level")+":Float:80",
+		# _("Reorder Qty")+":Float:80",
+		# _("Company")+":Link/Company:100"
 	]
 
 	return columns

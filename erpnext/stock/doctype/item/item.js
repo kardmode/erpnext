@@ -22,7 +22,20 @@ frappe.ui.form.on("Item", {
 	},
 
 	refresh: function(frm) {
-		// refresh_field("item_group");
+		
+		if (!frm.doc.__islocal){
+			if(!frm.doc.parent_item_group && frm.doc.item_group)
+			{		
+				frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
+					parent_item_group = r && r.parent_item_group;
+					frm.set_value("parent_item_group",parent_item_group);
+				});
+				
+			}
+			
+		}
+		
+		
 
 
 		if(frm.doc.is_stock_item) {
@@ -125,48 +138,26 @@ frappe.ui.form.on("Item", {
 
 	page_name: frappe.utils.warn_page_name_change,
 
+	item_name: function(frm) {
+		if(frm.doc.item_name)
+		{
+			var newword = process_string(frm.doc.item_name);
+			frm.set_value("item_name", newword.trim());
+		}
+	},
+	
 	item_code: function(frm) {
 		
 		if(frm.doc.item_code)
 		{
 			
-			var code = frm.doc.item_code;
-			var newword = "";
-			var tests = ["mm","cm","m","in","ft"];
-
-			code.trim().split(" ").forEach(function(s) {
-				if(s.toLowerCase() == "x"){
-					var ss = s.toLowerCase();
-					if (newword == "")
-						newword = ss;
-					else
-						newword = newword + " " + ss;
-				}
-				else if (tests.indexOf(s.toLowerCase()) != -1)
-				{
-					var ss = s.toLowerCase();
-					if (newword == "")
-						newword = ss;
-					else
-						newword = newword + ss;
-				}
-				else
-				{
-					var ss = s;
-					if (newword == "")
-						newword = ss;
-					else
-						newword = newword + " " + ss;
-					
-				}
-			});
-			newword = newword.replace(" x ", "x");
+			var newword = process_string(frm.doc.item_code);
 			frm.set_value("item_code", newword.trim());
 		}
 		
 		
-		if(!frm.doc.item_name)
-			frm.set_value("item_name", frm.doc.item_code);
+		// if(!frm.doc.item_name)
+		frm.set_value("item_name", frm.doc.item_code);
 		if(!frm.doc.description)
 			frm.set_value("description", frm.doc.item_code);
 
@@ -223,6 +214,44 @@ frappe.ui.form.on("Item", {
 		if (frm.doc.default_warehouse && !frm.doc.website_warehouse){
 			frm.set_value("website_warehouse", frm.doc.default_warehouse);
 		}
+	},
+	
+	add_uom: function(frm) {
+		var dialog = new frappe.ui.Dialog({
+			fields: [
+				{fieldtype:'Float', default:1,
+					reqd:1, label:'Stock Qty'},
+				{fieldtype:'Column Break',fieldname:'column1'},
+				{fieldtype:'Link', options:'UOM',
+					read_only:1, label:__('Stock UOM'),default:frm.doc.stock_uom},
+				{fieldtype:'Section Break',fieldname:'section1'},
+				{fieldtype:'Float', default:1,
+					reqd:1, label:'Qty'},
+				{fieldtype:'Column Break',fieldname:'column2'},
+
+				{fieldtype:'Link', options:'UOM',
+					reqd:1, label:__('UOM')},
+					
+					// {fieldname:'bundle', fieldtype:'Link', options: 'BOM Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				// {fieldname:'base_variable', fieldtype:'Section Break'},
+			]
+		});
+
+		dialog.set_primary_action(__('Add'), function() {
+			var data = dialog.get_values();
+			if(!data) return;
+			
+			if(data.uom === data.stock_uom) return;
+			var conversion_factor = flt(data.stock_qty) / flt(data.qty);
+			
+			
+			check_conversion_factor(frm,data.uom,conversion_factor);
+			dialog.hide();
+			refresh_field("uoms");
+		})
+
+		dialog.show();
 	}
 });
 
@@ -548,7 +577,30 @@ $.extend(erpnext.item, {
 	}
 });
 
+var check_parent_item_group = function(frm) {
+	if(!frm.doc.parent_item_group)
+	{		
+		frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
+			parent_item_group = r && r.parent_item_group;
+			frm.set_value("parent_item_group",parent_item_group);
+		});
+		
+	}
+}
 var calculate_conversion_factor = function(frm) {
+	
+	if(!frm.doc.parent_item_group)
+	{		
+		frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
+			parent_item_group = r && r.parent_item_group;
+			frm.set_value("parent_item_group",parent_item_group);
+		});
+		
+	}
+	else{
+		
+	}
+	
 	if (frm.doc.depth > 0 && frm.doc.width > 0 && check_current_units(frm.doc.stock_uom) 
 	&& (frm.doc.parent_item_group == "Raw Material" || frm.doc.item_group == "Raw Material")){
 			
@@ -584,7 +636,7 @@ var check_conversion_factor = function(frm,unit,conversion_factor) {
 			if(uoms[i].uom === unit){
 				hasUOM = true;
 				if(flt(uoms[i].conversion_factor) != conversion_factor){
-					frappe.msgprint(__("Dimensions given calculate conversion factor {0}", [conversion_factor]));
+					//frappe.msgprint(__("Dimensions given calculate conversion factor {0}", [conversion_factor]));
 					uoms[i].conversion_factor = conversion_factor;
 				}
 				break;
@@ -613,6 +665,45 @@ var convert_units = function(unit,value) {
 	else
 		finalvalue = flt(value);
 	return finalvalue;
+}
+
+var process_string = function(code){
+	
+	code = code.replace(/  +/g, ' ');
+			var newword = "";
+			var tests = ["mm","cm","m","in","ft"];
+
+			code.trim().split(" ").forEach(function(s) {
+				if(s.toLowerCase() == "x"){
+					var ss = s.toLowerCase();
+					if (newword == "")
+						newword = ss;
+					else
+						newword = newword + " " + ss;
+				}
+				else if (tests.indexOf(s.toLowerCase()) != -1)
+				{
+					var ss = s.toLowerCase();
+					if (newword == "")
+						newword = ss;
+					else
+						newword = newword + ss;
+				}
+				else
+				{
+					var ss = s;
+					if (newword == "")
+						newword = ss;
+					else
+						newword = newword + " " + ss;
+					
+				}
+			});
+			newword = newword.replace(" X ", "x");
+			newword = newword.replace(" x ", "x");
+			// newword = newword.replace('"', "");
+			// newword = newword.replace(' " ', "");
+			return newword.trim();
 }
 
 var get_dimensions = function(frm) {

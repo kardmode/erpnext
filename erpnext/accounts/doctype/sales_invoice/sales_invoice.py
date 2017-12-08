@@ -29,7 +29,15 @@ class SalesInvoice(SellingController):
 	# def autoname(self):
 		# import datetime
 		# year = (getdate(self.posting_date)).year
-		# self.name = make_autoname('SINV-'+ str(year) + '.#####')
+		# month = (getdate(self.posting_date)).month
+		# date_string = str(year)
+		# naming_series = self.naming_series
+		# if self.company:
+			# abbr = 	frappe.db.get_value("Company", self.company, "abbr")
+			# if abbr:
+				# naming_series = str(abbr) + "-" + naming_series 
+			
+		# self.name = make_autoname(naming_series + date_string + '.#####')
 		
 		
 	def __init__(self, arg1, arg2=None):
@@ -867,6 +875,8 @@ class SalesInvoice(SellingController):
 					frappe.throw(_("Serial Number: {0} is already referenced in Sales Invoice: {1}".format(
 						serial_no, sales_invoice
 					)))
+					
+	
 
 def get_list_context(context=None):
 	from erpnext.controllers.website_list_for_contact import get_list_context
@@ -954,3 +964,25 @@ def set_account_for_mode_of_payment(self):
 	for data in self.payments:
 		if not data.account:
 			data.account = get_bank_cash_account(data.mode_of_payment, self.company).get("account")
+
+
+def update_item(target_doc,discount=5):
+	target_items = target_doc.items
+	factor = 1-flt(discount)/100
+	for item in target_items:
+		item.base_rate = factor * flt(item.base_rate)
+		item.rate = factor * flt(item.rate)
+		item.base_amount = item.qty * flt(item.base_rate)		
+		item.amount = item.qty * flt(item.rate)
+
+@frappe.whitelist()		
+def make_sales_invoice(source_name, discount_percent):
+		source_doc = frappe.get_doc("Sales Invoice", source_name)
+		target_doc = frappe.copy_doc(source_doc, ignore_no_copy=False)
+		target_doc.naming_series = source_doc.naming_series
+		target_doc.posting_date = source_doc.posting_date
+		target_doc.due_date = source_doc.due_date
+		update_item(target_doc, discount_percent)
+		# target_doc.insert(ignore_permissions=True)
+
+		return target_doc

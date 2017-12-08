@@ -1,0 +1,86 @@
+{%- set compact = doc.flags.compact_item_print -%}
+{%- set compact_fields = doc.flags.compact_item_fields -%}
+{%- set display_columns = visible_columns|map(attribute="fieldname")| list -%}
+{%- set columns = doc.flags.format_columns(display_columns, compact_fields) -%}
+{%- set field_columns = doc.flags.format_columns_custom(visible_columns, compact_fields) -%}
+
+{% if doc.in_format_data("image") and doc.get("image") and "image" in display_columns -%}
+<div class="pull-left" style="max-width: 40%; margin-right: 10px;">
+	<img class="print-item-image" src="{{ doc.image }}" alt="">
+</div>
+{%- endif %}
+
+<div>
+	{% if doc.in_format_data("item_code") and "item_code" in display_columns -%}
+			<div class="primary">
+					{{ _(doc.item_code) }}
+			</div>
+		{%- endif %}
+
+	{%- if doc.in_format_data("item_name") and "item_name" in display_columns and columns|length == 0 and
+		not (doc.in_format_data("item_code")) -%}
+				{{ _(doc.item_name) }}
+	{%- endif %}
+
+
+	{% if compact -%}
+		{%- for field in field_columns -%}
+			{%- set fieldname = field.fieldname -%}
+
+			
+			{% if doc.get(fieldname) and doc.in_format_data(fieldname) -%}
+				
+				{% if fieldname == "description"  -%}
+					
+					{% if not (doc.item_code == doc.item_name == doc.description)  -%}
+					<p>{{ doc.get_formatted(fieldname, translated=True)  }}</p>
+					{% endif %}
+					
+				{% else  -%}
+					<p>
+					
+					{% if field.print_label  -%}
+					<strong>{{ _(field.print_label) }}:</strong>
+					{% endif %}
+					
+					{{ doc.get_formatted(fieldname, translated=True)  }}
+					</p>
+
+				{% endif %}
+			
+			{% endif %}
+		
+		{%- endfor -%}
+		
+		
+		
+		<!-- {%- for fieldname in columns -%}
+			{% if doc.get(fieldname) and doc.in_format_data(fieldname) -%}
+				
+				{% if fieldname == "description"  -%}
+					
+					{% if not (doc.item_code == doc.item_name == doc.description)  -%}
+					<p>{{ doc.get_formatted(fieldname, translated=True)  }}</p>
+					{% endif %}
+					
+				{% else  -%}
+					
+					
+					<p>
+					
+					{% if doc.meta.get_label(fieldname)  -%}
+					<strong>{{ _(doc.meta.get_label(fieldname)) }}:</strong>
+					{% endif %}
+					
+					{{ doc.get_formatted(fieldname, translated=True)  }}
+					</p>
+				{% endif %}
+			
+			{% endif %}
+		{%- endfor -%} -->
+	{% else  -%}
+	
+		
+	
+	{%- endif %}
+</div>

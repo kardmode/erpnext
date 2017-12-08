@@ -120,6 +120,10 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			if(this.frm.doc.company && !this.frm.doc.amended_from) {
 				this.frm.trigger("company");
 			}
+			
+			/* var message = frappe.db.get_value('DocType Help Message', {'doctype_name': this.frm.doc.doctype}, 'message');
+			frappe.msgprint(message);
+ */
 		}
 
 		if(this.frm.fields_dict["taxes"]) {
@@ -1004,6 +1008,10 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					}
 				}
 			});
+		}
+		else{
+			me.frm.set_value("taxes", []);
+			me.calculate_taxes_and_totals();
 		}
 	},
 

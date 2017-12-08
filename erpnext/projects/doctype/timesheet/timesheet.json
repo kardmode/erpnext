@@ -10,7 +10,7 @@
  "description": "", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Other", 
  "editable_grid": 1, 
  "fields": [
   {
@@ -930,7 +930,7 @@
  "has_web_view": 0, 
  "hide_heading": 0, 
  "hide_toolbar": 0, 
- "icon": "fa fa-time", 
+ "icon": "fa fa-file-text", 
  "idx": 1, 
  "image_view": 0, 
  "in_create": 0, 
@@ -938,7 +938,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-13 14:28:51.838769", 
+ "modified": "2017-11-10 21:24:16.698564", 
  "modified_by": "Administrator", 
  "module": "Projects", 
  "name": "Timesheet", 

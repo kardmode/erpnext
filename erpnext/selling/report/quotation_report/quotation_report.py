@@ -24,195 +24,113 @@ def execute(filters=None):
 		letter_head = frappe.db.get_value("Company", quotation.company, "default_letter_head") or ""
 		filters["letter_head"] = letter_head
 		
+		row_count = 0		
 		
+		for i,item in enumerate(item_list):
 		
-		row_count = 0
-		section_count = 0
-		total = 0
-		
-		first_item = item_list[0]
-		has_header = 0
-		has_headers = 0
-		count = 0 
-		if str(first_item.item_group).lower() in ["header1","header2","header3"]:
-			has_header = 1
-
-		
-		for item in item_list:
-			if count > 0 and str(item.item_group).lower() in ["header1","header2","header3"]:
-				has_headers = 1
-		
-			count = count +1
 			from frappe.utils import strip_html_tags
 			item.description = strip_html_tags(item.description)
 			
 			if item.manufacturer_part_no:
 				item.brand = str(item.brand) + " " + str(item.manufacturer_part_no)
 
-			
-			item.stock_uom  += ' '*10
-			
-			item.qty = str(item.stock_uom) + str(int(item.qty))
-								
-			if item.item_group.lower() in ["header1","header2","header3"]:
-				
-				# New Section
-				if section_count:
-					if filters.get("format") == "Quotation":
-						if filters.get("simplified"):
-							row = ["","Total","", "","",total]
-						else:
-							row = ["","Total","","","","", "","",total]
-						data.append(row)
-						data.append([])	
-					elif filters.get("format") == "BoqAmount":
-						if filters.get("simplified"):
-							row = ["","Total","", "",total]
-						else:
-							row = ["","Total","","","","", "",total]
-						
-						data.append(row)
-						data.append([])	
-					elif filters.get("format") == "Boq":
-						data.append([])	
+			text_uom = str(item.uom or item.stock_uom) + ' '*10
+			text_qty = str(text_uom) + str(int(item.qty))
 					
-				row_count = 0
-				total = 0
-				section_count = section_count + 1
-				
-				if not filters.get("format") == "Summary":
-					row = ["",item.item_name, item.description,"","","", "","",""]
+			row_count = i + 1					
+			if filters.get("format") == "BoqAmount":
+
+				if filters.get("simplified"):
+					row = [row_count,item.item_name, item.description,text_qty,"",item.warranty_period]
 				else:
-					row = [section_count,item.item_name, item.description,item.rate]
-				data.append(row)	
+					row = [row_count,item.item_name, item.description,item.brand,item.item_group,text_qty,"",item.warranty_period]
 				
 				
+				data.append(row)
+			elif filters.get("format") == "Boq":
+				if filters.get("simplified"):
+					row = [row_count,item.item_name, item.description,text_qty,item.warranty_period]
+				else:
+					row = [row_count,item.item_name, item.description,item.brand,item.item_group,text_qty,item.warranty_period]
 				
-				
-			else:
-				if row_count == 0 and section_count == 0:
-					section_count = section_count + 1
-					if not filters.get("format") == "Summary":
-						row = ["","No Header for first section","","","","","","",""]					
-						data.append(row)
-					else:
-						row = [section_count,"No Header for first section","",""]					
-						data.append(row)
-					
-					
-				total = total + item.amount
-				
-				if filters.get("format") == "BoqAmount":
-					row_count = row_count + 1
-					
-					if filters.get("simplified"):
-						row = [row_count,item.item_name, item.description, item.qty,"",""]
-					else:
-						row = [row_count,item.item_name, item.description,item.brand,item.item_group,item.warranty_period, item.qty,"",""]
-					
-					
-					data.append(row)	
-				elif not filters.get("format") == "Summary":
-					row_count = row_count + 1
-					
-					if filters.get("simplified"):
-						row = [row_count,item.item_name, item.description, item.qty,item.rate,item.amount]
-					else:
-						row = [row_count,item.item_name, item.description,item.brand,item.item_group,item.warranty_period, item.qty,item.rate,item.amount]
-					
-					data.append(row)
+				data.append(row)
 			
+			elif filters.get("format") == "Quotation":
+				
+				if filters.get("simplified"):
+					row = [row_count,item.item_name, item.description,text_qty,item.rate,item.amount,item.warranty_period]
+				else:
+					row = [row_count,item.item_name, item.description,item.brand,item.item_group, text_qty,item.rate,item.amount,item.warranty_period]
+				
+				data.append(row)
+		
+		
 		if filters.get("format") == "Quotation":
 			
-			if filters.get("simplified"):
-				row = ["","Total","", "","",total]
-			else:
-				row = ["","Total","","","","", "","",total]
-			data.append(row)
-			data.append([])
-			
 			if quotation.discount_amount:
 				
 				if filters.get("simplified"):
-					row = ["","Discount Amount","", "","",quotation.discount_amount]
+					row = ["","Discount","", "","",quotation.discount_amount]
 				else:
-					row = ["","Discount Amount","","", "" ,"", "","",quotation.discount_amount]
+					row = ["","Discount","","", "" ,"", "","",quotation.discount_amount]
 				data.append(row)
-				data.append([])
+				
 			
 			
 			if filters.get("simplified"):
-				row = ["","Grand Total",quotation.in_words, "","",quotation.grand_total]
+				row = ["","Total",quotation.in_words, "","",quotation.grand_total]
 			else:
-				row = ["","Grand Total",quotation.in_words,"", "" ,"", "","",quotation.grand_total]
+				row = ["","Total",quotation.in_words,"", "" ,"", "",quotation.grand_total,""]
 			data.append(row)
 		elif filters.get("format") == "BoqAmount":
-			if filters.get("simplified"):
-				row = ["","Total","", "",total]
-			else:
-				row = ["","Total","","", "" ,"", "",total]
-			data.append(row)
-			data.append([])
 			
 			if quotation.discount_amount:
 				if filters.get("simplified"):
-					row = ["","Discount Amount","", "",quotation.discount_amount]
+					row = ["","Discount","", "",quotation.discount_amount]
 				else:
-					row = ["","Discount Amount","","", "" ,"", "",quotation.discount_amount]
+					row = ["","Discount","","", "" ,"",quotation.discount_amount, ""]
 				data.append(row)
-				data.append([])
 			
 			if filters.get("simplified"):
-				row = ["","Grand Total",quotation.in_words, "",quotation.grand_total]
+				row = ["","Total",quotation.in_words,quotation.grand_total, ""]
 			else:
-				row = ["","Grand Total",quotation.in_words,"", "" ,"", "",quotation.grand_total]
+				row = ["","Total",quotation.in_words,"", "",quotation.grand_total,""]
 			data.append(row)
-		elif filters.get("format") == "Summary":
-			
-			data.append([])
-			
-			if quotation.discount_amount:
-				row = ["","Discount Amount","",quotation.discount_amount]
-				data.append(row)
-				data.append([])
-			
-			row = ["","Grand Total",quotation.in_words,quotation.grand_total]
-			data.append(row)
+		
+		
+		
 		
 		data.append([])
 		
-		if not has_header and has_headers:
-			msgprint(_("Your items have headers but the first item is not a header."))
-
 	return columns, data
 	
 def get_columns(filters):
 
-	columns = [
-		_("Sr") + "::30",_("Item Name") + "::150", _("Description") + "::440",_("Brand") + "::80",_("Category") + "::80"
-		,_("Remarks") + "::120", _("Qty") + "::80"
-	]
+	
 	
 	if filters.get("simplified"):
 		columns = [
 		_("Sr") + "::30",_("Item Name") + "::150", _("Description") + "::440", _("Qty") + "::80"
 		]
+	else:
+		columns = [
+			_("Sr") + "::30",_("Item Name") + "::150", _("Description") + "::440",_("Brand") + "::80"
+			,_("Category") + "::80", _("Qty") + "::80"
+		]
 	
 	if filters.get("format") == "Quotation":
 		columns += [
-			_("Rate") + ":Currency:80",_("Amount AED") + ":Currency:80"
+			_("Rate") + ":Currency:80",_("Amount") + ":Currency:80",_("Remarks") + "::120"
 		]
 	elif filters.get("format") == "BoqAmount":
 		columns += [
-			_("Amount AED") + ":Currency:80"
+			_("Remarks") + "::120"
 		]
-	
-	elif filters.get("format") == "Summary":
-		columns = [
-			_("Sr") + "::30",_("Item Name") + "::150", _("Description") + "::440",_("Amount AED") + ":Currency:80"
+	elif filters.get("format") == "Boq":
+		columns += [
+			_("Remarks") + "::120"
 		]
-	
-	
+
 
 		
 	return columns
@@ -221,10 +139,12 @@ def get_columns(filters):
 def get_quotation(conditions, filters):
 	quotation_list = frappe.db.sql("""select * from tabQuotation where %s""" %
 		conditions, filters, as_dict=1)
-	
-	quotation = quotation_list[0].name
-	item_list = frappe.db.sql("select item_name,description,item_group,qty,stock_uom,rate,amount,brand,manufacturer_part_no,warranty_period from `tabQuotation Item` t2 where t2.parent =%s order by idx", quotation, as_dict = 1)
-	return item_list,quotation_list[0]
+	if quotation_list:
+		quotation = quotation_list[0].name
+		item_list = frappe.db.sql("select item_name,description,item_group,qty,stock_uom,rate,amount,brand,manufacturer_part_no,warranty_period from `tabQuotation Item` t2 where t2.parent =%s order by idx", quotation, as_dict = 1)
+		return item_list,quotation_list[0]
+	else:
+		return None,None
 
 def get_conditions(filters):
 	conditions = ""

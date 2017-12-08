@@ -62,6 +62,8 @@ class Attendance(Document):
 		
 		if totalworkhours < 0:
 			frappe.throw(_("Working time cannot be negative. Please check arrival time {0} or departure time {1} for employee {2}").format(self.arrival_time,self.departure_time,self.employee))
+		elif totalworkhours > 24:
+			frappe.throw(_("Working time cannot be greater than 24. Please check arrival time {0} or departure time {1} for employee {2}").format(self.arrival_time,self.departure_time,self.employee))
 
 		self.working_time = totalworkhours
 

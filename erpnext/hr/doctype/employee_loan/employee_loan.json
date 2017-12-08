@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "", 
  "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
@@ -947,7 +947,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-05-02 13:52:30.884154", 
+ "modified": "2017-11-08 00:48:19.870489", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Employee Loan", 

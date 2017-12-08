@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Other", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -955,7 +955,7 @@
  "has_web_view": 0, 
  "hide_heading": 0, 
  "hide_toolbar": 0, 
- "icon": "icon-money", 
+ "icon": "fa fa-money", 
  "idx": 1, 
  "image_view": 0, 
  "in_create": 0, 
@@ -964,7 +964,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2017-07-17 15:47:23.255142", 
+ "modified": "2017-11-10 21:20:56.988751", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Expense Claim", 

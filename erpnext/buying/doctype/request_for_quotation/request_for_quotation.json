@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Setup", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -816,7 +816,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-07-21 14:06:46.309322", 
+ "modified": "2017-11-08 04:46:03.724984", 
  "modified_by": "Administrator", 
  "module": "Buying", 
  "name": "Request for Quotation", 

@@ -91,21 +91,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		/* if (cur_frm.doc.items){
 			this.refresh_headers();
 		} */
-		cur_frm.add_custom_button(__("Quotation Report"), function() {
-			window.location.href = 'desk#query-report/Quotation%20Report';
-		}, __("Reports"), "btn-default");
-
-		cur_frm.add_custom_button(__("Item Summary By Project"), function() {
-					window.location.href = 'desk#query-report/Item%20Summary%20By%20Project';
-				}, __("Reports"), "btn-default");
 		
-		cur_frm.add_custom_button(__("Item Summary By Document"), function() {
-					window.location.href = 'desk#query-report/Item%20Summary%20By%20Document';
-				}, __("Reports"), "btn-default");
-		
-		cur_frm.add_custom_button(__("Project Summary"), function() {
-					window.location.href = 'desk#query-report/Project%20Summary';
-				}, __("Reports"), "btn-default");
 		
 		if (this.frm.doc.docstatus==0) {
 			cur_frm.add_custom_button(__('CSV'),
@@ -230,6 +216,19 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 					cur_frm.trigger('multiply_items');
 					
 				}, __("Modify"), "btn-default");
+			cur_frm.add_custom_button(__('Items Rate'),
+				function() {
+
+					cur_frm.trigger('multiply_rate');
+					
+				}, __("Modify"), "btn-default");
+			
+			cur_frm.add_custom_button(__('Pro Bata'),
+				function() {
+
+					cur_frm.trigger('pro_rata');
+					
+				}, __("Modify"), "btn-default");
 			
 		}
 		
@@ -279,7 +278,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				}
 				cur_frm.refresh_field('items');
 					me.calculate_taxes_and_totals();
-
+cur_frm.dirty();
 				dialog.hide();
 			}
 		})
@@ -320,7 +319,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			});
 			cur_frm.refresh_field('items');
 					me.calculate_taxes_and_totals();
-
+			cur_frm.dirty();
 			dialog.hide();
 		});
 		dialog.show();
@@ -360,12 +359,85 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			
 			cur_frm.refresh_field('items');
 					me.calculate_taxes_and_totals();
+			cur_frm.dirty();
+			dialog.hide();
+		});
+		dialog.show();
+	},
+	
+	multiply_rate:function (frm) {
+		var me = this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Multiply All Item Rate"),
+			fields: [
+				//{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				//{fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Float', label: __('Percent'),default:'100'},
+			]
+		});
+		dialog.set_primary_action(__("Multiply"), function() {
+		
+			var filters = dialog.get_values();
+			var percent = 100;
+			if ( dialog.get_value('qty') > 0)
+				percent = dialog.get_value('qty');
+			
+			
+			var items = cur_frm.doc.items;
+
+			$.each(items, function(i, item) {
+				item.rate = flt(item.rate) * flt(percent)/100;
+				//cur_frm.script_manager.trigger("item_code", item.doctype, item.name);
+
+			});
+			
+			cur_frm.refresh_field('items');
+			me.calculate_taxes_and_totals();
+			cur_frm.dirty();
 
 			dialog.hide();
 		});
 		dialog.show();
 	},
 
+	pro_rata:function (frm) {
+		var me = this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Pro Rata Item Rate"),
+			fields: [
+				//{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				{fieldname:'target', fieldtype:'Float', label: __('Total Required'),default:me.frm.doc.grand_total},
+				//{fieldname:'base_variable', fieldtype:'Section Break'},
+				//{fieldname:'qty', fieldtype:'Float', label: __('Percent'),default:'100'},
+			]
+		});
+		dialog.set_primary_action(__("Bata"), function() {
+		
+			var filters = dialog.get_values();
+			
+			var target = original_total = me.frm.doc.grand_total;
+			if ( dialog.get_value('target') > 0)
+				target = dialog.get_value('target');
+			
+			var percent_change = (target-original_total)/original_total
+			
+			var items = cur_frm.doc.items;
+			$.each(items, function(i, item) {
+				var new_amount = item.amount*(1+percent_change);
+				item.rate = flt(new_amount/item.qty);
+			});
+			
+			cur_frm.refresh_field('items');
+			me.calculate_taxes_and_totals();
+			cur_frm.dirty();
+
+			dialog.hide();
+		});
+		dialog.show();
+	},
+	
 	customer: function() {
 		var me = this;
 		erpnext.utils.get_party_details(this.frm, null, null,

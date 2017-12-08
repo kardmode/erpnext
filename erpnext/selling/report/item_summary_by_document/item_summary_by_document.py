@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, flt, getdate, rounded
 from erpnext.stock.utils import get_actual_qty
-from erpnext.manufacturing.doctype.bom.bom import get_bom_items
+from erpnext.manufacturing.doctype.bom.bom import get_bom_items,get_default_bom
 
 from frappe import msgprint, _
 
@@ -72,8 +72,7 @@ def execute(filters=None):
 		
 			data.append(row)
 		elif filters.get("bom_only") == "With BOM":
-			bom = frappe.db.get_value("BOM", filters={"item": item["item_code"], "project": project}) or frappe.db.get_value("BOM", filters={"item": item["item_code"], "is_default": 1})
-			
+			bom = get_default_bom(item["item_code"], project)
 			actual_qty = get_actual_qty(item["item_code"])
 			
 			if doctype == "Sales Order":
@@ -98,7 +97,7 @@ def execute(filters=None):
 					data.append(row)		
 			
 		else:
-			bom = frappe.db.get_value("BOM", filters={"item": item["item_code"], "project": project}) or frappe.db.get_value("BOM", filters={"item": item["item_code"], "is_default": 1})
+			bom = get_default_bom(item["item_code"], project)
 			
 			if bom:
 			

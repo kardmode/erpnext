@@ -354,11 +354,17 @@ class DeliveryNote(SellingController):
 			# stock_entry.from_warehouse = production_order.wip_warehouse
 			# stock_entry.to_warehouse = production_order.fg_warehouse
 			stock_entry.project = self.project
+			
+			from erpnext.stock.doctype.stock_entry.stock_entry import get_additional_costs
+			additional_costs = get_additional_costs(production_order, fg_qty=stock_entry.fg_completed_qty)
+			stock_entry.set("additional_costs", additional_costs)
+			
 		else:
 			# stock_entry.from_warehouse = production_order.source_warehouse
 			# stock_entry.to_warehouse = production_order.wip_warehouse
 			stock_entry.project = self.project
 
+		
 		stock_entry.get_items()
 		return stock_entry.as_dict()
 		

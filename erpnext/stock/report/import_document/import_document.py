@@ -19,10 +19,14 @@ def execute(filters=None):
 	for (company, item, warehouse) in sorted(iwb_map):
 		
 		qty_dict = iwb_map[(company, item, warehouse)]
-		data.append([item, item_map[item]["item_name"],
-			item_map[item]["item_group"], warehouse,
-			item_map[item]["stock_uom"],qty_dict.bal_qty,
-			qty_dict.bal_val, qty_dict.val_rate
+		data.append([item, 
+		# item_map[item]["item_name"],
+			item_map[item]["item_group"]
+			, warehouse
+			,item_map[item]["stock_uom"]
+			,qty_dict.bal_qty
+			# ,qty_dict.bal_val
+			# ,qty_dict.val_rate
 		])
 
 	return columns, data
@@ -31,14 +35,14 @@ def get_columns():
 	"""return columns"""
 
 	columns = [
-		_("Item")+":Link/Item:100",
-		_("Item Name")+"::150",
+		_("Item")+":Link/Item:200",
+		# _("Item Name")+"::150",
 		_("Item Group")+"::100",
 		_("Warehouse")+":Link/Warehouse:100",
-		_("Stock UOM")+":Link/UOM:90",
+		_("Stock UOM")+":Link/UOM:50",
 		_("Balance Qty")+":Float:100",
-		_("Balance Value")+":Float:100",
-		_("Valuation Rate")+":Float:90",
+		# _("Balance Value")+":Float:100",
+		# _("Valuation Rate")+":Float:90",
 	]
 
 	return columns
@@ -49,9 +53,18 @@ def get_conditions(filters):
 	from frappe.utils import flt, today
 	conditions += " and posting_date <= '%s'" % frappe.db.escape(today())
 
-
+	if filters.get("item_group"):		
+		ig_details = frappe.db.get_value("Item Group", filters.get("item_group"), 
+			["lft", "rgt"], as_dict=1)
+			
+		if ig_details:
+			conditions += """ 
+				and exists (select name from `tabItem Group` ig 
+				where ig.lft >= %s and ig.rgt <= %s and item.item_group = ig.name)
+			""" % (ig_details.lft, ig_details.rgt)
+		
 	if filters.get("item_code"):
-		conditions += " and item_code = '%s'" % frappe.db.escape(filters.get("item_code"), percent=False)
+		conditions += " and sle.item_code = '%s'" % frappe.db.escape(filters.get("item_code"), percent=False)
 
 	if filters.get("warehouse"):
 		warehouse_details = frappe.db.get_value("Warehouse", filters.get("warehouse"), ["lft", "rgt"], as_dict=1)
@@ -66,11 +79,20 @@ def get_conditions(filters):
 
 def get_stock_ledger_entries(filters):
 	conditions = get_conditions(filters)
-	return frappe.db.sql("""select item_code, warehouse, posting_date, actual_qty, valuation_rate,
-			company, voucher_type, qty_after_transaction, stock_value_difference
-		from `tabStock Ledger Entry` sle force index (posting_sort_index)
-		where docstatus < 2 %s order by posting_date, posting_time, name""" %
-		conditions, as_dict=1)
+	
+	join_table_query = ""
+	if filters.get("item_group"):
+		join_table_query = "inner join `tabItem` item on item.name = sle.item_code"
+	
+	return frappe.db.sql("""
+		select
+			sle.item_code, warehouse, sle.posting_date, sle.actual_qty, sle.valuation_rate,
+			sle.company, sle.voucher_type, sle.qty_after_transaction, sle.stock_value_difference
+		from
+			`tabStock Ledger Entry` sle force index (posting_sort_index) %s
+		where sle.docstatus < 2 %s 
+		order by sle.posting_date, sle.posting_time, sle.name""" %
+		(join_table_query, conditions), as_dict=1)
 
 def get_item_warehouse_map(filters):
 	iwb_map = {}

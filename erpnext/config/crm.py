@@ -1,6 +1,7 @@
 from frappe import _
 
 def get_data():
+	return []
 	return [
 		{
 			"label": _("Sales Pipeline"),

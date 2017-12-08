@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -1039,7 +1039,7 @@
  "istable": 0, 
  "max_attachments": 5, 
  "menu_index": 0, 
- "modified": "2017-05-23 11:28:28.161600", 
+ "modified": "2017-11-07 23:51:18.700765", 
  "modified_by": "Administrator", 
  "module": "Projects", 
  "name": "Task", 

@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 import frappe
 
 from frappe.utils import flt, getdate, fmt_money,formatdate,get_url, money_in_words
-6	
 from frappe import _
 
 from frappe.model.document import Document

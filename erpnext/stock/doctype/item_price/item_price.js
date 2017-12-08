@@ -15,5 +15,30 @@ frappe.ui.form.on("Item Price", {
 
 		frm.set_df_property("bulk_import_help", "options",
 			'<a href="#data-import-tool/Item Price">' + __("Import in Bulk") + '</a>');
+	},
+	refresh: function(frm){
+		if(!frm.doc.uom)
+			frm.set_value("uom",frm.doc.stock_uom);
+		
+		if(frm.doc.buying){
+			frm.set_value("reference_doctype","Supplier");
+
+		}
+		else if(frm.doc.selling){
+			
+			frm.set_value("reference_doctype","Customer");
+
+		}
+	},
+	price_list: function(frm){
+		if(frm.doc.buying){
+			frm.set_value("reference_doctype","Supplier");
+
+		}
+		else if(frm.doc.selling){
+			
+			frm.set_value("reference_doctype","Customer");
+
+		}
 	}
 });

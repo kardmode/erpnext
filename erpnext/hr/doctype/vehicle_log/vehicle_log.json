@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Other", 
  "editable_grid": 1, 
  "fields": [
   {
@@ -625,7 +625,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-13 14:29:08.103882", 
+ "modified": "2017-11-08 00:12:45.963873", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Vehicle Log", 

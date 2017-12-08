@@ -27,6 +27,10 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 			this.frm.set_df_property("debit_to", "print_hide", 0);
 		}
 
+		if(this.frm.doc.__islocal) {
+			//frappe.msgprint('Sales Invoices Must Be For the Full Amount. To request Payment Use Payment Requests. Payment Entries must be submitted to be found under advances.');
+		}
+
 		erpnext.queries.setup_queries(this.frm, "Warehouse", function() {
 			return erpnext.queries.warehouse(me.frm.doc);
 		});
@@ -98,6 +102,16 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 			cur_frm.cscript.sales_order_btn();
 			cur_frm.cscript.delivery_note_btn();
 		}
+		
+		/* if(!this.frm.doc.__islocal) {
+			this.frm.add_custom_button(__('Duplicate Invoice'), function() { 
+			
+				duplicate_invoice(cur_frm);
+			
+			
+			},
+				__("Make"));
+		} */
 
 		this.set_default_print_format();
 	},
@@ -388,6 +402,7 @@ cur_frm.cscript['Make Delivery Note'] = function() {
 	})
 }
 
+
 cur_frm.fields_dict.cash_bank_account.get_query = function(doc) {
 	return {
 		filters: [
@@ -423,6 +438,13 @@ cur_frm.fields_dict.write_off_cost_center.get_query = function(doc) {
 //project name
 //--------------------------
 cur_frm.fields_dict['project'].get_query = function(doc, cdt, cdn) {
+	if(doc.customer == "Al Maarifa Lab Supplis LLC" || "Science Lab Inc"){
+		return{
+			query: "erpnext.controllers.queries.get_project_name",
+			filters: {}
+		}
+	}
+	
 	return{
 		query: "erpnext.controllers.queries.get_project_name",
 		filters: {'customer': doc.customer}
@@ -595,3 +617,43 @@ var calculate_total_qty =  function(frm) {
 		}
 		doc.total_qty = total_qty;
 }
+
+var duplicate_invoice = function(frm){
+		var doc = frm.doc;
+		
+		var dialog = new frappe.ui.Dialog({
+			title: "Copy Invoice",
+			fields: [
+				{"fieldtype": "Float", "label": __("Discount Percent"), "fieldname": "discount_percent",default:'1'},
+			]
+		});
+		
+		dialog.set_primary_action(__("Copy"), function() {
+			args = dialog.get_values();
+			if(!args) return;
+			var discount_percent = args.discount_percent;
+			dialog.hide();
+			frappe.call({
+				method: "erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_invoice",
+				args: {
+					"source_name":doc.name,
+					"discount_percent":discount_percent,
+				},
+				callback: function(r) {
+					
+					if(!r.exc) {
+						frappe.model.sync(r.message);
+						// if(opts.run_link_triggers) {
+							// frappe.get_doc(r.message.doctype, r.message.name).__run_link_triggers = true;
+						// }
+						frappe.set_route("Form", r.message.doctype, r.message.name);
+					}
+				}
+			});
+		});
+		
+		dialog.show();
+			
+
+}
+

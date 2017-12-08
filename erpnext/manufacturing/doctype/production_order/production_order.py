@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from erpnext.stock.doctype.item.item import validate_end_of_life
 from erpnext.manufacturing.doctype.workstation.workstation import WorkstationHolidayError
 from erpnext.projects.doctype.timesheet.timesheet import OverlapError
-from erpnext.stock.doctype.stock_entry.stock_entry import get_additional_costs
+from erpnext.stock.doctype.stock_entry.stock_entry import get_additional_costs,get_best_warehouse
 from erpnext.manufacturing.doctype.manufacturing_settings.manufacturing_settings import get_mins_between_operations
 from erpnext.stock.stock_balance import get_planned_qty, update_bin_qty
 from frappe.utils.csvutils import getlink
@@ -47,6 +47,8 @@ class ProductionOrder(Document):
 			self.set_required_items()
 		else:
 			self.set_available_qty()
+		
+		self.calculate_max_quantities()
 
 	def validate_sales_order(self):
 		if self.sales_order:
@@ -164,7 +166,7 @@ class ProductionOrder(Document):
 				and purpose=%s""", (self.name, purpose))[0][0])
 
 			if qty > self.qty:
-				frappe.throw(_("{0} ({1}) cannot be greater than planned quanitity ({2}) in Production Order {3}").format(\
+				frappe.throw(_("{0} ({1}) cannot be greater than planned quantity ({2}) in Production Order {3}").format(\
 					self.meta.get_label(fieldname), qty, self.qty, self.name), StockOverProductionError)
 
 			self.db_set(fieldname, qty)
@@ -426,9 +428,13 @@ class ProductionOrder(Document):
 		for d in self.get("required_items"):
 			if d.source_warehouse:
 				d.available_qty_at_source_warehouse = get_latest_stock_qty(d.item_code, d.source_warehouse)
-				
+			
+			if self.skip_transfer:
+				target_warehouse = self.fg_warehouse
+			else:
+				target_warehouse = self.wip_warehouse
 			if self.wip_warehouse:
-				d.available_qty_at_wip_warehouse = get_latest_stock_qty(d.item_code, self.wip_warehouse)
+				d.available_qty_at_wip_warehouse = get_latest_stock_qty(d.item_code, target_warehouse)
 
 	def set_required_items(self):
 		'''set required_items for production to keep track of reserved qty'''
@@ -437,11 +443,15 @@ class ProductionOrder(Document):
 			item_dict = get_bom_items_as_dict(self.bom_no, self.company, qty=self.qty,
 				fetch_exploded = self.use_multi_level_bom)
 
+
+
 			for item in item_dict.values():
+				best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.qty,item.source_warehouse or item.default_warehouse)
+
 				self.append('required_items', {
 					'item_code': item.item_code,
 					'required_qty': item.qty,
-					'source_warehouse': item.source_warehouse or item.default_warehouse
+					'source_warehouse': best_warehouse
 				})
 			
 			self.set_available_qty()
@@ -462,7 +472,15 @@ class ProductionOrder(Document):
 
 			d.db_set('transferred_qty', transferred_qty, update_modified = False)
 
-
+	def calculate_max_quantities(self):
+		quantity_list = []
+		for d in self.get("required_items"):
+			quantity_list.append(flt(d.available_qty_at_source_warehouse)/flt(d.required_qty/self.qty))
+		max_qty = min(quantity_list or [0]) if min(quantity_list or [0])>=0 else 0
+		import math
+		self.max_qty = math.floor(max_qty)
+		
+		
 @frappe.whitelist()
 def get_item_details(item, project = None):
 	res = frappe.db.sql("""
@@ -521,13 +539,24 @@ def set_production_order_ops(name):
 	po.save()
 
 @frappe.whitelist()
-def make_stock_entry(production_order_id, purpose, qty=None):
+def make_stock_entry(production_order_id, purpose, qty=None,save=False,skip_transfer=False,verify_past_se=False):
 	production_order = frappe.get_doc("Production Order", production_order_id)
-	if not frappe.db.get_value("Warehouse", production_order.wip_warehouse, "is_group"):
-		wip_warehouse = production_order.wip_warehouse
+	
+	if verify_past_se:
+		ste_list = []
+		stock_entries = frappe.db.sql("""select name 
+		from `tabStock Entry` where production_order=%s and docstatus=0 and purpose=%s and bom_no = %s and fg_completed_qty = %s""",(production_order_id,purpose,production_order.bom_no,qty), as_dict=1)
+		if stock_entries:
+			return None;
+	
+	if skip_transfer:
+		wip_warehouse = production_order.source_warehouse
 	else:
+		wip_warehouse = production_order.wip_warehouse
+	
+	if frappe.db.get_value("Warehouse", wip_warehouse, "is_group"):
 		wip_warehouse = None
-
+		
 	stock_entry = frappe.new_doc("Stock Entry")
 	stock_entry.purpose = purpose
 	stock_entry.production_order = production_order_id
@@ -544,10 +573,27 @@ def make_stock_entry(production_order_id, purpose, qty=None):
 		stock_entry.from_warehouse = wip_warehouse
 		stock_entry.to_warehouse = production_order.fg_warehouse
 		additional_costs = get_additional_costs(production_order, fg_qty=stock_entry.fg_completed_qty)
-		# stock_entry.project = production_order.project
+		stock_entry.project = production_order.project
 		stock_entry.set("additional_costs", additional_costs)
 
 	stock_entry.get_items()
+	
+	if save:
+		from erpnext.stock.stock_ledger import NegativeStockError
+		from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
+			DuplicateEntryForProductionOrderError, OperationsNotCompleteError
+
+		try:
+			stock_entry.posting_date = frappe.flags.current_date
+			for d in stock_entry.get("items"):
+				d.cost_center = "Main - " + frappe.db.get_value('Company', stock_entry.company, 'abbr')
+			stock_entry.insert()
+			frappe.db.commit()
+
+		except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
+			OperationsNotCompleteError):
+			frappe.db.rollback()	
+		
 	return stock_entry.as_dict()
 
 @frappe.whitelist()

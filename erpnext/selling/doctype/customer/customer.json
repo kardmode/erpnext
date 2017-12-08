@@ -10,7 +10,7 @@
  "description": "Buyer of Goods and Services.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -1202,7 +1202,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-07-24 00:55:07.445783", 
+ "modified": "2017-11-08 00:51:43.728554", 
  "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Customer", 

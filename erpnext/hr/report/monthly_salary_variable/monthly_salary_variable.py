@@ -10,11 +10,12 @@ from calendar import monthrange
 
 def execute(filters=None):
 	if not filters: filters = {}
-	
+	data = []
+	columns = []
 	salary_slips = get_salary_slips(filters)
 	
 	if not salary_slips:
-		return '', ''
+		return columns, data
 	columns, earning_types, ded_types = get_columns(salary_slips)
 	
 	
@@ -22,7 +23,7 @@ def execute(filters=None):
 	ss_ded_map = get_ss_ded_map(salary_slips)
 	
 
-	data = []
+	
 	for ss in salary_slips:
 		row = []
 		

@@ -31,7 +31,7 @@ frappe.ui.form.on("Salary Slip", {
 	},
 
 
-	start_date: function(frm){
+	/* start_date: function(frm){
 		if(frm.doc.start_date){
 			frm.trigger("set_end_date");
 		}
@@ -50,7 +50,7 @@ frappe.ui.form.on("Salary Slip", {
 				}
 			}
 		})
-	},
+	}, */
 
 	company: function(frm) {
 		var company = locals[':Company'][frm.doc.company];
@@ -70,17 +70,11 @@ frappe.ui.form.on("Salary Slip", {
 	},	
 
 	salary_slip_based_on_timesheet: function(frm) {
-		frm.trigger("toggle_fields");
-		frm.set_value('start_date', '');
+		frm.trigger("toggle_fields")
 	},
 	
 	payroll_frequency: function(frm) {
-		frm.trigger("toggle_fields");
-		frm.set_value('start_date', '');
-	},
-
-	employee: function(frm){
-		frm.set_value('start_date', '');
+		frm.trigger("toggle_fields")
 	},
 
 	toggle_fields: function(frm) {
@@ -89,6 +83,24 @@ frappe.ui.form.on("Salary Slip", {
 
 		frm.toggle_display(['payment_days', 'total_working_days', 'leave_without_pay'],
 			frm.doc.payroll_frequency!="");
+	},
+	
+	set_start_end_dates: function(frm) {
+		if (!frm.doc.salary_slip_based_on_timesheet){
+			frappe.call({
+				method:'erpnext.hr.doctype.process_payroll.process_payroll.get_start_end_dates',
+				args:{
+					payroll_frequency: frm.doc.payroll_frequency,
+					start_date: frm.doc.start_date || frm.doc.posting_date
+				},
+				callback: function(r){
+					if (r.message){
+						frm.set_value('start_date', r.message.start_date);
+						frm.set_value('end_date', r.message.end_date);
+					}
+				}
+			})
+		}
 	},
 	
 })
@@ -107,6 +119,9 @@ frappe.ui.form.on('Salary Detail', {
 cur_frm.cscript.onload = function(doc,dt,dn){
 	if((cint(doc.__islocal) == 1) && !doc.amended_from){
 		doc.payroll_frequency = 'Monthly';
+		
+		cur_frm.trigger("set_start_end_dates");
+		
 		refresh_many(['payroll_frequency']);
 	}
 	cur_frm.set_df_property("earnings", "read_only", 1);
@@ -114,10 +129,13 @@ cur_frm.cscript.onload = function(doc,dt,dn){
 }
 
 
+
+
+
 // Get leave details
 //---------------------------------------------------------------------
 cur_frm.cscript.start_date = function(doc, dt, dn){
-	if(!doc.start_date){
+	if(doc.start_date){
 		return frappe.call({
 			method: 'get_emp_and_leave_details',
 			doc: locals[dt][dn],
@@ -177,25 +195,15 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 	for(var i = 0; i < tbl.length; i++){
 		if(cint(tbl[i].depends_on_lwp) == 1) {
 
-			if(tbl[i].salary_component == "Basic Salary"){
-				
-					
-				var payment_days = doc.payment_days;
-					
-				if (doc.payment_days == doc.total_working_days)
-					payment_days = 30;
-				var total_working_days = 30;
-				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(payment_days) / 
-					cint(total_working_days)*100)/100;
-				cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
-
-			}
-			else{
-				tbl[i].amount =  Math.round(tbl[i].default_amount)*(flt(doc.payment_days) / 
-					cint(doc.total_working_days)*100)/100;
-				cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
-
-			}
+			var payment_days = doc.payment_days;
+			var total_working_days = doc.total_working_days;		
+			if (payment_days == total_working_days)
+				payment_days = 30;
+			total_working_days = 30;
+			
+			tbl[i].amount =  Math.round(flt(tbl[i].default_amount)*(flt(payment_days) / 
+				cint(total_working_days)));
+			cur_frm.refresh_field('amount', tbl[i].name, 'earnings');
 
 
 		} else if(reset_amount) {

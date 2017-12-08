@@ -45,14 +45,11 @@ class Item(WebsiteGenerator):
 		elif not self.item_code:
 			msgprint(_("Item Code is mandatory because Item is not automatically numbered"), raise_exception=1)
 
-		self.item_code = strip(self.item_code)
 		self.name = self.item_code
 		
 	def processString(self, word):
 
 		code = word
-
-		
 		words = code.split()
 		newword = ""
 		for s in words:
@@ -79,14 +76,14 @@ class Item(WebsiteGenerator):
 					
 		code = str(code).replace(" x ", "x")
 		code = str(code).replace(" X ", "x")
-		
+		# code = str(code).replace('"', '')
+		# code = str(code).replace(' " ','')
 		return code.strip()
+	
+
 	def before_insert(self):
-		
-		
-		
 		self.item_code = self.processString(self.item_code)
-		
+
 		if not self.item_name:
 			self.item_name = self.item_code
 		else:
@@ -100,7 +97,8 @@ class Item(WebsiteGenerator):
 			self.description = self.description.strip()
 		
 
-		self.publish_in_hub = 1
+		if self.is_sales_item and not self.get('is_item_from_hub'):
+			self.publish_in_hub = 1
 
 	def after_insert(self):
 		'''set opening stock and item price'''
@@ -118,16 +116,28 @@ class Item(WebsiteGenerator):
 	
 
 	def validate(self):
-		super(Item, self).validate()
-		
-		# self.item_name = self.item_code
 
+		self.before_update = None
+		if frappe.db.exists('Item', self.name):
+			self.before_update = frappe.get_doc('Item', self.name)
+
+		super(Item, self).validate()
 
 		if not self.item_name:
 			self.item_name = self.item_code
-
+		else:
+			self.item_name = self.processString(self.item_name)
+		
+		import string
 		if not self.description:
 			self.description = self.item_name
+		else:
+			self.description = string.capwords(self.description)
+			self.description = self.description.strip()
+			
+		if not self.parent_item_group:
+			self.parent_item_group = frappe.db.get_value("item_group", self.item_group, "parent_item_group")
+
 
 		self.validate_uom()
 		self.add_default_uom_in_conversion_factor_table()

@@ -156,6 +156,21 @@ def get_incoming_rate(args):
 			in_rate = get_fifo_rate(previous_stock_queue, args.get("qty") or 0) if previous_stock_queue else 0
 		elif valuation_method == 'Moving Average':
 			in_rate = previous_sle.get('valuation_rate') or 0
+			
+		in_uom = previous_sle.get('stock_uom')
+		required_uom = args.get("uom") or args.get("stock_uom")
+		
+		# frappe.errprint(in_rate)
+		# frappe.errprint(required_uom)
+		# frappe.errprint(in_uom)
+		# if required_uom:
+			# if required_uom != in_uom:
+				# from erpnext.stock.get_item_details import get_conversion_factor
+				# item_code = args.get("item_code")
+				# conversion_factor = flt(get_conversion_factor(item_code, required_uom)['conversion_factor'])
+				# in_rate = flt(in_rate) * flt(conversion_factor)
+				# frappe.errprint(conversion_factor)
+
 
 	return in_rate
 

@@ -11,6 +11,13 @@ frappe.query_reports["Import Document"] = {
 			"options": "Item"
 		},
 		{
+			"fieldname": "item_group",
+			"label": __("Item Group"),
+			"fieldtype": "Link",
+			"width": "80",
+			"options": "Item Group",
+		},
+		{
 			"fieldname": "warehouse",
 			"label": __("Warehouse"),
 			"fieldtype": "Link",

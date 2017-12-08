@@ -32,10 +32,14 @@ frappe.ui.form.on("Warehouse", {
 		if (!frm.doc.__islocal) {
 			cur_frm.toggle_enable(['is_group', 'company'], false);
 		}
-		else{
-			if (!frm.doc.parent_warehouse)
+		else if(!frm.doc.is_group){
+			if (!frm.doc.parent_warehouse && frm.doc.company == "Science Lab Inc")
 			{
-				frm.set_value("parent_warehouse", "Import Docs - SLI");
+				frm.set_value("parent_warehouse", "Stores - SLI");
+			}
+			if (!frm.doc.account && frm.doc.company == "Science Lab Inc")
+			{
+				frm.set_value("account", "Stores - SLI");
 			}
 				
 		}
@@ -60,7 +64,31 @@ frappe.ui.form.on("Warehouse", {
 				}
 			}
 		}
-	}
+	},
+	
+	warehouse_name:function(frm)
+	{
+		if(!frm.doc.is_group){
+			if (frm.doc.company == "Science Lab Inc")
+			{
+				var myString = frm.doc.warehouse_name;
+				if(/\d/.test(myString))
+				{
+					frm.set_value("parent_warehouse", "Import Docs - SLI");
+
+				}
+				else{
+					frm.set_value("parent_warehouse", "Stores - SLI");
+				}
+			}
+			if (frm.doc.company == "Science Lab Inc")
+			{
+				frm.set_value("account", "Stores - SLI");
+			}
+				
+		}
+		
+	},
 });
 
 cur_frm.set_query("parent_warehouse", function() {

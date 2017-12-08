@@ -320,18 +320,6 @@ print_summary = function(doctype){
 				}
 			});
 
-
-	
-
-		
-		
-
-		
-		
-		
-
-		
-
 }
 
 

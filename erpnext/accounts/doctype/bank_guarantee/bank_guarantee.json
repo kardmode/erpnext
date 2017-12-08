@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Other", 
  "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
@@ -387,7 +387,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-04-25 13:31:49.627831", 
+ "modified": "2017-11-08 00:56:18.332224", 
  "modified_by": "Administrator", 
  "module": "Accounts", 
  "name": "Bank Guarantee", 

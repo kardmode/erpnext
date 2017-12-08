@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _,msgprint,throw
 from frappe.model.document import Document
-from frappe.utils import flt, nowdate, get_url,money_in_words,getdate,fmt_money
+from frappe.utils import flt, nowdate, get_url,money_in_words,getdate,fmt_money,formatdate
 from erpnext.accounts.party import get_party_account
 from erpnext.accounts.utils import get_account_currency
 from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry, get_company_defaults
@@ -17,12 +17,20 @@ class PaymentRequest(Document):
 	def autoname(self):
 		import datetime
 		year = (getdate(self.posting_date)).year
-		self.name = make_autoname('PI-'+ str(year) + '.#####')
+		month = (getdate(self.posting_date)).month
+		date_string = str(year)
+		naming_series = self.naming_series
+		# if self.company:
+			# abbr = 	frappe.db.get_value("Company", self.company, "abbr")
+			# if abbr:
+				# naming_series = str(abbr) + "-" + naming_series 
+			
+		self.name = make_autoname(naming_series + date_string + '.#####')
 			
 	def validate(self):
-		self.validate_reference_document()
-		self.validate_payment_request()
-		self.validate_currency()
+		# self.validate_reference_document()
+		# self.validate_payment_request()
+		# self.validate_currency()
 		
 		self.request_in_words = money_in_words(self.advance_required, self.currency)
 
@@ -223,47 +231,61 @@ class PaymentRequest(Document):
 					redirect_to = get_url("/orders/{0}".format(self.reference_name))
 
 			return redirect_to
-			
+	
+	def get_invoice_info(self,args):
+		args = frappe._dict(args)
+		ref_doc = frappe.get_doc(args.doctype, args.docname)
+		newd = {}
+		newd['posting_date'] = ref_doc.posting_date
+		newd['outstanding_amount'] = ref_doc.outstanding_amount
+		newd['total_amount'] = ref_doc.grand_total
+		newd['project']=ref_doc.project	
+		return newd
+		
 	def get_doc_info(self,args):
 		args = frappe._dict(args)
-		
-		ref_doc = frappe.get_doc(args.doctype, args.docname)
 
-		grand_total = get_amount(ref_doc, args.doctype)
+		self.currency = "AED"
+		project = args.docname
 		
-		summary = ""
-		outstanding_amount,summary = get_outstanding_amount(ref_doc, args.doctype)
+		
+		invoices = get_invoices(project)
+		for d in sorted(invoices):
+			newd = self.append('invoices')
+			newd.sales_invoice = d.name
+			newd.posting_date = d.posting_date
+			newd.outstanding_amount = d.outstanding_amount
+			newd.total_amount = d.grand_total
+			newd.project = project
+		
+		
+		self.calculate_totals()
+		
+		
+	def calculate_totals(self):	
+		grand_total = 0
+		outstanding_amount = 0
+		total_advance = 0
+		
+		for d in self.get('invoices'):
+			grand_total = grand_total + flt(d.total_amount)
+			outstanding_amount = outstanding_amount + flt(d.outstanding_amount)
+			
+		
+		
+		
 		total_advance = flt(grand_total)-flt(outstanding_amount)
 		
-		if args.doctype == "Project":
-			currency = "AED"
-			project = args.docname
-		else:
-			currency = ref_doc.currency
-			project = ref_doc.project
-			
-		self.currency =currency
+		self.currency ="AED"
 		self.grand_total = grand_total
-		self.email_to = args.recipient_id or ""
-		self.subject ="Payment Request for %s"%args.docname
-		self.message=get_dummy_message(ref_doc)
-		self.in_words = money_in_words(self.advance_required, currency)
+		
+		
+		self.in_words = money_in_words(self.advance_required, self.currency)
 		self.outstanding_amount = outstanding_amount
 		self.total_advance = total_advance
-		self.project = project
-		self.customer = ref_doc.customer
-		self.customer_address = ref_doc.customer_address
-		self.address_display = ref_doc.address_display
-		self.contact_person = ref_doc.contact_person
-		self.contact_display = ref_doc.contact_display
 		
-		self.in_words = money_in_words(outstanding_amount, currency)
-		self.request_in_words = money_in_words(self.advance_required, currency)
-		
-		self.payments_summary = summary
-	
-
-		
+		self.in_words = money_in_words(outstanding_amount, self.currency)
+		self.request_in_words = money_in_words(self.advance_required, self.currency)
 
 @frappe.whitelist(allow_guest=True)
 def make_payment_request(**args):
@@ -275,9 +297,11 @@ def make_payment_request(**args):
 
 	gateway_account = get_gateway_details(args) or frappe._dict()
 
-	grand_total = get_amount(ref_doc, args.dt)
-	summary = ""
-	outstanding_amount,summary = get_outstanding_amount(ref_doc, args.dt)
+	grand_total = get_amount(ref_doc, args.doctype)
+		
+	payments_summary = ""
+	project_summary = ""
+	outstanding_amount,payments_summary = get_outstanding_amount(ref_doc, args.doctype)
 	total_advance = flt(grand_total)-flt(outstanding_amount)
 
 	existing_payment_request = frappe.db.get_value("Payment Request",
@@ -360,7 +384,16 @@ def get_amount(ref_doc, dt):
 def get_outstanding_amount(ref_doc, dt):
 	"""get amount based on doctype"""
 	outstanding_amount = 0
-	summary = ""
+	
+	payments_summary = """<table class="table table-bordered table-condensed">"""
+	payments_summary += """<thead><tr style>
+				<th>Sr</th>
+				<th width="20%">Ref.</th>
+				<th>Transaction Ref.</th>
+				<th>Date</th>
+				<th>Amount</th>
+				</tr></thead><tbody>"""
+	
 	if dt == "Sales Order":
 		outstanding_amount = flt(ref_doc.grand_total) - flt(ref_doc.advance_paid)
 		if ref_doc.party_account_currency == ref_doc.currency:
@@ -368,26 +401,29 @@ def get_outstanding_amount(ref_doc, dt):
 		else:
 			outstanding_amount = flt(outstanding_amount) / ref_doc.conversion_rate
 		
-		summary = get_advances(ref_doc)
+		payments_summary += get_advances(ref_doc)
 	elif dt == "Sales Invoice":
 		if ref_doc.party_account_currency == ref_doc.currency:
 			outstanding_amount = flt(ref_doc.outstanding_amount)
 		else:
 			outstanding_amount = flt(ref_doc.outstanding_amount) / ref_doc.conversion_rate
 		
-		summary = get_advances(ref_doc)
+		payments_summary += get_advances(ref_doc)
 	elif dt == "Project":
-		doc_list = get_documents(ref_doc.name,"Sales Invoice")
+		doctype = "Sales Invoice"
+		doc_list = get_documents(ref_doc.name,doctype)
+		
 		
 		for d in doc_list:
 			outstanding_amount = outstanding_amount + flt(d.outstanding_amount)
-			summary = summary + get_advances(ref_doc)
+			d["doctype"] = doctype
+			payments_summary += get_advances(d)
 		
-	if outstanding_amount > 0 :
-		return outstanding_amount,summary
-	else:
+	if outstanding_amount <= 0 :
 		frappe.msgprint(_("No Outstanding Balance"))
 		
+	payments_summary += """</tbody></table>"""
+	return outstanding_amount,payments_summary
 
 
 def get_gateway_details(args):
@@ -457,29 +493,60 @@ def get_dummy_message(doc):
 def get_documents(project,doctype):
 	ss_list = []
 	if doctype == "Sales Order":
-		ss_list = frappe.db.sql("""select name,grand_total , advance_paid, debit_to from `tabSales Order` where project = %s and docstatus = 1""", project,as_dict = 1)
+		ss_list = frappe.db.sql("""select name,posting_date,currency,customer,grand_total , advance_paid, debit_to from `tabSales Order` where project = %s and docstatus = 1""", project,as_dict = 1)
 
 	elif doctype == "Sales Invoice":
-		ss_list = frappe.db.sql("""select name,grand_total, outstanding_amount,debit_to from `tabSales Invoice` where project = %s and docstatus = 1""", project,as_dict = 1)
+		ss_list = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, outstanding_amount,debit_to from `tabSales Invoice` where project = %s and docstatus = 1""", project,as_dict = 1)
 
-	frappe.errprint(ss_list)
 	return ss_list
+	
+def get_invoices(project):
+	"""Returns list of advances against Account, Party, Reference"""
+	res = get_documents(project,"Sales Invoice")
+	
+	return res
+def get_project_summary(project):
+	"""Returns list of advances against Account, Party, Reference"""
+	res = get_documents(project,"Sales Invoice")
+			
+	project_summary = """<table class="table table-bordered table-condensed">"""
+	project_summary += """<thead><tr style>
+				<th>Sr</th>
+				<th width="20%">Ref.</th>
+				<th>Date</th>
+				<th>Amount</th>
+				</tr></thead><tbody>"""	
+	
+	
+	for i, d in enumerate(res):
+		amount = fmt_money(d.grand_total, 2, d.currency)
+		project_summary += """<tr>
+					<td>""" + str(i+1) +"""</td>
+					<td>""" + str(d.name) +"""</td>
+					<td>""" + str(formatdate(d.posting_date)) +"""</td>
+					<td>""" + str(d.currency) + " " + amount +"""</td>
+					</tr>"""
+	project_summary += """</tbody></table>"""
+	return project_summary
 	
 def get_advances(ref_doc):
 	"""Returns list of advances against Account, Party, Reference"""
-	order_doctype = "Sales Invoice"
 	order_list = [ref_doc.name]
 	res = get_advance_entries(order_list,ref_doc.doctype,ref_doc,include_unallocated=False)
 	
-	summary = ""
-	
-	
-	for d in res:
+		
+	joiningtext = ""
+	for i, d in enumerate(res):
 		amount = fmt_money(d.amount, 2, d.paid_from_account_currency)
-		summary = summary + " " + str(ref_doc.name) + " " + str(d.reference_no) + " " + str(d.reference_date) + " : " + str(d.paid_from_account_currency) + " " + amount
-		summary = summary + "<br>"
-
-	return summary
+		joiningtext += """<tr>
+					<td>""" + str(i+1) +"""</td>
+					<td>""" + str(ref_doc.name) +"""</td>
+					<td>""" + str(d.reference_no) +"""</td>
+					<td>""" + str(formatdate(d.reference_date)) +"""</td>
+					<td>""" + str(d.paid_from_account_currency) + " " + amount +"""</td>
+					</tr>"""
+	
+	return joiningtext
 
 def get_advance_entries(order_list,order_doctype,ref_doc,include_unallocated=True):
 	party_account = ref_doc.debit_to

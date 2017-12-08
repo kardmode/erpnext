@@ -16,8 +16,7 @@ frappe.query_reports["Quotation Report"] = {
 			options: [
 				{ "value": "Boq", "label": __("Boq") },
 				{ "value": "BoqAmount", "label": __("Boq With Amount") },
-				{ "value": "Quotation", "label": __("Quotation") },
-				{ "value": "Summary", "label": __("Summary") }
+				{ "value": "Quotation", "label": __("Quotation") }
 			],
 			default: "Quotation"
 		},

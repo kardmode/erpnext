@@ -10,7 +10,7 @@
  "description": "Generate packing slips for packages to be delivered. Used to notify package number, package contents and its weight.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Other", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -702,7 +702,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-13 14:29:17.446439", 
+ "modified": "2017-11-08 03:01:10.175233", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Packing Slip", 

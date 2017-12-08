@@ -2,9 +2,11 @@ from __future__ import unicode_literals
 from frappe import _
 
 def get_data():
+	return []
 	return [
 		{
 			"label": _("Issues"),
+			"icon": "fa fa-list",
 			"items": [
 				{
 					"type": "doctype",
@@ -20,6 +22,7 @@ def get_data():
 		},
 		{
 			"label": _("Warranty"),
+			"icon": "fa fa-list",
 			"items": [
 				{
 					"type": "doctype",

@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -507,7 +507,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-13 14:29:01.066538", 
+ "modified": "2017-11-08 00:24:36.414618", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Leave Allocation", 

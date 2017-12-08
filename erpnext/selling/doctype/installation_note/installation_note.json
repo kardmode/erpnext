@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Other", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -708,7 +708,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-13 14:29:12.141921", 
+ "modified": "2017-11-08 00:51:31.791957", 
  "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Installation Note", 

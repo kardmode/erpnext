@@ -26,7 +26,8 @@ def get_columns():
 def get_bom_stock(filters):
     conditions = ""
     bom = filters.get("bom")
-
+	
+	
     if filters.get("warehouse"):
         warehouse_details = frappe.db.get_value("Warehouse", filters.get("warehouse"), ["lft", "rgt"], as_dict=1)
         if warehouse_details:
@@ -38,14 +39,16 @@ def get_bom_stock(filters):
 
     else:
         conditions += ""
+		
+	qty = filters.get("qty") or 1
 
     return frappe.db.sql("""
     		SELECT
     	        bom_item.item_code ,
     	        bom_item.description ,
-    	        bom_item.qty,
+    	        bom_item.qty * %f AS total_qty,
     	        sum(ledger.actual_qty) as actual_qty,
-    	        sum(FLOOR(ledger.actual_qty /bom_item.qty))as to_build
+    	        sum(FLOOR(ledger.actual_qty / bom_item.qty))as to_build
             FROM
     	        `tabBOM Item` AS bom_item
     	        LEFT JOIN `tabBin` AS ledger
@@ -54,4 +57,4 @@ def get_bom_stock(filters):
             WHERE
     	        bom_item.parent = '%s'
 
-            GROUP BY bom_item.item_code""" % (conditions, bom))
+            GROUP BY bom_item.item_code""" % (qty,conditions, bom))

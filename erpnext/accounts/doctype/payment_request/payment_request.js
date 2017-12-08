@@ -15,11 +15,44 @@ frappe.ui.form.on("Payment Request", {
 				}
 			}
 		}) */
+		if (frm.doc.reference_doctype == "Project"){
+			frm.set_query('reference_name', function(doc) {
+				return {
+					filters: { 'docstatus': 0, 'customer':doc.customer,'company':doc.company}
+				}
+			});
+		}else{
+			frm.set_query('reference_name', function(doc) {
+				return {
+					filters: { 'docstatus': 0 , 'customer':doc.customer,'company':doc.company}
+				}
+			});
+			
+		}
 		
-		
-
+		if (!frm.doc.company)
+			frm.set_value("company",frappe.defaults.get_default('company') ? frappe.defaults.get_default('company'): "");
 		
 	},
+	refresh: function(frm) {
+		frm.add_custom_button(__("Get Invoices"), function() {
+				frm.events.get_invoice(frm);
+			});
+       frm.trigger("calculate_total_payment_requests");
+    },
+
+	calculate_total_payment_requests: function(frm) {
+		var total_payment_requests = 0;
+		$.each(frm.doc.payment_requests, function(i, d) {
+				total_payment_requests += flt(d.amount);
+			});
+		if (total_payment_requests > flt(frm.doc.grand_total)){
+			// frappe.msgprint("Total Payment Request is greater than project total");
+			frm.set_value("advance_required",total_payment_requests);
+		} else{
+			frm.set_value("advance_required",total_payment_requests);
+		}
+    },
 	reference_doctype: function(frm) {
 		if (frm.doc.reference_name){
 			frm.set_value("reference_name","");
@@ -28,21 +61,66 @@ frappe.ui.form.on("Payment Request", {
 		if (frm.doc.reference_doctype == "Project"){
 			frm.set_query('reference_name', function(doc) {
 				return {
-					filters: { 'docstatus': 0 }
+					filters: { 'docstatus': 0, 'customer':doc.customer,'company':doc.company}
 				}
 			});
 		}else{
 			frm.set_query('reference_name', function(doc) {
 				return {
-					filters: { 'docstatus': 1 }
+					filters: { 'docstatus': 0, 'customer':doc.customer,'company':doc.company}
 				}
 			});
 			
 		}
 		
 	},
+	get_invoice: function(frm) {
+		
+		var me=this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Get Invoices From Project"),
+			fields: [
+				{fieldname:'project', fieldtype:'Link', options: 'Project', label: __('Project'),
+				get_query: function() {
+					return {
+						filters: [["Project", 'company', '=', cur_frm.doc.company],
+						["Project", 'customer', '=', cur_frm.doc.customer]]
+					};
+				},
+				},
+				{fieldname:'clear_invoices', fieldtype:'Check', label: __('Clear Previous Invoices')},
+				// {fieldname:'base_variable', fieldtype:'Section Break'},
+			]
+		});
+		dialog.set_primary_action(__("Add"), function() {
+		
+			var filters = dialog.get_values();
+			if (filters.clear_invoices){
+					frm.set_value("invoices",[]);
+				}
+			if (filters.project){
+				
+				frappe.call({
+					doc: frm.doc,
+					args: {"doctype": "Project","docname": filters.project},
+					method: "get_doc_info",
+					callback:function(r){
+						frm.refresh();
+						cur_frm.dirty();
+						dialog.hide();
+					}
+				});
+			}
+			else{
+				dialog.hide();
+			}
+		});
+		dialog.show();
+		
+		
+	},
 	
-	reference_name: function(frm) {
+	get_invoices: function(frm) {
 		if (frm.doc.reference_name){
 			frappe.call({
 				doc: frm.doc,
@@ -56,12 +134,12 @@ frappe.ui.form.on("Payment Request", {
 		}
 	},
 	
-	company: function(frm) {
-		var company = locals[':Company'][frm.doc.company];
-		if(!frm.doc.letter_head && company.default_letter_head) {
-			frm.set_value('letter_head', company.default_letter_head);
-		}
-	},
+	// company: function(frm) {
+		// var company = locals[':Company'][frm.doc.company];
+		// if(!frm.doc.letter_head && company.default_letter_head) {
+			// frm.set_value('letter_head', company.default_letter_head);
+		// }
+	// },
 	customer: function() {
 		erpnext.utils.get_party_details(me.frm, null, null, function(){});
 	},
@@ -112,6 +190,7 @@ frappe.ui.form.on("Payment Request", "onload", function(frm, dt, dn){
 		})
 	}
 	
+	
 	if (!frm.doc.posting_date) {
 				frm.set_value("posting_date", get_today());
 			}
@@ -159,4 +238,96 @@ frappe.ui.form.on("Payment Request", "refresh", function(frm) {
 		}).addClass("btn-primary");
 	}
 });
+
+frappe.ui.form.on("PR Invoice", {
+	sales_invoice: function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		if (d.sales_invoice){
+			frappe.call({
+				doc: cur_frm.doc,
+				args: {"doctype": "Sales Invoice","docname": d.sales_invoice},
+				method: "get_invoice_info",
+				callback:function(r){
+					if(r.message){
+						
+					
+						frappe.model.set_value(d.doctype, d.name, "project", r.message.project);
+						frappe.model.set_value(d.doctype, d.name, "posting_date", r.message.posting_date);
+						frappe.model.set_value(d.doctype, d.name, "total_amount", r.message.total_amount);
+						frappe.model.set_value(d.doctype, d.name, "outstanding_amount", r.message.outstanding_amount);
+					}
+					if(d.sales_invoice)
+						calculate_totals(frm,cdt,cdn);
+					
+				}
+			});
+		}
+		
+	},
+	
+	invoices_add:function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		
+		if(d.sales_invoice)
+			calculate_totals(frm,cdt,cdn);
+	},
+	
+	invoices_remove:function(frm, cdt, cdn) {
+		calculate_totals(frm,cdt,cdn);
+			
+		
+	},
+});
+
+frappe.ui.form.on("Payment Requests", {
+    /*percent: function(frm, cdt, cdn) {
+	var d = locals[cdt][cdn];
+	console.log("Test");
+        amount = flt(frm.doc.grand_total) * flt(d.percent / 100);
+	frappe.model.set_value(cdt, cdn, "amount", amount);
+	refresh_field("payment_requests");
+	 frm.trigger("calculate_total_payment_requests");
+    },*/
+	amount: function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+        percent = flt(d.amount * 100) / flt(frm.doc.grand_total) || 0;
+		frappe.model.set_value(cdt, cdn, "percent", percent);
+		refresh_field("payment_requests");
+		frm.trigger("calculate_total_payment_requests");
+    },
+})
+
+cur_frm.fields_dict['invoices'].grid.get_field('sales_invoice').get_query = function(doc, cdt, cdn) {
+	var d = locals[cdt][cdn];
+	if(cur_frm.doc.customer){
+		
+		return{
+			filters: {
+				'customer': cur_frm.doc.customer,
+				'company':cur_frm.doc.company
+			}
+		}
+	}
+	
+	
+}
+
+var calculate_totals = function(frm, cdt, cdn) {
+	var invoices = frm.doc.invoices;
+	var grand_total = 0;
+	var outstanding_amount = 0;
+	var total_advance = 0;
+	for(var i=0;i<invoices.length;i++) {
+		grand_total = grand_total + flt(invoices[i].total_amount);
+		outstanding_amount = outstanding_amount + flt(invoices[i].outstanding_amount);
+
+	}
+	total_advance = flt(grand_total)-flt(outstanding_amount);
+	
+	frm.set_value("grand_total",grand_total);
+	frm.set_value("outstanding_amount",outstanding_amount);
+	frm.set_value("total_advance",total_advance);
+	
+	cur_frm.dirty();
+}
 
