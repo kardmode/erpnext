@@ -210,19 +210,18 @@ class BOM(WebsiteGenerator):
 				d.uom = d.stock_uom
 				d.qty = d.stock_qty
 					
-	<<<<<<< HEAD				
-			ret_item = self.get_bom_material_detail({'item_code': d.item_code, 'bom_no': d.bom_no,
-				'stock_qty': d.stock_qty,'required_uom':d.uom})
+	# <<<<<<< HEAD				
+			# ret_item = self.get_bom_material_detail({'item_code': d.item_code, 'bom_no': d.bom_no,
+				# 'stock_qty': d.stock_qty,'required_uom':d.uom})
 			
-			if ret_item['rate']:
-				d.required_rate = ret_item['required_rate']
-				d.rate = ret_item['rate']
-=======
+			# if ret_item['rate']:
+				# d.required_rate = ret_item['required_rate']
+				# d.rate = ret_item['rate']
+# =======
 			rate = self.get_rm_rate({"item_code": d.item_code, "bom_no": d.bom_no})
 			if rate:
 				d.required_rate = ret_item['required_rate']
 				d.rate = rate * flt(d.conversion_factor) / flt(self.conversion_rate)
->>>>>>> 84a44f7758cbdcc12a6289f36e5fc2c83dc5afc7
 
 		if self.docstatus == 1:
 			self.flags.ignore_validate_update_after_submit = True
