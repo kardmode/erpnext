@@ -13,6 +13,7 @@ class TestAsset(unittest.TestCase):
 	def setUp(self):
 		set_depreciation_settings_in_company()
 		create_asset()
+		frappe.db.sql("delete from `tabTax Rule`")
 		
 	def test_purchase_asset(self):
 		asset = frappe.get_doc("Asset", "Macbook Pro 1")
@@ -150,10 +151,15 @@ class TestAsset(unittest.TestCase):
 		asset.load_from_db()
 		self.assertEqual(asset.status, "Submitted")
 
+		frappe.db.set_value("Company", "_Test Company", "series_for_depreciation_entry", "DEPR-")
+
 		post_depreciation_entries(date="2021-01-01")
 		asset.load_from_db()
 
 		self.assertEqual(asset.status, "Partially Depreciated")
+
+		# check depreciation entry series
+		self.assertEqual(asset.get("schedules")[0].journal_entry[:4], "DEPR")
 
 		expected_gle = (
 			("_Test Accumulated Depreciations - _TC", 0.0, 30000.0),
@@ -182,7 +188,6 @@ class TestAsset(unittest.TestCase):
 		asset.load_from_db()
 		depr_entry = asset.get("schedules")[0].journal_entry
 		self.assertFalse(depr_entry)
-		
 
 	def test_scrap_asset(self):
 		asset = frappe.get_doc("Asset", "Macbook Pro 1")
@@ -228,8 +233,9 @@ class TestAsset(unittest.TestCase):
 
 		expected_gle = (
 			("_Test Accumulated Depreciations - _TC", 30000.0, 0.0),
+			("_Test Depreciations - _TC", 70000.0, 0.0),
 			("_Test Fixed Asset - _TC", 0.0, 100000.0),
-			("_Test Gain/Loss on Asset Disposal - _TC", 45000.0, 0.0),
+			("_Test Gain/Loss on Asset Disposal - _TC", 0.0, 25000.0),
 			("Debtors - _TC", 25000.0, 0.0)
 		)
 

@@ -68,18 +68,20 @@ def set_address_details(out, party, party_type, doctype=None, company=None):
 	billing_address_field = "customer_address" if party_type == "Lead" \
 		else party_type.lower() + "_address"
 	out[billing_address_field] = get_default_address(party_type, party.name)
-	out.update(get_fetch_values(doctype, billing_address_field, out[billing_address_field]))
+	if doctype:
+		out.update(get_fetch_values(doctype, billing_address_field, out[billing_address_field]))
 
 	# address display
 	out.address_display = get_address_display(out[billing_address_field])
 
 	# shipping address
 	if party_type in ["Customer", "Lead"]:
-		out.shipping_address_name = get_default_address(party_type, party.name, 'is_shipping_address')
+		out.shipping_address_name = get_party_shipping_address(party_type, party.name)
 		out.shipping_address = get_address_display(out["shipping_address_name"])
-		out.update(get_fetch_values(doctype, 'shipping_address_name', out.shipping_address_name))
+		if doctype:
+			out.update(get_fetch_values(doctype, 'shipping_address_name', out.shipping_address_name))
 
-	if doctype and doctype in ['Sales Invoice']:
+	if doctype and doctype in ['Delivery Note', 'Sales Invoice']:
 		out.update(get_company_address(company))
 		if out.company_address:
 			out.update(get_fetch_values(doctype, 'company_address', out.company_address))
@@ -174,29 +176,31 @@ def get_party_account(party_type, party, company):
 	if not company:
 		frappe.throw(_("Please select a Company"))
 
-	if party:
+	if not party:
+		return
+
+	account = frappe.db.get_value("Party Account",
+		{"parenttype": party_type, "parent": party, "company": company}, "account")
+
+	if not account and party_type in ['Customer', 'Supplier']:
+		party_group_doctype = "Customer Group" if party_type=="Customer" else "Supplier Type"
+		group = frappe.db.get_value(party_type, party, scrub(party_group_doctype))
 		account = frappe.db.get_value("Party Account",
-			{"parenttype": party_type, "parent": party, "company": company}, "account")
+			{"parenttype": party_group_doctype, "parent": group, "company": company}, "account")
 
-		if not account and party_type in ['Customer', 'Supplier']:
-			party_group_doctype = "Customer Group" if party_type=="Customer" else "Supplier Type"
-			group = frappe.db.get_value(party_type, party, scrub(party_group_doctype))
-			account = frappe.db.get_value("Party Account",
-				{"parenttype": party_group_doctype, "parent": group, "company": company}, "account")
+	if not account and party_type in ['Customer', 'Supplier']:
+		default_account_name = "default_receivable_account" \
+			if party_type=="Customer" else "default_payable_account"
+		account = frappe.db.get_value("Company", company, default_account_name)
 
-		if not account and party_type in ['Customer', 'Supplier']:
-			default_account_name = "default_receivable_account" \
-				if party_type=="Customer" else "default_payable_account"
-			account = frappe.db.get_value("Company", company, default_account_name)
+	existing_gle_currency = get_party_gle_currency(party_type, party, company)
+	if existing_gle_currency:
+		if account:
+			account_currency = frappe.db.get_value("Account", account, "account_currency")
+		if (account and account_currency != existing_gle_currency) or not account:
+				account = get_party_gle_account(party_type, party, company)
 
-		existing_gle_currency = get_party_gle_currency(party_type, party, company)
-		if existing_gle_currency:
-			if account:
-				account_currency = frappe.db.get_value("Account", account, "account_currency")
-			if (account and account_currency != existing_gle_currency) or not account:
-					account = get_party_gle_account(party_type, party, company)
-
-		return account
+	return account
 
 def get_party_account_currency(party_type, party, company):
 	def generator():
@@ -320,10 +324,14 @@ def set_taxes(party, party_type, posting_date, company, customer_group=None, sup
 	from erpnext.accounts.doctype.tax_rule.tax_rule import get_tax_template, get_party_details
 	args = {
 		party_type.lower(): party,
-		"customer_group":	customer_group,
-		"supplier_type":	supplier_type,
 		"company":			company
 	}
+
+	if customer_group:
+		args['customer_group'] = customer_group
+
+	if supplier_type:
+		args['supplier_type'] = supplier_type
 
 	if billing_address or shipping_address:
 		args.update(get_party_details(party, party_type, {"billing_address": billing_address, \
@@ -412,3 +420,32 @@ def get_dashboard_info(party_type, party):
 		info["total_unpaid"] = -1 * info["total_unpaid"]
 
 	return info
+
+
+def get_party_shipping_address(doctype, name):
+	"""
+	Returns an Address name (best guess) for the given doctype and name for which `address_type == 'Shipping'` is true.
+	and/or `is_shipping_address = 1`.
+
+	It returns an empty string if there is no matching record.
+
+	:param doctype: Party Doctype
+	:param name: Party name
+	:return: String
+	"""
+	out = frappe.db.sql(
+		'SELECT dl.parent '
+		'from `tabDynamic Link` dl join `tabAddress` ta on dl.parent=ta.name '
+		'where '
+		'dl.link_doctype=%s '
+		'and dl.link_name=%s '
+		'and dl.parenttype="Address" '
+		'and '
+		'(ta.address_type="Shipping" or ta.is_shipping_address=1) '
+		'order by ta.is_shipping_address desc, ta.address_type desc limit 1',
+		(doctype, name)
+	)
+	if out:
+		return out[0][0]
+	else:
+		return ''

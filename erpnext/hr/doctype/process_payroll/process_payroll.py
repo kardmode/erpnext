@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import frappe
 from dateutil.relativedelta import relativedelta
 from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,fmt_money, add_to_date, DATE_FORMAT
+
 from frappe import _
 from erpnext.accounts.utils import get_fiscal_year
 
@@ -266,23 +267,28 @@ class ProcessPayroll(Document):
 	def format_as_links(self, salary_slip):
 		return ['<a href="#Form/Salary Slip/{0}">{0}</a>'.format(salary_slip)]
 
-	def get_total_salary_and_loan_amounts(self):
+	def get_loan_details(self):
 		"""
-			Get total loan principal, loan interest and salary amount from submitted salary slip based on selected criteria
+			Get loan details from submitted salary slip based on selected criteria
 		"""
 		cond = self.get_filter_condition()
-		totals = frappe.db.sql("""
-			select sum(principal_amount) as total_principal_amount, sum(interest_amount) as total_interest_amount, 
-			sum(total_loan_repayment) as total_loan_repayment, sum(rounded_total) as rounded_total from `tabSalary Slip` t1
+		return frappe.db.sql(""" select eld.employee_loan_account,
+				eld.interest_income_account, eld.principal_amount, eld.interest_amount, eld.total_payment
+			from
+				`tabSalary Slip` t1, `tabSalary Slip Loan` eld
+			where
+				t1.docstatus = 1 and t1.name = eld.parent and start_date >= %s and end_date <= %s %s
+			""" % ('%s', '%s', cond), (self.start_date, self.end_date), as_dict=True) or []
+
+	def get_total_salary_amount(self):
+		"""
+			Get total salary amount from submitted salary slip based on selected criteria
+		"""
+		cond = self.get_filter_condition()
+		totals = frappe.db.sql(""" select sum(rounded_total) as rounded_total from `tabSalary Slip` t1
 			where t1.docstatus = 1 and start_date >= %s and end_date <= %s %s
 			""" % ('%s', '%s', cond), (self.start_date, self.end_date), as_dict=True)
-		return totals[0]
-	
-	def get_loan_accounts(self):
-		loan_accounts = frappe.get_all("Employee Loan", fields=["employee_loan_account", "interest_income_account"], 
-						filters = {"company": self.company, "docstatus":1})
-		if loan_accounts:
-			return loan_accounts[0]
+		return totals and totals[0] or None
 
 	def get_salary_component_account(self, salary_component):
 		account = frappe.db.get_value("Salary Component Account",
@@ -333,88 +339,99 @@ class ProcessPayroll(Document):
 		earnings = self.get_salary_component_total(component_type = "earnings") or {}
 		deductions = self.get_salary_component_total(component_type = "deductions") or {}
 		default_payroll_payable_account = self.get_default_payroll_payable_account()
-		loan_amounts = self.get_total_salary_and_loan_amounts()
-		loan_accounts = self.get_loan_accounts()
+		loan_details = self.get_loan_details()
 		jv_name = ""
+		precision = frappe.get_precision("Journal Entry Account", "debit_in_account_currency")
 
 		if earnings or deductions:
 			journal_entry = frappe.new_doc('Journal Entry')
 			journal_entry.voucher_type = 'Journal Entry'
-			journal_entry.user_remark = _('Accural Journal Entry for salaries from {0} to {1}').format(self.start_date,
-				self.end_date)
+			journal_entry.user_remark = _('Accural Journal Entry for salaries from {0} to {1}')\
+				.format(self.start_date, self.end_date)
 			journal_entry.company = self.company
 			journal_entry.posting_date = nowdate()
 
-			account_amt_list = []
-			adjustment_amt = 0
-			for acc, amt in earnings.items():
-				adjustment_amt = adjustment_amt+amt
-				account_amt_list.append({
+			accounts = []
+			payable_amount = 0
+
+			# Earnings
+			for acc, amount in earnings.items():
+				payable_amount += flt(amount, precision)
+				accounts.append({
 						"account": acc,
-						"debit_in_account_currency": amt,
+						"debit_in_account_currency": flt(amount, precision),
 						"cost_center": self.cost_center,
 						"project": self.project
 					})
-			for acc, amt in deductions.items():
-				adjustment_amt = adjustment_amt-amt
-				account_amt_list.append({
+
+			# Deductions
+			for acc, amount in deductions.items():
+				payable_amount -= flt(amount, precision)
+				accounts.append({
 						"account": acc,
-						"credit_in_account_currency": amt,
+						"credit_in_account_currency": flt(amount, precision),
 						"cost_center": self.cost_center,
 						"project": self.project
 					})
-			#employee loan
-			if loan_amounts.total_loan_repayment:
-				account_amt_list.append({
-						"account": loan_accounts.employee_loan_account,
-						"credit_in_account_currency": loan_amounts.total_principal_amount
+
+			# Employee loan
+			for data in loan_details:
+				accounts.append({
+						"account": data.employee_loan_account,
+						"credit_in_account_currency": data.principal_amount
 					})
-				account_amt_list.append({
-						"account": loan_accounts.interest_income_account,
-						"credit_in_account_currency": loan_amounts.total_interest_amount,
+				accounts.append({
+						"account": data.interest_income_account,
+						"credit_in_account_currency": data.interest_amount,
 						"cost_center": self.cost_center,
 						"project": self.project
 					})
-				adjustment_amt = adjustment_amt-(loan_amounts.total_loan_repayment)
-			
-			account_amt_list.append({
-					"account": default_payroll_payable_account,
-					"credit_in_account_currency": adjustment_amt
-				})
-			journal_entry.set("accounts", account_amt_list)
+				payable_amount -= flt(data.total_payment, precision)
+
+			# Payable amount
+			accounts.append({
+				"account": default_payroll_payable_account,
+				"credit_in_account_currency": flt(payable_amount, precision)
+			})
+
+			journal_entry.set("accounts", accounts)
 			journal_entry.save()
+
 			try:
 				journal_entry.submit()
 				jv_name = journal_entry.name
 				self.update_salary_slip_status(jv_name = jv_name)
 			except Exception as e:
 				frappe.msgprint(e)
+
 		return jv_name
 
 	def make_payment_entry(self):
 		self.check_permission('write')
-		total_salary_amount = self.get_total_salary_and_loan_amounts()
+		total_salary_amount = self.get_total_salary_amount()
 		default_payroll_payable_account = self.get_default_payroll_payable_account()
+		precision = frappe.get_precision("Journal Entry Account", "debit_in_account_currency")
 
-		if total_salary_amount.rounded_total:
+		if total_salary_amount and total_salary_amount.rounded_total:
 			journal_entry = frappe.new_doc('Journal Entry')
 			journal_entry.voucher_type = 'Bank Entry'
-			journal_entry.user_remark = _('Payment of salary from {0} to {1}').format(self.start_date,
-				self.end_date)
+			journal_entry.user_remark = _('Payment of salary from {0} to {1}')\
+				.format(self.start_date, self.end_date)
 			journal_entry.company = self.company
 			journal_entry.posting_date = nowdate()
 
-			account_amt_list = []
-		
-			account_amt_list.append({
+			payment_amount = flt(total_salary_amount.rounded_total, precision)
+
+			journal_entry.set("accounts", [
+				{
 					"account": self.payment_account,
-					"credit_in_account_currency": total_salary_amount.rounded_total
-				})
-			account_amt_list.append({
+					"credit_in_account_currency": payment_amount
+				},
+				{
 					"account": default_payroll_payable_account,
-					"debit_in_account_currency": total_salary_amount.rounded_total
-				})	
-			journal_entry.set("accounts", account_amt_list)
+					"debit_in_account_currency": payment_amount
+				}
+			])
 			return journal_entry.as_dict()
 		else:
 			frappe.msgprint(

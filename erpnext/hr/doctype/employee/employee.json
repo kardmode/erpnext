@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Setup", 
  "editable_grid": 1, 
  "fields": [
   {
@@ -149,7 +149,7 @@
    "in_filter": 0, 
    "in_global_search": 1, 
    "in_list_view": 1, 
-   "in_standard_filter": 0, 
+   "in_standard_filter": 1, 
    "label": "Full Name", 
    "length": 0, 
    "no_copy": 0, 
@@ -2432,7 +2432,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-11-08 00:04:36.846593", 
+ "modified": "2017-10-04 11:42:02.495731", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Employee", 

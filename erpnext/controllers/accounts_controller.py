@@ -8,7 +8,6 @@ from frappe.utils import today, flt, cint, fmt_money, formatdate, getdate
 from erpnext.setup.utils import get_exchange_rate
 from erpnext.accounts.utils import get_fiscal_years, validate_fiscal_year, get_account_currency
 from erpnext.utilities.transaction_base import TransactionBase
-from erpnext.controllers.recurring_document import convert_to_recurring, validate_recurring_document
 from erpnext.controllers.sales_and_purchase_return import validate_return
 from erpnext.accounts.party import get_party_account_currency, validate_party_frozen_disabled
 from erpnext.exceptions import InvalidCurrency
@@ -16,8 +15,8 @@ from erpnext.exceptions import InvalidCurrency
 force_item_fields = ("item_group", "barcode", "brand", "stock_uom")
 
 class AccountsController(TransactionBase):
-	def __init__(self, arg1, arg2=None):
-		super(AccountsController, self).__init__(arg1, arg2)
+	def __init__(self, *args, **kwargs):
+		super(AccountsController, self).__init__(*args, **kwargs)
 
 	@property
 	def company_currency(self):
@@ -53,13 +52,6 @@ class AccountsController(TransactionBase):
 		self.validate_party()
 		self.validate_currency()
 
-		if self.meta.get_field("is_recurring"):
-			if self.amended_from and self.recurring_id == self.amended_from:
-				self.recurring_id = None
-			if not self.get("__islocal"):
-				validate_recurring_document(self)
-				convert_to_recurring(self, self.get("posting_date") or self.get("transaction_date"))
-
 		if self.doctype == 'Purchase Invoice':
 			self.validate_paid_amount()
 
@@ -84,17 +76,15 @@ class AccountsController(TransactionBase):
 			else:
 				frappe.db.set(self,'paid_amount',0)
 
-	def on_update_after_submit(self):
-		if self.meta.get_field("is_recurring"):
-			validate_recurring_document(self)
-			convert_to_recurring(self, self.get("posting_date") or self.get("transaction_date"))
-
 	def set_missing_values(self, for_validate=False):
 		if frappe.flags.in_test:
 			for fieldname in ["posting_date","transaction_date"]:
 				if self.meta.get_field(fieldname) and not self.get(fieldname):
 					self.set(fieldname, today())
 					break
+
+		# set taxes table if missing from `taxes_and_charges`
+		self.set_taxes()
 
 	def calculate_taxes_and_totals(self):
 		from erpnext.controllers.taxes_and_totals import calculate_taxes_and_totals
@@ -200,9 +190,6 @@ class AccountsController(TransactionBase):
 								if stock_qty != len(get_serial_nos(item.get('serial_no'))):
 									item.set(fieldname, value)
 
-							elif fieldname == "conversion_factor" and not item.get("conversion_factor"):
-								item.set(fieldname, value)
-
 					if ret.get("pricing_rule"):
 						# if user changed the discount percentage then set user's discount percentage ?
 						item.set("discount_percentage", ret.get("discount_percentage"))
@@ -222,10 +209,10 @@ class AccountsController(TransactionBase):
 
 		tax_master_doctype = self.meta.get_field("taxes_and_charges").options
 
-		if not self.get("taxes"):
+		if self.is_new() and not self.get("taxes"):
 			if not self.get("taxes_and_charges"):
 				# get the default tax master
-				self.set("taxes_and_charges", frappe.db.get_value(tax_master_doctype, {"is_default": 1}))
+				self.taxes_and_charges = frappe.db.get_value(tax_master_doctype, {"is_default": 1})
 
 			self.append_taxes_from_master(tax_master_doctype)
 
@@ -275,9 +262,9 @@ class AccountsController(TransactionBase):
 		if not account_currency:
 			account_currency = get_account_currency(gl_dict.account)
 
-		if gl_dict.account and self.doctype not in ["Journal Entry", 
+		if gl_dict.account and self.doctype not in ["Journal Entry",
 			"Period Closing Voucher", "Payment Entry"]:
-			
+
 			self.validate_account_currency(gl_dict.account, account_currency)
 			set_balance_in_account_currency(gl_dict, account_currency, self.get("conversion_rate"), self.company_currency)
 
@@ -621,7 +608,10 @@ def get_tax_rate(account_head):
 @frappe.whitelist()
 def get_default_taxes_and_charges(master_doctype):
 	default_tax = frappe.db.get_value(master_doctype, {"is_default": 1})
-	return get_taxes_and_charges(master_doctype, default_tax)
+	return {
+		'taxes_and_charges': default_tax,
+		'taxes': get_taxes_and_charges(master_doctype, default_tax)
+	}
 
 @frappe.whitelist()
 def get_taxes_and_charges(master_doctype, master_name):

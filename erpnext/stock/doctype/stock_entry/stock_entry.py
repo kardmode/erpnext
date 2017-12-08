@@ -546,13 +546,8 @@ class StockEntry(StockController):
 		args['posting_date'] = self.posting_date
 		args['posting_time'] = self.posting_time
 
-		# if (not args.get("s_warehouse") and not args.get("warehouse")) and (self.purpose in ["Material Issue"]):
-			# args["warehouse"],enough_stock = get_best_warehouse(args.get('item_code'),args.get('qty'),None, True)
-			# ret["s_warehouse"] = args["warehouse"]
 
-			
-		
-		stock_and_rate = args.get('warehouse') and get_warehouse_details(args) or {}
+		stock_and_rate = get_warehouse_details(args) if args.get('warehouse') else {}
 		ret.update(stock_and_rate)
 		ret["initial_qty"] = ret["actual_qty"]
 
@@ -594,7 +589,7 @@ class StockEntry(StockController):
 
 					item_dict = self.get_bom_raw_materials(self.fg_completed_qty)
 					for item in item_dict.values():
-						if self.pro_doc:
+						if self.pro_doc and not self.pro_doc.skip_transfer:
 							item["from_warehouse"] = self.pro_doc.wip_warehouse
 
 						# Added By Me
@@ -677,7 +672,8 @@ class StockEntry(StockController):
 			fetch_exploded = self.use_multi_level_bom)
 
 		for item in item_dict.values():
-			item.from_warehouse = self.from_warehouse or item.default_warehouse
+			# if source warehouse presents in BOM set from_warehouse as bom source_warehouse
+			item.from_warehouse = self.from_warehouse or item.source_warehouse or item.default_warehouse
 		return item_dict
 
 	def get_bom_scrap_material(self, qty):

@@ -1,23 +1,22 @@
-/* eslint-disable */
-// rename this file from _test_[name] to test_[name] to activate
-// and remove above this line
+QUnit.module('Account');
 
-QUnit.test("test: Bank Reconciliation", function (assert) {
+QUnit.test("test Bank Reconciliation", function(assert) {
+	assert.expect(0);
 	let done = assert.async();
-
-	// number of asserts
-	assert.expect(1);
-
-	frappe.run_serially('Bank Reconciliation', [
-		// insert a new Bank Reconciliation
-		() => frappe.tests.make([
-			// values to be set
-			{key: 'value'}
-		]),
+	frappe.run_serially([
+		() => frappe.set_route('Form', 'Bank Reconciliation'),
+		() => cur_frm.set_value('bank_account','Cash - FT'),
+		() => frappe.click_button('Get Payment Entries'),
 		() => {
-			assert.equal(cur_frm.doc.key, 'value');
+			for(var i=0;i<=cur_frm.doc.payment_entries.length-1;i++){
+				cur_frm.doc.payment_entries[i].clearance_date = frappe.datetime.add_days(frappe.datetime.now_date(), 2);
+			}
 		},
+		() => {cur_frm.refresh_fields('payment_entries');},
+		() => frappe.click_button('Update Clearance Date'),
+		() => frappe.timeout(0.5),
+		() => frappe.click_button('Close'),
 		() => done()
 	]);
-
 });
+

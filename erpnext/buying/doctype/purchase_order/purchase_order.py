@@ -29,8 +29,9 @@ class PurchaseOrder(BuyingController):
 		# month = (getdate(self.transaction_date)).month
 		
 		# self.name = make_autoname('PO-'+ str(year) + '.#####')
-	def __init__(self, arg1, arg2=None):
-		super(PurchaseOrder, self).__init__(arg1, arg2)
+
+	def __init__(self, *args, **kwargs):
+		super(PurchaseOrder, self).__init__(*args, **kwargs)
 		self.status_updater = [{
 			'source_dt': 'Purchase Order Item',
 			'target_dt': 'Material Request Item',
@@ -52,6 +53,7 @@ class PurchaseOrder(BuyingController):
 		self.set_status()
 
 		self.validate_supplier()
+		self.validate_schedule_date()
 		validate_for_items(self)
 		self.check_for_closed_status()
 
@@ -61,6 +63,7 @@ class PurchaseOrder(BuyingController):
 		self.validate_with_previous_doc()
 		self.validate_for_subcontracting()
 		self.validate_minimum_order_qty()
+		self.validate_bom_for_subcontracting_items()
 		self.create_raw_materials_supplied("supplied_items")
 		self.set_received_qty_for_drop_ship_items()
 		
@@ -107,6 +110,13 @@ class PurchaseOrder(BuyingController):
 				frappe.throw(_("Item {0}: Ordered qty {1} cannot be less than minimum order qty {2} (defined in Item).").format(item_code,
 					qty, itemwise_min_order_qty.get(item_code)))
 
+	def validate_bom_for_subcontracting_items(self):
+		if self.is_subcontracted == "Yes":
+			for item in self.items:
+				if not item.bom:
+					frappe.throw(_("BOM is not specified for subcontracting item {0} at row {1}"\
+						.format(item.item_code, item.idx)))
+
 	def get_schedule_dates(self):
 		for d in self.get('items'):
 			if d.material_request_item and not d.schedule_date:
@@ -129,14 +139,13 @@ class PurchaseOrder(BuyingController):
 					d.discount_percentage = last_purchase_details['discount_percentage']
 					d.base_rate = last_purchase_details['base_rate'] * (flt(d.conversion_factor) or 1.0)
 					d.price_list_rate = d.base_price_list_rate / conversion_rate
-					d.rate = d.base_rate / conversion_rate
+					d.last_purchase_rate = d.base_rate / conversion_rate
 				else:
-					msgprint(_("Last purchase rate not found"))
 
 					item_last_purchase_rate = frappe.db.get_value("Item", d.item_code, "last_purchase_rate")
 					if item_last_purchase_rate:
 						d.base_price_list_rate = d.base_rate = d.price_list_rate \
-							= d.rate = item_last_purchase_rate
+							= d.last_purchase_rate = item_last_purchase_rate
 
 	# Check for Closed status
 	def check_for_closed_status(self):
@@ -308,6 +317,7 @@ def make_purchase_receipt(source_name, target_doc=None):
 			"field_map": {
 				"name": "purchase_order_item",
 				"parent": "purchase_order",
+				"bom": "bom"
 			},
 			"postprocess": update_item,
 			"condition": lambda doc: abs(doc.received_qty) < abs(doc.qty) and doc.delivered_by_supplier!=1

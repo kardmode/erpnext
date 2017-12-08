@@ -79,7 +79,7 @@ def get_item_details(args):
 		and out.warehouse and out.stock_qty > 0:
 
 		if out.has_serial_no:
-			out.serial_no = get_serial_no(out)
+			out.serial_no = get_serial_no(out, args.serial_no)
 
 		if out.has_batch_no and not args.get("batch_no"):
 			out.batch_no = get_batch_no(out.item_code, out.warehouse, out.qty)
@@ -90,21 +90,11 @@ def get_item_details(args):
 			item.lead_time_days)
 
 	if args.get("is_subcontracted") == "Yes":
-		out.bom = get_default_bom(args.item_code)
+		out.bom = args.get('bom') or get_default_bom(args.item_code)
 
 	get_gross_profit(out)
 
 	return out
-
-	# print(frappe._dict({
-	# 	'has_serial_no'	: out.has_serial_no,
-	# 	'has_batch_no'	: out.has_batch_no
-	# }))
-
-	# return frappe._dict({
-	# 	'has_serial_no'	: out.has_serial_no,
-	# 	'has_batch_no'	: out.has_batch_no
-	# })
 
 def process_args(args):
 	if isinstance(args, basestring):
@@ -164,6 +154,15 @@ def get_basic_details(args, item):
 
 	warehouse = user_default_warehouse or item.default_warehouse or args.warehouse
 
+	#Set the UOM to the Default Sales UOM or Default Purchase UOM if configured in the Item Master
+	if not args.uom:
+		if args.get('doctype') in ['Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice']:
+			args.uom = item.sales_uom if item.sales_uom else item.stock_uom
+		elif args.get('doctype') in ['Purchase Order', 'Purchase Receipt', 'Purchase Invoice']:
+			args.uom = item.purchase_uom if item.purchase_uom else item.stock_uom
+		else:
+			args.uom = item.stock_uom
+
 	out = frappe._dict({
 		"item_code": item.name,
 		"item_name": item.item_name,
@@ -178,7 +177,7 @@ def get_basic_details(args, item):
 		"batch_no": None,
 		"item_tax_rate": json.dumps(dict(([d.tax_type, d.tax_rate] for d in
 			item.get("taxes")))),
-		"uom": item.stock_uom,
+		"uom": args.uom,
 		"min_order_qty": flt(item.min_order_qty) if args.doctype == "Material Request" else "",
 		"qty": args.qty or 1.0,
 		"stock_qty": args.qty or 1.0,
@@ -364,11 +363,11 @@ def get_pos_profile_item_details(company, args, pos_profile=None):
 @frappe.whitelist()
 def get_pos_profile(company):
 	pos_profile = frappe.db.sql("""select * from `tabPOS Profile` where user = %s
-		 and company = %s""", (frappe.session['user'], company), as_dict=1)
+		and company = %s and ifnull(disabled,0) != 1""", (frappe.session['user'], company), as_dict=1)
 
 	if not pos_profile:
 		pos_profile = frappe.db.sql("""select * from `tabPOS Profile`
-			where ifnull(user,'') = '' and company = %s""", company, as_dict=1)
+			where ifnull(user,'') = '' and company = %s and ifnull(disabled,0) != 1""", company, as_dict=1)
 
 	return pos_profile and pos_profile[0] or None
 
@@ -523,8 +522,6 @@ def get_default_bom(item_code=None):
 		bom = frappe.db.get_value("BOM", {"docstatus": 1, "is_default": 1, "is_active": 1, "item": item_code})
 		if bom:
 			return bom
-		else:
-			frappe.throw(_("No default BOM exists for Item {0}").format(item_code))
 
 def get_valuation_rate(item_code, warehouse=None):
 	item = frappe.get_doc("Item", item_code)
@@ -554,7 +551,8 @@ def get_gross_profit(out):
 	return out
 
 @frappe.whitelist()
-def get_serial_no(args):
+def get_serial_no(args, serial_nos=None):
+	serial_no = None
 	if isinstance(args, basestring):
 		args = json.loads(args)
 		args = frappe._dict(args)
@@ -568,7 +566,11 @@ def get_serial_no(args):
 			args = json.dumps({"item_code": args.get('item_code'),"warehouse": args.get('warehouse'),"stock_qty": args.get('stock_qty')})
 			args = process_args(args)
 			serial_no = get_serial_nos_by_fifo(args)
-			return serial_no
+	if not serial_no and serial_nos:
+		# For POS
+		serial_no = serial_nos
+
+	return serial_no
 
 @frappe.whitelist()
 def get_default_uom(item_code=None):
@@ -578,3 +580,4 @@ def get_default_uom(item_code=None):
 			return uom
 		else:
 			frappe.throw(_("No default UOM exists for Item {0}").format(item_code))
+

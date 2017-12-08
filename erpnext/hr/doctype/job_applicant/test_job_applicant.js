@@ -1,23 +1,29 @@
-/* eslint-disable */
-// rename this file from _test_[name] to test_[name] to activate
-// and remove above this line
+QUnit.module('hr');
 
-QUnit.test("test: Job Applicant", function (assert) {
+QUnit.test("Test: Job Opening [HR]", function (assert) {
+	assert.expect(2);
 	let done = assert.async();
 
-	// number of asserts
-	assert.expect(1);
-
-	frappe.run_serially('Job Applicant', [
-		// insert a new Job Applicant
-		() => frappe.tests.make([
-			// values to be set
-			{key: 'value'}
-		]),
+	frappe.run_serially([
+		// Job Applicant creation
 		() => {
-			assert.equal(cur_frm.doc.key, 'value');
+			frappe.tests.make('Job Applicant', [
+				{ applicant_name: 'Utkarsh Goswami'},
+				{ email_id: 'goswamiutkarsh0@gmail.com'},
+				{ job_title: 'software-developer'},
+				{ cover_letter: 'Highly skilled in designing, testing, and developing software.'+
+					' This is just a test.'}
+			]);
+		},
+		() => frappe.timeout(4),
+		() => frappe.set_route('List','Job Applicant'),
+		() => frappe.timeout(3),
+		() => {
+			assert.ok(cur_list.data.length==1, 'Job Applicant created successfully');
+			assert.ok(cur_list.data[0].name=='Utkarsh Goswami - goswamiutkarsh0@gmail.com - software-developer',
+				'Correct job applicant with valid job title');
 		},
 		() => done()
 	]);
-
 });
+

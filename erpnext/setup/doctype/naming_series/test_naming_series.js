@@ -8,9 +8,9 @@ QUnit.test("test: Naming Series", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Naming Series', [
+	frappe.run_serially([
 		// insert a new Naming Series
-		() => frappe.tests.make([
+		() => frappe.tests.make('Naming Series', [
 			// values to be set
 			{key: 'value'}
 		]),

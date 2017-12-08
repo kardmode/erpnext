@@ -250,6 +250,7 @@ class Project(Document):
 			return frappe.get_all("Task", "*", {"project": self.name}, order_by="exp_start_date asc")
 
 	def validate(self):
+		self.validate_project_name()
 		self.validate_dates()
 		self.validate_weights()
 		self.sync_tasks()
@@ -260,6 +261,10 @@ class Project(Document):
 		# self.calculate_sales("Delivery Note")
 
 		self.send_welcome_email()
+
+	def validate_project_name(self):
+		if self.get("__islocal") and frappe.db.exists("Project", self.project_name):
+			frappe.throw(_("Project {0} already exists").format(self.project_name))
 
 	def validate_dates(self):
 		if self.expected_start_date and self.expected_end_date:

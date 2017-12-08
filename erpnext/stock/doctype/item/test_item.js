@@ -8,9 +8,9 @@ QUnit.test("test: Item", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Item', [
+	frappe.run_serially([
 		// insert a new Item
-		() => frappe.tests.make([
+		() => frappe.tests.make('Item', [
 			// values to be set
 			{key: 'value'}
 		]),

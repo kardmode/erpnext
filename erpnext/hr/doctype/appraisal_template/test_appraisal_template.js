@@ -1,23 +1,30 @@
-/* eslint-disable */
-// rename this file from _test_[name] to test_[name] to activate
-// and remove above this line
-
-QUnit.test("test: Appraisal Template", function (assert) {
-	let done = assert.async();
-
-	// number of asserts
+QUnit.module('hr');
+QUnit.test("Test: Appraisal Template [HR]", function (assert) {
 	assert.expect(1);
-
-	frappe.run_serially('Appraisal Template', [
-		// insert a new Appraisal Template
-		() => frappe.tests.make([
-			// values to be set
-			{key: 'value'}
-		]),
+	let done = assert.async();
+	frappe.run_serially([
+		// Job Opening creation
 		() => {
-			assert.equal(cur_frm.doc.key, 'value');
+			frappe.tests.make('Appraisal Template', [
+				{ kra_title: 'Test Appraisal 1'},
+				{ description: 'This is just a test'},
+				{ goals: [
+					[
+						{ kra: 'Design'},
+						{ per_weightage: 50}
+					],
+					[
+						{ kra: 'Code creation'},
+						{ per_weightage: 50}
+					]
+				]},
+			]);
+		},
+		() => frappe.timeout(10),
+		() => {
+			assert.equal('Test Appraisal 1',cur_frm.doc.kra_title, 'Appraisal name correctly set');
 		},
 		() => done()
 	]);
-
 });
+

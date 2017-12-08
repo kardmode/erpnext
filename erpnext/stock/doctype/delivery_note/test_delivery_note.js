@@ -1,23 +1,36 @@
-/* eslint-disable */
-// rename this file from _test_[name] to test_[name] to activate
-// and remove above this line
+QUnit.module('Stock');
 
-QUnit.test("test: Delivery Note", function (assert) {
+QUnit.test("test delivery note", function(assert) {
+	assert.expect(2);
 	let done = assert.async();
-
-	// number of asserts
-	assert.expect(1);
-
-	frappe.run_serially('Delivery Note', [
-		// insert a new Delivery Note
-		() => frappe.tests.make([
-			// values to be set
-			{key: 'value'}
-		]),
+	frappe.run_serially([
 		() => {
-			assert.equal(cur_frm.doc.key, 'value');
+			return frappe.tests.make('Delivery Note', [
+				{customer:'Test Customer 1'},
+				{items: [
+					[
+						{'item_code': 'Test Product 1'},
+						{'qty': 5},
+					]
+				]},
+				{shipping_address_name: 'Test1-Shipping'},
+				{contact_person: 'Contact 1-Test Customer 1'},
+				{taxes_and_charges: 'TEST In State GST'},
+				{tc_name: 'Test Term 1'},
+				{transporter_name:'TEST TRANSPORT'},
+				{lr_no:'MH-04-FG 1111'}
+			]);
 		},
+		() => cur_frm.save(),
+		() => {
+			// get_item_details
+			assert.ok(cur_frm.doc.items[0].item_name=='Test Product 1', "Item name correct");
+			assert.ok(cur_frm.doc.grand_total==590, " Grand Total correct");
+		},
+		() => frappe.tests.click_button('Submit'),
+		() => frappe.tests.click_button('Yes'),
+		() => frappe.timeout(0.3),
 		() => done()
 	]);
-
 });
+

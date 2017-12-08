@@ -1,23 +1,38 @@
-/* eslint-disable */
-// rename this file from _test_[name] to test_[name] to activate
-// and remove above this line
 
-QUnit.test("test: Accounts Settings", function (assert) {
+QUnit.module('accounts');
+
+QUnit.test("test: Accounts Settings doesn't allow negatives", function (assert) {
 	let done = assert.async();
 
-	// number of asserts
-	assert.expect(1);
+	assert.expect(2);
 
-	frappe.run_serially('Accounts Settings', [
-		// insert a new Accounts Settings
-		() => frappe.tests.make([
-			// values to be set
-			{key: 'value'}
-		]),
+	frappe.run_serially([
+		() => frappe.set_route('Form', 'Accounts Settings', 'Accounts Settings'),
+		() => frappe.timeout(2),
+		() => unchecked_if_checked(cur_frm, 'Allow Stale Exchange Rates', frappe.click_check),
+		() => cur_frm.set_value('stale_days', 0),
+		() => frappe.click_button('Save'),
+		() => frappe.timeout(2),
 		() => {
-			assert.equal(cur_frm.doc.key, 'value');
+			assert.ok(cur_dialog);
 		},
+		() => frappe.click_button('Close'),
+		() => cur_frm.set_value('stale_days', -1),
+		() => frappe.click_button('Save'),
+		() => frappe.timeout(2),
+		() => {
+			assert.ok(cur_dialog);
+		},
+		() => frappe.click_button('Close'),
 		() => done()
 	]);
 
 });
+
+
+const unchecked_if_checked = function(frm, field_name, fn){
+	if (frm.doc.allow_stale) {
+		return fn(field_name);
+	}
+};
+>>>>>>> 84a44f7758cbdcc12a6289f36e5fc2c83dc5afc7
