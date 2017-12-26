@@ -1354,11 +1354,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
-<<<<<<< HEAD
- "modified": "2017-11-08 00:51:43.728554", 
-=======
  "modified": "2017-12-13 18:17:19.894331", 
->>>>>>> ff2fb653be48d5fcff03b6b0c51917e35358b2fd
  "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Customer", 
