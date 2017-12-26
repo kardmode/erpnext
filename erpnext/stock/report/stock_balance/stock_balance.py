@@ -38,7 +38,7 @@ def execute(filters=None):
 			,qty_dict.out_qty
 			# ,qty_dict.out_val
 			,qty_dict.bal_qty
-			# ,qty_dict.bal_val
+			,qty_dict.bal_val
 			,qty_dict.val_rate
 			# ,item_reorder_level,
 			# item_reorder_qty,
@@ -65,7 +65,7 @@ def get_columns():
 		_("Out Qty")+":Float:100",
 		# _("Out Value")+":Float:80",
 		_("Balance Qty")+":Float:100",
-		# _("Balance Value")+":Float:100",
+		_("Balance Value")+":Float:100",
 		_("Valuation Rate")+":Float:100"
 		# ,_("Reorder Level")+":Float:80",
 		# _("Reorder Qty")+":Float:80",

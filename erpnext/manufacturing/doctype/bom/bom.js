@@ -103,7 +103,7 @@ frappe.ui.form.on("BOM", {
 				from_child_bom:false
 			},
 			callback: function(r) {
-				if(!r.exc) frm.refresh_fields();
+				frm.refresh_fields();
 			}
 		})
 	},
@@ -122,7 +122,7 @@ frappe.ui.form.on("BOM", {
 			method: "get_main_item_dimensions",
 			freeze: false,
 			callback: function(r) {
-				if(!r.exc)frm.refresh_fields("depth","width","height","depthunit","widthunit","heightunit");
+					frm.refresh_fields("depth","width","height","depthunit","widthunit","heightunit");
 				
 					var bomitems = frm.doc.bomitems || [];
 					
@@ -133,7 +133,7 @@ frappe.ui.form.on("BOM", {
 					}
 					setTimeout(function(){
 						cur_frm.trigger("build_bom");
-						//cur_frm.dirty();
+						
 
 					}, 1000);
 					
@@ -203,16 +203,20 @@ frappe.ui.form.on("BOM", {
 		}
 		
 		var doc = frm.doc;
-		
+
 		if(frm.doc.bomitems.length == 0)
+		{
+				cur_frm.dirty();
 			return;
+
+		}
+					
 		
 		if (frm.doc.depth === 0 && frm.doc.width === 0 && frm.doc.height === 0){
 			frappe.msgprint(__("Depth, width and height missing or equal to 0"));
+									cur_frm.dirty();
 			return;
 		}
-		
-		
 		
 		frappe.call({
 			
@@ -222,6 +226,7 @@ frappe.ui.form.on("BOM", {
 			callback: function(r) {
 				refresh_field("summary");
 				refresh_field("items");
+				refresh_field("exploded_items");
 				erpnext.bom.update_cost(frm.doc);	
 			}
 		});
@@ -295,7 +300,8 @@ erpnext.bom.BomController = erpnext.TransactionController.extend({
 		if(frappe.meta.get_docfield(cdt, "stock_qty", cdn)) {
 			var item = frappe.get_doc(cdt, cdn);
 			frappe.model.round_floats_in(item, ["qty", "conversion_factor"]);
-			item.stock_qty = flt(item.qty * item.conversion_factor, precision("stock_qty", item));
+			//item.stock_qty = flt(item.qty * item.conversion_factor, precision("stock_qty", item));
+			item.stock_qty = flt(item.qty * item.conversion_factor);
 			refresh_field("stock_qty", item.name, item.parentfield);
 			this.toggle_conversion_factor(item);
 			this.frm.events.update_cost(this.frm);
@@ -304,12 +310,6 @@ erpnext.bom.BomController = erpnext.TransactionController.extend({
 });
 
 $.extend(cur_frm.cscript, new erpnext.bom.BomController({frm: cur_frm}));
-
-cur_frm.add_fetch("item", "description", "description");
-cur_frm.add_fetch("item", "image", "image");
-cur_frm.add_fetch("item", "item_name", "item_name");
-cur_frm.add_fetch("item", "stock_uom", "uom");
-
 
 
 
@@ -360,7 +360,7 @@ var get_bom_material_detail= function(doc, cdt, cdn, scrap_items) {
 cur_frm.cscript.required_uom = function(doc, cdt, cdn) {
 	var d = locals[cdt][cdn];
 
-	if(d.item_code && d.stock_uom) {
+	if(d.item_code && d.stock_uom && d.required_uom) {
 		return frappe.call({
 			method: "erpnext.stock.get_item_details.get_conversion_factor",
 			child: d,
@@ -370,12 +370,12 @@ cur_frm.cscript.required_uom = function(doc, cdt, cdn) {
 			},
 			callback: function(r) {
 				d.uom = d.required_uom;
-				d.conversion_factor = r.message.conversion_factor
+				console.log(r);
+				d.conversion_factor = r.message.conversion_factor || 1.0
 				refresh_field("conversion_factor", d.name, d.parentfield);
 				refresh_field("uom", d.name, d.parentfield);
 
-				if (!r.exc)
-					erpnext.bom.calculate_conversion_factor(doc, cdt, cdn);
+				erpnext.bom.calculate_conversion_factor(doc, cdt, cdn);
 			}
 		});
 	}
@@ -384,7 +384,7 @@ cur_frm.cscript.required_uom = function(doc, cdt, cdn) {
 cur_frm.cscript.uom = function(doc, cdt, cdn) {
 	var d = locals[cdt][cdn];
 
-	if(d.item_code && d.stock_uom) {
+	if(d.item_code && d.stock_uom && d.uom) {
 		return frappe.call({
 			method: "erpnext.stock.get_item_details.get_conversion_factor",
 			child: d,
@@ -393,13 +393,13 @@ cur_frm.cscript.uom = function(doc, cdt, cdn) {
 				uom: d.uom
 			},
 			callback: function(r) {
+				console.log(r);
 				d.required_uom = d.uom;
-				d.conversion_factor = r.message.conversion_factor
+				d.conversion_factor = r.message.conversion_factor || 1.0
 				refresh_field("conversion_factor", d.name, d.parentfield);
 				refresh_field("required_uom", d.name, d.parentfield);
 
-				if (!r.exc)
-					erpnext.bom.calculate_conversion_factor(doc, cdt, cdn);
+				erpnext.bom.calculate_conversion_factor(doc, cdt, cdn);
 			}
 		});
 	}
@@ -414,13 +414,11 @@ cur_frm.cscript.conversion_factor = function(doc, cdt, cdn) {
 erpnext.bom.calculate_conversion_factor = function(doc, cdt, cdn) {
 	if(frappe.meta.get_docfield(cdt, "qty", cdn)) {
 		var item = frappe.get_doc(cdt, cdn);
-		frappe.model.round_floats_in(item, ["stock_qty", "conversion_factor"]);
-		item.stock_qty = flt(item.qty * item.conversion_factor, precision("stock_qty", item));
-		
-		item.required_rate = flt(item.rate * item.conversion_factor, precision("rate", item));
-		refresh_field("required_rate", item.name, item.parentfield);
-		
+		frappe.model.round_floats_in(item, ["qty", "conversion_factor"]);
+		//item.stock_qty = flt(item.qty * item.conversion_factor, precision("stock_qty", item));
+		item.stock_qty = flt(item.qty * item.conversion_factor);
 		refresh_field("stock_qty", item.name, item.parentfield);
+		// this.toggle_conversion_factor(item);
 		erpnext.bom.update_cost(doc);
 	}
 }
@@ -430,30 +428,6 @@ cur_frm.cscript.qty = function(doc, cdt, cdn) {
 	erpnext.bom.calculate_conversion_factor(doc, cdt, cdn);	
 }
 
-
-
-
-cur_frm.cscript.required_rate = function(doc, cdt, cdn) {
-	var d = locals[cdt][cdn];
-	
-	var scrap_items = false;
-
-
-	if(cdt == 'BOM Scrap Item') {
-		scrap_items = true;
-	}
-
-	if (d.bom_no) {
-
-		frappe.msgprint(__("You can not change rate if BOM mentioned against any item"));
-		get_bom_material_detail(doc, cdt, cdn, scrap_items);
-	} else {
-		item.rate = flt(item.required_rate / item.conversion_factor, precision("rate", item));
-		refresh_field("rate", d.name, d.parentfield);
-		erpnext.bom.update_cost(doc);
-	}
-	
-}
 cur_frm.cscript.rate = function(doc, cdt, cdn) {
 	var d = locals[cdt][cdn];
 	var scrap_items = false;
@@ -468,7 +442,8 @@ cur_frm.cscript.rate = function(doc, cdt, cdn) {
 		frappe.msgprint(__("You can not change rate if BOM mentioned against any item"));
 		get_bom_material_detail(doc, cdt, cdn, scrap_items);
 	} else {
-		erpnext.bom.calculate_conversion_factor(doc, cdt, cdn);
+			erpnext.bom.update_cost(doc);
+
 	}
 };
 
@@ -510,13 +485,12 @@ erpnext.bom.calculate_rm_cost = function(doc) {
 
 	for(var i=0;i<rm.length;i++) {
 		var amount = flt(rm[i].rate) * flt(rm[i].stock_qty);
-		amount = flt(amount, precision("rate"));
-		var base_amount = flt(rm[i].rate) * flt(doc.conversion_rate) * flt(rm[i].stock_qty);
-		base_amount = flt(base_amount, precision("rate"));
-		frappe.model.set_value('BOM Item', rm[i].name, 'base_rate', flt(rm[i].rate) * flt(doc.conversion_rate))
-		frappe.model.set_value('BOM Item', rm[i].name, 'amount', amount)
-		frappe.model.set_value('BOM Item', rm[i].name, 'qty_consumed_per_unit', flt(rm[i].stock_qty)/flt(doc.quantity))
-		frappe.model.set_value('BOM Item', rm[i].name, 'base_amount', base_amount)
+		var base_amount = amount * flt(doc.conversion_rate);
+		frappe.model.set_value('BOM Item', rm[i].name, 'base_rate',flt(rm[i].rate) * flt(doc.conversion_rate));
+		frappe.model.set_value('BOM Item', rm[i].name, 'amount', amount);
+		frappe.model.set_value('BOM Item', rm[i].name, 'base_amount', base_amount);
+		frappe.model.set_value('BOM Item', rm[i].name,'qty_consumed_per_unit', flt(rm[i].stock_qty)/flt(doc.quantity));
+
 
 		total_rm_cost += amount;
 		base_total_rm_cost += base_amount;
@@ -554,14 +528,66 @@ erpnext.bom.calculate_total = function(doc) {
 	var total_cost = flt(doc.operating_cost) + flt(doc.raw_material_cost) - flt(doc.scrap_material_cost);
 	var base_total_cost = flt(doc.base_operating_cost) + flt(doc.base_raw_material_cost)
 		- flt(doc.base_scrap_material_cost);
-	var total_duty = (flt(doc.duty/100)*flt(total_cost));
+	
+	
+
 
 	cur_frm.set_value("total_cost", total_cost);
 	cur_frm.set_value("base_total_cost", base_total_cost);
-		cur_frm.set_value("total_duty", total_duty);
 
+	calculate_total_duty(doc);
 
 }
+
+frappe.ui.form.on('BOM Explosion Item', {
+	dutible:function(frm, cdt, cdn) {
+		calculate_total_duty(frm.doc);
+	},
+});
+
+
+var calculate_total_duty = function(doc) {
+	var rm = doc.exploded_items || [];
+	var dutible = 0;
+	var non_dutible = 0;
+
+	for(var i=0;i<rm.length;i++) {
+		
+		if(rm[i].dutible == 1)
+		{
+			dutible += flt(rm[i].amount);
+			
+		}
+		else{
+			non_dutible += flt(rm[i].amount);
+		}
+		
+		
+	}
+	
+	var customs_price = 0.0;
+	var duty_percent = 0.0;
+	if(dutible > 0.0)
+	{
+		duty_percent = doc.duty;
+		customs_price = (flt(duty_percent)/100 * flt(dutible + non_dutible + doc.operating_cost)) + flt(doc.operating_cost) + flt(dutible);
+
+	}
+	else
+	{
+		duty_percent = doc.non_duty_percent;
+		customs_price = flt(duty_percent)/100 * flt(dutible + non_dutible + doc.operating_cost);
+	}
+	
+	var base_total_duty = flt(customs_price) * flt(doc.conversion_rate);
+
+	cur_frm.set_value("total_duty", customs_price);
+	cur_frm.set_value("base_total_duty", base_total_duty);
+
+	cur_frm.set_value("dutible", dutible);
+	cur_frm.set_value("non_dutible", non_dutible);
+
+};
 
 
 
@@ -665,7 +691,6 @@ frappe.ui.form.on("BOM Operation", {
 					method: "update_operation_summary",
 					freeze: false,
 					callback: function(r) {
-						//console.log(r);
 						cur_frm.set_value("operation_summary",r.message);
 					}
 			})

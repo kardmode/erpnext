@@ -402,6 +402,8 @@ class SalarySlip(TransactionBase):
 					frappe.throw(_("Salary Slip of employee {0} already created for time sheet {1}").format(self.employee, data.time_sheet))
 
 	def sum_components(self, component_type, total_field):
+	
+		self.set(total_field, 0)
 		joining_date, relieving_date = frappe.db.get_value("Employee", self.employee,
 				["date_of_joining", "relieving_date"])
 		if not joining_date:
@@ -409,31 +411,61 @@ class SalarySlip(TransactionBase):
 
 		if not relieving_date:
 			relieving_date = getdate(self.end_date)
-		if component_type == 'earnings':
-			self.calculate_earning_total()
-		elif component_type == 'deductions':
-			self.calculate_ded_total()
-		else:
-			for d in self.get(component_type):
-				if ((cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet) or 
-				getdate(self.start_date) < joining_date or getdate(self.end_date) > relieving_date):
-					d.amount = rounded((flt(d.default_amount) * flt(self.payment_days)
-						/ cint(self.total_working_days)), self.precision("amount", component_type))
-				elif not self.payment_days and not self.salary_slip_based_on_timesheet and \
-					cint(d.depends_on_lwp):
-					d.amount = 0
-				elif not d.amount:
-					d.amount = d.default_amount
-				if not d.do_not_include_in_total:
-					self.set(total_field, self.get(total_field) + flt(d.amount))
 
-
-	def calculate_earning_total(self):
-		self.gross_pay = flt(self.arrear_amount)
-		
-		salaryperday = 0
 		hourlyrate = 0
+		salaryperday = 0
+		if component_type == 'earnings':
+			salaryperday = self.calculate_salary_per_day()
+			self.calculate_leave_and_gratuity(salaryperday)
+			hourlyrate = flt(salaryperday)/ 9
+			# self.salary_per_hour = hourlyrate
+			# self.ot_rate,self.ot_friday_rate,self.ot_holiday_rate = frappe.db.get_value("Regulations", {"overtime_weekdays_rate", "overtime_fridays_rate", "overtime_holidays_rate"})
+			
+		elif component_type == 'deductions':
+			self.check_loan_deductions()
+
+		for d in self.get(component_type):
 		
+			if component_type == 'earnings':
+				if(d.salary_component == "Overtime Weekdays"):
+					d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
+					d.default_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
+				elif(d.salary_component == "Overtime Fridays"):
+					d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_fridays_rate"))
+					d.default_amount = flt(self.overtime_hours_fridays) * flt(d.rate) * flt(hourlyrate)
+				elif(d.salary_component == "Overtime Holidays"):
+					d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
+					d.default_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
+				
+			if ((cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet) or 
+			getdate(self.start_date) < joining_date or getdate(self.end_date) > relieving_date):
+			
+			
+				payment_days = self.payment_days
+				total_working_days = self.total_working_days
+				
+				if payment_days == total_working_days:
+					payment_days = 30
+				total_working_days = 30
+					
+				
+				d.amount = rounded((flt(d.default_amount) * flt(payment_days)
+					/ cint(total_working_days)), self.precision("amount", component_type))
+			
+				d.amount = d.amount > 0 and d.amount or 0
+
+			elif not self.payment_days and not self.salary_slip_based_on_timesheet and \
+				cint(d.depends_on_lwp):
+				d.amount = 0
+			elif not d.amount:
+				d.amount = d.default_amount
+			if not d.do_not_include_in_total:
+				self.set(total_field, self.get(total_field) + flt(d.amount))
+
+
+	def calculate_salary_per_day(self):
+		salaryperday = 0
+		hourlyrate = 0	
 			
 		for d in self.get("earnings"):
 			if(d.salary_component == "Basic Salary"):
@@ -444,82 +476,54 @@ class SalarySlip(TransactionBase):
 
 		if salaryperday == 0:
 			frappe.throw(_("No salary per day calculation for employee {0}").format(self.employee))
-
-
-		for d in self.get("earnings"):
-			if(d.salary_component == "Overtime Weekdays"):
-				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
-				d.default_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
-			elif(d.salary_component == "Overtime Fridays"):
-				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_fridays_rate"))
-				d.default_amount = flt(self.overtime_hours_fridays) * flt(d.rate) * flt(hourlyrate)
-			elif(d.salary_component == "Overtime Holidays"):
-				d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
-				d.default_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
-
-			if ((cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet)):
-				
-				payment_days = self.payment_days
-				total_working_days = self.total_working_days
-				
-				if payment_days == total_working_days:
-					payment_days = 30
-				total_working_days = 30
-					
-				
-				d.amount = rounded((flt(d.default_amount) * flt(payment_days)
-					/ cint(total_working_days)), self.precision("amount", "earnings"))
-			
-				d.amount = d.amount > 0 and d.amount or 0
-
-			elif not self.payment_days and not self.salary_slip_based_on_timesheet and \
-				cint(d.depends_on_lwp):
-				d.amount = 0
-			elif not d.amount:
-				d.amount = d.default_amount
-			if not d.do_not_include_in_total:
-				if(d.salary_component not in ["Leave Encashment","Arrears"] ):
-					self.gross_pay += flt(d.amount)
-
-
-			
 		
-		self.calculate_leave_and_gratuity(salaryperday)
+		return salaryperday
+		
+		
 	
+	def set_salary_component(self,type,salary_component,amount):
+	
+		dtypefound = 0
+		for d in self.get(type):
+			if d.salary_component == salary_component:
+				if dtypefound:
+					self.get(type).remove(d)
+				else:
+					if amount > 0:
+						d.default_amount = amount
+						dtypefound = 1
+						d.amount = d.default_amount
+
+					else:
+						self.get(type).remove(d)
+		
+		if amount > 0:
+			if not dtypefound:
+				newd = self.append(type, {})
+				newd.salary_component = salary_component
+				newd.default_amount = amount
+				newd.amount = newd.default_amount
+		
 	
 	def calculate_leave_and_gratuity(self,salaryperday):
 
 		joining_date, relieving_date = frappe.db.get_value("Employee", self.employee, 
 				["date_of_joining", "relieving_date"])
 	
+		leave_encashment_amount = 0
+		self.leave_calculation = ''
 		if not relieving_date and self.encash_leave:
-			self.leave_encashment_amount = self.calculate_leaveadvance(salaryperday, joining_date,relieving_date)
-		else:
-			self.leave_encashment_amount = 0
-			self.leave_calculation = ''
+			leave_encashment_amount = self.calculate_leaveadvance(salaryperday, joining_date,relieving_date)
 			
+		self.set_salary_component('earnings','Leave Encashment',leave_encashment_amount)		
 		
+		gratuity_encashment = 0
+		self.gratuity_calculation = ''
 		if relieving_date:
-			self.gratuity_encashment = self.calculate_gratuity(salaryperday,joining_date, relieving_date)
-		else:
-			self.gratuity_encashment = 0
-			self.gratuity_calculation = ''
+			gratuity_encashment = self.calculate_gratuity(salaryperday,joining_date, relieving_date)
 		
-		self.gross_pay += flt(self.gratuity_encashment) + flt(self.leave_encashment_amount)
-
-	def calculate_ded_total(self):
-		self.check_loan_deductions()
-		self.total_deduction = 0
-		for d in self.get("deductions"):
-			if cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet:
-				d.amount = rounded((flt(d.default_amount) * flt(self.payment_days)
-					/ cint(self.total_working_days)), self.precision("amount", component_type))
-
-			elif not self.payment_days and not self.salary_slip_based_on_timesheet:
-				d.amount = 0
-			elif not d.amount:
-				d.amount = d.default_amount
-			self.total_deduction += flt(d.amount)
+		self.set_salary_component('earnings','Gratuity Encashment',gratuity_encashment)	
+		
 
 
 	def check_loan_deductions(self):
@@ -540,36 +544,7 @@ class SalarySlip(TransactionBase):
 			for d in loandata:
 				total_loan_deduction += d.transaction_amount
 	
-			
-		dtypefound = 0
-		for d in self.get('deductions'):
-			if d.salary_component == "Loan Repayment":
-				if dtypefound:
-					self.get('deductions').remove(d)
-				else:
-					if total_loan_deduction > 0:
-						d.default_amount = total_loan_deduction
-						dtypefound = 1
-						d.amount = d.default_amount
-
-					else:
-						self.get('deductions').remove(d)
-					
-			
-				
-
-		
-		if total_loan_deduction > 0:
-			if not dtypefound:
-				newd = self.append('deductions', {})
-				newd.salary_component = "Loan Repayment"
-				newd.default_amount = total_loan_deduction
-				newd.amount = newd.default_amount
-			# frappe.msgprint(_("Employee has loan deductions this month totalling {0}.").format(total_loan_deduction))		
-		else:
-			pass
-			# frappe.msgprint(_("Employee has no loan deductions for this month."))		
-		
+		self.set_salary_component('deductions','Loan Repayment',total_loan_deduction)			
 			
 		
 
@@ -579,18 +554,15 @@ class SalarySlip(TransactionBase):
 			self.calculate_component_amounts()
 
 		
-		disable_rounded_total = cint(frappe.db.get_value("Global Defaults", None, "disable_rounded_total"))
-
-
-		self.total_deduction = 0
-		self.gross_pay = 0
-
+		
 		self.sum_components('earnings', 'gross_pay')
 		self.sum_components('deductions', 'total_deduction')
 		
 		# self.set_loan_repayment()
 
 		# self.net_pay = flt(self.gross_pay) - (flt(self.total_deduction) + flt(self.total_loan_repayment))
+		
+		# disable_rounded_total = cint(frappe.db.get_value("Global Defaults", None, "disable_rounded_total"))
 		# self.rounded_total = rounded(self.net_pay,
 			# self.precision("net_pay") if disable_rounded_total else 0)
 			

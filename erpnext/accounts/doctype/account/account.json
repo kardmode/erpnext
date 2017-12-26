@@ -9,7 +9,7 @@
  "description": "Heads (or groups) against which Accounting Entries are made and balances are maintained.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -545,7 +545,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-08-11 15:28:35.855809", 
+ "modified": "2017-12-08 21:29:31.052700", 
  "modified_by": "Administrator", 
  "module": "Accounts", 
  "name": "Account", 

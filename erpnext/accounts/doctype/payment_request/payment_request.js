@@ -280,20 +280,27 @@ frappe.ui.form.on("PR Invoice", {
 });
 
 frappe.ui.form.on("Payment Requests", {
-    /*percent: function(frm, cdt, cdn) {
-	var d = locals[cdt][cdn];
-	console.log("Test");
-        amount = flt(frm.doc.grand_total) * flt(d.percent / 100);
-	frappe.model.set_value(cdt, cdn, "amount", amount);
-	refresh_field("payment_requests");
-	 frm.trigger("calculate_total_payment_requests");
-    },*/
+    percent: function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		if (d.percent)
+		{
+			amount = flt(frm.doc.grand_total) * flt(d.percent / 100);
+			d.amount = amount;
+			refresh_field("payment_requests");
+			frm.trigger("calculate_total_payment_requests");
+			
+		}
+		
+    },
 	amount: function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
-        percent = flt(d.amount * 100) / flt(frm.doc.grand_total) || 0;
-		frappe.model.set_value(cdt, cdn, "percent", percent);
-		refresh_field("payment_requests");
-		frm.trigger("calculate_total_payment_requests");
+		if (d.amount)
+		{
+			percent = flt(d.amount * 100) / flt(frm.doc.grand_total) || 0;
+			d.percent = percent;
+			refresh_field("payment_requests");
+			frm.trigger("calculate_total_payment_requests");
+		}
     },
 })
 

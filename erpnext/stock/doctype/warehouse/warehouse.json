@@ -9,7 +9,7 @@
  "description": "A logical Warehouse against which stock entries are made.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -699,7 +699,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-08-21 02:12:33.652689", 
+ "modified": "2017-12-08 22:02:31.734341", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Warehouse", 

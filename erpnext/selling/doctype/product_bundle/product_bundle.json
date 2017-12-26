@@ -9,7 +9,7 @@
  "description": "Aggregate group of **Items** into another **Item**. This is useful if you are bundling a certain **Items** into a package and you maintain stock of the packed **Items** and not the aggregate **Item**. \n\nThe package **Item** will have \"Is Stock Item\" as \"No\" and \"Is Sales Item\" as \"Yes\".\n\nFor Example: If you are selling Laptops and Backpacks separately and have a special price if the customer buys both, then the Laptop + Backpack will be a new Product Bundle Item.\n\nNote: BOM = Bill of Materials", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "", 
+ "document_type": "Setup", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -238,8 +238,8 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-10-18 14:23:06.538568", 
- "modified_by": "tundebabzy@gmail.com", 
+ "modified": "2017-12-08 22:01:30.714607", 
+ "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Product Bundle", 
  "owner": "Administrator", 

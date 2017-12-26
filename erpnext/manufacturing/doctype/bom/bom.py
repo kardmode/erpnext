@@ -127,7 +127,7 @@ class BOM(WebsiteGenerator):
 		conversion_factor = get_conversion_factor(args['item_code'], required_uom).get("conversion_factor") or 1.0
 
 		rate = self.get_rm_rate(args)
-		required_rate = rate * conversion_factor
+
 		ret_item = {
 
 			'item_name'	: item and args['item_name'] or '',
@@ -138,7 +138,6 @@ class BOM(WebsiteGenerator):
 			'required_uom'	: required_uom,
 			'conversion_factor'	: conversion_factor,
 			'bom_no'	: args['bom_no'],
-			'required_rate'		: required_rate,
 			'rate'			: rate / self.conversion_rate if self.conversion_rate else rate,
 			'qty'			: args.get("qty") or args.get("stock_qty") or 1,
 			'stock_qty'	: args.get("qty") or args.get("stock_qty") or 1,
@@ -183,7 +182,7 @@ class BOM(WebsiteGenerator):
 
 		return flt(rate)
 
-	def update_cost(self, update_parent=True, from_child_bom=False):
+	def update_cost(self, update_parent=True, from_child_bom=False, update_child = True):
 		if self.docstatus == 2:
 			return
 
@@ -194,8 +193,9 @@ class BOM(WebsiteGenerator):
 			
 			
 			if d.bom_no:
-				bom_no = frappe.get_doc("BOM", d.bom_no)
-				bom_no.update_cost()
+				if update_child:
+					bom_no = frappe.get_doc("BOM", d.bom_no)
+					bom_no.update_cost(update_parent=False)
 		
 		
 			
@@ -203,31 +203,23 @@ class BOM(WebsiteGenerator):
 			if d.stock_uom != stock_uom:
 				d.stock_uom = stock_uom
 				
-			d.conversion_factor = flt(get_conversion_factor(d.item_code, d.uom)['conversion_factor'])
-			if d.uom and d.qty:
-				d.stock_qty = flt(d.conversion_factor)*flt(d.qty)
-			if not d.uom and d.stock_uom:
-				d.uom = d.stock_uom
-				d.qty = d.stock_qty
-					
-	# <<<<<<< HEAD				
-			# ret_item = self.get_bom_material_detail({'item_code': d.item_code, 'bom_no': d.bom_no,
-				# 'stock_qty': d.stock_qty,'required_uom':d.uom})
-			
-			# if ret_item['rate']:
-				# d.required_rate = ret_item['required_rate']
-				# d.rate = ret_item['rate']
-# =======
+				
+				if d.uom and d.qty:
+					d.conversion_factor = flt(get_conversion_factor(d.item_code, d.uom)['conversion_factor'])
+					d.stock_qty = flt(d.conversion_factor)*flt(d.qty)
+				if not d.uom and d.stock_uom:
+					d.uom = d.stock_uom
+					d.qty = d.stock_qty
+				
 			rate = self.get_rm_rate({"item_code": d.item_code, "bom_no": d.bom_no})
 			if rate:
-				d.required_rate = ret_item['required_rate']
-				d.rate = rate * flt(d.conversion_factor) / flt(self.conversion_rate)
+				d.base_rate = flt(rate)
+				d.rate = d.base_rate / flt(self.conversion_rate)
 
 		if self.docstatus == 1:
 			self.flags.ignore_validate_update_after_submit = True
 			self.calculate_cost()
 
-		# self.check_recursion()
 		self.update_exploded_items()
 		self.save()
 
@@ -458,9 +450,32 @@ class BOM(WebsiteGenerator):
 		self.total_cost = self.operating_cost + self.raw_material_cost - self.scrap_material_cost
 		self.base_total_cost = self.base_operating_cost + self.base_raw_material_cost - self.base_scrap_material_cost
 		
-		# self.total_duty = flt(25/100) * flt(self.total_cost)
-		# frappe.errprint(self.duty)
-		# frappe.errprint(self.total_cost)
+
+	def calculate_total_duty(self):
+		dutible = 0.0
+		non_dutible = 0.0
+		for d in self.get('exploded_items'):
+			if d.dutible == 1:
+				dutible = dutible + flt(d.amount)
+			else:
+				non_dutible = non_dutible + flt(d.amount)
+
+	
+		customs_price = 0.0
+		duty_percent = 0.0
+		if dutible > 0.0:
+			duty_percent = self.duty
+			customs_price = (flt(duty_percent)/100 * flt(dutible + non_dutible + self.operating_cost)) + self.operating_cost + dutible
+		else:
+			duty_percent = self.non_duty_percent
+			customs_price = flt(duty_percent)/100 * flt(dutible + non_dutible + self.operating_cost)
+
+		self.total_duty = customs_price
+		self.base_total_duty = flt(customs_price) * flt(self.conversion_rate)
+		self.dutible = dutible
+		self.non_dutible = non_dutible
+		
+		
 		
 	def calculate_op_cost(self):
 		"""Update workstation rate and calculates totals"""
@@ -487,10 +502,12 @@ class BOM(WebsiteGenerator):
 
 		for d in self.get('items'):
 			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
-			d.amount = flt(d.rate, d.precision("rate")) * flt(d.qty, d.precision("qty"))
+			# d.amount = flt(d.rate, d.precision("rate")) * flt(d.stock_qty, d.precision("qty"))
+			d.amount = flt(d.rate)* flt(d.stock_qty)
 			d.base_amount = d.amount * flt(self.conversion_rate)
-			d.qty_consumed_per_unit = flt(d.stock_qty, d.precision("stock_qty")) \
-				/ flt(self.quantity, self.precision("quantity"))
+			# d.qty_consumed_per_unit = flt(d.stock_qty, d.precision("stock_qty")) \
+				# / flt(self.quantity, self.precision("quantity"))	
+			d.qty_consumed_per_unit = flt(d.stock_qty) / flt(self.quantity)
 
 			total_rm_cost += d.amount
 			base_total_rm_cost += d.base_amount
@@ -505,7 +522,8 @@ class BOM(WebsiteGenerator):
 
 		for d in self.get('scrap_items'):
 			d.base_rate = d.rate * self.conversion_rate
-			d.amount = flt(d.rate, d.precision("rate")) * flt(d.stock_qty, d.precision("stock_qty"))
+			# d.amount = flt(d.rate, d.precision("rate")) * flt(d.stock_qty, d.precision("stock_qty"))
+			d.amount = flt(d.rate)* flt(d.stock_qty)
 			d.base_amount = d.amount * self.conversion_rate
 			total_sm_cost += d.amount
 			base_total_sm_cost += d.base_amount
@@ -517,6 +535,7 @@ class BOM(WebsiteGenerator):
 		""" Update Flat BOM, following will be correct data"""
 		self.get_exploded_items()
 		self.add_exploded_items()
+		self.calculate_total_duty()
 
 	def get_exploded_items(self):
 		""" Get all raw materials including items from child bom"""
@@ -569,16 +588,24 @@ class BOM(WebsiteGenerator):
 	def add_exploded_items(self):
 		"Add items to Flat BOM table"
 		frappe.db.sql("""delete from `tabBOM Explosion Item` where parent=%s""", self.name)
+		
+		exploded_items = {}
+		for d in self.get('exploded_items'):
+			exploded_items[d.item_code] = d
+			
 		self.set('exploded_items', [])
 
-		for d in sorted(self.cur_exploded_items, key=itemgetter(0)):
+		for d in sorted(self.cur_exploded_items, key=itemgetter(0)):		
 			ch = self.append('exploded_items', {})
 			for i in self.cur_exploded_items[d].keys():
 				ch.set(i, self.cur_exploded_items[d][i])
 			ch.amount = flt(ch.stock_qty) * flt(ch.rate)
 			ch.qty_consumed_per_unit = flt(ch.stock_qty) / flt(self.quantity)
+			if exploded_items.get(ch.item_code):
+				ch.dutible = exploded_items[ch.item_code].dutible
 			ch.docstatus = self.docstatus
 			ch.db_insert()
+			
 
 	def validate_bom_links(self):
 		if not self.is_active:
@@ -695,7 +722,7 @@ class BOM(WebsiteGenerator):
 			qty = flt(bb_qty)
 			
 	
-			item = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", bb_item, as_dict = 1)
+			item = frappe.db.sql("""select stock_uom,depth,depthunit,width,widthunit,height,heightunit from `tabItem` where name=%s""", bb_item, as_dict = 1)
 			if not item:
 				frappe.throw(_("Item {0} does not exist").format(bb_item))
 
@@ -801,6 +828,9 @@ class BOM(WebsiteGenerator):
 		
 		self.update_bom_builder(merged)
 		self.set('summary',summary)
+		
+		
+		
 		return merged,summary
 		
 	
@@ -819,6 +849,7 @@ class BOM(WebsiteGenerator):
 			ret_item = self.get_bom_material_detail({"item_code": d["item_code"], "bom_no": bom_no,"stock_qty": d["qty"],"required_uom":d["required_uom"]})
 			
 			newd.rate = flt(ret_item["rate"])
+			newd.base_rate = flt(ret_item["base_rate"])
 			newd.stock_uom = ret_item["stock_uom"]
 			
 			newd.amount = flt(ret_item["rate"])*flt(d["qty"])
@@ -830,19 +861,16 @@ class BOM(WebsiteGenerator):
 			newd.uom = d["required_uom"]
 			
 			newd.conversion_factor = ret_item["conversion_factor"]
-			newd.required_rate = flt(ret_item["required_rate"])
 			
 			newd.bom_no = ret_item["bom_no"]
 			newd.item_name = ret_item["item_name"]
 			newd.description = ret_item["description"]
-					
-		if self.docstatus == 1:
-			self.flags.ignore_validate_update_after_submit = True
-			self.calculate_cost()
-		self.check_recursion()
-		self.update_exploded_items()
-		
 			
+	
+		# self.check_recursion()
+		# self.update_exploded_items()
+			
+		
 
 
 def get_list_context(context):

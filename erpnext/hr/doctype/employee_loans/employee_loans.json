@@ -4,16 +4,17 @@
  "allow_import": 0, 
  "allow_rename": 0, 
  "autoname": "field:employee", 
- "beta": 0, 
+ "beta": 1, 
  "creation": "2015-12-16 00:37:36.397413", 
  "custom": 0, 
  "description": "Employee Loan Documents", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "fields": [
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -44,6 +45,7 @@
    "unique": 1
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -73,6 +75,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -102,6 +105,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -131,6 +135,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -161,6 +166,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -200,7 +206,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-03 17:21:55.468728", 
+ "modified": "2017-12-08 21:32:37.835341", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Employee Loans", 

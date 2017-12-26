@@ -384,12 +384,74 @@ def get_serial_nos_by_fifo(args):
 
 @frappe.whitelist()
 def get_conversion_factor(item_code, uom):
-	variant_of = frappe.db.get_value("Item", item_code, "variant_of")
+	variant_of,stock_uom = frappe.db.get_value("Item", item_code, ["variant_of","stock_uom"])
 	filters = {"parent": item_code, "uom": uom}
 	if variant_of:
 		filters["parent"] = ("in", (item_code, variant_of))
-	return {"conversion_factor": frappe.db.get_value("UOM Conversion Detail",
-		filters, "conversion_factor")}
+	
+	conversion_factor = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
+	
+	# if not conversion_factor:
+	
+		# conversion_factor = convert_SI(1,stock_uom,uom)
+		# if conversion_factor:
+			# return {"conversion_factor": conversion_factor}
+		# else:
+			
+			# filters["uom"] = ("in",get_SI_units().keys())
+			# conversion_factor,test_uom = frappe.db.get_value("UOM Conversion Detail", filters, ["conversion_factor","uom"])
+			# if conversion_factor:
+				# SI_Conversion = convert_SI(conversion_factor,uom,test_uom)
+				# if SI_Conversion:
+					# return {"conversion_factor": SI_Conversion}
+				# else:
+					# return {"conversion_factor": None}
+			# else:
+				# return {"conversion_factor": None}
+		
+	return {"conversion_factor": conversion_factor}
+
+@frappe.whitelist()
+def get_SI_units(type = "length"):
+
+	SI_Length = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0,'ft':.3048,'in':.0254}
+	SI_squaredLength = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0,'ft':.3048,'in':.0254}
+	SI_cubicLength = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0,'ft':.3048,'in':.0254}
+	SI_Mass = {'mg':0.001, 'cg':0.01, 'g':1.0, 'kg':1000.0,'tonne':1000000}
+	if type == 'length':
+		return SI_Length
+	elif type == 'mass':
+		return SI_Mass
+	else:
+		return SI_Length + SI_Mass
+		
+@frappe.whitelist()
+def convert_SI(val, unit_in, unit_out):
+	
+	in_dict = out_dict = None
+	
+	if unit_in in get_SI_units(type ='length'):
+		if unit_out in get_SI_units(type ='length'):
+			in_dict = out_dict = get_SI_units(type ='length')
+
+	elif unit_in in get_SI_units(type ='mass'):
+		if unit_out in get_SI_units(type ='mass'):
+			in_dict = out_dict = get_SI_units(type ='mass')
+
+	
+	if not in_dict or not out_dict:
+		return None
+	
+	in_rate = in_dict[unit_in]
+	if not in_rate:
+		return None
+	
+
+	out_rate = out_dict[unit_out]
+	if not out_rate:
+		return None
+		
+	return val*in_rate/out_rate
 
 @frappe.whitelist()
 def get_projected_qty(item_code, warehouse):

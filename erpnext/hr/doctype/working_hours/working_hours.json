@@ -4,15 +4,16 @@
  "allow_import": 0, 
  "allow_rename": 0, 
  "autoname": "naming_series:", 
- "beta": 0, 
+ "beta": 1, 
  "creation": "2016-06-14 08:54:39.495374", 
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Setup", 
  "editable_grid": 0, 
  "fields": [
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -42,6 +43,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -71,6 +73,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -101,6 +104,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -130,6 +134,7 @@
    "unique": 0
   }, 
   {
+   "allow_bulk_edit": 0, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -170,7 +175,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-03 17:08:57.749097", 
+ "modified": "2017-12-08 21:35:56.829227", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Working Hours", 

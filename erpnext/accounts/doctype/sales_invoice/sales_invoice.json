@@ -10,7 +10,7 @@
  "default_print_format": "", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -4433,7 +4433,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2017-10-24 12:46:48.331723", 
+ "modified": "2017-12-08 21:29:04.128867", 
  "modified_by": "Administrator", 
  "module": "Accounts", 
  "name": "Sales Invoice", 
