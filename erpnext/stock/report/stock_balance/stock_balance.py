@@ -15,6 +15,7 @@ def execute(filters=None):
 	item_map = get_item_details(filters)
 	item_reorder_detail_map = get_item_reorder_details(filters)
 	iwb_map = get_item_warehouse_map(filters)
+	
 
 	data = []
 	for (company, item, warehouse) in sorted(iwb_map):
@@ -24,26 +25,37 @@ def execute(filters=None):
 		if item + warehouse in item_reorder_detail_map:
 			item_reorder_level = item_reorder_detail_map[item + warehouse]["warehouse_reorder_level"]
 			item_reorder_qty = item_reorder_detail_map[item + warehouse]["warehouse_reorder_qty"]
-			
-		data.append([item, 
+
+
+		report_data = [item, 
 			# item_map[item]["item_name"],
 			item_map[item]["item_group"],
 			# item_map[item]["brand"],
-			# item_map[item]["description"]
+			# item_map[item]["description"], 
 			warehouse,
-			item_map[item]["stock_uom"],qty_dict.opening_qty
-			# ,qty_dict.opening_val
-			,qty_dict.in_qty
-			# ,qty_dict.in_val
-			,qty_dict.out_qty
-			# ,qty_dict.out_val
-			,qty_dict.bal_qty
-			,qty_dict.bal_val
-			,qty_dict.val_rate
-			# ,item_reorder_level,
+			item_map[item]["stock_uom"], 
+			qty_dict.opening_qty,
+			# qty_dict.opening_val, 
+			qty_dict.in_qty,
+			# qty_dict.in_val, 
+			qty_dict.out_qty,
+			# qty_dict.out_val, 
+			qty_dict.bal_qty,
+			qty_dict.bal_val, 
+			qty_dict.val_rate
+			# item_reorder_level,
 			# item_reorder_qty,
 			# company
-		])
+		]
+
+		if filters.get('show_variant_attributes', 0) == 1:
+			variants_attributes = get_variants_attributes()
+			report_data += [item_map[item].get(i) for i in variants_attributes]
+
+		data.append(report_data)
+
+	if filters.get('show_variant_attributes', 0) == 1:
+		columns += ["{}:Data:100".format(i) for i in get_variants_attributes()]
 
 	return columns, data
 
@@ -194,10 +206,19 @@ def get_item_details(filters):
 		condition = "where item_code=%s"
 		value = (filters.get("item_code"),)
 
-	items = frappe.db.sql("""select name, item_name, stock_uom, item_group, brand, description
-		from tabItem {condition}""".format(condition=condition), value, as_dict=1)
+	items = frappe.db.sql("""
+		select name, item_name, stock_uom, item_group, brand, description
+		from tabItem
+		{condition}
+	""".format(condition=condition), value, as_dict=1)
 
-	return dict((d.name , d) for d in items)
+	item_details = dict((d.name , d) for d in items)
+
+	if filters.get('show_variant_attributes', 0) == 1:
+		variant_values = get_variant_values_for(item_details.keys())
+		item_details = {k: v.update(variant_values.get(k, {})) for k, v in item_details.iteritems()}
+
+	return item_details
 
 def get_item_reorder_details(filters):
 	condition = ''
@@ -206,8 +227,11 @@ def get_item_reorder_details(filters):
 		condition = "where parent=%s"
 		value = (filters.get("item_code"),)
 
-	item_reorder_details = frappe.db.sql("""select parent,warehouse,warehouse_reorder_qty,warehouse_reorder_level
-		from `tabItem Reorder` {condition}""".format(condition=condition), value, as_dict=1)
+	item_reorder_details = frappe.db.sql("""
+		select parent, warehouse, warehouse_reorder_qty, warehouse_reorder_level
+		from `tabItem Reorder`
+		{condition}
+	""".format(condition=condition), value, as_dict=1)
 
 	return dict((d.parent + d.warehouse, d) for d in item_reorder_details)
 
@@ -215,4 +239,22 @@ def validate_filters(filters):
 	if not (filters.get("item_code") or filters.get("warehouse")):
 		sle_count = flt(frappe.db.sql("""select count(name) from `tabStock Ledger Entry`""")[0][0])
 		if sle_count > 500000:
+
 			frappe.throw(_("Please set filter based on Item or Warehouse"))
+
+
+def get_variants_attributes():
+	'''Return all item variant attributes.'''
+	return [i.name for i in frappe.get_all('Item Attribute')]
+
+
+def get_variant_values_for(items):
+	'''Returns variant values for items.'''
+	attribute_map = {}
+	for attr in frappe.db.sql('''select parent, attribute, attribute_value
+		from `tabItem Variant Attribute` where parent in (%s)
+		''' % ", ".join(["%s"] * len(items)), tuple(items), as_dict=1):
+			attribute_map.setdefault(attr['parent'], {})
+			attribute_map[attr['parent']].update({attr['attribute']: attr['attribute_value']})
+
+	return attribute_map

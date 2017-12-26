@@ -39,7 +39,7 @@ frappe.ui.form.on("Salary Slip", {
 
 	set_end_date: function(frm){
 		frappe.call({
-			method: 'erpnext.hr.doctype.process_payroll.process_payroll.get_end_date',
+			method: 'erpnext.hr.doctype.payroll_entry.payroll_entry.get_end_date',
 			args: {
 				frequency: frm.doc.payroll_frequency,
 				start_date: frm.doc.start_date
@@ -138,6 +138,14 @@ cur_frm.cscript.onload = function(doc,dt,dn){
 
 
 
+frappe.ui.form.on('Salary Slip Timesheet', {
+	time_sheet: function(frm, dt, dn) {
+		total_work_hours(frm, dt, dn);
+	},
+	timesheets_remove: function(frm, dt, dn) {
+		total_work_hours(frm, dt, dn);
+	}
+});
 
 // Get leave details
 //---------------------------------------------------------------------
@@ -196,8 +204,6 @@ cur_frm.cscript.depends_on_lwp = function(doc,dt,dn){
 // Calculate earning total
 // ------------------------------------------------------------------------
 var calculate_earning_total = function(doc, dt, dn, reset_amount) {
-	
-	
 	var tbl = doc.earnings || [];
 	var total_earn = 0;
 	for(var i = 0; i < tbl.length; i++){
@@ -213,11 +219,13 @@ var calculate_earning_total = function(doc, dt, dn, reset_amount) {
 				cint(total_working_days)));
 
 
+
 		} else if(reset_amount) {
 			tbl[i].amount = tbl[i].default_amount;
 		}
 		if(!tbl[i].do_not_include_in_total) {
 			total_earn += flt(tbl[i].amount);
+
 		}
 	}
 	doc.gross_pay = total_earn;
@@ -335,4 +343,31 @@ var calculate_deductions = function(doc, dt, dn) {
 			}
 		});
 
+}
+// calculate total working hours, earnings based on hourly wages and totals
+// ------------------------------------------------------------------------
+var total_work_hours = function(frm, dt, dn) {
+	frm.set_value('total_working_hours', 0);
+
+	$.each(frm.doc["timesheets"] || [], function(i, timesheet) {
+		frm.doc.total_working_hours += timesheet.working_hours;
+	});
+	frm.refresh_field('total_working_hours');
+
+	var wages_amount = frm.doc.total_working_hours * frm.doc.hour_rate;
+
+	frappe.db.get_value('Salary Structure', {'name': frm.doc.salary_structure}, 'salary_component', (r) => {
+		frm.set_value('gross_pay', 0);
+
+		$.each(frm.doc["earnings"], function(i, earning) {
+			if (earning.salary_component == r.salary_component) {
+				earning.amount = wages_amount;
+				frm.refresh_fields('earnings');
+			}
+			frm.doc.gross_pay += earning.amount;
+		});
+
+		frm.refresh_field('gross_pay');
+		calculate_net_pay(frm.doc, dt, dn);
+	});
 }

@@ -100,8 +100,8 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Process Payroll",
-					"label": _("Process Payroll"),
+					"name": "Payroll Entry",
+					"label": _("Payroll Entry"),
 					"description":_("Generate Salary Slips"),
 					"hide_count": True
 				},
@@ -122,6 +122,11 @@ def get_data():
 		{
 			"label": _("Expense Claims"),
 			"items": [
+				{
+					"type": "doctype",
+					"name": "Employee Advance",
+					"description": _("Manage advance amount given to the Employee"),
+				},
 				{
 					"type": "doctype",
 					"name": "Expense Claim",

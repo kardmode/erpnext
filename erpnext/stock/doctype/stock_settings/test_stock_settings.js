@@ -8,9 +8,9 @@ QUnit.test("test: Stock Settings", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Stock Settings', [
+	frappe.run_serially([
 		// insert a new Stock Settings
-		() => frappe.tests.make([
+		() => frappe.tests.make('Stock Settings', [
 			// values to be set
 			{key: 'value'}
 		]),

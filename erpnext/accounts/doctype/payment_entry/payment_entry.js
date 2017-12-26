@@ -267,6 +267,7 @@ frappe.ui.form.on('Payment Entry', {
 								}
 							},
 							() => frm.set_value("party_balance", r.message.party_balance),
+							() => frm.set_value("party_name", r.message.party_name),
 							() => frm.events.get_outstanding_documents(frm),
 							() => frm.events.hide_unhide_fields(frm),
 							() => frm.events.set_dynamic_labels(frm),
@@ -409,7 +410,7 @@ frappe.ui.form.on('Payment Entry', {
 		}
 
 		// Make read only if Accounts Settings doesn't allow stale rates
-		frm.set_df_property("source_exchange_rate", "read_only", erpnext.stale_rate_allowed());
+		frm.set_df_property("source_exchange_rate", "read_only", erpnext.stale_rate_allowed() ? 0 : 1);
 	},
 
 	target_exchange_rate: function(frm) {
@@ -430,7 +431,7 @@ frappe.ui.form.on('Payment Entry', {
 		frm.set_paid_amount_based_on_received_amount = false;
 
 		// Make read only if Accounts Settings doesn't allow stale rates
-		frm.set_df_property("target_exchange_rate", "read_only", erpnext.stale_rate_allowed());
+		frm.set_df_property("target_exchange_rate", "read_only", erpnext.stale_rate_allowed() ? 0 : 1);
 	},
 
 	paid_amount: function(frm) {
@@ -513,7 +514,7 @@ frappe.ui.form.on('Payment Entry', {
 						c.outstanding_amount = d.outstanding_amount;
 						c.bill_no = d.bill_no;
 
-						if(!in_list(["Sales Order", "Purchase Order", "Expense Claim"], d.voucher_type)) {
+						if(!in_list(["Sales Order", "Purchase Order", "Expense Claim", "Fees"], d.voucher_type)) {
 							if(flt(d.outstanding_amount) > 0)
 								total_positive_outstanding += flt(d.outstanding_amount);
 							else
@@ -528,7 +529,7 @@ frappe.ui.form.on('Payment Entry', {
 						} else {
 							c.exchange_rate = 1;
 						}
-						if (in_list(['Sales Invoice', 'Purchase Invoice', "Expense Claim"], d.reference_doctype)){
+						if (in_list(['Sales Invoice', 'Purchase Invoice', "Expense Claim", "Fees"], d.reference_doctype)){
 							c.due_date = d.due_date;
 						}
 					});
@@ -536,7 +537,8 @@ frappe.ui.form.on('Payment Entry', {
 					if(
 						(frm.doc.payment_type=="Receive" && frm.doc.party_type=="Customer") ||
 						(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Supplier")  ||
-						(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Employee")
+						(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Employee") ||
+						(frm.doc.payment_type=="Receive" && frm.doc.party_type=="Student") 
 					) {
 						if(total_positive_outstanding > total_negative_outstanding)
 							frm.set_value("paid_amount",
@@ -580,13 +582,16 @@ frappe.ui.form.on('Payment Entry', {
 		})
 
 		var allocated_negative_outstanding = 0;
-		if ((frm.doc.payment_type=="Receive" && frm.doc.party_type=="Customer") ||
+		if (
+				(frm.doc.payment_type=="Receive" && frm.doc.party_type=="Customer") ||
 				(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Supplier") ||
-				(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Employee")) {
-			if(total_positive_outstanding_including_order > paid_amount) {
-				var remaining_outstanding = total_positive_outstanding_including_order - paid_amount;
-				allocated_negative_outstanding = total_negative_outstanding < remaining_outstanding ?
-					total_negative_outstanding : remaining_outstanding;
+				(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Employee") ||
+				(frm.doc.payment_type=="Receive" && frm.doc.party_type=="Student")
+			) {
+				if(total_positive_outstanding_including_order > paid_amount) {
+					var remaining_outstanding = total_positive_outstanding_including_order - paid_amount;
+					allocated_negative_outstanding = total_negative_outstanding < remaining_outstanding ?
+						total_negative_outstanding : remaining_outstanding;
 			}
 
 			var allocated_positive_outstanding =  paid_amount + allocated_negative_outstanding;

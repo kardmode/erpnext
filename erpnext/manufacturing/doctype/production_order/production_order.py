@@ -35,6 +35,7 @@ class ProductionOrder(Document):
 			validate_bom_no(self.production_item, self.bom_no)
 
 		self.validate_sales_order()
+		self.set_default_warehouse()
 		self.validate_warehouse_belongs_to_company()
 		self.calculate_operating_cost()
 		self.validate_qty()
@@ -43,21 +44,32 @@ class ProductionOrder(Document):
 
 		validate_uom_is_integer(self, "stock_uom", ["qty", "produced_qty"])
 
-		if not self.get("required_items"):
-			self.set_required_items()
-		else:
-			self.set_available_qty()
-		
-		self.calculate_max_quantities()
+		self.set_required_items(reset_only_qty = len(self.get("required_items")))
 
 	def validate_sales_order(self):
 		if self.sales_order:
 			so = frappe.db.sql("""
 				select so.name, so_item.delivery_date, so.project
-				from `tabSales Order` so, `tabSales Order Item` so_item
-				where so.name=%s and so.name=so_item.parent
-					and so.docstatus = 1 and so_item.item_code=%s
-			""", (self.sales_order, self.production_item), as_dict=1)
+				from `tabSales Order` so
+				inner join `tabSales Order Item` so_item on so_item.parent = so.name
+				left join `tabProduct Bundle Item` pk_item on so_item.item_code = pk_item.parent
+				where so.name=%s and so.docstatus = 1 and (
+					so_item.item_code=%s or
+					pk_item.item_code=%s )
+			""", (self.sales_order, self.production_item, self.production_item), as_dict=1)
+
+			if not so:
+				so = frappe.db.sql("""
+					select
+						so.name, so_item.delivery_date, so.project
+					from
+						`tabSales Order` so, `tabSales Order Item` so_item, `tabPacked Item` packed_item
+					where so.name=%s 
+						and so.name=so_item.parent
+						and so.name=packed_item.parent
+						and so_item.item_code = packed_item.parent_item
+						and so.docstatus = 1 and packed_item.item_code=%s
+				""", (self.sales_order, self.production_item), as_dict=1)
 
 			if len(so):
 				if not self.expected_delivery_date:
@@ -71,6 +83,12 @@ class ProductionOrder(Document):
 			else:
 				frappe.throw(_("Sales Order {0} is not valid").format(self.sales_order))
 
+	def set_default_warehouse(self):
+		if not self.wip_warehouse:
+			self.wip_warehouse = frappe.db.get_single_value("Manufacturing Settings", "default_wip_warehouse")
+		if not self.fg_warehouse:
+			self.fg_warehouse = frappe.db.get_single_value("Manufacturing Settings", "default_fg_warehouse")
+	
 	def validate_warehouse_belongs_to_company(self):
 		warehouses = [self.fg_warehouse, self.wip_warehouse]
 		for d in self.get("required_items"):
@@ -426,6 +444,7 @@ class ProductionOrder(Document):
 		return check_if_scrap_warehouse_mandatory(self.bom_no)
 
 	def set_available_qty(self):
+		quantity_list = []
 		for d in self.get("required_items"):
 			if d.source_warehouse:
 				d.available_qty_at_source_warehouse = get_latest_stock_qty(d.item_code, d.source_warehouse)
@@ -437,27 +456,35 @@ class ProductionOrder(Document):
 
 			if self.wip_warehouse:
 				d.available_qty_at_wip_warehouse = get_latest_stock_qty(d.item_code, target_warehouse)
+			quantity_list.append(flt(d.available_qty_at_source_warehouse)/flt(d.required_qty/self.qty))	
+			
+		max_qty = min(quantity_list or [0]) if min(quantity_list or [0])>=0 else 0
+		import math
+		self.max_qty = math.floor(max_qty)
 
-	def set_required_items(self):
+	def set_required_items(self, reset_only_qty=False):
 		'''set required_items for production to keep track of reserved qty'''
-		self.required_items = []
+		if not reset_only_qty:
+			self.required_items = []
+
 		if self.bom_no and self.qty:
 			item_dict = get_bom_items_as_dict(self.bom_no, self.company, qty=self.qty,
 				fetch_exploded = self.use_multi_level_bom)
 
 
-
-			for item in sorted(item_dict.values(), key=lambda d: d['idx']):
-				best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.qty,item.source_warehouse or item.default_warehouse)
-
-
-				self.append('required_items', {
-					'item_code': item.item_code,
-					'item_name': item.item_name,
-					'description': item.description,
-					'required_qty': item.qty,
-					'source_warehouse': best_warehouse
-				})
+			if reset_only_qty:
+				for d in self.get("required_items"):
+					d.required_qty = item_dict.get(d.item_code).get("qty")
+			else:
+				for item in sorted(item_dict.values(), key=lambda d: d['idx']):
+					best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.qty,item.source_warehouse or item.default_warehouse)
+					self.append('required_items', {
+						'item_code': item.item_code,
+						'item_name': item.item_name,
+						'description': item.description,
+						'required_qty': item.qty,
+						'source_warehouse': best_warehouse
+					})
 
 			self.set_available_qty()
 
@@ -476,14 +503,7 @@ class ProductionOrder(Document):
 					and detail.item_code = %s''', (self.name, d.item_code))[0][0]
 
 			d.db_set('transferred_qty', transferred_qty, update_modified = False)
-
-	def calculate_max_quantities(self):
-		quantity_list = []
-		for d in self.get("required_items"):
-			quantity_list.append(flt(d.available_qty_at_source_warehouse)/flt(d.required_qty/self.qty))
-		max_qty = min(quantity_list or [0]) if min(quantity_list or [0])>=0 else 0
-		import math
-		self.max_qty = math.floor(max_qty)
+		
 		
 		
 @frappe.whitelist()
@@ -605,30 +625,6 @@ def make_stock_entry(production_order_id, purpose, qty=None,save=False,skip_tran
 	return stock_entry.as_dict()
 
 @frappe.whitelist()
-def get_events(start, end, filters=None):
-	"""Returns events for Gantt / Calendar view rendering.
-
-	:param start: Start date-time.
-	:param end: End date-time.
-	:param filters: Filters (JSON).
-	"""
-	from frappe.desk.calendar import get_event_conditions
-	conditions = get_event_conditions("Production Order", filters)
-
-	data = frappe.db.sql("""select name, production_item, planned_start_date,
-		planned_end_date, status
-		from `tabProduction Order`
-		where ((ifnull(planned_start_date, '0000-00-00')!= '0000-00-00') \
-				and (planned_start_date <= %(end)s) \
-			and ((ifnull(planned_start_date, '0000-00-00')!= '0000-00-00') \
-				and ifnull(planned_end_date, '2199-12-31 00:00:00') >= %(start)s)) {conditions}
-		""".format(conditions=conditions), {
-			"start": start,
-			"end": end
-		}, as_dict=True, update={"allDay": 0})
-	return data
-
-@frappe.whitelist()
 def make_timesheet(production_order, company):
 	timesheet = frappe.new_doc("Timesheet")
 	timesheet.employee = ""
@@ -685,3 +681,15 @@ def stop_unstop(production_order, status):
 
 
 	return pro_order.status
+
+@frappe.whitelist()
+def query_sales_order(production_item):
+	out = frappe.db.sql_list("""
+		select distinct so.name from `tabSales Order` so, `tabSales Order Item` so_item
+		where so_item.parent=so.name and so_item.item_code=%s and so.docstatus=1
+	union
+		select distinct so.name from `tabSales Order` so, `tabPacked Item` pi_item
+		where pi_item.parent=so.name and pi_item.item_code=%s and so.docstatus=1
+	""", (production_item, production_item))
+	
+	return out

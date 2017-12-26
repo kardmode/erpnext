@@ -103,8 +103,9 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 
 		// Show buttons only when pos view is active
 		if (cint(doc.docstatus==0) && cur_frm.page.current_view_name!=="pos" && !doc.is_return) {
-			cur_frm.cscript.sales_order_btn();
-			cur_frm.cscript.delivery_note_btn();
+			this.frm.cscript.sales_order_btn();
+			this.frm.cscript.delivery_note_btn();
+			this.frm.cscript.quotation_btn();
 		}
 		
 		/* if(!this.frm.doc.__islocal) {
@@ -170,6 +171,26 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 						docstatus: 1,
 						status: ["!=", "Closed"],
 						per_billed: ["<", 99.99],
+						company: me.frm.doc.company
+					}
+				})
+			}, __("Get items from"));
+	},
+
+	quotation_btn: function() {
+		var me = this;
+		this.$quotation_btn = this.frm.add_custom_button(__('Quotation'),
+			function() {
+				erpnext.utils.map_current_doc({
+					method: "erpnext.selling.doctype.quotation.quotation.make_sales_invoice",
+					source_doctype: "Quotation",
+					target: me.frm,
+					setters: {
+						customer: me.frm.doc.customer || undefined,
+					},
+					get_query_filters: {
+						docstatus: 1,
+						status: ["!=", "Lost"],
 						company: me.frm.doc.company
 					}
 				})
@@ -295,7 +316,7 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 		var row = locals[cdt][cdn];
 		if(row.asset) {
 			frappe.call({
-				method: erpnext.accounts.doctype.asset.depreciation.get_disposal_account_and_cost_center,
+				method: erpnext.assets.doctype.asset.depreciation.get_disposal_account_and_cost_center,
 				args: {
 					"company": frm.doc.company
 				},
@@ -308,6 +329,14 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 	},
 
 	is_pos: function(frm){
+		this.set_pos_data();
+	},
+
+	pos_profile: function() {
+		this.set_pos_data();
+	},
+
+	set_pos_data: function() {
 		if(this.frm.doc.is_pos) {
 			if(!this.frm.doc.company) {
 				this.frm.set_value("is_pos", 0);
@@ -320,7 +349,7 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 					callback: function(r) {
 						if(!r.exc) {
 							if(r.message && r.message.print_format) {
-								frm.pos_print_format = r.message.print_format;
+								me.frm.pos_print_format = r.message.print_format;
 							}
 							me.frm.script_manager.trigger("update_stock");
 							frappe.model.set_default_values(me.frm.doc);
@@ -542,6 +571,19 @@ frappe.ui.form.on('Sales Invoice', {
 				filters: {
 					link_doctype: 'Company',
 					link_name: doc.company
+				}
+			};
+		});
+
+		frm.set_query('pos_profile', function(doc) {
+			if(!doc.company) {
+				frappe.throw(_('Please set Company'));
+			}
+
+			return {
+				query: 'erpnext.accounts.doctype.pos_profile.pos_profile.pos_profile_query',
+				filters: {
+					company: doc.company
 				}
 			};
 		});

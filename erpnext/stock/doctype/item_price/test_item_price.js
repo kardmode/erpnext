@@ -1,23 +1,22 @@
-/* eslint-disable */
-// rename this file from _test_[name] to test_[name] to activate
-// and remove above this line
+QUnit.module('Stock');
 
-QUnit.test("test: Item Price", function (assert) {
+QUnit.test("test item price", function(assert) {
+	assert.expect(2);
 	let done = assert.async();
-
-	// number of asserts
-	assert.expect(1);
-
-	frappe.run_serially('Item Price', [
-		// insert a new Item Price
-		() => frappe.tests.make([
-			// values to be set
-			{key: 'value'}
-		]),
+	frappe.run_serially([
 		() => {
-			assert.equal(cur_frm.doc.key, 'value');
+			return frappe.tests.make('Item Price', [
+				{price_list:'Test-Selling-USD'},
+				{item_code: 'Test Product 4'},
+				{price_list_rate: 200}
+			]);
 		},
+		() => cur_frm.save(),
+		() => {
+			assert.ok(cur_frm.doc.item_name == 'Test Product 4', "Item name correct");
+			assert.ok(cur_frm.doc.price_list_rate == 200, "Price list rate correct");
+		},
+		() => frappe.timeout(0.3),
 		() => done()
 	]);
-
 });

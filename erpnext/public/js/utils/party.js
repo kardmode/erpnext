@@ -174,7 +174,10 @@ erpnext.utils.get_shipping_address = function(frm, callback){
 	{
 		frappe.call({
 		method: "frappe.contacts.doctype.address.address.get_shipping_address",
-		args: {company: frm.doc.company},
+		args: {
+			company: frm.doc.company,
+			address: frm.doc.shipping_address
+		},
 		callback: function(r){
 			if(r.message){
 				frm.set_value("shipping_address", r.message[0]) //Address title or name
