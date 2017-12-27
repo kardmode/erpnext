@@ -737,11 +737,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			item.stock_qty = flt(item.qty * item.conversion_factor, precision("stock_qty", item));
 			item.total_weight = flt(item.stock_qty * item.weight_per_unit);
 			refresh_field("stock_qty", item.name, item.parentfield);
-<<<<<<< HEAD
-
-=======
 			refresh_field("total_weight", item.name, item.parentfield);
->>>>>>> ff2fb653be48d5fcff03b6b0c51917e35358b2fd
 			this.toggle_conversion_factor(item);
 			this.calculate_net_weight();
 			if (!dont_fetch_price_list_rate &&

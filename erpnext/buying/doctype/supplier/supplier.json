@@ -10,7 +10,7 @@
  "description": "Supplier of Goods or Services.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -941,7 +941,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-12-26 04:50:15.317590", 
+ "modified": "2017-12-27 00:37:07.433206", 
  "modified_by": "Administrator", 
  "module": "Buying", 
  "name": "Supplier", 

@@ -8,6 +8,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -262,7 +263,7 @@
  "issingle": 1, 
  "istable": 0, 
  "max_attachments": 1, 
- "modified": "2017-11-14 12:51:34.980103", 
+ "modified": "2017-12-27 00:35:49.078576", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Upload Attendance", 
