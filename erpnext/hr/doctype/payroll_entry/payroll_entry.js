@@ -7,13 +7,25 @@ frappe.ui.form.on('Payroll Entry', {
 	onload: function (frm) {
 		frm.doc.posting_date = frappe.datetime.nowdate();
 		frm.toggle_reqd(['payroll_frequency'], !frm.doc.salary_slip_based_on_timesheet);
+		
 	},
 
 	refresh: function(frm) {
-		if (frm.doc.docstatus == 1) {
-			if (frm.custom_buttons) frm.clear_custom_buttons();
-			frm.events.add_context_buttons(frm);
+		
+		
+		
+		if (frm.doc.__islocal) {
+			frm.trigger("set_start_end_dates");
 		}
+		if (frm.doc.docstatus == 0 && !frm.doc.__islocal) {
+			if (frm.custom_buttons) frm.clear_custom_buttons();
+			var slip_status = {'draft':1,'submitted':0};
+			// frm.events.add_context_buttons(frm);
+			frm.events.add_salary_slip_buttons(frm,slip_status);
+
+		}
+		
+		
 	},
 
 	add_context_buttons: function(frm) {
@@ -44,12 +56,36 @@ frappe.ui.form.on('Payroll Entry', {
 					);
 				}
 			);
-		}
-
-		if (slip_status.draft) {
-			frm.add_custom_button(__("Submit Salary Slip"),
+			frm.add_custom_button(__("View Attendance Slips"),
 				function() {
-					submit_salary_slip(frm);
+					frappe.set_route(
+						'query-report', 'Attendance%20Slip', ''
+					);
+				}
+			);
+		}
+		
+
+		// if (slip_status.draft) {
+			// frm.add_custom_button(__("Submit Salary Slips"),
+				// function() {
+					// submit_salary_slip(frm);
+				// }
+			// ).addClass("btn-primary");
+		// }
+		
+		if (slip_status.draft) {
+			frm.add_custom_button(__("Create Salary Slips"),
+				function() {
+					create_salary_slip(frm);
+				}
+			).addClass("btn-primary");
+		}
+		
+		if (slip_status.draft) {
+			frm.add_custom_button(__("Print Salary Slips"),
+				function() {
+					print_salary_slip(frm);
 				}
 			).addClass("btn-primary");
 		}
@@ -110,6 +146,8 @@ frappe.ui.form.on('Payroll Entry', {
 
 	company: function (frm) {
 		frm.set_value('employees', []);
+		frm.set_value('cost_center','Main - '+frappe.get_abbr(frm.doc.company,5))
+		
 	},
 
 	department: function (frm) {
@@ -225,3 +263,52 @@ let make_bank_entry = function (frm) {
 		frappe.msgprint(__("Company, From Date and To Date is mandatory"));
 	}
 };
+
+// Create salary slip
+// -----------------------
+const create_salary_slip = function (frm) {
+	var doc = frm.doc;
+	var callback = function (r, rt) {
+		
+	}
+	return $c('runserverobj', { 'method': 'create_salary_slips', 'docs': doc }, callback);
+}
+
+const print_salary_slip = function (frm) {
+	
+	var doc = frm.doc;
+	if(doc.company && doc.start_date && doc.end_date){
+		var callback = function(r, rt){
+
+			if (r.message)
+			{
+				var docname = [];
+
+				r.message.forEach(function (element, index) {
+					docname.push(element[0]);
+				});
+				
+				if(docname.length >= 1){
+					var json_string = JSON.stringify(docname);								
+					var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
+						+"doctype="+encodeURIComponent("Salary Slip")
+						+"&name="+encodeURIComponent(json_string)
+						+"&format="+encodeURIComponent("Salary Slip")
+						+"&orientation="+encodeURIComponent("Portrait")
+						+"&no_letterhead="+"0");
+					if(!w) {
+						msgprint(__("Please enable pop-ups")); return;
+					}
+				}
+			}
+		}
+
+		return $c('runserverobj', args={'method':'print_salary_slips','docs':doc},callback);
+
+		
+    } else {
+  	  msgprint(__("Company and dates are mandatory"));
+    }
+};
+
+

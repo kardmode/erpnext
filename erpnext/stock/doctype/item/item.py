@@ -104,18 +104,19 @@ class Item(WebsiteGenerator):
 			self.publish_in_hub = 1
 
 	def after_insert(self):
+	
 		'''set opening stock and item price'''
 		if self.standard_rate:
-			self.add_price(None,self.standard_rate)
-			
-		price_list = (frappe.db.get_single_value('Buying Settings', 'buying_price_list')
-			or frappe.db.get_value('Price List', _('Standard Buying')))
-			
+			self.add_price()
+						
 		if self.standard_buying_rate:
+			price_list = (frappe.db.get_single_value('Buying Settings', 'buying_price_list')
+				or frappe.db.get_value('Price List', _('Standard Buying')))
 			self.add_price(price_list,self.standard_buying_rate)
 
 		if self.opening_stock:
 			self.set_opening_stock()
+			
 	
 
 	def validate(self):
@@ -191,11 +192,14 @@ class Item(WebsiteGenerator):
 		if cint(frappe.db.get_single_value('Stock Settings', 'clean_description_html')):
 			self.description = clean_html(self.description)
 
-	def add_price(self, price_list=None):
+	def add_price(self, price_list=None,value = None):
 		'''Add a new price'''
 		if not price_list:
 			price_list = (frappe.db.get_single_value('Selling Settings', 'selling_price_list')
 				or frappe.db.get_value('Price List', _('Standard Selling')))
+				
+		if not value:
+			value = self.standard_rate
 		if price_list:
 			item_price = frappe.get_doc({
 				"doctype": "Item Price",

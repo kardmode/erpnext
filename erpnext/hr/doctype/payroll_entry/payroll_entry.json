@@ -9,7 +9,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Other", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -874,11 +874,11 @@
  "idx": 0, 
  "image_view": 0, 
  "in_create": 0, 
- "is_submittable": 1, 
+ "is_submittable": 0, 
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-12-06 19:47:03.235021", 
+ "modified": "2017-12-27 23:48:46.713589", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Payroll Entry", 
@@ -888,7 +888,7 @@
   {
    "amend": 0, 
    "apply_user_permissions": 0, 
-   "cancel": 1, 
+   "cancel": 0, 
    "create": 1, 
    "delete": 1, 
    "email": 0, 
@@ -902,7 +902,7 @@
    "role": "HR Manager", 
    "set_user_permissions": 0, 
    "share": 1, 
-   "submit": 1, 
+   "submit": 0, 
    "write": 1
   }
  ], 

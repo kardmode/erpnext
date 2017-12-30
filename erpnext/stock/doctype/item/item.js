@@ -125,12 +125,12 @@ frappe.ui.form.on("Item", {
 
 	validate: function(frm){
 		erpnext.item.weight_to_validate(frm);
-		calculate_conversion_factor(frm);
+		calculate_conversion_factor(frm,false);
 		
 	},
 	
 	calculate_conversion: function(frm){
-		calculate_conversion_factor(frm);
+		calculate_conversion_factor(frm,true);
 		frm.refresh_field("uoms");
 	},
 
@@ -728,22 +728,20 @@ var check_parent_item_group = function(frm) {
 		
 	}
 }
-var calculate_conversion_factor = function(frm) {
+var calculate_conversion_factor = function(frm,show_debug = false) {
 	
-	if(!frm.doc.parent_item_group)
-	{		
-		frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
-			parent_item_group = r && r.parent_item_group;
-			frm.set_value("parent_item_group",parent_item_group);
-		});
-		
-	}
-	else{
-		
-	}
+	check_parent_item_group(frm);
 	
-	if (frm.doc.depth > 0 && frm.doc.width > 0 && check_current_units(frm.doc.stock_uom) 
-	&& (frm.doc.parent_item_group == "Raw Material" || frm.doc.item_group == "Raw Material")){
+	if(frm.doc.parent_item_group != "Raw Material Carpentry" || frm.doc.item_group != "Raw Material Carpentry"){
+		if (show_debug) frappe.msgprint(__("Item Group or Parent Item Group is not Raw Material Carpentry"));
+		return;
+	}
+
+	
+	if (frm.doc.depth <=0 || frm.doc.width <= 0 || frm.doc.height <= 0){
+		if (show_debug) frappe.msgprint(__("All Dimensions have to be greater than 0"));
+	}
+	else if (check_current_units(frm.doc.stock_uom)){
 			
 			var conversion_factors = get_dimensions(frm);
 			var conversion_factor = conversion_factors[0];
@@ -754,6 +752,9 @@ var calculate_conversion_factor = function(frm) {
 			check_conversion_factor(frm,"sqm",conversion_factor);
 			check_conversion_factor(frm,"cft",cft_conversion_factor);
 
+	}
+	else{
+		if (show_debug) frappe.msgprint(__("Stock UOM can't be a length"));
 	}
 	
 }

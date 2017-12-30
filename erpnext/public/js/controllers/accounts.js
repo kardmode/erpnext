@@ -343,3 +343,21 @@ cur_frm.pformat.taxes= function(doc){
 	}
 	return out;
 }
+
+
+cur_frm.cscript.vat = function(doc, cdt, cdn) {
+	var d = locals[cdt][cdn];
+	frappe.call({
+		type:"GET",
+		method: "erpnext.accounts.doctype.item_tax_template.item_tax_template.get_template_details",
+		args:{
+				item_code: d.item_code || "",
+				template_name: d.vat || ""
+			},
+		callback: function(r) {
+			console.log(r);
+			frappe.model.set_value(cdt, cdn, "item_tax_rate", r.message || '{}');
+			
+		}
+	})
+}

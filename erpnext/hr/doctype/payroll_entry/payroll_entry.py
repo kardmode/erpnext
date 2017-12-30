@@ -6,16 +6,18 @@ from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
 from dateutil.relativedelta import relativedelta
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, DATE_FORMAT
+from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,fmt_money, add_to_date, DATE_FORMAT
+
 from frappe import _
 from erpnext.accounts.utils import get_fiscal_year
+from erpnext.hr.doctype.employee.employee import get_holiday_list_for_employee
 
 
 class PayrollEntry(Document):
 
 	def on_submit(self):
 		self.create_salary_slips()
-
+		
 	def get_emp_list(self):
 		"""
 			Returns list of active employees based on selected criteria
@@ -47,11 +49,76 @@ class PayrollEntry(Document):
 				from
 					`tabEmployee` t1, `tabSalary Structure Employee` t2
 				where
-					t1.docstatus!=2
+					t1.docstatus!=2 and t1.status !='Left'
 					and t1.name = t2.employee
 			%s """% cond, {"sal_struct": sal_struct}, as_dict=True)
-			return emp_list
+			
+			working_days = date_diff(self.end_date, self.start_date) + 1
 
+			
+			new_emp_list = ()
+			for e in emp_list:
+
+				joining_date, relieving_date = frappe.db.get_value("Employee", e[0], 
+					["date_of_joining", "relieving_date"])
+			
+				lwp = self.calculate_lwp(e,working_days)
+
+				if cint(self.employees_on_leave):
+					if lwp > 0:
+						new_emp_list = new_emp_list + (e,)
+				
+				else:
+					payment_days = 0
+					payment_days = flt(self.get_payment_days(joining_date, relieving_date))-flt(lwp)
+					if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
+						holidays = self.get_holidays_for_employee(joining_date, relieving_date)
+						payment_days -= len(holidays)
+					if payment_days > 0:
+						new_emp_list = new_emp_list + (e,)
+
+
+
+			return new_emp_list
+
+	def get_payment_days(self, joining_date, relieving_date):
+		start_date = getdate(self.start_date)
+		if joining_date:
+			if getdate(self.start_date) <= joining_date <= getdate(self.end_date):
+				start_date = joining_date
+			elif joining_date > getdate(self.end_date):
+				return 0
+
+		end_date = getdate(self.end_date)
+		if relieving_date:
+			if getdate(self.start_date) <= relieving_date <= getdate(self.end_date):
+				end_date = relieving_date
+			elif relieving_date < getdate(self.start_date):
+				frappe.throw(_("Employee relieved on {0} must be set as 'Left'")
+					.format(relieving_date))
+
+		payment_days = date_diff(end_date, start_date) + 1
+		
+		
+		
+		return payment_days
+		
+	def get_holidays_for_employee(self, start_date, end_date):
+		holiday_list = get_holiday_list_for_employee(self.employee)
+		holidays = frappe.db.sql_list('''select holiday_date from `tabHoliday`
+			where
+				parent=%(holiday_list)s
+				and holiday_date >= %(start_date)s
+				and holiday_date <= %(end_date)s''', {
+					"holiday_list": holiday_list,
+					"start_date": start_date,
+					"end_date": end_date
+				})
+
+		holidays = [cstr(i) for i in holidays]
+
+		return holidays
+		
 	def fill_employee_details(self):
 		self.set('employees', [])
 		employees = self.get_emp_list()
@@ -354,13 +421,43 @@ class PayrollEntry(Document):
 	def set_start_end_dates(self):
 		self.update(get_start_end_dates(self.payroll_frequency,
 			self.start_date or self.posting_date, self.company))
+			
+	def print_salary_slips(self):
+		"""
+			Print all salary slips based on selected criteria
+		"""
+		ss_list = self.get_sal_slip_list(ss_status=0)
+
+
+		return ss_list
+		
+	def calculate_lwp(self, e, working_days):
+		lwp = 0
+
+		for d in range(working_days):
+		
+			dt = add_days(cstr(getdate(self.start_date)), d)
+
+			leave = frappe.db.sql("""
+				select t1.name, t1.half_day, t1.leave_type
+				from `tabLeave Application` t1, `tabLeave Type` t2
+				where t1.leave_type <> 'Encash Leave'
+				and t1.docstatus < 2
+				and t1.status in ('Approved','Back From Leave')
+				and t1.employee = %s
+				and %s between from_date and to_date
+			""", (e, dt))
+			if leave:
+				lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+	
+		return lwp
 
 
 @frappe.whitelist()
 def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 	'''Returns dict of start and end dates for given payroll frequency based on start_date'''
 
-	if payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly" or payroll_frequency == "":
+	if payroll_frequency == "Quarterly" or payroll_frequency == "Monthly" or payroll_frequency == "Bimonthly" or payroll_frequency == "" or payroll_frequency == None:
 		fiscal_year = get_fiscal_year(start_date, company=company)[0]
 		month = "%02d" % getdate(start_date).month
 		m = get_month_details(fiscal_year, month)
@@ -371,6 +468,15 @@ def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 			else:
 				start_date = m['month_mid_start_date']
 				end_date = m['month_end_date']
+		elif payroll_frequency == "Monthly":
+			start_date = m['month_start_date']
+			end_date = m['month_end_date']
+		elif payroll_frequency == "Quarterly":
+		
+			start_date = m['month_start_date']
+			end_date = get_end_date(start_date,payroll_frequency)['end_date']
+
+		
 		else:
 			start_date = m['month_start_date']
 			end_date = m['month_end_date']
@@ -391,6 +497,7 @@ def get_start_end_dates(payroll_frequency, start_date=None, company=None):
 
 def get_frequency_kwargs(frequency_name):
 	frequency_dict = {
+		'quarterly':{'months': 3},
 		'monthly': {'months': 1},
 		'fortnightly': {'days': 14},
 		'weekly': {'days': 7},
@@ -413,7 +520,7 @@ def get_end_date(start_date, frequency):
 	else:
 		return dict(end_date='')
 
-
+@frappe.whitelist()
 def get_month_details(year, month):
 	ysd = frappe.db.get_value("Fiscal Year", year, "year_start_date")
 	if ysd:

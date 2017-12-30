@@ -264,10 +264,9 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			// }
 		// }
 		
-		//this.setup_sms();
 		
 		this.set_dynamic_labels();
-		this.setup_sms();
+		// this.setup_sms();
 
 	},
 

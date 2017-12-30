@@ -649,7 +649,7 @@
    "reqd": 0, 
    "search_index": 0, 
    "set_only_once": 0, 
-   "unique": 0 
+   "unique": 0
   }, 
   {
    "allow_bulk_edit": 0, 
@@ -679,7 +679,7 @@
    "reqd": 0, 
    "search_index": 0, 
    "set_only_once": 0, 
-   "unique": 0 
+   "unique": 0
   }, 
   {
    "allow_bulk_edit": 0, 
@@ -2043,7 +2043,7 @@
  "has_web_view": 0, 
  "hide_heading": 0, 
  "hide_toolbar": 0, 
- "icon": "fa fa-building", 
+ "icon": "fa fa-building-o", 
  "idx": 1, 
  "image_view": 0, 
  "in_create": 0, 
@@ -2052,7 +2052,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2017-12-07 18:40:24.646920", 
+ "modified": "2017-12-30 03:43:30.537566", 
  "modified_by": "Administrator", 
  "module": "Setup", 
  "name": "Company", 
