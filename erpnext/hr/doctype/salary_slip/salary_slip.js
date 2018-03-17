@@ -6,6 +6,15 @@ cur_frm.add_fetch('time_sheet', 'total_hours', 'working_hours');
 
 
 frappe.ui.form.on("Salary Slip", {
+	onload:function(frm){
+		if((cint(frm.doc.__islocal) == 1) && !frm.doc.amended_from){
+			frm.set_value("payroll_frequency",'Monthly')
+			frm.trigger("set_start_end_dates");
+
+		}
+			// cur_frm.set_df_property("earnings", "read_only", 1);
+
+	},
 	setup: function(frm) {
 		frm.fields_dict["timesheets"].grid.get_field("time_sheet").get_query = function(){
 			return {
@@ -31,7 +40,7 @@ frappe.ui.form.on("Salary Slip", {
 	},
 
 
-	/* start_date: function(frm){
+	start_date: function(frm){
 		if(frm.doc.start_date){
 			frm.trigger("set_end_date");
 		}
@@ -50,7 +59,7 @@ frappe.ui.form.on("Salary Slip", {
 				}
 			}
 		})
-	}, */
+	},
 
 	company: function(frm) {
 		var company = locals[':Company'][frm.doc.company];
@@ -88,7 +97,7 @@ frappe.ui.form.on("Salary Slip", {
 	set_start_end_dates: function(frm) {
 		if (!frm.doc.salary_slip_based_on_timesheet){
 			frappe.call({
-				method:'erpnext.hr.doctype.process_payroll.process_payroll.get_start_end_dates',
+				method:'erpnext.hr.doctype.payroll_entry.payroll_entry.get_start_end_dates',
 				args:{
 					payroll_frequency: frm.doc.payroll_frequency,
 					start_date: frm.doc.start_date || frm.doc.posting_date
@@ -121,19 +130,6 @@ frappe.ui.form.on('Salary Detail', {
 	
 })
 
-// On load
-// -------------------------------------------------------------------
-cur_frm.cscript.onload = function(doc,dt,dn){
-	if((cint(doc.__islocal) == 1) && !doc.amended_from){
-		doc.payroll_frequency = 'Monthly';
-		
-		cur_frm.trigger("set_start_end_dates");
-		
-		refresh_many(['payroll_frequency']);
-	}
-	// cur_frm.set_df_property("earnings", "read_only", 1);
-
-}
 
 
 

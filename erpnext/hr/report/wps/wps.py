@@ -24,7 +24,7 @@ def execute(filters=None):
 		return columns, data
 	columns, earning_types, ded_types = get_columns(filters,salary_slips)
 	
-	from erpnext.hr.doctype.process_payroll.process_payroll import get_month_details
+	from erpnext.hr.doctype.payroll_entry.payroll_entry import get_month_details
 	month_details = get_month_details(year, filters.month)
 	
 	no_id = filters.no_id
@@ -37,14 +37,16 @@ def execute(filters=None):
 	for count, ss in enumerate(salary_slips,1):
 		row = []
 		
+		if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
+			continue
+		
 		vars = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
 		
 		
 		
 		if filters.get("company") == "Science Lab Inc":
 			
-			if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
-				continue
+			
 			
 			if vars:
 				payroll_agent_id = vars[0].payroll_agent_id
@@ -101,9 +103,6 @@ def execute(filters=None):
 
 		
 		else:
-		
-			if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
-				continue
 		
 			if vars:
 			
@@ -285,7 +284,7 @@ def get_conditions(filters):
 	else:
 		year = year_end_date.strftime("%Y")
 	
-	from erpnext.hr.doctype.process_payroll.process_payroll import get_month_details
+	from erpnext.hr.doctype.payroll_entry.payroll_entry import get_month_details
 	month_details = get_month_details(year, filters.month)
 
 	filters["from_date"] = month_details.month_start_date
@@ -328,30 +327,6 @@ def get_ss_ded_map(salary_slips):
 	
 	return ss_ded_map
 
-def get_month_details(year, month):
-	ysd = frappe.db.get_value("Fiscal Year", year, "year_start_date")
-	if ysd:
-		from dateutil.relativedelta import relativedelta
-		import calendar, datetime
-		diff_mnt = cint(month)-cint(ysd.month)
-		if diff_mnt<0:
-			diff_mnt = 12-int(ysd.month)+cint(month)
-		msd = ysd + relativedelta(months=diff_mnt) # month start date
-		month_days = cint(calendar.monthrange(cint(msd.year) ,cint(month))[1]) # days in month
-		mid_start = datetime.date(msd.year, cint(month), 16) # month mid start date
-		mid_end = datetime.date(msd.year, cint(month), 15) # month mid end date
-		med = datetime.date(msd.year, cint(month), month_days) # month end date
-		return frappe._dict({
-			'year': msd.year,
-			'month_start_date': msd,
-			'month_end_date': med,
-			'month_mid_start_date': mid_start,
-			'month_mid_end_date': mid_end,
-			'month_days': month_days
-		})
-	else:
-		frappe.throw(_("Fiscal Year {0} not found").format(year))
-		
 
 		
 def calculate_lwp(start_date,employee, holidays, working_days):

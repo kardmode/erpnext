@@ -4,7 +4,8 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, flt, getdate, rounded
-
+from erpnext.stock.utils import get_actual_qty
+from erpnext.manufacturing.doctype.bom.bom import get_bom_items,get_default_bom
 from frappe import msgprint, _
 
 
@@ -58,7 +59,7 @@ def get_data(filters,quotation_names,company = None):
 	item_list = frappe.db.sql(query, as_dict = 1)
 	project = filters["project"]
 	
-	
+	all_bom_items = []
 	newlist = []
 	data = []
 	headers = ["header1","header2","header3"]
@@ -75,34 +76,17 @@ def get_data(filters,quotation_names,company = None):
 		item["description"] = item["description"][:55] + (item["description"][55:] and '..')
 		
 		if filters.get("bom_only") == "Without BOM":
-		
-			if filters.get("format") == "Sales Order":
-				stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item["item_code"], as_dict = 1)
-				actual_qty = 0
-				if stock_details:
-					actual_qty =flt(stock_details[0])
-				row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"], item.delivered_qty, actual_qty]
-			else:
-				row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"]]
+			actual_qty = get_actual_qty(item["item_code"])
+			row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"],actual_qty]
 			
 			data.append(row)
 		elif filters.get("bom_only") == "Combined":
-			from erpnext.manufacturing.doctype.bom.bom import get_bom_items
-			bom = frappe.db.get_value("BOM", filters={"item": item["item_code"], "project": project}) or frappe.db.get_value("BOM", filters={"item": item["item_code"], "is_default": 1})
 			
-			if filters.get("format") == "Sales Order":
-				stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item["item_code"], as_dict = 1)
-				actual_qty = 0
-				if stock_details:
-					actual_qty =flt(stock_details[0])
-				row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"], item.delivered_qty, actual_qty]
-				if bom:
-					bomitems = get_bom_items(bom, company=company,qty = item["qty"])
-
-			else:
-				row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"]]
-				if bom:
-					bomitems = get_bom_items(bom, company=company,qty = item["qty"])
+			bom = get_default_bom(item["item_code"], project)			
+			actual_qty = get_actual_qty(item["item_code"])
+			row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"],actual_qty]
+			if bom:
+				bomitems = get_bom_items(bom, company=company,qty = item["qty"])
 	
 			data.append(row)
 			
@@ -110,64 +94,80 @@ def get_data(filters,quotation_names,company = None):
 				row = [item["item_code"] + " BOM","", "","",""]
 				data.append(row)
 				for b in bomitems:
-					row = [b["item_code"],b["item_name"], b["description"],b["stock_uom"],b["qty"]]
+					actual_qty = get_actual_qty(b["item_code"])
+					row = [b["item_code"],b["item_name"], b["description"],b["stock_uom"],b["qty"],actual_qty]
 					data.append(row)
 				row = ["","", "","",""]
-				data.append(row)		
+				data.append(row)
+		elif filters.get("bom_only") == "Consolidate BOM":
+			bom = get_default_bom(item["item_code"], project)
+			if bom:
+				bomitems = get_bom_items(bom, company=company,qty = item["qty"])
+				for b in bomitems:
+					actual_qty = get_actual_qty(b["item_code"])
+					new_bom_item = {'item_code':b['item_code'],'item_name':b["item_name"],'description':b["description"],'stock_uom':b["stock_uom"],'qty':b["qty"],'actual_qty':actual_qty}
+					all_bom_items.append(new_bom_item)
+					
 			
 		else:
-			from erpnext.manufacturing.doctype.bom.bom import get_bom_items
-			bom = frappe.db.get_value("BOM", filters={"item": item["item_code"], "project": project}) or frappe.db.get_value("BOM", filters={"item": item["item_code"], "is_default": 1})
-			frappe.errprint(bom)
+			bom = get_default_bom(item["item_code"], project)
 			
 			if bom:
-				if filters.get("format") == "Sales Order":
-					stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item["item_code"], as_dict = 1)
-					actual_qty = 0
-					if stock_details:
-						actual_qty =flt(stock_details[0])
-					row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"], item.delivered_qty, actual_qty]
-					bomitems = get_bom_items(bom, company=company,qty = item["qty"])
-				else:
-					row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"]]
-					bomitems = get_bom_items(bom, company=company,qty = item["qty"])
-
+				actual_qty = get_actual_qty(item["item_code"])
+				row = [item["item_code"],item["item_name"], item["description"],item["stock_uom"],item["qty"],actual_qty]
+				bomitems = get_bom_items(bom, company=company,qty = item["qty"])
+				
 				data.append(row)
 
 				if bomitems:
 					row = [item["item_code"] + " BOM","", "","",""]
 					data.append(row)
 					for b in bomitems:
-						row = [b["item_code"],b["item_name"], b["description"],b["stock_uom"],b["qty"]]
+						actual_qty = get_actual_qty(b["item_code"])
+						row = [b["item_code"],b["item_name"], b["description"],b["stock_uom"],b["qty"],actual_qty]
 						data.append(row)
 					row = ["","", "","",""]
 					data.append(row)
+					
+	if filters.get("bom_only") == "Consolidate BOM":
+		merged_bom_items = merge(all_bom_items)
+		
+		for b in merged_bom_items:
+			d = merged_bom_items[b]
+			row = [d["item_code"],d["item_name"], d["description"],d["stock_uom"],d["qty"],d["actual_qty"]]
+			data.append(row)
+	
 	return data
 	
 
 def merge(dicts):
-	from collections import defaultdict
-	dd = defaultdict(int)
-	for d in dicts:
-		dd[d['item_name'], d['description'], d['brand']] += d['qty']
-		dd[d['item_name'], d['description'], d['brand']] += d['delivered_qty']
-
-	frappe.errprint(dd)
-	list2 = [{'item_name': k[0], 'description': k[1],'brand': k[2], 'qty': v} for k, v in dd.iteritems()]
-	return list2
+	item_dict = {}
+	for item in dicts:
+		if item_dict.has_key(item["item_code"]):
+			item_dict[item["item_code"]]["qty"] += flt(item["qty"])
+		else:
+			item_dict[item["item_code"]] = item
+	
+	return item_dict
 
 
 def get_columns(filters):
 
-	if filters.get("format") == "Sales Order":
-		columns = [_("Item Code") + "::150",
-		_("Item Name") + "::150", _("Description") + "::340",_("UOM") + "::50",
-		_("Qty") + "::80",_("Delivered Qty") + "::80",_("Actual Qty") + "::80"
+	doctype = filters.get("format")
+	if doctype == "Sales Order":
+		columns = [_("Item Code") + ":Link/Item:250",
+		_("Item Name") + "::150", _("Description") + "::250",_("UOM") + "::50",
+		_("Qty") + "::80",_("Stock Qty") + "::80"
 		]
-	else:
-		columns = [_("Item Code") + "::150",
-		_("Item Name") + "::150", _("Description") + "::340",_("UOM") + "::50",
-		_("Qty") + "::80"
+	elif doctype == "Quotation":
+		columns = [_("Item Code") + ":Link/Item:250",
+		_("Item Name") + "::150", _("Description") + "::250",_("UOM") + "::50",
+		_("Qty") + "::80",_("Stock Qty") + "::80"
+		]
+	elif doctype == "Delivery Note":
+		columns = [_("Item Code") + ":Link/Item:250",
+		_("Item Name") + "::150", _("Description") + "::250",_("UOM") + "::50",
+		_("Qty") + "::80",_("Stock Qty") + "::80"
 		]
 
 		

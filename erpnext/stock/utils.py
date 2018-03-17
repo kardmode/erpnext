@@ -93,13 +93,25 @@ def get_latest_stock_qty(item_code, warehouse=None):
 
 
 @frappe.whitelist()
-def get_actual_qty(item_code):
+def get_actual_qty(item_code,company = None):
 
 	actual_qty = 0
-	if item_code:
-		stock_details = frappe.db.sql("select actual_qty from `tabBin` where item_code = (%s)", item_code, as_dict = 1)
-		if stock_details:
-			actual_qty =flt(stock_details[0])
+	
+	if not company:
+		if item_code:
+			values, condition = [item_code], ""
+			actual_qty = frappe.db.sql("""select sum(actual_qty) from tabBin
+			where item_code=%s {0}""".format(condition), values)[0][0]
+
+	else:
+	
+		stock_details = frappe.db.sql("select t1.warehouse, t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY actual_qty DESC",(item_code),as_dict=1)
+
+		for stdetail in stock_details:
+			company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
+			if company == company_of_warehouse:
+				actual_qty = actual_qty + flt(stdetail.actual_qty)
+			
 	
 	return actual_qty
 		
@@ -248,4 +260,19 @@ def validate_warehouse_company(warehouse, company):
 def is_group_warehouse(warehouse):
 	if frappe.db.get_value("Warehouse", warehouse, "is_group"):
 		frappe.throw(_("Group node warehouse is not allowed to select for transactions"))
-	
+
+@frappe.whitelist()
+def get_default_warehouse(company = None):
+	if company:
+		source_warehouse = (frappe.db.get_value('Company', company, 'stock_stores') or frappe.db.get_single_value("Stock Settings","default_warehouse"))
+		wip_warehouse = (frappe.db.get_value('Company', company, 'wip_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse"))
+		fg_warehouse = (frappe.db.get_value('Company', company, 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
+		scrap_warehouse = (frappe.db.get_value('Company', company, 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))	
+	else:
+		from erpnext import get_default_company
+		source_warehouse = (frappe.db.get_value('Company', get_default_company(), 'stock_stores') or frappe.db.get_single_value("Stock Settings","default_warehouse"))
+		wip_warehouse = (frappe.db.get_value('Company', get_default_company(), 'wip_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse"))
+		fg_warehouse = (frappe.db.get_value('Company', get_default_company(), 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
+		scrap_warehouse = (frappe.db.get_value('Company', get_default_company(), 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))
+	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse,"scrap_warehouse": scrap_warehouse}
+

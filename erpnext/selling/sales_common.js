@@ -80,6 +80,19 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				return me.set_query_for_batch(doc, cdt, cdn)
 			});
 		}
+		
+		this.frm.set_query('warehouse', 'items', function(doc, cdt, cdn) {
+			
+			var item = locals[cdt][cdn];
+			if(!item.item_code) {
+				
+			} else {
+				return {
+					query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
+					filters: {"item_code":item.item_code,"company":doc.company}
+				}
+			}
+		});
 	},
 
 	refresh: function() {

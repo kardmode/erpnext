@@ -124,7 +124,10 @@ frappe.ui.form.on('Stock Entry', {
 				frm.set_value("from_bom", 1);
 				frm.set_value("fg_completed_qty", 1);
 				frappe.call({
-					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+					method: "erpnext.stock.utils.get_default_warehouse",
+					args: {
+						"company": doc.company
+					},
 					callback: function(r) {
 						if(!r.exc) {
 							// cur_frm.set_value("from_warehouse", r.message.source_warehouse);
@@ -141,7 +144,10 @@ frappe.ui.form.on('Stock Entry', {
 				frm.set_value("from_bom", 1);
 				frm.set_value("fg_completed_qty", 1);
 				frappe.call({
-					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+					method: "erpnext.stock.utils.get_default_warehouse",
+					args: {
+						"company": doc.company
+					},
 					callback: function(r) {
 						if(!r.exc) {
 							cur_frm.set_value("from_warehouse", r.message.source_warehouse);
@@ -157,7 +163,10 @@ frappe.ui.form.on('Stock Entry', {
 				frm.set_value("from_bom", 0);
 				frm.set_value("fg_completed_qty", 0);
 				frappe.call({
-					method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+					method: "erpnext.stock.utils.get_default_warehouse",
+					args: {
+						"company": doc.company
+					},
 					callback: function(r) {
 						if(!r.exc) {
 							cur_frm.set_value("to_warehouse", r.message.source_warehouse);
@@ -801,7 +810,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 			} else {
 				return {
 					query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
-					filters: {"item_code":item.item_code}
+					filters: {"item_code":item.item_code,"company":me.frm.doc.company}
 				}
 			}
 		});

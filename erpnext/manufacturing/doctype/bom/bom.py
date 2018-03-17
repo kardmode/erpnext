@@ -700,8 +700,7 @@ class BOM(WebsiteGenerator):
 			side = d.side
 			
 			perimeter = 2*flt(length)+2*flt(width)
-			farea = flt(length) *flt(width)
-			
+			farea = flt(length)*flt(width)
 				
 			if not side:
 				frappe.throw(_("No part provided"))
@@ -769,7 +768,7 @@ class BOM(WebsiteGenerator):
 				mdf.append(newitem)
 
 			elif calculation in ["perimeter","perimeter-width","perimeter-length"]:
-				
+
 				if calculation in ["perimeter-width"]:
 					required_qty = (perimeter - width) * bb_qty
 				elif calculation in ["perimeter-length"]:
@@ -791,8 +790,61 @@ class BOM(WebsiteGenerator):
 				new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
 				if new_edging:
 					edgebanding.append(new_edging)
+			
+			elif calculation in ["circle-perimeter"]:
+				from math import pi
+				perimeter = pi*flt(length)
+				required_qty = perimeter * bb_qty
+				
+				conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+				
+				if not conversion_factor:
+					frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
+				
+				conversion_factor = flt(1/conversion_factor)
+				
+				qty = flt(required_qty)/flt(conversion_factor)
+				newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+				mdf.append(newitem)
+				
+				new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
+				if new_edging:
+					edgebanding.append(new_edging)
+			
+			elif calculation in ["circle-area"]:
+			
+				from math import pi
+
+			
+				perimeter = pi*flt(length)
+				farea = pi * flt(length/2)*flt(length/2)
+				
+				required_qty = farea * bb_qty
+				
+				conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+				
+				if not conversion_factor:
+					frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
+				
+				conversion_factor = flt(1/conversion_factor)
+				
+				# calculate stock required_qty using dimensions of item
+				qty = flt(required_qty) / flt(conversion_factor)
+				
+				newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+				mdf.append(newitem)
+				
+				new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
+				if new_laminate:
+					laminate.append(new_laminate)
+
+				new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
+				if new_edging:
+					edgebanding.append(new_edging)
+
 				
 			elif calculation in ["area"]:
+
 				required_qty = farea * bb_qty
 				
 				conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
@@ -1223,7 +1275,7 @@ def create_custom_table(dict):
 def get_default_bom(item_code,project=None):
 	bom_no = ""
 	if project:
-		bom_no = frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "project": self.project}) or frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "is_default": 1})
+		bom_no = frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "project": project}) or frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "is_default": 1})
 	else:
 		bom_no = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "is_default": 1})
 	return bom_no

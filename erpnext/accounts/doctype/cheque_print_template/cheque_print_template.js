@@ -23,6 +23,10 @@ frappe.ui.form.on('Cheque Print Template', {
 	show_signatory: function(frm) {
 		erpnext.cheque_print.refresh_print_preview(frm);
 	},
+	show_main_currency: function(frm) {
+		erpnext.cheque_print.refresh_print_preview(frm);
+	},
+	
 	
 });
 
@@ -46,16 +50,22 @@ erpnext.cheque_print.refresh_print_preview  = function(frm) {
 			
 			var test_amount =frm.doc.test_amount;
 			var symbol = frm.doc.symbol_to_add || '';
+			var show_main_currency = frm.doc.show_main_currency;
 			
 			frappe.call({
 				method: "erpnext.accounts.doctype.cheque_print_template.cheque_print_template.get_total_in_words",
 				args:{
-					"amount":test_amount
+					"amount":test_amount,
+					"show_main_currency":show_main_currency
 				},
 				callback: function(r) {
 					if (!r.exe) {
 						var amount_in_words = symbol + r.message[1] + symbol;
 						var fmt_amount = symbol + r.message[0] + symbol;
+						var first_line = symbol + r.message[2];
+						
+						var second_line = r.message[3] + symbol;
+						
 						var pay_to = symbol + "Pay To Name" + symbol;
 						var template = '<div style="position: relative; overflow-x: scroll;">\
 				<div id="cheque_preview" style="width: {{ cheque_width }}cm; \
@@ -95,6 +105,8 @@ erpnext.cheque_print.refresh_print_preview  = function(frm) {
 						if (frm.doc.scanned_cheque) {
 							$(frm.fields_dict.cheque_print_preview.wrapper).find("#cheque_preview").css('background-image', 'url(' + frm.doc.scanned_cheque + ')');
 						}
+						
+						
 						
 					}
 				}

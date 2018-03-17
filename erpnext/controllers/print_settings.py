@@ -8,7 +8,9 @@ from frappe.utils import cint
 def print_settings_for_item_table(doc):
 
 	doc.print_templates = {
-		"qty": "templates/print_formats/includes/item_table_qty.html"
+		"qty": "templates/print_formats/includes/item_table_qty.html",
+		"tax_rate":"templates/print_formats/includes/item_table_tax_rate.html",
+		"tax_amount":"templates/print_formats/includes/item_table_tax_rate.html"
 	}
 	
 
@@ -21,21 +23,9 @@ def print_settings_for_item_table(doc):
 		# doc.flags.compact_item_print=0
 	
 	if doc.flags.compact_item_print:
-	
-		# if doc.doctype in ["Quotation Item"]:
-			# doc.print_templates["description"] = "templates/print_formats/includes/item_table_description.html"
-			# doc.flags.compact_item_fields = ["description", "qty", "rate", "amount"]
-
-		# elif doc.doctype in ["Purchase Order Item"]:
-			# doc.print_templates["item_name"] = "templates/print_formats/includes/custom_item_table_description.html"
-			# doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount"]
-
-		# else:
-			# doc.print_templates["description"] = "templates/print_formats/includes/buying_item_table_description.html"
-			# doc.flags.compact_item_fields = ["description", "qty", "rate", "amount"]
 
 		doc.print_templates["item_name"] = "templates/print_formats/includes/custom_item_table_description.html"
-		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount"]
+		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount"]
 		
 		
 		doc.flags.format_columns = format_columns

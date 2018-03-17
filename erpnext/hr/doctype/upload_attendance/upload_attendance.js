@@ -53,9 +53,7 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
 				if(!r.messages) r.messages = [];
 				
-				// replace links if error has occured
-				if(r.exc || r.error) {
-					r.messages = $.map(r.message.messages, function(v) {
+				r.messages = $.map(r.message.messages, function(v) {
 						var msg = v.replace("Inserted", "Valid")
 							.replace("Updated", "Valid").split("<");
 						if (msg.length > 1) {
@@ -65,40 +63,43 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 						}
 						return v;
 					});
-
-					if(r.error || r.message.error){
-						var $p = $('<p>').html(["<h4 style='color:red'>"+__("Import Failed! Scroll Down To Find Error")+"</h4>"]).appendTo($log_wrapper);
-						$p = $('<p>').html(["<h4 style='color:red'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
-
-					}
-					else{
-						var $p = $('<p>').html(["<h4 style='color:green'>"+__("Import Details!")+"</h4>"]).appendTo($log_wrapper);
-					$p = $('<p>').html(["<h4 style='color:green'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
-
-					}
-					
-					
-						
-					$.each(r.messages, function(i, v) {
-					var $p = $('<p>').html(v).appendTo($log_wrapper);
-						if(v.substr(0,5)=='Error') {
-							$p.css('color', 'red');
-						} else if(v.substr(0,8)=='Inserted') {
-							$p.css('color', 'green');
-						} else if(v.substr(0,7)=='Updated') {
-							$p.css('color', 'green');
-						} else if(v.substr(0,5)=='Valid') {
-							$p.css('color', '#777');
-						}
-					});
-					
-					
+				
+				// replace links if error has occured
+				if(r.exc || r.error || r.message.error) {
+					var $p = $('<p>').html(["<h4 style='color:red'>"+__("Import Failed! Scroll Down To Find Error")+"</h4>"]).appendTo($log_wrapper);
+					$p = $('<p>').html(["<h4 style='color:red'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
 				}
+				else {
+					var $p = $('<p>').html(["<h4 style='color:green'>"+__("Import Details!")+"</h4>"]).appendTo($log_wrapper);
+					$p = $('<p>').html(["<h4 style='color:green'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
+				}
+				
+				
+				
+				$.each(r.messages, function(i, v) {
+				var $p = $('<p>').html(v).appendTo($log_wrapper);
+					if(v.substr(0,5)=='Error') {
+						$p.css('color', 'red');
+					} else if(v.substr(0,8)=='Inserted') {
+						$p.css('color', 'green');
+					} else if(v.substr(0,7)=='Updated') {
+						$p.css('color', 'green');
+					} else if(v.substr(0,5)=='Valid') {
+						$p.css('color', '#777');
+					}
+				});
+					
+					
+				
 
 				
 			},
 			is_private: true
 		});
+		
+		// rename button
+		
+		$wrapper.find(".attach-btn").html('Upload and Import');
 
 	}
 })

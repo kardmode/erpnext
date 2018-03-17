@@ -256,7 +256,8 @@ erpnext.taxes_and_totals = erpnext.payments.extend({
 				if(tax.category) {
 					// if just for valuation, do not add the tax amount in total
 					// hence, setting it as 0 for further steps
-					current_tax_amount = (tax.category == "Valuation") ? 0.0 : current_tax_amount;
+										
+					current_tax_amount = (in_list(["Valuation", "Account Ledger Only"], tax.category)) ? 0.0 : current_tax_amount;
 
 					current_tax_amount *= (tax.add_deduct_tax == "Deduct") ? -1.0 : 1.0;
 				}
@@ -293,7 +294,7 @@ erpnext.taxes_and_totals = erpnext.payments.extend({
 
 	set_cumulative_total: function(row_idx, tax) {
 		var tax_amount = tax.tax_amount_after_discount_amount;
-		if (tax.category == 'Valuation') {
+		if (in_list(["Valuation", "Account Ledger Only"], tax.category)) {
 			tax_amount = 0;
 		}
 
@@ -535,7 +536,7 @@ erpnext.taxes_and_totals = erpnext.payments.extend({
 
 			$.each(this.frm.doc["taxes"] || [], function(i, tax) {
 				if (tax.charge_type == "Actual") {
-					var tax_amount = (tax.category == "Valuation") ? 0.0 : tax.tax_amount;
+					var tax_amount = (in_list(["Valuation", "Account Ledger Only"], tax.category)) ? 0.0 : tax.tax_amount;
 					tax_amount *= (tax.add_deduct_tax == "Deduct") ? -1.0 : 1.0;
 					actual_taxes_dict[tax.idx] = tax_amount;
 				} else if (actual_taxes_dict[tax.row_id] !== null) {

@@ -124,21 +124,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 	},
 	setup: function(doc) {
 		this.setup_posting_date_time_check();
-		this._super(doc);
-		
-		this.frm.set_query('warehouse', 'items', function(doc, cdt, cdn) {
-			
-			var item = locals[cdt][cdn];
-			if(!item.item_code) {
-				
-			} else {
-				return {
-					query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
-					filters: {"item_code":item.item_code}
-				}
-			}
-		});
-		
+		this._super(doc);	
 	},
 	
 	refresh: function(doc, dt, dn) {
@@ -161,37 +147,6 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 						method: "erpnext.stock.doctype.delivery_note.delivery_note.make_packing_slip",
 						frm: me.frm
 					}) }, __("Make"));
-					
-				// this.frm.add_custom_button(__('Manufacture'), function() {
-				// me.make_bom_stock_entry() });
-				
-				// this.frm.add_custom_button(__('Items Warehouse'),
-					// function() {
-						
-						// var items = cur_frm.doc.items;
-
-						// $.each(items, function(i, item) {
-							// frappe.call({
-								// method:"erpnext.stock.doctype.stock_entry.stock_entry.get_best_warehouse",
-								// args: {item_code: item.item_code,item_qty:item.qty,default_warehouse:item.warehouse},
-								// callback: function(r){
-									// if(r.message[0])
-									// {
-										// if(!r.message[1]){
-											// frappe.msgprint(format('Row {0} does not have enough stock', [
-												// item.idx
-											// ]));
-										// }
-										
-
-										// item.warehouse = r.message[0];
-										// cur_frm.script_manager.trigger("warehouse", item.doctype, item.name);
-									// }
-								// }
-							// })
-						// });
-							
-					// }, __("Modify"));
 				
 				
 			}
@@ -214,6 +169,25 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 								docstatus: 1,
 								status: ["!=", "Closed"],
 								per_delivered: ["<", 99.99],
+								company: me.frm.doc.company,
+								project: me.frm.doc.project || undefined,
+							}
+						})
+					}, __("Get items from"));
+					
+				this.frm.add_custom_button(__('Sales Invoice'),
+					function() {
+						erpnext.utils.map_current_doc({
+							method: "erpnext.accounts.doctype.sales_invoice.sales_invoice.make_delivery_note",
+							source_doctype: "Sales Invoice",
+							target: me.frm,
+							date_field: "posting_date",
+							setters: {
+								customer: me.frm.doc.customer || undefined,
+							},
+							get_query_filters: {
+								docstatus: ["!=", "2"],
+								status: ["!=", "Closed"],
 								company: me.frm.doc.company,
 								project: me.frm.doc.project || undefined,
 							}

@@ -127,7 +127,6 @@ def upload(import_settings = None):
 		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
-		# frappe.errprint(d.attendance_date)
 		if import_settings == "ignore":
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
 			(d.employee, getdate(d.attendance_date)),as_dict=True)
@@ -143,7 +142,7 @@ def upload(import_settings = None):
 					error = True
 					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
 						len(row)>1 and row[1] or "", cstr(e)))
-					# frappe.errprint(frappe.get_traceback())
+					frappe.errprint(frappe.get_traceback())
 				
 				
 		elif import_settings == "update":
@@ -163,7 +162,7 @@ def upload(import_settings = None):
 				error = True
 				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
 					len(row)>1 and row[1] or "", cstr(e)))
-				# frappe.errprint(frappe.get_traceback())
+				frappe.errprint(frappe.get_traceback())
 		else:
 			try:
 				check_record(d)
@@ -172,7 +171,7 @@ def upload(import_settings = None):
 				error = True
 				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
 					len(row)>1 and row[1] or "", cstr(e)))
-				# frappe.errprint(frappe.get_traceback())
+				frappe.errprint(frappe.get_traceback())
 	
 	if not started:
 		error = True

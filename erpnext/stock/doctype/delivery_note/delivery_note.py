@@ -24,10 +24,10 @@ form_grid_templates = {
 
 class DeliveryNote(SellingController):
 
-	def autoname(self):
-		import datetime
-		year = (getdate(self.posting_date)).year
-		self.name = make_autoname('DN-'+ str(year) + '.#####')
+	# def autoname(self):
+		# import datetime
+		# year = (getdate(self.posting_date)).year
+		# self.name = make_autoname('DN-'+ str(year) + '.#####')
 		
 
 	def __init__(self, *args, **kwargs):

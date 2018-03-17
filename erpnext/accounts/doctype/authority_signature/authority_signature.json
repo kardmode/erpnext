@@ -1,15 +1,17 @@
 {
+ "add_company_abbr_to_name": 1, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
  "allow_rename": 0, 
+ "append_company_abbr_to_name": "0", 
  "autoname": "field:company", 
  "beta": 1, 
  "creation": "2017-11-09 00:38:20.050710", 
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "", 
+ "document_type": "Setup", 
  "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
@@ -85,7 +87,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-12-06 14:47:16.147076", 
+ "modified": "2018-03-15 23:58:00.152023", 
  "modified_by": "Administrator", 
  "module": "Accounts", 
  "name": "Authority Signature", 
@@ -139,6 +141,6 @@
  "show_name_in_global_search": 0, 
  "sort_field": "modified", 
  "sort_order": "DESC", 
- "track_changes": 1, 
+ "track_changes": 0, 
  "track_seen": 0
 }

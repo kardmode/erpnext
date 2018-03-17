@@ -901,7 +901,8 @@ def invalidate_cache_for_item(doc):
 		invalidate_cache_for(doc, doc.old_item_group)
 
 def check_stock_uom_with_bin(item, stock_uom):
-	if stock_uom == frappe.db.get_value("Item", item, "stock_uom"):
+	current_stock_uom = frappe.db.get_value("Item", item, "stock_uom")
+	if stock_uom == current_stock_uom:
 		return
 
 	matched=True
@@ -923,4 +924,8 @@ def check_stock_uom_with_bin(item, stock_uom):
 			frappe.db.sql("""update tabBin set stock_uom=%s where item_code=%s""", (stock_uom, item))
 
 	if not matched:
-		frappe.throw(_("Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You will need to create a new Item to use a different Default UOM.").format(item))
+		if current_stock_uom == "Nos" and stock_uom == "Sheet":
+			pass
+		else:
+			frappe.throw(_("Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You will need to create a new Item to use a different Default UOM.").format(item))
+			frappe.throw(_("Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You will need to create a new Item to use a different Default UOM.").format(item))

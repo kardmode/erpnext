@@ -28,20 +28,20 @@ class Warehouse(NestedSet):
 
 	def validate(self):
 	
-		if not self.is_group:
-			if not self.account:
-				if self.company == "Science Lab Inc":
-					self.account = "Stores - SLI"
+		# if not self.is_group:
+			# if not self.account:
+				# if self.company == "Science Lab Inc":
+					# self.account = "Stores - SLI"
 				
 				
-			if not self.parent_warehouse:
-				if self.company == "Science Lab Inc":
+			# if not self.parent_warehouse:
+				# if self.company == "Science Lab Inc":
 					
-					s = str(self.warehouse_name)
-					if any(i.isdigit() for i in s):
-						self.parent_warehouse = "Import Docs - SLI"
-					else:
-						self.parent_warehouse = "Stores - SLI"
+					# s = str(self.warehouse_name)
+					# if any(i.isdigit() for i in s):
+						# self.parent_warehouse = "Import Docs - SLI"
+					# else:
+						# self.parent_warehouse = "All Warehouses - SLI"
 
 		if self.email_id:
 			validate_email_add(self.email_id, True)

@@ -731,17 +731,19 @@ var check_parent_item_group = function(frm) {
 var calculate_conversion_factor = function(frm,show_debug = false) {
 	
 	check_parent_item_group(frm);
-	
-	if(frm.doc.parent_item_group != "Raw Material Carpentry" || frm.doc.item_group != "Raw Material Carpentry"){
-		if (show_debug) frappe.msgprint(__("Item Group or Parent Item Group is not Raw Material Carpentry"));
-		return;
-	}
+
+	// if(frm.doc.parent_item_group != "Raw Material Carpentry" && frm.doc.item_group != "Raw Material Carpentry"){
+		// if (show_debug) frappe.msgprint(__("Item Group or Parent Item Group is not Raw Material Carpentry"));
+		// return;
+	// }
 
 	
-	if (frm.doc.depth <=0 || frm.doc.width <= 0 || frm.doc.height <= 0){
+	if (frm.doc.depth <=0 || frm.doc.width <= 0 || frm.doc.height <= 0)
+	{
 		if (show_debug) frappe.msgprint(__("All Dimensions have to be greater than 0"));
 	}
-	else if (check_current_units(frm.doc.stock_uom)){
+	else if (check_current_units(frm.doc.stock_uom))
+	{
 			
 			var conversion_factors = get_dimensions(frm);
 			var conversion_factor = conversion_factors[0];
@@ -753,7 +755,8 @@ var calculate_conversion_factor = function(frm,show_debug = false) {
 			check_conversion_factor(frm,"cft",cft_conversion_factor);
 
 	}
-	else{
+	else
+	{
 		if (show_debug) frappe.msgprint(__("Stock UOM can't be a length"));
 	}
 	

@@ -471,7 +471,7 @@ class PurchaseInvoice(BuyingController):
 		# tax table gl entries
 		valuation_tax = {}
 		for tax in self.get("taxes"):
-			if tax.category in ("Total", "Valuation and Total") and flt(tax.base_tax_amount_after_discount_amount):
+			if tax.category in ("Total", "Valuation and Total","Account Ledger Only") and flt(tax.base_tax_amount_after_discount_amount):
 				account_currency = get_account_currency(tax.account_head)
 
 				dr_or_cr = "debit" if tax.add_deduct_tax == "Add" else "credit"

@@ -42,15 +42,15 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 			});
 		}
 		
-		if(this.frm.get_field('company')) {
-			this.frm.set_query("company", function(){
-				return{
-					filters:{
-						"name": frappe.defaults.get_default("Company")
-					}
-				}
-			});
-		}
+		// if(this.frm.get_field('company')) {
+			// this.frm.set_query("company", function(){
+				// return{
+					// filters:{
+						// "name": frappe.defaults.get_default("Company")
+					// }
+				// }
+			// });
+		// }
 
 		/* eslint-enable */
 	},
@@ -73,6 +73,17 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 		if(this.frm.fields_dict.supplier) {
 			this.frm.set_query("supplier", function() {
 				return{	query: "erpnext.controllers.queries.supplier_query" }});
+		}
+		
+		if(this.frm.fields_dict.taxes_and_charges) {
+			this.frm.set_query("taxes_and_charges", function() {
+				return {
+					filters: [
+						['Purchase Taxes and Charges Template', 'company', '=', me.frm.doc.company],
+						['Purchase Taxes and Charges Template', 'docstatus', '!=', 2]
+					]
+				}
+			});
 		}
 
 		this.frm.set_query("item_code", "items", function() {

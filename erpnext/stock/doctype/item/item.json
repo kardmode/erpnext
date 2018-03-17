@@ -1,8 +1,10 @@
 {
+ "add_company_abbr_to_name": 1, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 1, 
  "allow_rename": 1, 
+ "append_company_abbr_to_name": 0, 
  "autoname": "field:item_code", 
  "beta": 0, 
  "creation": "2013-05-03 10:45:46", 
@@ -11,7 +13,7 @@
  "description": "A Product or a Service that is bought, sold or kept in stock.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
@@ -3453,7 +3455,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 1, 
- "modified": "2017-12-27 15:47:17.039337", 
+ "modified": "2018-01-06 11:52:25.195125", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Item", 

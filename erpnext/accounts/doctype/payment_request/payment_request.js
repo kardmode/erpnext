@@ -248,13 +248,14 @@ frappe.ui.form.on("PR Invoice", {
 				args: {"doctype": "Sales Invoice","docname": d.sales_invoice},
 				method: "get_invoice_info",
 				callback:function(r){
-					if(r.message){
-						
+					if(r.message[0]){
+						var invoice = r.message[0]
 					
-						frappe.model.set_value(d.doctype, d.name, "project", r.message.project);
-						frappe.model.set_value(d.doctype, d.name, "posting_date", r.message.posting_date);
-						frappe.model.set_value(d.doctype, d.name, "total_amount", r.message.total_amount);
-						frappe.model.set_value(d.doctype, d.name, "outstanding_amount", r.message.outstanding_amount);
+						frappe.model.set_value(d.doctype, d.name, "project", invoice.project);
+						frappe.model.set_value(d.doctype, d.name, "posting_date", invoice.posting_date);
+						frappe.model.set_value(d.doctype, d.name, "total_amount", invoice.total_amount);
+						frappe.model.set_value(d.doctype, d.name, "outstanding_amount", invoice.outstanding_amount);
+						frappe.model.set_value(d.doctype, d.name, "title", invoice.title);
 					}
 					if(d.sales_invoice)
 						calculate_totals(frm,cdt,cdn);
@@ -324,17 +325,24 @@ var calculate_totals = function(frm, cdt, cdn) {
 	var grand_total = 0;
 	var outstanding_amount = 0;
 	var total_advance = 0;
+	var projects = [];
 	for(var i=0;i<invoices.length;i++) {
+		if(projects.indexOf(invoices[i].project)<0)
+		{
+			projects.push(invoices[i].project);
+		}
 		grand_total = grand_total + flt(invoices[i].total_amount);
 		outstanding_amount = outstanding_amount + flt(invoices[i].outstanding_amount);
 
 	}
 	total_advance = flt(grand_total)-flt(outstanding_amount);
 	
+	var subject = projects.join(', ');
+	
 	frm.set_value("grand_total",grand_total);
 	frm.set_value("outstanding_amount",outstanding_amount);
 	frm.set_value("total_advance",total_advance);
-	
+	frm.set_value("subject",subject);
 	cur_frm.dirty();
 }
 

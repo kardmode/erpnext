@@ -477,7 +477,7 @@ class ProductionOrder(Document):
 					d.required_qty = item_dict.get(d.item_code).get("qty")
 			else:
 				for item in sorted(item_dict.values(), key=lambda d: d['idx']):
-					best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.qty,item.source_warehouse or item.default_warehouse)
+					best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.qty,item.source_warehouse or item.default_warehouse,company = self.company)
 					self.append('required_items', {
 						'item_code': item.item_code,
 						'item_name': item.item_name,
@@ -642,19 +642,6 @@ def add_timesheet_detail(timesheet, args):
 
 	timesheet.append('time_logs', args)
 	return timesheet
-
-@frappe.whitelist()
-def get_default_warehouse():
-
-	source_warehouse = (frappe.db.get_single_value("Stock Settings","default_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores') or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
-
-	wip_warehouse = (frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'wip_warehouse'))
-		
-	fg_warehouse = (frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'fg_warehouse'))
-	
-	scrap_warehouse = (frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse") or frappe.db.get_value('Company', erpnext.get_default_company(), 'scrap_warehouse'))	
-	
-	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse,"scrap_warehouse": scrap_warehouse}
 
 @frappe.whitelist()
 def make_new_timesheet(source_name, target_doc=None):

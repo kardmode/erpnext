@@ -29,14 +29,6 @@ class Project(Document):
 					grand_total = grand_total + total
 					total_qty = total_qty + qty
 					joiningtext += output
-				
-						
-
-				
-				
-
-					
-		
 			
 			if grand_total:
 				total_amount_in_words = money_in_words(grand_total, company_currency.get(self.company))
@@ -432,6 +424,25 @@ class Project(Document):
 		self.load_tasks()
 		self.sync_tasks()
 		self.update_dependencies_on_duplicated_project()
+		
+		if self.status != 'Open' or self.is_active == 'No':
+			self.validate_child_status()
+
+		self.update_nsm_model()
+	
+	def validate_child_status(self):
+		if frappe.db.sql("""select name from `tabProject` where parent_project = %s and (is_active = 'Yes' or status = 'Open') limit 1""", self.name):
+			frappe.throw(_("Child projects are still Active or Open"))	
+	
+	def on_trash(self):
+		
+		if self.check_if_child_exists():
+			throw(_("Child projects exists for this project. You can not delete this project."))
+
+		self.update_nsm_model()
+		
+	def update_nsm_model(self):
+		frappe.utils.nestedset.update_nsm(self)
 
 	def update_dependencies_on_duplicated_project(self):
 		if self.flags.dont_sync_tasks: return
@@ -467,6 +478,37 @@ class Project(Document):
 					dt_name = frappe.db.get_value('Task', {"subject": dt, "project": self.name })
 					task_doc.append('depends_on', {"task": dt_name})
 				task_doc.save()
+				
+	
+
+	def check_if_child_exists(self):
+		return frappe.db.sql("""select name from `tabProject`
+			where parent_project = %s limit 1""", self.name)
+				
+	def convert_to_group_or_ledger(self):
+		if self.is_group:
+			self.convert_to_ledger()
+		else:
+			if parent_project:
+				frappe.throw(_("Can't add group in group"))	
+			else:
+				self.convert_to_group()
+
+	def convert_to_ledger(self):
+		if self.check_if_child_exists():
+			frappe.throw(_("Warehouses with child nodes cannot be converted to ledger"))
+		else:
+			self.is_group = 0
+			self.save()
+			return 1
+
+	def convert_to_group(self):
+		# if self.check_if_sle_exists():
+			# throw(_("Warehouses with existing transaction can not be converted to group."))
+		# else:
+		self.is_group = 1
+		self.save()
+		return 1
 
 def get_timeline_data(doctype, name):
 	'''Return timeline for attendance'''
@@ -528,3 +570,39 @@ def get_users_for_project(doctype, txt, searchfield, start, page_len, filters):
 @frappe.whitelist()
 def get_cost_center_name(project):
 	return frappe.db.get_value("Project", project, "cost_center")
+	
+@frappe.whitelist()
+def get_children(doctype, parent=None, company=None,status=None, is_root=False):
+	from erpnext.stock.utils import get_stock_value_on
+
+	if is_root:
+		parent = ""
+
+	projects = frappe.db.sql("""select name as value,
+		is_group as expandable, total_billed_amount as balance, status, expected_end_date
+		from `tabProject`
+		where docstatus < 2
+		and ifnull(`parent_project`,'') = %s
+		and (`company` = %s or company is null or company = '')
+		and (`status` = %s or company is null or company = '')
+		order by name""", (parent, company,status), as_dict=1)
+
+	return projects
+
+@frappe.whitelist()
+def add_node():
+	from frappe.desk.treeview import make_tree_args
+	args = make_tree_args(**frappe.form_dict)
+
+	if cint(args.is_root):
+		args.parent_project = None
+	else:
+		if cint(args.is_group):
+			frappe.throw(_("Can't add group in group"))	
+
+	frappe.get_doc(args).insert()
+
+@frappe.whitelist()
+def convert_to_group_or_ledger():
+	args = frappe.form_dict
+	return frappe.get_doc("Project", args.docname).convert_to_group_or_ledger()

@@ -58,10 +58,31 @@ def get_details(project):
 	sub_projects = frappe.db.sql("""select name from `tabSub Project` where project = %s and docstatus < 2 order by title""", project,as_dict=1)
 	new_subprojects = []
 	for sub_project in sub_projects:
+		locations = get_sub_project_details(project)		
+		sub_project["locations"] = locations
+		new_subprojects.append(sub_project)
+
+	return new_subprojects
+
+@frappe.whitelist()			
+def get_details2(project):
+	sub_projects = frappe.db.sql("""select name from `tabProject` where parent_project = %s and docstatus < 2 order by title""", project,as_dict=1)
+
+	new_subprojects = []
+	for sub_project in sub_projects:
 		locations = get_sub_project_details(sub_project.name)		
 		sub_project["locations"] = locations
 		new_subprojects.append(sub_project)
-	frappe.errprint(new_subprojects)
+
+	return new_subprojects
+	
+def get_details2(project):
+	sub_projects = frappe.db.sql("""select name from `tabProject` where parent_project = %s and docstatus < 2 order by title""", project,as_dict=1)
+	new_subprojects = []
+	for sub_project in sub_projects:
+		locations = get_sub_project_details(sub_project.name)		
+		sub_project["locations"] = locations
+		new_subprojects.append(sub_project)
 
 	return new_subprojects
 		

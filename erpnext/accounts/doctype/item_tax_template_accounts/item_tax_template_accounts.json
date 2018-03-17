@@ -1,8 +1,10 @@
 {
+ "add_company_abbr_to_name": 1, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
  "allow_rename": 0, 
+ "append_company_abbr_to_name": "0", 
  "beta": 1, 
  "creation": "2017-12-30 05:15:56.865476", 
  "custom": 0, 
@@ -41,7 +43,7 @@
    "reqd": 1, 
    "search_index": 0, 
    "set_only_once": 0, 
-   "unique": 1
+   "unique": 0
   }, 
   {
    "allow_bulk_edit": 0, 
@@ -114,7 +116,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2017-12-30 05:48:11.039605", 
+ "modified": "2018-01-20 19:13:46.350836", 
  "modified_by": "Administrator", 
  "module": "Accounts", 
  "name": "Item Tax Template Accounts", 

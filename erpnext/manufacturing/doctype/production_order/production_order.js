@@ -370,7 +370,10 @@ erpnext.production_order = {
 	set_default_warehouse: function(frm) {
 		if (!(frm.doc.wip_warehouse || frm.doc.fg_warehouse)) {
 			frappe.call({
-				method: "erpnext.manufacturing.doctype.production_order.production_order.get_default_warehouse",
+				method: "erpnext.stock.utils.get_default_warehouse",
+				args: {
+						"company": frm.doc.company
+					},
 				callback: function(r) {
 					if(!r.exe) {
 						frm.set_value("wip_warehouse", r.message.wip_warehouse);

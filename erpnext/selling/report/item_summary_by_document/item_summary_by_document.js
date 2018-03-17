@@ -58,9 +58,10 @@ frappe.query_reports["Item Summary By Document"] = {
 			options: [
 				{ "value": "Without BOM", "label": __("Without BOM") },
 				{ "value": "Only BOM Items", "label": __("Only BOM") },
-				{ "value": "With BOM", "label": __("With BOM") }
+				{ "value": "With BOM", "label": __("With BOM") },
+				{ "value": "Consolidate BOM", "label": __("Consolidate BOM") }
 			],
-			default: "With BOM"
+			default: "Consolidate BOM"
 		}
 	]
 }

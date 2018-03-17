@@ -12,6 +12,15 @@ frappe.ui.form.on('VAT Return', {
 			frm.set_value('posting_date',frappe.datetime.nowdate());
 			
 		}
+		
+		if (!frm.doc.__islocal && frm.doc.docstatus<1) {
+			frm.add_custom_button(__("Update VAT Return"), function() {
+				frm.events.update_vat_return(frm);
+			});
+			;
+
+		}
+		
 	},
 	vat_reporting_period: function(frm) {
 		frm.trigger("set_start_end_dates");
@@ -58,5 +67,20 @@ frappe.ui.form.on('VAT Return', {
 				}
 			}
 		});
+	},
+	
+	update_vat_return: function(frm){
+		
+		frappe.call({	
+			doc: frm.doc,
+			method: "create_vat_return",
+			freeze:true,
+			callback: function(r) {
+				frm.refresh();
+				frm.dirty();
+			}
+		});
+		
+		
 	},
 });

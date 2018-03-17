@@ -1,10 +1,10 @@
 {%- macro render_discount_amount(doc) -%}
 	{%- if doc.discount_amount -%}
-		<div class="row">
-			<div class="col-xs-5 {%- if doc._align_labels_right %} text-right{%- endif -%}">
+		<div class="row data-field">
+			<div class="print_label col-xs-4 {%- if doc._align_labels_right %} text-right{%- endif -%}">
 				<label>{{ _("Discount Amount") }}</label></div>
-			<div class="col-xs-7 text-right">
-				- {{ doc.get_formatted("discount_amount", doc) }}
+			<div class="col-xs-8 text-right value">
+				{{ doc.get_formatted("discount_amount", doc) }}
 			</div>
 		</div>
 	{%- endif -%}
@@ -17,11 +17,11 @@
 			{{ render_discount_amount(doc) }}
 		{%- endif -%}
 		{%- for charge in data -%}
-			{%- if (charge.tax_amount or doc.flags.print_taxes_with_zero_amount) and not charge.included_in_print_rate -%}
-			<div class="row">
-				<div class="col-xs-5 {%- if doc._align_labels_right %} text-right{%- endif -%}">
+			{%- if (charge.tax_amount or doc.flags.print_taxes_with_zero_amount) and not charge.included_in_print_rate and charge.category != "Account Ledger Only" -%}
+			<div class="row data-field">
+				<div class="print_label col-xs-4 {%- if doc._align_labels_right %} text-right{%- endif -%}">
 					<label>{{ charge.get_formatted("description") }}</label></div>
-				<div class="col-xs-7 text-right">
+				<div class="col-xs-8 text-right value">
 					{{ frappe.format_value(frappe.utils.flt(charge.tax_amount),
 						table_meta.get_field("tax_amount"), doc, currency=doc.currency) }}
 				</div>

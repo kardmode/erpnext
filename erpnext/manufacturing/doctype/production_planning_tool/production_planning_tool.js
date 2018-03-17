@@ -23,18 +23,7 @@ frappe.ui.form.on("Production Planning Tool", {
 	 },
 	 
 	 onload: function(frm) {
-	 		// frm.set_value("get_items_from", "Sales Order");
-			
-			/* frappe.call({
-				doc: frm.doc,
-				method: "get_default_warehouse",
-				callback: function(r) {
-					if(r.message)
-					{
-						frm.set_value("purchase_request_for_warehouse", r.message);
-					}
-				}
-			}); */
+	 		
 	 },
 	 
 	 

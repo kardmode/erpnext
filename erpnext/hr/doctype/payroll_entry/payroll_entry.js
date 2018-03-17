@@ -1,6 +1,17 @@
 // Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
 
+cur_frm.cscript.display_activity_log = function(msg) {
+	if(!cur_frm.ss_html)
+		cur_frm.ss_html = $a(cur_frm.fields_dict['activity_log'].wrapper,'div');
+	if(msg) {
+		cur_frm.ss_html.innerHTML =
+			'<div class="padding"><h4>'+__("Activity Log:")+'</h4>'+msg+'</div>';
+	} else {
+		cur_frm.ss_html.innerHTML = "";
+	}
+}
+
 var in_progress = false;
 
 frappe.ui.form.on('Payroll Entry', {
@@ -52,8 +63,13 @@ frappe.ui.form.on('Payroll Entry', {
 			frm.add_custom_button(__("View Salary Slips"),
 				function() {
 					frappe.set_route(
-						'List', 'Salary Slip', {posting_date: frm.doc.posting_date}
+						'List', 'Salary Slip', 
+						{	
+							"start_date": frm.doc.start_date
+						}
 					);
+					
+					
 				}
 			);
 			frm.add_custom_button(__("View Attendance Slips"),
@@ -268,8 +284,10 @@ let make_bank_entry = function (frm) {
 // -----------------------
 const create_salary_slip = function (frm) {
 	var doc = frm.doc;
-	var callback = function (r, rt) {
-		
+	cur_frm.cscript.display_activity_log("");
+	var callback = function(r, rt){
+		if (r.message)
+			cur_frm.cscript.display_activity_log(r.message);
 	}
 	return $c('runserverobj', { 'method': 'create_salary_slips', 'docs': doc }, callback);
 }

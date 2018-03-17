@@ -18,6 +18,15 @@ frappe.ui.form.on("Project", {
 				return indicator;
 			}
 		);
+		
+		frm.fields_dict['parent_project'].get_query = function(doc) {
+			return {
+				filters: {
+					"company": cur_frm.doc.company,
+					'is_group': 1
+				}
+			}
+		}
 	},
 
 	onload: function(frm) {
@@ -70,6 +79,29 @@ frappe.ui.form.on("Project", {
 	},
 
 	refresh: function(frm) {
+		
+		if (cint(frm.doc.is_group) == 1) {
+			frm.add_custom_button(__('Group to Non-Group'),
+
+				function() { convert_to_group_or_ledger(frm); }, 'fa fa-retweet', 'btn-default')
+		} else if (cint(frm.doc.is_group) == 0) {
+			
+
+			frm.add_custom_button(__('Non-Group to Group'),
+				function() { convert_to_group_or_ledger(frm); }, 'fa fa-retweet', 'btn-default')
+		}
+		
+		
+		if (!frm.doc.__islocal) {
+			// cur_frm.toggle_enable(['is_group', 'company'], false);
+			cur_frm.toggle_enable(['is_group'], false);
+		}
+		else if(!frm.doc.is_group){
+			// frm.add_fetch('company', 'default_inventory_account', 'account');
+
+				
+		}
+		
 		if(frm.doc.__islocal) {
 			frm.web_link && frm.web_link.remove();
 		} else {
@@ -339,4 +371,18 @@ print_summary = function(doctype){
 				}
 			});
 
+}
+
+function convert_to_group_or_ledger(frm){
+	frappe.call({
+		method:"erpnext.projects.doctype.project.project.convert_to_group_or_ledger",
+		args: {
+			docname: frm.doc.name,
+			is_group: frm.doc.is_group
+		},
+		callback: function(){
+			frm.refresh();
+		}
+		
+	})
 }

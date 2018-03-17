@@ -237,7 +237,7 @@ class calculate_taxes_and_totals(object):
 		# if just for valuation, do not add the tax amount in total
 		# if tax/charges is for deduction, multiply by -1
 		if getattr(tax, "category", None):
-			tax_amount = 0.0 if (tax.category == "Valuation") else tax_amount
+			tax_amount = 0.0 if tax.category in ("Valuation","Account Ledger Only") else tax_amount
 			if self.doc.doctype in ["Purchase Order", "Purchase Invoice", "Purchase Receipt", "Supplier Quotation"]:
 				tax_amount *= -1.0 if (tax.add_deduct_tax == "Deduct") else 1.0
 		return tax_amount
@@ -532,13 +532,16 @@ class calculate_taxes_and_totals(object):
 
 def get_itemised_tax_breakup_html(doc):
 	if not doc.taxes:
+		if doc.other_charges_calculation:
+			doc.other_charges_calculation = ""
+			update_itemised_tax_data(doc)
 		return
 	frappe.flags.company = doc.company
 
 	# get headers
 	tax_accounts = []
 	for tax in doc.taxes:
-		if getattr(tax, "category", None) and tax.category=="Valuation":
+		if getattr(tax, "category", None) and tax.category in ("Valuation","Account Ledger Only"):
 			continue
 		if tax.description not in tax_accounts:
 			tax_accounts.append(tax.description)
@@ -584,7 +587,7 @@ def get_itemised_tax_breakup_data(doc):
 def get_itemised_tax(taxes):
 	itemised_tax = {}
 	for tax in taxes:
-		if getattr(tax, "category", None) and tax.category=="Valuation":
+		if getattr(tax, "category", None) and tax.category in ("Valuation","Account Ledger Only"):
 			continue
 
 		item_tax_map = json.loads(tax.item_wise_tax_detail) if tax.item_wise_tax_detail else {}

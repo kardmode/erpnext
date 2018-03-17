@@ -190,13 +190,21 @@ def get_basic_details(args, item):
 
 	if item.variant_of:
 		item.update_template_tables()
+		
+	# from frappe.defaults import get_user_default_as_list
+	# user_default_warehouse_list = get_user_default_as_list('Warehouse')
+	# best_warehouse = user_default_warehouse_list[0] \
+		# if len(user_default_warehouse_list) == 1 else ""
+	
+	company = args.get("company") or None
+	
+	from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
+	best_warehouse,enough_stock = get_best_warehouse(company = company)
+	
+	if args.get('doctype') in ['Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice']:
+		best_warehouse,enough_stock = get_best_warehouse(item.name,args.get("qty") or 0,company = company)
 
-	from frappe.defaults import get_user_default_as_list
-	user_default_warehouse_list = get_user_default_as_list('Warehouse')
-	user_default_warehouse = user_default_warehouse_list[0] \
-		if len(user_default_warehouse_list) == 1 else ""
-
-	warehouse = user_default_warehouse or item.default_warehouse or args.warehouse
+	warehouse = best_warehouse or item.default_warehouse or args.warehouse
 
 	material_request_type = ''
 	if args.get('doctype') == "Material Request":

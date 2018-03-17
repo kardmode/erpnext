@@ -6,7 +6,7 @@ import frappe, erpnext
 import frappe.defaults
 from frappe import _
 from frappe.utils import cstr, cint, flt, comma_or, getdate, nowdate, formatdate, format_time
-from erpnext.stock.utils import get_incoming_rate
+from erpnext.stock.utils import get_incoming_rate,get_default_warehouse
 from erpnext.stock.stock_ledger import get_previous_sle, NegativeStockError, get_valuation_rate
 from erpnext.stock.get_item_details import get_bin_details, get_default_cost_center, get_conversion_factor
 from erpnext.stock.doctype.batch.batch import get_batch_no, set_batch_nos, get_batch_qty
@@ -137,9 +137,8 @@ class StockEntry(StockController):
 		# Added by Me
 		if self.purpose == "Manufacture":
 		
-			from erpnext.manufacturing.doctype.production_order.production_order import get_default_warehouse
 
-			default_warehouses = get_default_warehouse()
+			default_warehouses = get_default_warehouse(company = self.company)
 
 			self.from_warehouse = default_warehouses.get("source_warehouse")
 			self.to_warehouse = default_warehouses.get("fg_warehouse")
@@ -625,7 +624,7 @@ class StockEntry(StockController):
 							item["to_warehouse"] = ""
 							
 						if self.purpose in ["Material Transfer for Manufacture","Manufacture"]:
-							item["from_warehouse"],enough_stock = get_best_warehouse(item.item_code,item.qty,item.default_warehouse)
+							item["from_warehouse"],enough_stock = get_best_warehouse(item.item_code,item.qty,item.default_warehouse,company = self.company)
 
 
 					self.add_to_stock_entry_detail(item_dict)
@@ -1000,30 +999,28 @@ def get_warehouse_details(args):
 	return ret
 
 @frappe.whitelist()
-def get_best_warehouse(item_code,item_qty = 0,default_warehouse = None,order_by_least = False):
+def get_best_warehouse(item_code=None,item_qty = 0,default_warehouse = None,order_by_least = False,company = None):
+	
+	enough_stock = False
+	
+	best_warehouse = get_default_warehouse(company = company).get("source_warehouse")
 	
 	if not item_code:
-		from erpnext.manufacturing.doctype.production_order.production_order import get_default_warehouse
-
-		return get_default_warehouse().get("source_warehouse")
+		return best_warehouse,enough_stock
+	
+	if not company:
+		return best_warehouse,enough_stock
 	
 	stock_details = frappe.db.sql("select warehouse,actual_qty from `tabBin` where item_code = %s AND actual_qty > 0 ORDER BY actual_qty DESC",item_code,as_dict=1)
 	
-	best_warehouses = []
+	best_warehouses = []	
 	
-	if not default_warehouse:
-		from erpnext.manufacturing.doctype.production_order.production_order import get_default_warehouse
-
-		best_warehouse = get_default_warehouse().get("source_warehouse")
-	else:
-		best_warehouse = default_warehouse
-	
-	enough_stock = False
-
 	for stdetail in stock_details:
-		best_warehouses.append(stdetail.warehouse)
-		if flt(stdetail.actual_qty) >= flt(item_qty):
-			enough_stock = True
+		company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
+		if company == company_of_warehouse:
+			best_warehouses.append(stdetail.warehouse)
+			if flt(stdetail.actual_qty) >= flt(item_qty):
+				enough_stock = True
 		
 			
 	
@@ -1040,12 +1037,17 @@ def get_warehouses_with_stock(doctype, txt, searchfield, start, page_len, filter
 
 	if not filters.get("item_code"):
 		return []
-	
-	item_code = filters.get("item_code")
-	stock_details = frappe.db.sql("select warehouse from `tabBin` where item_code = %s AND actual_qty > 0 ORDER BY actual_qty DESC",item_code,as_dict=0)
 		
-	from erpnext.manufacturing.doctype.production_order.production_order import get_default_warehouse
-	default_warehouse = get_default_warehouse().get("source_warehouse")
+	if not filters.get("company"):
+		return [] 
+	
+	company = filters.get("company")
+	item_code = filters.get("item_code")
+	stock_details = frappe.db.sql("select t1.warehouse from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY actual_qty DESC",(item_code),as_dict=0)
+	
+	
+	
+	default_warehouse = get_default_warehouse(company = company).get("source_warehouse")
 	
 	best_warehouses = []
 	
@@ -1053,9 +1055,14 @@ def get_warehouses_with_stock(doctype, txt, searchfield, start, page_len, filter
 	
 	for stdetail in stock_details:
 		if stdetail[0] != default_warehouse:
-			best_warehouses.append(stdetail)
+			company_of_warehouse = frappe.get_value('Warehouse', stdetail[0], 'company')
+			if company == company_of_warehouse:
+				best_warehouses.append(stdetail)
 	
 	best_warehouses.append((default_warehouse,))
+	
+
+	
 	return best_warehouses
 
 			

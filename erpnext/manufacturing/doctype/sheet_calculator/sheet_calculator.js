@@ -68,11 +68,11 @@ var get_dimensions = function(frm) {
 	
 	var conversion_factor = 1/flt(farea);
 	var panelarea = flt(depthPanel) * flt(widthPanel);
+
 	var num_of_sheets = flt(panelarea) / flt(farea);
 	var finished_qty_per_stock = 1/flt(num_of_sheets);
 	
 	frm.set_value("finished_qty_per_stock", finished_qty_per_stock);
-	
 	frm.set_value("num_of_sheets", num_of_sheets);
 	frm.set_value("conversion_factor", conversion_factor);
 	frm.set_value("cft_conversion_factor", cft_conversion_factor);

@@ -16,8 +16,8 @@ from erpnext.utilities.transaction_base import TransactionBase
 from frappe.utils.background_jobs import enqueue
 
 class SalarySlip(TransactionBase):
-	def autoname(self):
-		self.name = make_autoname(self.employee + '-SS-.#####')
+	# def autoname(self):
+		# self.name = make_autoname(self.employee + '-SS-.#####')
 		
 	def validate(self):
 		self.status = self.get_status()

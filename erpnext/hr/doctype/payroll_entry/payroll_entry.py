@@ -30,16 +30,26 @@ class PayrollEntry(Document):
 		if self.payroll_frequency:
 			condition = """and payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
 
+		# sal_struct = frappe.db.sql("""
+				# select
+					# name from `tabSalary Structure`
+				# where
+					# docstatus != 2 and
+					# is_active = 'Yes'
+					# and company = %(company)s and
+					# ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
+					# {condition}""".format(condition=condition),
+				# {"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})	
+		
 		sal_struct = frappe.db.sql("""
 				select
 					name from `tabSalary Structure`
 				where
 					docstatus != 2 and
-					is_active = 'Yes'
-					and company = %(company)s and
+					is_active = 'Yes' and
 					ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 					{condition}""".format(condition=condition),
-				{"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
+				{"salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
 
 		if sal_struct:
 			cond += "and t2.parent IN %(sal_struct)s "
@@ -56,18 +66,17 @@ class PayrollEntry(Document):
 			working_days = date_diff(self.end_date, self.start_date) + 1
 
 			
-			new_emp_list = ()
+			new_emp_list = []
 			for e in emp_list:
 
-				joining_date, relieving_date = frappe.db.get_value("Employee", e[0], 
+				joining_date, relieving_date = frappe.db.get_value("Employee", e.employee, 
 					["date_of_joining", "relieving_date"])
 			
-				lwp = self.calculate_lwp(e,working_days)
+				lwp = self.calculate_lwp(e.employee,working_days)
 
 				if cint(self.employees_on_leave):
 					if lwp > 0:
-						new_emp_list = new_emp_list + (e,)
-				
+						new_emp_list.append(e)
 				else:
 					payment_days = 0
 					payment_days = flt(self.get_payment_days(joining_date, relieving_date))-flt(lwp)
@@ -75,7 +84,7 @@ class PayrollEntry(Document):
 						holidays = self.get_holidays_for_employee(joining_date, relieving_date)
 						payment_days -= len(holidays)
 					if payment_days > 0:
-						new_emp_list = new_emp_list + (e,)
+						new_emp_list.append(e)
 
 
 
@@ -135,6 +144,8 @@ class PayrollEntry(Document):
 		for f in ['company', 'branch', 'department', 'designation']:
 			if self.get(f):
 				cond += " and t1." + f + " = '" + self.get(f).replace("'", "\'") + "'"
+				
+	
 
 		return cond
 
@@ -193,6 +204,8 @@ class PayrollEntry(Document):
 			Returns list of salary slips based on selected criteria
 		"""
 		cond = self.get_filter_condition()
+		
+		cond += """ order by employee_name"""
 
 		ss_list = frappe.db.sql("""
 			select t1.name, t1.salary_structure from `tabSalary Slip` t1

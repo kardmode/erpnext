@@ -51,5 +51,18 @@ frappe.ui.form.on("Naming Series", {
 				frm.events.get_doc_and_prefix(frm);
 			}
 		});
-	}
+	},
+	custom_prefix: function(frm) {
+		if(frm.doc.prefix){
+			frappe.msgprint("Change prefix to blank.")
+			return;
+		}
+		frappe.call({
+			method: "get_current_custom",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("current_value");
+			}
+		});
+	},
 });

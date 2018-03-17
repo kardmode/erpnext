@@ -488,9 +488,6 @@ class ProductionPlanningTool(Document):
 				stock_details = frappe.db.sql("select sum(projected_qty) from `tabBin` where item_code = (%s) group by item_code", item_dict[k]['production_item'])
 				if stock_details:
 					balance_qty = stock_details[0][0]
-					frappe.errprint(balance_qty)
-
-
 				if item_dict[k]['qty'] <= balance_qty:
 					remove.append(k)
 				else:
@@ -498,15 +495,15 @@ class ProductionPlanningTool(Document):
 
 			for k in remove:
 				del item_dict[k]
-		# frappe.errprint(item_dict)
-		# frappe.throw(_("Testing"))
+
 
 		return item_dict
 
 	def create_production_order(self, item_dict):
 		"""Create production order. Called from Production Planning Tool"""
-		from erpnext.manufacturing.doctype.production_order.production_order import OverProductionError, get_default_warehouse
-		warehouse = get_default_warehouse()
+		from erpnext.manufacturing.doctype.production_order.production_order import OverProductionError
+		from erpnext.stock.utils import get_default_warehouse
+		warehouse = get_default_warehouse(company = self.company)
 		pro = frappe.new_doc("Production Order")
 		pro.update(item_dict)
 		pro.set_production_order_operations()
@@ -789,11 +786,6 @@ class ProductionPlanningTool(Document):
 		else:
 			msgprint(_("Nothing to request"))
 
-	def get_default_warehouse(self):
-		default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
-		or frappe.db.get_value('Company', erpnext.get_default_company(), 'stock_stores')
-		or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
-		return default_warehouse
 	
 def make_stock_entry_from_pro(pro_id, purpose):
 	from erpnext.manufacturing.doctype.production_order.production_order import make_stock_entry

@@ -29,7 +29,7 @@ frappe.ui.form.on('Payment Entry', {
 		frm.set_query("party_type", function() {
 			return{
 				"filters": {
-					"name": ["in",["Customer","Supplier", "Employee", "Student"]],
+					"name": ["in",["Customer","Supplier", "Employee"/* , "Student" */]],
 				}
 			}
 		});
@@ -777,6 +777,10 @@ frappe.ui.form.on('Payment Entry', {
 				}
 			})
 		}
+	},
+	internal_transfer_memo: function(frm) {
+		if (frm.doc.payment_type  == "Internal Transfer")
+			frm.set_value("party_name",frm.doc.internal_transfer_memo);
 	}
 });
 

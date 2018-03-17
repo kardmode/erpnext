@@ -12,7 +12,7 @@ frappe.ui.form.on("Purchase Taxes and Charges", "add_deduct_tax", function(doc, 
 		frappe.msgprint(__("Please select Category first"));
 		d.add_deduct_tax = '';
 	}
-	else if(d.category != 'Total' && d.add_deduct_tax == 'Deduct') {
+	else if((d.category != 'Total' && d.category != 'Account Ledger Only') && d.add_deduct_tax == 'Deduct') {
 		frappe.msgprint(__("Cannot deduct when category is for 'Valuation' or 'Valuation and Total'"));
 		d.add_deduct_tax = '';
 	}
@@ -22,7 +22,7 @@ frappe.ui.form.on("Purchase Taxes and Charges", "add_deduct_tax", function(doc, 
 frappe.ui.form.on("Purchase Taxes and Charges", "category", function(doc, cdt, cdn) {
 	var d = locals[cdt][cdn];
 
-	if (d.category != 'Total' && d.add_deduct_tax == 'Deduct') {
+	if ((d.category != 'Total' && d.category != 'Account Ledger Only') && d.add_deduct_tax == 'Deduct') {
 		frappe.msgprint(__("Cannot deduct when category is for 'Valuation' or 'Vaulation and Total'"));
 		d.add_deduct_tax = '';
 	}
