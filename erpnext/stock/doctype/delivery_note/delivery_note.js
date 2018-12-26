@@ -61,6 +61,8 @@ frappe.ui.form.on("Delivery Note", {
 				}
 			}
 		});
+		
+		
 
 		
 	},
@@ -87,41 +89,37 @@ frappe.ui.form.on("Delivery Note Item", {
 	item_code: function(frm, dt, dn) {
 		var d = locals[dt][dn];
 		
-		setTimeout(function() {
-			if(d.manufacturer_part_no)
-			{
-				var item_name = d.item_name;
-				if(d.item_name === d.item_code)
-				{
-					item_name = d.manufacturer_part_no + " " + d.item_code;
-				}
-				else
-				{
-					item_name = d.manufacturer_part_no + " " + d.item_name;
-				}
-				frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
+		// setTimeout(function() {
+			// if(d.manufacturer_part_no)
+			// {
+				// var item_name = d.item_name;
+				// if(d.item_name === d.item_code)
+				// {
+					// item_name = d.manufacturer_part_no + " " + d.item_code;
+				// }
+				// else
+				// {
+					// item_name = d.manufacturer_part_no + " " + d.item_name;
+				// }
+				// frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
 				
-			}
+			// }
 			
-		}, 500);
+		// }, 500);
 
 		
 	},
 	manufacturer_part_no: function(frm, dt, dn) {
 		if(d.manufacturer_part_no)
 		{
-			var item_name = d.manufacturer_part_no + " " + d.item_code;
-			frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
+			// var item_name = d.manufacturer_part_no + " " + d.item_code;
+			// frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
 				
 		}
 	}
 });
 
 erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend({
-	validate: function(doc, dt, dn) {
-		erpnext.stock.delivery_note.set_total_qty(doc, dt, dn);
-		this._super();
-	},
 	setup: function(doc) {
 		this.setup_posting_date_time_check();
 		this._super(doc);	
@@ -347,11 +345,11 @@ erpnext.stock.delivery_note.set_print_hide = function(doc, cdt, cdn){
 	}
 }
 
-erpnext.stock.delivery_note.set_total_qty = function(doc, cdt, cdn){
+var calculate_total_qty =  function(frm) {
 	var total_qty = 0;
-		var cl = doc["items"] || [];
-		for(var i = 0; i < cl.length; i++){
-			total_qty = total_qty + cl[i].qty;
-		}
-		doc.total_qty = total_qty;
+		
+	(frm.doc.items || []).forEach(function(d) {
+		total_qty = total_qty + d.qty;
+	})
+	frm.doc.total_qty = total_qty;
 }

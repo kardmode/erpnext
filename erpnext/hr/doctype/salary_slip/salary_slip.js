@@ -315,7 +315,7 @@ var calculate_earnings = function(doc, dt, dn) {
 			},
 			callback: function(r) {
 				var doc = locals[dt][dn];
-				refresh_many(['earnings','encash_leave','leave_calculation','leave_encashment_amount','amount', 'gross_pay']);
+				refresh_many(['earnings','encash_leave','leave_calculation','amount', 'gross_pay']);
 				calculate_net_pay(doc, dt, dn);
 			}
 		});

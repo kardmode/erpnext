@@ -39,6 +39,10 @@ class SalaryStructure(Document):
 			if employee.from_date and joining_date and getdate(employee.from_date) < joining_date:
 				frappe.throw(_("From Date {0} for Employee {1} cannot be before employee's joining Date {2}")
 					    .format(employee.from_date, employee.employee, joining_date))
+						
+			if employee.to_date and employee.from_date > employee.to_date:
+				frappe.throw(_("From Date {0} for Employee {1} cannot be after To Date {2}")
+					    .format(employee.from_date, employee.employee, employee.to_date))
 
 		st_name = frappe.db.sql("""select parent from `tabSalary Structure Employee`
 			where

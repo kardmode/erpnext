@@ -18,7 +18,8 @@ frappe.ui.form.on("Purchase Receipt", {
 				return {
 					filters: [
 						["Warehouse", "company", "in", ["", cstr(frm.doc.company)]],
-						["Warehouse", "is_group", "=", 0]
+						["Warehouse", "is_group", "=", 0],
+						["Warehouse", "disabled", "=", 0]
 					]
 				}
 			})
@@ -28,7 +29,8 @@ frappe.ui.form.on("Purchase Receipt", {
 			return {
 				filters: [
 					["Warehouse", "company", "in", ["", cstr(frm.doc.company)]],
-					["Warehouse", "is_group", "=", 0]
+					["Warehouse", "is_group", "=", 0],
+					["Warehouse", "disabled", "=", 0]
 				]
 			}
 		});
@@ -123,29 +125,6 @@ erpnext.stock.PurchaseReceiptController = erpnext.buying.BuyingController.extend
 		this.frm.toggle_reqd("supplier_warehouse", this.frm.doc.is_subcontracted==="Yes");
 	},
 	
-	validate: function() {
-		
-		
-		// set default schedule date as today if missing.
-		total_qty = 0;
-		
-		(this.frm.doc.items || []).forEach(function(d) {
-			total_qty = total_qty + d.qty;
-		})
-		this.frm.doc.total_qty = total_qty;
-		
-		fake_total = 0;
-		
-		(this.frm.doc.items || []).forEach(function(d) {
-			fake_total = fake_total + d.fake_qty;
-		})
-		this.frm.doc.fake_total = fake_total;
-
-		this._super();
-		
-
-	},
-
 	make_purchase_invoice: function() {
 		frappe.model.open_mapped_doc({
 			method: "erpnext.stock.doctype.purchase_receipt.purchase_receipt.make_purchase_invoice",
@@ -287,3 +266,15 @@ var validate_sample_quantity = function(frm, cdt, cdn) {
 		});
 	}
 };
+
+var calculate_total_qty =  function(frm) {
+	var total_qty = 0;
+	var fake_total = 0;
+		
+	(frm.doc.items || []).forEach(function(d) {
+		total_qty = total_qty + d.qty;
+		fake_total = fake_total + d.fake_qty;
+	})
+	frm.doc.total_qty = total_qty;
+	frm.doc.fake_total = fake_total;
+}

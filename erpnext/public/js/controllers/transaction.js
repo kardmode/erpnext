@@ -568,6 +568,37 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			}
 		}
 	},
+	
+	due_date: function() {
+		// due_date is to be changed, payment terms template and/or payment schedule must
+		// be removed as due_date is automatically changed based on payment terms
+		if (this.frm.doc.due_date && !this.frm.updating_party_details && !this.frm.doc.is_pos) {
+			if (this.frm.doc.payment_terms_template ||
+				(this.frm.doc.payment_schedule && this.frm.doc.payment_schedule.length)) {
+				var message1 = "";
+				var message2 = "";
+				var final_message = "Please clear the ";
+
+				if (this.frm.doc.payment_terms_template) {
+					message1 = "selected Payment Terms Template";
+					final_message = final_message + message1;
+				}
+				else if((this.frm.doc.payment_schedule || []).length) 
+				{
+					this.frm.doc.payment_schedule = [];
+					return;
+				}
+
+				if ((this.frm.doc.payment_schedule || []).length) {
+					message2 = "Payment Schedule Table";
+					if (message1.length !== 0) message2 = " and " + message2;
+					final_message = final_message + message2;
+				}
+				frappe.msgprint(final_message);
+			}
+		}
+	},
+
 
 	get_company_currency: function() {
 		return erpnext.get_currency(this.frm.doc.company);
@@ -761,14 +792,48 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 	},
 
 	calculate_net_weight: function(){
+		
 		/* Calculate Total Net Weight then further applied shipping rule to calculate shipping charges.*/
 		var me = this;
-		this.frm.doc.total_net_weight= 0.0;
+		var total = 0;
+		var base_weight_uom = "Kg";
+		
+		if (cur_frm.get_field('net_weight_uom'))
+		{
+			if (this.frm.doc.net_weight_uom != null)
+			{
+				base_weight_uom = cur_frm.doc.net_weight_uom;
+			}
+			else
+			{
+				cur_frm.set_value("net_weight_uom",base_weight_uom);
+			}
+		}
+			
+				
 
+		
+		
 		$.each(this.frm.doc["items"] || [], function(i, item) {
-			me.frm.doc.total_net_weight += flt(item.total_weight);
+			if(item.weight_uom)
+			{
+				var converted_info = convert_weight_unit(item.total_weight,item.weight_uom,base_weight_uom);
+				if(converted_info[0])
+					total += flt(converted_info[1]);
+				else
+				{
+					frappe.msgprint(__("The weight_uom " + item.weight_uom + " of item " + item.item_code + ",row " + i + " is invalid."));
+				}
+				
+			}
+				
 		});
-		refresh_field("total_net_weight");
+		
+		me.frm.set_value("total_net_weight",total);
+		
+		//refresh_field("total_net_weight");
+		//refresh_field("net_weight_uom");
+		
 		this.shipping_rule();
 	},
 
@@ -1305,7 +1370,45 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				}
 			})
 		}
-	}
+	},
+	
+	weight_per_unit: function(doc, cdt, cdn) {
+		var row = locals[cdt][cdn];
+		if(row.weight_per_unit != 0)
+		{
+			row.total_weight = flt(row.stock_qty * row.weight_per_unit);
+			refresh_field("total_weight", row.name, row.parentfield);
+		}
+		if(row.weight_per_unit != 0 && row.weight_uom)
+		{
+			
+			this.calculate_net_weight();
+			
+		}
+	},
+	
+	weight_uom:function(doc, cdt, cdn) {
+		var row = locals[cdt][cdn];
+		if(row.weight_per_unit != 0 && row.weight_uom)
+		{
+			this.calculate_net_weight();
+			
+		}
+				
+	},
+	net_weight_uom:function() {
+		if(this.frm.doc.net_weight_uom != null && is_weight_unit(this.frm.doc.net_weight_uom))
+		{
+			this.calculate_net_weight();
+			
+		}
+		else
+		{
+			frappe.msgprint(__("The net weight uom required is invalid."));
+			return;
+		}
+	},
+	
 });
 
 erpnext.show_serial_batch_selector = function(frm, d, callback, on_close, show_dialog) {
@@ -1321,4 +1424,56 @@ erpnext.show_serial_batch_selector = function(frm, d, callback, on_close, show_d
 			on_close: on_close
 		}, show_dialog);
 	});
+}
+
+
+	
+var is_weight_unit =  function(UOM)
+{
+	var weight_array = ['kg','g','tonne']
+	return (weight_array.indexOf(UOM.toLowerCase()) != -1);
+}
+	
+var convert_weight_unit = function(in_value, in_uom, out_uom)
+{
+	var base_value = 0;
+	var out_value = 0;
+	if (in_value != null && in_uom != null && out_uom != null)
+	{
+		
+		if(is_weight_unit(in_uom) && is_weight_unit(out_uom))
+		{
+			base_value = convert_weight_to_base(in_uom,in_value)
+			out_value = convert_weight_from_base(out_uom,base_value)
+			return [true,out_value];
+		}
+		
+		return [false,out_value];
+		
+	}
+	
+	return [false,out_value];
+	
+}
+
+var convert_weight_to_base = function(unit,value) {
+	var finalvalue = 0;
+	if (unit == "g")
+		finalvalue = flt(value) * flt(0.001);
+	else if (unit == "tonne")
+		finalvalue = flt(value) * flt(1000);
+	else
+		finalvalue = flt(value);
+	return finalvalue;
+}
+
+var convert_weight_from_base = function(unit,value) {
+	var finalvalue = 0;
+	if (unit == "g")
+		finalvalue = flt(value) / flt(0.001);
+	else if (unit == "tonne")
+		finalvalue = flt(value) / flt(1000);
+	else
+		finalvalue = flt(value);
+	return finalvalue;
 }

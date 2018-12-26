@@ -40,8 +40,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			});
 
 		me.frm.set_query('contact_person', erpnext.queries.contact_query);
-		me.frm.set_query('customer_address', erpnext.queries.address_query);
-		me.frm.set_query('shipping_address_name', erpnext.queries.address_query);
+		//me.frm.set_query('customer_address', erpnext.queries.address_query);
+		//me.frm.set_query('shipping_address_name', erpnext.queries.address_query);
 
 		if(this.frm.fields_dict.taxes_and_charges) {
 			this.frm.set_query("taxes_and_charges", function() {
@@ -108,10 +108,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		}
 		this.toggle_editable_price_list_rate();
 		
-		/* if (cur_frm.doc.items){
-			this.refresh_headers();
-		} */
-		
+
 		
 		if (this.frm.doc.docstatus==0) {
 			cur_frm.add_custom_button(__('CSV'),
@@ -172,8 +169,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 									cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
 									
 								});
-							//me.calculate_headers();
-							//me.refresh_headers();
+						
 							cur_frm.refresh_field('items');
 							me.calculate_taxes_and_totals();
 
@@ -797,31 +793,3 @@ frappe.ui.form.on(cur_frm.doctype,"project", function(frm) {
 	}
 })
 
-// Table modified
-// ------------------------------------------------------------------------
-
-frappe.ui.form.on(cur_frm.doctype, cur_frm.doctype +"_refresh", function(frm,dt,dn){
-	// frm.cscript.calculate_headers();
-		// frm.cscript.refresh_headers();
-		// cur_frm.refresh();
-		
-})
-
-frappe.ui.form.on(cur_frm.doctype + " Item", "items_remove", function(frm,dt,dn){
-	// frm.cscript.calculate_headers();
-		// frm.cscript.refresh_headers();
-		// cur_frm.refresh();
-	
-})
-
-frappe.ui.form.on(cur_frm.doctype + " Item", "items_add", function(frm,dt,dn){
-	// frm.cscript.calculate_headers();
-		// frm.cscript.refresh_headers();
-		// cur_frm.refresh();
-})
-
-frappe.ui.form.on(cur_frm.doctype + " Item", "item_code", function(frm,dt,dn){
-	// frm.cscript.calculate_headers();
-		// frm.cscript.refresh_headers();
-		// cur_frm.refresh();
-})

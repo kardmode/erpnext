@@ -1,16 +1,80 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: GNU General Public License v3. See license.txt
 
+
+frappe.ui.form.on('Packing Slip', {
+	onload: function(frm) {
+		var me = this;
+		if(frm.doc.__islocal) {
+			frm.set_value("posting_date",frappe.datetime.get_today());
+		}
+		
+		frappe.dynamic_link = { doc: frm.doc, fieldname: 'customer', doctype: 'Customer' }
+		
+		$.each([
+			["customer", "customer"]],
+			function(i, opts) {
+				if(frm.fields_dict[opts[0]])
+					frm.set_query(opts[0], erpnext.queries[opts[1]]);
+			});
+		
+		frm.updating_party_details = false;
+		
+		frm.add_fetch('delivery_note', 'company', 'company');
+		frm.add_fetch('delivery_note', 'customer', 'customer');
+		frm.add_fetch('delivery_note', 'project', 'project');
+		frm.add_fetch('delivery_note', 'shipping_address', 'shipping_address');
+		frm.set_query('contact_person', erpnext.queries.contact_query);
+	},
+	
+	customer: function(frm) {
+		erpnext.utils.get_party_details(frm, null, null, function(){});
+	},
+	shipping_address_name: function(frm) {
+		erpnext.utils.get_address_display(frm, "shipping_address_name", "shipping_address");
+	},
+	
+});
+
+frappe.ui.form.on('Packing Slip Item', {
+	item_code:function(doc, cdt, cdn){
+		// return cur_frm.call({
+		// doc: cur_frm.doc,
+		// method: "get_items",
+		// callback: function(r) {
+			// if(!r.exc) 
+			// {
+				// cur_frm.refresh();
+				// cur_frm.dirty();
+			// }
+			
+			// }
+		// });
+		
+	},
+});
+
+// frappe.ui.form.on('Packing Slip Item', {
+	// item_code: function(frm) {
+		
+		
+		
+	// }
+// });
+
 cur_frm.fields_dict['delivery_note'].get_query = function(doc, cdt, cdn) {
 	return{
-		filters:{ 'docstatus': 0}
+		filters:[['docstatus','<','1'],['company','=',doc.company]]
 	}
 }
 
 
 cur_frm.fields_dict['items'].grid.get_field('item_code').get_query = function(doc, cdt, cdn) {
 	if(!doc.delivery_note) {
-		frappe.throw(__("Please Delivery Note first"))
+		return {
+					query: "erpnext.controllers.queries.item_query",
+					filters: {'is_sales_item': 1}
+				}
 	} else {
 		return {
 			query: "erpnext.stock.doctype.packing_slip.packing_slip.item_details",
@@ -30,7 +94,12 @@ cur_frm.cscript.get_items = function(doc, cdt, cdn) {
 		doc: this.frm.doc,
 		method: "get_items",
 		callback: function(r) {
-			if(!r.exc) cur_frm.refresh();
+			if(!r.exc) 
+			{
+				cur_frm.refresh();
+				cur_frm.dirty();
+			}
+			
 		}
 	});
 }
@@ -90,10 +159,24 @@ cur_frm.cscript.validate_duplicate_items = function(doc, ps_detail) {
 
 // Calculate Net Weight of Package
 cur_frm.cscript.calc_net_total_pkg = function(doc, ps_detail) {
+	
+	
+	if(flt(doc.net_weight_pkg) && doc.net_weight_uom)
+	{
+		return;
+
+	}
+	
 	var net_weight_pkg = 0;
 	doc.net_weight_uom = (ps_detail && ps_detail.length) ? ps_detail[0].weight_uom : '';
-	doc.gross_weight_uom = doc.net_weight_uom;
+	
+	if(doc.net_weight_uom)
+	{
+		doc.gross_weight_uom = doc.net_weight_uom;
 
+	}
+
+	
 	for(var i=0; i<ps_detail.length; i++) {
 		var item = ps_detail[i];
 		if(item.weight_uom != doc.net_weight_uom) {

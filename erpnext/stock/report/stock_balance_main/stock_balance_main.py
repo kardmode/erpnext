@@ -16,18 +16,43 @@ def execute(filters=None):
 	iwb_map = get_item_warehouse_map(filters)
 
 	data = []
-	for (company, item, warehouse) in sorted(iwb_map):
+	
+	if filters.get("report_style") == "Default":
+
+		for (company, item, warehouse) in sorted(iwb_map):
+			
+			qty_dict = iwb_map[(company, item, warehouse)]
+			data.append([item, 
+			# item_map[item]["item_name"],
+				item_map[item]["item_group"]
+				, warehouse
+				,item_map[item]["stock_uom"]
+				,qty_dict.bal_qty
+				# ,qty_dict.bal_val
+				# ,qty_dict.val_rate
+			])
+	else:
 		
-		qty_dict = iwb_map[(company, item, warehouse)]
-		data.append([item, 
-		# item_map[item]["item_name"],
-			item_map[item]["item_group"]
-			, warehouse
-			,item_map[item]["stock_uom"]
-			,qty_dict.bal_qty
-			# ,qty_dict.bal_val
-			# ,qty_dict.val_rate
-		])
+		columns = [
+		_("Item Group")+"::200",
+		_("Balance Qty")+":Float:200",
+	]
+		
+		item_dict = {}
+		for (company, item, warehouse) in sorted(iwb_map):
+			qty_dict = iwb_map[(company, item, warehouse)]
+			if item_dict.has_key(item_map[item]["item_group"]):
+				item_dict[item_map[item]["item_group"]]["bal_qty"] += flt(qty_dict.bal_qty)
+				item_dict[item_map[item]["item_group"]]["bal_val"] += flt(qty_dict.bal_val)
+			else:
+				item_dict[item_map[item]["item_group"]] = qty_dict
+				
+		for key,item in sorted(item_dict.items()):
+			
+			report_data = [key,item.bal_qty]
+
+			data.append(report_data)
+
 
 	return columns, data
 
@@ -35,12 +60,12 @@ def get_columns():
 	"""return columns"""
 
 	columns = [
-		_("Item")+":Link/Item:200",
+		_("Item")+":Link/Item:300",
 		# _("Item Name")+"::150",
-		_("Item Group")+"::100",
-		_("Warehouse")+":Link/Warehouse:100",
-		_("Stock UOM")+":Link/UOM:50",
-		_("Balance Qty")+":Float:100",
+		_("Item Group")+"::200",
+		_("Warehouse")+":Link/Warehouse:200",
+		_("Stock UOM")+":Link/UOM:100",
+		_("Balance Qty")+":Float:200",
 		# _("Balance Value")+":Float:100",
 		# _("Valuation Rate")+":Float:90",
 	]

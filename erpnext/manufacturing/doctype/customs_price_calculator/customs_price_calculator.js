@@ -43,7 +43,11 @@ frappe.ui.form.on('Customs Price Calculator', {
 			
 		}
 		else{
-			
+			frm.doc.exploded_items = [];
+			frm.doc.operating_cost = 0;
+			cur_frm.refresh_field('exploded_items');
+			cur_frm.refresh_field('operating_cost');
+			calculate_total_duty(frm.doc);
 		}
 		
 	},

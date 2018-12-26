@@ -99,12 +99,30 @@ frappe.ui.form.on('Payroll Entry', {
 		}
 		
 		if (slip_status.draft) {
-			frm.add_custom_button(__("Print Salary Slips"),
+			frm.add_custom_button(__("Update Salary Slips"),
 				function() {
-					print_salary_slip(frm);
+					update_salary_slip(frm);
 				}
 			).addClass("btn-primary");
 		}
+		
+		if (slip_status.draft) {
+			frm.add_custom_button(__("Salary Slips and Attendance"),
+				function() {
+					print_salary_slip(frm,"Salary Slip Attendance");
+				}, __("Print")
+			);
+			
+			frm.add_custom_button(__("Salary Slips"),
+				function() {
+					print_salary_slip(frm,"Salary Slip");
+				}, __("Print")
+			);
+		}
+		
+		
+		
+		
 	},
 
 	add_bank_entry_button: function(frm) {
@@ -292,7 +310,26 @@ const create_salary_slip = function (frm) {
 	return $c('runserverobj', { 'method': 'create_salary_slips', 'docs': doc }, callback);
 }
 
-const print_salary_slip = function (frm) {
+const update_salary_slip = function (frm) {
+	var doc = frm.doc;
+	cur_frm.cscript.display_activity_log("");
+	
+		frappe.call({
+				doc: cur_frm.doc,
+				method: "update_salary_slips",
+				args: {
+					start_date: doc.start_date,
+					end_date: doc.end_date
+				},
+				freeze: true,
+				callback: function(r) {
+					if (r.message)
+						cur_frm.cscript.display_activity_log(r.message);
+				}
+			});
+}
+
+const print_salary_slip = function (frm,format) {
 	
 	var doc = frm.doc;
 	if(doc.company && doc.start_date && doc.end_date){
@@ -311,7 +348,7 @@ const print_salary_slip = function (frm) {
 					var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
 						+"doctype="+encodeURIComponent("Salary Slip")
 						+"&name="+encodeURIComponent(json_string)
-						+"&format="+encodeURIComponent("Salary Slip")
+						+"&format="+encodeURIComponent(format)
 						+"&orientation="+encodeURIComponent("Portrait")
 						+"&no_letterhead="+"0");
 					if(!w) {

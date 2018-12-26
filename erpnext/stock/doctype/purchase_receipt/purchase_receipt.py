@@ -45,6 +45,15 @@ class PurchaseReceipt(BuyingController):
 			# 'overflow_type': 'receipt',
 			'extra_cond': """ and exists (select name from `tabPurchase Receipt` where name=`tabPurchase Receipt Item`.parent and is_return=1)"""
 		}]
+		
+	def set_total_qty(self):
+		total_qty = 0
+		fake_total = 0
+		for d in self.get('items'):
+			total_qty = total_qty + flt(d.qty)
+			fake_total = fake_total + flt(d.fake_qty)
+		self.total_qty = total_qty
+		self.fake_qty = fake_total
 
 	def validate(self):
 		self.validate_posting_time()
@@ -59,6 +68,8 @@ class PurchaseReceipt(BuyingController):
 		self.validate_with_previous_doc()
 		self.validate_uom_is_integer("uom", ["qty", "received_qty"])
 		self.validate_uom_is_integer("stock_uom", "stock_qty")
+		
+		self.set_total_qty()
 
 		self.check_for_closed_status()
 

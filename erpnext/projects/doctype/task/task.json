@@ -1,15 +1,17 @@
 {
+ "add_company_abbr_to_name": 1, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 1, 
  "allow_rename": 0, 
+ "append_company_abbr_to_name": "0", 
  "autoname": "TASK.#####", 
  "beta": 0, 
  "creation": "2013-01-29 19:25:50", 
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Document", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -1214,7 +1216,7 @@
  "istable": 0, 
  "max_attachments": 5, 
  "menu_index": 0, 
- "modified": "2017-11-10 18:37:19.660293", 
+ "modified": "2018-04-06 15:23:11.545267", 
  "modified_by": "Administrator", 
  "module": "Projects", 
  "name": "Task", 

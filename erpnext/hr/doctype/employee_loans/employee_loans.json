@@ -1,8 +1,10 @@
 {
+ "add_company_abbr_to_name": 1, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
  "allow_rename": 0, 
+ "append_company_abbr_to_name": "0", 
  "autoname": "field:employee", 
  "beta": 1, 
  "creation": "2015-12-16 00:37:36.397413", 
@@ -183,6 +185,7 @@
    "label": "Net Balance", 
    "length": 0, 
    "no_copy": 0, 
+   "options": "Company:company:default_currency", 
    "permlevel": 0, 
    "precision": "", 
    "print_hide": 0, 
@@ -206,7 +209,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-12-08 21:32:37.835341", 
+ "modified": "2018-12-22 23:26:19.567551", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Employee Loans", 
@@ -241,6 +244,6 @@
  "sort_field": "modified", 
  "sort_order": "DESC", 
  "title_field": "employee_name", 
- "track_changes": 0, 
+ "track_changes": 1, 
  "track_seen": 0
 }

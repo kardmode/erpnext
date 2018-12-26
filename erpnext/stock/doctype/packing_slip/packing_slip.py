@@ -24,17 +24,30 @@ class PackingSlip(Document):
 		self.validate_items_mandatory()
 		self.validate_case_nos()
 		self.validate_qty()
-
+		self.set_total_qty()
+		
 		from erpnext.utilities.transaction_base import validate_uom_is_integer
 		validate_uom_is_integer(self, "stock_uom", "qty")
 		validate_uom_is_integer(self, "weight_uom", "net_weight")
+		
+	def set_total_qty(self):
+		total_qty = 0
+		for d in self.get('items'):
+			total_qty = total_qty + flt(d.qty)
+		self.total_qty = total_qty
 
 	def validate_delivery_note(self):
-		"""
-			Validates if delivery note has status as draft
-		"""
-		if cint(frappe.db.get_value("Delivery Note", self.delivery_note, "docstatus")) != 0:
-			frappe.throw(_("Delivery Note {0} must not be submitted").format(self.delivery_note))
+	
+		if self.delivery_note:	
+			if frappe.db.get_value("Delivery Note", self.delivery_note, "company") != self.company:
+				frappe.throw(_("Delivery Note {0} is not for this company").format(self.delivery_note))
+		
+			"""
+				Validates if delivery note has status as draft
+			"""
+			
+			if cint(frappe.db.get_value("Delivery Note", self.delivery_note, "docstatus")) != 0:
+				frappe.throw(_("Delivery Note {0} must not be submitted").format(self.delivery_note))
 
 	def validate_items_mandatory(self):
 		rows = [d.item_code for d in self.get("items")]
@@ -106,10 +119,10 @@ class PackingSlip(Document):
 				from `tabPacking Slip` ps, `tabPacking Slip Item` psi
 				where ps.name = psi.parent and ps.docstatus = 1
 				and ps.delivery_note = dni.parent and psi.item_code=dni.item_code) as packed_qty,
-			stock_uom, item_name, description, dni.batch_no {custom_fields}
+			stock_uom,uom, item_name, description, dni.batch_no {custom_fields}
 			from `tabDelivery Note Item` dni
 			where parent=%s {condition}
-			group by item_code""".format(condition=condition, custom_fields=custom_fields),
+			group by item_code order by idx""".format(condition=condition, custom_fields=custom_fields),
 			tuple([self.delivery_note] + rows), as_dict=1)
 
 		ps_item_qty = dict([[d.item_code, d.qty] for d in self.get("items")])
@@ -165,6 +178,8 @@ class PackingSlip(Document):
 				ch.item_code = item.item_code
 				ch.item_name = item.item_name
 				ch.stock_uom = item.stock_uom
+				ch.uom = item.uom
+
 				ch.description = item.description
 				ch.batch_no = item.batch_no
 				ch.qty = flt(item.qty) - flt(item.packed_qty)
@@ -177,6 +192,7 @@ class PackingSlip(Document):
 		self.update_item_details()
 
 def item_details(doctype, txt, searchfield, start, page_len, filters):
+	frappe.errprint(filters)
 	from erpnext.controllers.queries import get_match_cond
 	return frappe.db.sql("""select name, item_name, description from `tabItem`
 				where name in ( select item_code FROM `tabDelivery Note Item`

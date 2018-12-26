@@ -52,7 +52,21 @@ class Item(WebsiteGenerator):
 		
 	def processString(self, word):
 
+		import re
+		rx = re.compile('\W+')
+		code = rx.sub(' ', word).strip()
+		
 		code = word
+		
+		code = str(code).replace(" x ", "x")
+		code = str(code).replace(" X ", "x")
+		# code = str(code).replace('"', 'in')
+		# code = str(code).replace('" ', 'in ')
+		# code = str(code).replace(' " ', ' in ')
+		# code = str(code).replace("'",'ft')
+		# code = str(code).replace("' ",'ft ')
+		# code = str(code).replace(" ' ",' ft ')
+	
 		words = code.split()
 		newword = ""
 		for s in words:
@@ -77,11 +91,12 @@ class Item(WebsiteGenerator):
 				else:
 					newword = newword + ' ' + s
 					
-		code = str(code).replace(" x ", "x")
-		code = str(code).replace(" X ", "x")
-		# code = str(code).replace('"', '')
-		# code = str(code).replace(' " ','')
-		return code.strip()
+
+		code = code.strip()
+		
+		
+		
+		return code
 	
 
 	def before_insert(self):
@@ -128,7 +143,7 @@ class Item(WebsiteGenerator):
 		if not self.item_name:
 			self.item_name = self.item_code
 		else:
-			self.item_name = self.processString(self.item_name)
+			self.item_name = self.item_name
 		
 		import string
 		if not self.description:
@@ -483,9 +498,9 @@ class Item(WebsiteGenerator):
 			ch.conversion_factor = 1
 
 		to_remove = []
-		for d in self.get("uoms"):
-			if d.conversion_factor == 1 and d.uom != self.stock_uom:
-				to_remove.append(d)
+		# for d in self.get("uoms"):
+			# if d.conversion_factor == 1 and d.uom != self.stock_uom:
+				# to_remove.append(d)
 
 		[self.remove(d) for d in to_remove]
 

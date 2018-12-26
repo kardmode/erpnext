@@ -464,6 +464,7 @@ frappe.ui.form.on('Stock Entry Detail', {
 				'voucher_type'		: frm.doc.doctype,
 				'voucher_no'		: d.name,
 				'allow_zero_valuation': 1,
+				'purpose':frm.doc.purpose,
 			};
 			return frappe.call({
 				doc: frm.doc,

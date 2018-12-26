@@ -28,20 +28,6 @@ form_grid_templates = {
 }
 
 class SalesInvoice(SellingController):
-	# def autoname(self):
-		# import datetime
-		# year = (getdate(self.posting_date)).year
-		# month = (getdate(self.posting_date)).month
-		# date_string = str(year)
-		# naming_series = self.naming_series
-		# if self.company:
-			# abbr = 	frappe.db.get_value("Company", self.company, "abbr")
-			# if abbr:
-				# naming_series = str(abbr) + "-" + naming_series 
-			
-		# self.name = make_autoname(naming_series + date_string + '.#####')
-		
-		
 
 	def __init__(self, *args, **kwargs):
 		super(SalesInvoice, self).__init__(*args, **kwargs)
@@ -69,6 +55,12 @@ class SalesInvoice(SellingController):
 		else:
 			self.indicator_color = "green"
 			self.indicator_title = _("Paid")
+			
+	def set_total_qty(self):
+		total_qty = 0
+		for d in self.get('items'):
+			total_qty = total_qty + flt(d.qty)
+		self.total_qty = total_qty
 
 	def validate(self):
 		super(SalesInvoice, self).validate()
@@ -92,6 +84,8 @@ class SalesInvoice(SellingController):
 
 		if cint(self.is_pos):
 			self.validate_pos()
+			
+		self.set_total_qty()
 
 		if cint(self.update_stock):
 			self.validate_dropship_item()

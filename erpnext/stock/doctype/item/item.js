@@ -742,8 +742,15 @@ var calculate_conversion_factor = function(frm,show_debug = false) {
 	{
 		if (show_debug) frappe.msgprint(__("All Dimensions have to be greater than 0"));
 	}
-	else if (check_current_units(frm.doc.stock_uom))
+	else
 	{
+		var check_units = show_debug;
+		
+		if (!show_debug)
+			check_units = check_current_units(frm.doc.stock_uom);
+		
+		if (check_units)
+		{
 			
 			var conversion_factors = get_dimensions(frm);
 			var conversion_factor = conversion_factors[0];
@@ -754,10 +761,11 @@ var calculate_conversion_factor = function(frm,show_debug = false) {
 			check_conversion_factor(frm,"sqm",conversion_factor);
 			check_conversion_factor(frm,"cft",cft_conversion_factor);
 
-	}
-	else
-	{
-		if (show_debug) frappe.msgprint(__("Stock UOM can't be a length"));
+		}
+		else
+		{
+			if (show_debug) frappe.msgprint(__("Stock UOM can't be a standard unit of length. Must be Nos or sheet etc."));
+		}
 	}
 	
 }

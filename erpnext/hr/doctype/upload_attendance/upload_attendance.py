@@ -5,7 +5,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cstr, add_days, date_diff, get_datetime,getdate
+from frappe.utils import flt,cstr, add_days, date_diff, get_datetime,getdate,get_time,cstr
 from frappe import _
 from frappe.utils.csvutils import UnicodeWriter
 from frappe.model.document import Document
@@ -127,6 +127,17 @@ def upload(import_settings = None):
 		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
+		
+		if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			d.arrival_time = "00:00:00"
+			
+		if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			d.departure_time = "00:00:00"
+			
+		d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
+		d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
+		
+		
 		if import_settings == "ignore":
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
 			(d.employee, getdate(d.attendance_date)),as_dict=True)
@@ -184,3 +195,36 @@ def upload(import_settings = None):
 	else:
 		frappe.db.commit()
 	return {"messages": ret, "error": error}
+	
+@frappe.whitelist()
+def update_attendance(start_date,end_date):
+
+	if not start_date or not end_date:
+		frappe.throw(_("Please enter both start date and end date"))
+		
+	attendances = frappe.db.sql("""select name from `tabAttendance` where attendance_date between %s and %s and docstatus < 2""",
+		(start_date, end_date), as_dict=1)
+	
+	summary = ""
+			
+	
+	for att in attendances:
+		d = frappe.get_doc("Attendance", att.name)
+		
+		if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			d.arrival_time = "00:00:00"
+			
+		if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			d.departure_time = "00:00:00"
+			
+		d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
+		d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
+
+		d.save()
+		
+		new_link = '<a href="#Form/Attendance/{0}">{0} - {1} - {2} - {3}</a><br>'.format(d.name,d.employee,d.employee_name,d.attendance_date)
+		summary = summary + new_link
+	
+	return summary
+
+		

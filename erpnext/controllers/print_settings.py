@@ -8,6 +8,7 @@ from frappe.utils import cint
 def print_settings_for_item_table(doc):
 
 	doc.print_templates = {
+		"total_weight": "templates/print_formats/includes/item_table_weight.html",
 		"qty": "templates/print_formats/includes/item_table_qty.html",
 		"tax_rate":"templates/print_formats/includes/item_table_tax_rate.html",
 		"tax_amount":"templates/print_formats/includes/item_table_tax_rate.html"
@@ -15,7 +16,7 @@ def print_settings_for_item_table(doc):
 	
 
 	
-	doc.hide_in_print_layout = ["uom", "stock_uom"]
+	doc.hide_in_print_layout = ["uom", "stock_uom","weight_uom"]
 
 	doc.flags.compact_item_print = cint(frappe.db.get_value("Print Settings", None, "compact_item_print"))
 
@@ -25,7 +26,7 @@ def print_settings_for_item_table(doc):
 	if doc.flags.compact_item_print:
 
 		doc.print_templates["item_name"] = "templates/print_formats/includes/custom_item_table_description.html"
-		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount"]
+		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount","total_weight","net_weight"]
 		
 		
 		doc.flags.format_columns = format_columns

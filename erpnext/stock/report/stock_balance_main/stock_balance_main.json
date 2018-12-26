@@ -8,13 +8,13 @@
  "favorite": 1, 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2017-11-08 04:14:46.049251", 
+ "modified": "2018-12-21 00:49:16.614144", 
  "modified_by": "Administrator", 
  "module": "Stock", 
- "name": "Import Document", 
+ "name": "Stock Balance Main", 
  "owner": "Administrator", 
  "ref_doctype": "Item", 
- "report_name": "Import Document", 
+ "report_name": "Stock Balance Main", 
  "report_type": "Script Report", 
  "roles": [
   {

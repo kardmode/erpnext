@@ -50,7 +50,7 @@ class StockEntry(StockController):
 		self.validate_with_material_request()
 		self.validate_batch()
 
-		if not self.from_bom:
+		if not self.from_bom and not self.custom_production_order:
 			self.fg_completed_qty = 0.0
 
 		if self._action == 'submit':
@@ -229,12 +229,15 @@ class StockEntry(StockController):
 
 	def set_incoming_rate(self):
 		for d in self.items:
+			
 			if d.s_warehouse:
+				
 				args = self.get_args_for_incoming_rate(d)
 				d.basic_rate = get_incoming_rate(args)
 			elif d.allow_zero_valuation_rate and not d.s_warehouse:
 				d.basic_rate = 0.0
 			elif d.t_warehouse and not d.basic_rate:
+
 				d.basic_rate = get_valuation_rate(d.item_code, d.t_warehouse,
 					self.doctype, d.name, d.allow_zero_valuation_rate,
 					currency=erpnext.get_company_currency(self.company))
@@ -358,8 +361,10 @@ class StockEntry(StockController):
 			self.additional_costs = []
 			
 		if self.purpose == "Manufacture":
-			additional_costs = get_additional_costs(bom_no=self.bom_no, fg_qty=self.fg_completed_qty)
-			self.set("additional_costs", additional_costs)
+		
+			if not self.get("additional_costs"):
+				additional_costs = get_additional_costs(bom_no=self.bom_no, fg_qty=self.fg_completed_qty)
+				self.set("additional_costs", additional_costs)
 		
 		
 		self.total_additional_costs = sum([flt(t.amount) for t in self.get("additional_costs")])
@@ -570,8 +575,12 @@ class StockEntry(StockController):
 
 		args['posting_date'] = self.posting_date
 		args['posting_time'] = self.posting_time
-
-
+		
+		
+		if args.get('purpose') == "Material Issue":
+			ret["s_warehouse"],enough_stock = get_best_warehouse(args.get('item_code'),args.get('qty'),company = self.company)
+			args["warehouse"] = ret["s_warehouse"] or None
+		
 		stock_and_rate = get_warehouse_details(args) if args.get('warehouse') else {}
 		ret.update(stock_and_rate)
 		ret["initial_qty"] = ret["actual_qty"]
@@ -821,7 +830,7 @@ class StockEntry(StockController):
 	def add_to_stock_entry_detail(self, item_dict, bom_no=None):
 		expense_account, cost_center = frappe.db.get_values("Company", self.company, \
 			["default_expense_account", "cost_center"])[0]
-				
+		
 		for d in item_dict:
 			stock_uom = item_dict[d].get("stock_uom") or frappe.db.get_value("Item", d, "stock_uom")
 			
@@ -836,7 +845,10 @@ class StockEntry(StockController):
 			se_child.qty = flt(item_dict[d]["qty"], se_child.precision("qty"))
 			se_child.expense_account = item_dict[d].get("expense_account") or expense_account
 			se_child.cost_center = item_dict[d].get("cost_center") or cost_center
-
+			
+			if item_dict[d].get("basic_rate"):				
+				se_child.basic_rate = item_dict[d].get("basic_rate")
+								
 			if item_dict[d].get("idx"):
 				se_child.idx = item_dict[d].get("idx")
 
@@ -844,7 +856,8 @@ class StockEntry(StockController):
 				se_child.s_warehouse = self.from_warehouse
 			if se_child.t_warehouse==None:
 				se_child.t_warehouse = self.to_warehouse
-
+			
+			
 			# in stock uom
 			se_child.transfer_qty = flt(item_dict[d]["qty"], se_child.precision("qty"))
 			se_child.conversion_factor = 1.00
@@ -1085,3 +1098,29 @@ def validate_sample_quantity(item_code, sample_quantity, qty, batch_no = None):
 			format(max_retain_qty, batch_no, item_code), alert=True)
 		sample_quantity = qty_diff
 	return sample_quantity
+	
+def get_warehouses_and_stock(item_code,company):
+
+	if not item_code or not company:
+		return []
+
+
+	stock_details = frappe.db.sql("select t1.warehouse,t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty <> 0 ORDER BY actual_qty DESC",(item_code),as_dict=1)
+	
+	
+	
+	default_warehouse = get_default_warehouse(company = company).get("source_warehouse")
+	
+	best_warehouses = []
+	
+
+	
+	for stdetail in stock_details:
+		company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
+		if company == company_of_warehouse:
+			best_warehouses.append(stdetail)
+	
+	
+
+	
+	return best_warehouses

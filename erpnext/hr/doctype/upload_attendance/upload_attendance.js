@@ -10,7 +10,7 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 		this.frm.set_value("att_fr_date", frappe.datetime.get_today());
 		this.frm.set_value("att_to_date", frappe.datetime.get_today());
 		this.frm.set_value("import_settings", "default");
-
+		this.frm.trigger("set_start_end_dates");
 	},
 
 	refresh: function() {
@@ -30,7 +30,74 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 				to_date: this.frm.doc.att_to_date,
 			});
 	},
+	
+	update_attendance: function() {
+		var me = this;
+		frappe.call({
+				method: "erpnext.hr.doctype.upload_attendance.upload_attendance.update_attendance",
+				args: {
+					start_date: me.frm.doc.start_date,
+					end_date: me.frm.doc.end_date
+				},
+				freeze: true,
+				freeze_message: "Please wait ..",
+				callback: function(r) {
+					var msg = "";
+					if(r.message)
+						msg = r.message;
+					else
+						msg = "0 Attendance Records Updated";
+					
+					
+					cur_frm.set_value("update_log",msg);
+					frappe.hide_msgprint();
+				}
+			});
+		
+		
+	},
+	
+	start_date: function(){
+		var me = this;
+		if(me.frm.doc.start_date){
+			me.frm.trigger("set_end_date");
+		}
+	},
 
+	set_end_date: function(){
+		var me = this;
+		frappe.call({
+			method: 'erpnext.hr.doctype.payroll_entry.payroll_entry.get_end_date',
+			args: {
+				frequency: "Monthly",
+				start_date: me.frm.doc.start_date
+			},
+			callback: function (r) {
+				if (r.message) {
+					me.frm.set_value('end_date', r.message.end_date);
+				}
+			}
+		})
+	},
+	
+	set_start_end_dates: function() {
+		var me = this;
+		frappe.call({
+				method:'erpnext.hr.doctype.payroll_entry.payroll_entry.get_start_end_dates',
+				args:{
+					payroll_frequency: "Monthly",
+					start_date: me.frm.doc.start_date || frappe.datetime.get_today()
+				},
+				callback: function(r){
+					if (r.message){
+						me.frm.doc.start_date =  r.message.start_date;
+						me.frm.refresh_field("start_date");
+						me.frm.set_value('end_date', r.message.end_date);
+					}
+				}
+			})
+	},
+	
 	show_upload: function() {
 		var me = this;
 		var $wrapper = $(cur_frm.fields_dict.upload_html.wrapper).empty();

@@ -97,7 +97,13 @@ class DeliveryNote(SellingController):
 				actual_qty = frappe.db.sql("""select actual_qty from `tabBin`
 					where item_code = %s and warehouse = %s""", (d.item_code, d.warehouse))
 				d.actual_qty = actual_qty and flt(actual_qty[0][0]) or 0
-
+				
+	def set_total_qty(self):
+		total_qty = 0
+		for d in self.get('items'):
+			total_qty = total_qty + flt(d.qty)
+		self.total_qty = total_qty
+		
 	def so_required(self):
 		"""check in manage account if sales order required or not"""
 		if frappe.db.get_value("Selling Settings", None, 'so_required') == 'Yes':
@@ -123,6 +129,8 @@ class DeliveryNote(SellingController):
 
 		from erpnext.stock.doctype.packed_item.packed_item import make_packing_list
 		make_packing_list(self)
+		
+		self.set_total_qty()
 
 		self.update_current_stock()
 
@@ -209,8 +217,6 @@ class DeliveryNote(SellingController):
 					d.projected_qty = flt(bin_qty.projected_qty)
 
 	def on_submit(self):
-		if self.company == "Al Maarifa Lab Supplies LLC":
-			frappe.throw(_("Cannot Submit For This Company"))
 	
 		self.validate_packed_qty()
 

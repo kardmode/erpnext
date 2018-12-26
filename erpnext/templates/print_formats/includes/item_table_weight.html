@@ -1,0 +1,4 @@
+{% if (doc.weight_uom and not doc.is_print_hide("weight_uom")) -%}
+<small class="pull-left">{{ _(doc.weight_uom) }}</small>
+{%- endif %}
+{{ doc.get_formatted("total_weight", doc) }}

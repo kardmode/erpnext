@@ -41,13 +41,17 @@ class Attendance(Document):
 		return holidays
 	
 	def calculate_total_hours(self):
-		if self.arrival_time == "#--:--" or self.arrival_time == "00:00" or self.arrival_time == "0:00:00":
+	
+		if self.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
 			self.arrival_time = "00:00:00"
 			
-		if self.departure_time == "#--:--" or self.departure_time == "00:00" or self.departure_time == "0:00:00":
+		if self.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
 			self.departure_time = "00:00:00"
+			
+		self.departure_time = get_time(self.departure_time ).strftime("%H:%M:%S")
+		self.arrival_time = get_time(self.arrival_time).strftime("%H:%M:%S")
 		
-		
+		totalworkhours = 0
 		try:
 			totalworkhours = flt(time_diff_in_seconds(self.departure_time,self.arrival_time))/3600
 		except:
@@ -61,9 +65,9 @@ class Attendance(Document):
 		
 		
 		if totalworkhours < 0:
-			frappe.throw(_("Working time cannot be negative. Please check arrival time {0} or departure time {1} for employee {2}").format(self.arrival_time,self.departure_time,self.employee))
+			frappe.throw(_("Working time cannot be negative. Please check arrival time {0} or departure time {1} for employee {2} on date {3}").format(self.arrival_time,self.departure_time,self.employee,self.attendance_date))
 		elif totalworkhours > 24:
-			frappe.throw(_("Working time cannot be greater than 24. Please check arrival time {0} or departure time {1} for employee {2}").format(self.arrival_time,self.departure_time,self.employee))
+			frappe.throw(_("Working time cannot be greater than 24. Please check arrival time {0} or departure time {1} for employee {2} on date {3}").format(self.arrival_time,self.departure_time,self.employee,self.attendance_date))
 
 		self.working_time = totalworkhours
 
@@ -73,7 +77,7 @@ class Attendance(Document):
 			self.department = frappe.db.get_value("Employee", self.employee, "department")
 		
 		working_hours = frappe.db.sql("""select working_hours from `tabWorking Hours`
-				where %s >= from_date AND %s <= to_date and department = %s""", (self.attendance_date,self.attendance_date,self.department))
+				where %s >= from_date AND %s <= to_date and (department = %s or ISNULL(NULLIF(department, '')))""", (self.attendance_date,self.attendance_date,self.department))
 
 		if working_hours:
 			self.normal_time = flt(working_hours[0][0])
@@ -83,6 +87,7 @@ class Attendance(Document):
 		self.overtime = 0
 		self.overtime_fridays = 0
 		self.overtime_holidays = 0
+		
 		if self.status not in ["On Leave","Half Day"]:
 			self.status = 'Present'
 		
@@ -110,7 +115,9 @@ class Attendance(Document):
 			else:
 				if self.arrival_time == "00:00:00" and self.departure_time == "00:00:00":
 					self.normal_time = 0
-					self.status = 'Absent'
+					self.working_time = 0
+					if self.status != "On Leave":
+						self.status = 'Absent'
 				else:
 					frappe.throw(_("Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
 
@@ -120,7 +127,7 @@ class Attendance(Document):
 	def check_leave_record(self):
 
 		leave_record = frappe.db.sql("""select name from `tabLeave Application`
-			where employee = %s and %s between from_date and to_date and status = 'Approved'
+			where employee = %s and %s between from_date and to_date and status in ('Approved','Back From Leave')
 			and docstatus < 2 and leave_type <> 'Encash Leave'""", (self.employee, self.attendance_date), as_dict=True)
 
 		if leave_record:

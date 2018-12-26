@@ -10,10 +10,7 @@ cur_frm.add_fetch('customer', 'tax_id', 'tax_id');
 
 frappe.provide("erpnext.accounts");
 erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.extend({
-	validate: function(doc, dt, dn) {
-		calculate_total_qty(this.frm);
-		this._super();
-	},
+
 	setup: function(doc) {
 		this.setup_posting_date_time_check();
 		this._super(doc);
@@ -656,13 +653,12 @@ var calculate_total_billing_amount =  function(frm) {
 }
 
 var calculate_total_qty =  function(frm) {
-	var doc = frm.doc;
-	total_qty = 0;
-		var cl = doc["items"] || [];
-		for(var i = 0; i < cl.length; i++){
-			total_qty = total_qty + cl[i].qty;
-		}
-		doc.total_qty = total_qty;
+	var total_qty = 0;
+		
+	(frm.doc.items || []).forEach(function(d) {
+		total_qty = total_qty + d.qty;
+	})
+	frm.doc.total_qty = total_qty;
 }
 
 var duplicate_invoice = function(frm){

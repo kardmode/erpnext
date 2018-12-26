@@ -81,9 +81,17 @@ class AccountsController(TransactionBase):
 			self.validate_non_invoice_documents_schedule()
 
 	def before_print(self):
-		if self.doctype in ['Purchase Order', 'Sales Order']:
+		if self.doctype in ['Purchase Order', 'Sales Order', 'Sales Invoice', 'Purchase Invoice',
+							'Supplier Quotation', 'Purchase Receipt', 'Delivery Note', 'Quotation']:
 			if self.get("group_same_items"):
 				self.group_similar_items()
+
+			df = self.meta.get_field("discount_amount")
+			if self.get("discount_amount") and hasattr(self, "taxes") and not len(self.taxes):
+				df.set("print_hide", 0)
+				# self.discount_amount = -self.discount_amount
+			else:
+				df.set("print_hide", 1)
 
 	def validate_paid_amount(self):
 		if hasattr(self, "is_pos") or hasattr(self, "is_paid"):

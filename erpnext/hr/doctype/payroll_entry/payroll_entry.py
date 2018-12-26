@@ -174,12 +174,12 @@ class PayrollEntry(Document):
 				if not frappe.db.sql("""select
 						name from `tabSalary Slip`
 					where
-						docstatus!= 2 and
 						employee = %s and
 						start_date >= %s and
 						end_date <= %s and
 						company = %s
 						""", (emp['employee'], self.start_date, self.end_date, self.company)):
+					
 					ss = frappe.get_doc({
 						"doctype": "Salary Slip",
 						"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
@@ -191,12 +191,32 @@ class PayrollEntry(Document):
 						"company": self.company,
 						"posting_date": self.posting_date
 					})
+					
 					ss.insert()
 					ss_dict = {}
 					ss_dict["Employee Name"] = ss.employee_name
 					ss_dict["Total Pay"] = fmt_money(ss.rounded_total,currency = frappe.defaults.get_global_default("currency"))
 					ss_dict["Salary Slip"] = format_as_links(ss.name)[0]
 					ss_list.append(ss_dict)
+		return create_log(ss_list)
+		
+		
+	def update_salary_slips(self):
+		"""
+			Update salary slip for selected employees if already not created
+		"""
+		self.check_permission('write')
+		
+		salary_slips = self.get_sal_slip_list(0,as_dict=True)
+		ss_list = []
+		for d in salary_slips:
+			ss = frappe.get_doc("Salary Slip", d.name)
+			ss.save()
+			ss_dict = {}
+			ss_dict["Employee Name"] = ss.employee_name
+			ss_dict["Total Pay"] = fmt_money(ss.rounded_total,currency = frappe.defaults.get_global_default("currency"))
+			ss_dict["Salary Slip"] = format_as_links(ss.name)[0]
+			ss_list.append(ss_dict)
 		return create_log(ss_list)
 
 	def get_sal_slip_list(self, ss_status, as_dict=False):
@@ -205,12 +225,15 @@ class PayrollEntry(Document):
 		"""
 		cond = self.get_filter_condition()
 		
+		if ss_status > 0:
+			cond += """ and (t1.journal_entry is null or t1.journal_entry = "") """
+		
 		cond += """ order by employee_name"""
 
 		ss_list = frappe.db.sql("""
 			select t1.name, t1.salary_structure from `tabSalary Slip` t1
 			where t1.docstatus = %s and t1.start_date >= %s and t1.end_date <= %s
-			and (t1.journal_entry is null or t1.journal_entry = "") and ifnull(salary_slip_based_on_timesheet,0) = %s %s
+			and ifnull(salary_slip_based_on_timesheet,0) = %s %s
 		""" % ('%s', '%s', '%s','%s', cond), (ss_status, self.start_date, self.end_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
 		return ss_list
 
@@ -632,3 +655,6 @@ def payroll_entry_has_bank_entries(name):
 	response['submitted'] = 1 if bank_entries else 0
 
 	return response
+	
+	
+

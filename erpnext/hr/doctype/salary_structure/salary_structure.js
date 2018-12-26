@@ -46,8 +46,8 @@ frappe.ui.form.on('Salary Structure', {
 		frm.fields_dict['earnings'].grid.set_column_disp("default_amount", false);
 		frm.fields_dict['deductions'].grid.set_column_disp("default_amount", false);
 
-		frm.add_custom_button(__("Preview Salary Slip"),
-			function() { frm.trigger('preview_salary_slip'); }, "fa fa-sitemap", "btn-default");
+		// frm.add_custom_button(__("Preview Salary Slip"),
+			// function() { frm.trigger('preview_salary_slip'); }, "fa fa-sitemap", "btn-default");
 
 		frm.add_custom_button(__("Add Employees"),function () {
 			frm.trigger('add_employees')
@@ -170,6 +170,8 @@ cur_frm.cscript.salary_component = function(doc, cdt, cdn){
 
 		}
 };
+
+
 
 var calculate_totals = function(doc) {
 	var tbl1 = doc.earnings || [];

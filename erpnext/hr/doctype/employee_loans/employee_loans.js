@@ -21,16 +21,12 @@ cur_frm.cscript.employee = function(doc,dt,dn){
 
 
 cur_frm.cscript.transaction_amount = function(doc,dt,dn){
-	calculate_earning_total(doc, dt, dn);
+	// calculate_earning_total(doc, dt, dn);
 }
 
-cur_frm.cscript.transaction_type = cur_frm.cscript.transaction_amount;
+// cur_frm.cscript.transaction_type = cur_frm.cscript.transaction_amount;
 
-// validate
-// ------------------------------------------------------------------------
-cur_frm.cscript.validate = function(doc, dt, dn) {
-	calculate_earning_total(doc, dt, dn);
-}
+
 
 
 
@@ -52,11 +48,11 @@ var calculate_earning_total = function(doc, dt, dn) {
 }
 
 frappe.ui.form.on("Loan Transaction", "e_loan_transaction_remove", function(frm,dt,dn){
-calculate_earning_total(frm.doc, dt, dn);
+	// calculate_earning_total(frm.doc, dt, dn);
 })
 
 frappe.ui.form.on("Loan Transaction", "transaction_date", function(frm,dt,dn){
-	frappe.msgprint("Is the Transaction Date correct? Is it the same month as the salary slip?")
+	// frappe.msgprint("Is the Transaction Date correct? Is it the same month as the salary slip?")
 })
 
 

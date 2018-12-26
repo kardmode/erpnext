@@ -1,5 +1,12 @@
 frappe.listview_settings['Employee'] = {
 	add_fields: ["status", "branch", "department", "designation","image"],
+	onload: function(listview) {
+		if (!frappe.route_options){ //remove this condition if not required
+			frappe.route_options = {
+				"status": ["=", "Active"]
+			};
+		}
+	},
 	filters: [["status","=", "Active"]],
 	get_indicator: function(doc) {
 		var indicator = [__(doc.status), frappe.utils.guess_colour(doc.status), "status,=," + doc.status];

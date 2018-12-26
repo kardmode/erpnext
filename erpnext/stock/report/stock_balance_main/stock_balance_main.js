@@ -1,7 +1,8 @@
+
 // Copyright (c) 2016, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
 
-frappe.query_reports["Import Document"] = {
+frappe.query_reports["Stock Balance Main"] = {
 	"filters": [
 		{
 			"fieldname": "item_code",
@@ -30,6 +31,13 @@ frappe.query_reports["Import Document"] = {
 					
 				
 			},
+		},
+		{
+			"fieldname": "report_style",
+			"label": __("Report Style"),
+			"fieldtype": "Select",
+			"options":["Default","Condensed"],
+			"default":"Default"
 		},
 	]
 }

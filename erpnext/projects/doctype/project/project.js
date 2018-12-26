@@ -39,10 +39,11 @@ frappe.ui.form.on("Project", {
 			}
 		}
 
+		frappe.dynamic_link = { doc: frm.doc, fieldname: 'customer', doctype: 'Customer' }
 		
-		$.each([["customer_address", "customer_filter"],
-			["shipping_address_name", "customer_filter"],
-			["contact_person", "customer_filter"],
+		$.each([["customer_address", "address_query"],
+			["shipping_address_name", "address_query"],
+			["contact_person", "contact_query"],
 			["customer", "customer"]],
 			function(i, opts) {
 				if(me.frm.fields_dict[opts[0]])
@@ -198,12 +199,12 @@ frappe.ui.form.on("Project", {
 		}
 	},
 
-	company: function(frm) {
-		var company = locals[':Company'][frm.doc.company];
-		if(!frm.doc.letter_head && company.default_letter_head) {
-			frm.set_value('letter_head', company.default_letter_head);
-		}
-	},
+	// company: function(frm) {
+		// var company = locals[':Company'][frm.doc.company];
+		// if(!frm.doc.letter_head && company.default_letter_head) {
+			// frm.set_value('letter_head', company.default_letter_head);
+		// }
+	// },
 	customer: function() {
 		erpnext.utils.get_party_details(me.frm, null, null, function(){});
 	},

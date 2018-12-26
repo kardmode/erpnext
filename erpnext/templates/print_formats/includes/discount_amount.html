@@ -1,0 +1,5 @@
+{%- if not doc.get("taxes") -%}
+{%- if doc.discount_amount -%}
+	{{ doc.get_formatted("discount_amount", doc) }}
+{%- endif -%}
+{%- endif -%}

@@ -52,6 +52,14 @@ frappe.ui.form.on("Payment Request", {
 		} else{
 			frm.set_value("advance_required",total_payment_requests);
 		}
+		
+		frm.trigger("calculate_grand_total_payment_requests");
+		
+    },
+	calculate_grand_total_payment_requests: function(frm) {
+		var grand_total_requested = 0;
+		grand_total_requested = frm.doc.advance_required + frm.doc.vat - frm.doc.additional_discount_amount;
+		frm.set_value("grand_total_requested",grand_total_requested);
     },
 	reference_doctype: function(frm) {
 		if (frm.doc.reference_name){
@@ -176,6 +184,28 @@ frappe.ui.form.on("Payment Request", {
 			});
 		}
 	},
+	
+	vat: function(frm) {
+				frm.trigger("calculate_grand_total_payment_requests");
+
+		},
+		
+	additional_discount_amount: function(frm) {
+					frm.trigger("calculate_grand_total_payment_requests");
+
+		},
+		
+	enable_vat: function(frm) {
+		var vat = 0;
+			if(frm.doc.enable_vat === 1)
+				vat = frm.doc.advance_required * 0.05;
+			else
+				vat = 0;
+			frm.set_value("vat",vat);
+					frm.trigger("calculate_grand_total_payment_requests");
+
+		},
+		
 
 });
 
@@ -326,6 +356,8 @@ var calculate_totals = function(frm, cdt, cdn) {
 	var outstanding_amount = 0;
 	var total_advance = 0;
 	var projects = [];
+	var vat = 0;
+		
 	for(var i=0;i<invoices.length;i++) {
 		if(projects.indexOf(invoices[i].project)<0)
 		{
@@ -336,13 +368,19 @@ var calculate_totals = function(frm, cdt, cdn) {
 
 	}
 	total_advance = flt(grand_total)-flt(outstanding_amount);
-	
+		if(frm.doc.enable_vat === 1)
+				vat = frm.doc.advance_required * 0.05;
+			else
+				vat = 0;
+				
 	var subject = projects.join(', ');
 	
 	frm.set_value("grand_total",grand_total);
 	frm.set_value("outstanding_amount",outstanding_amount);
 	frm.set_value("total_advance",total_advance);
 	frm.set_value("subject",subject);
+	frm.set_value("vat",vat);
+
 	cur_frm.dirty();
 }
 

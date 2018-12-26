@@ -1,16 +1,27 @@
 
 		{% for(var i=0, l=data.length; i<l; i++) { %}
 			{% if(data[i][__("Employee")]) { %}
-				<div style="margin-bottom: 7px;">
-				{%= frappe.boot.letter_heads[data[i][__("Company")]].header %}
-				</div>
 			
-				<div class="print-heading">
+			<div id="header-html" class="hidden-pdf">
+		<div class="letter-head">
+	
+		{%= frappe.boot.letter_heads[data[i][__("Company")]].header %}
+	
+	</div>
+    
+    <div class="print-heading">
 						<h2>ATTENDANCE SLIP<br>
-							<small>{%= (data[i][__("Employee")]) %} - {%= data[i][__("Employee Name")] %} - {%= data[i][__("Designation")] %} - {%= filters.month %}. {%= filters.fiscal_year %}</h2>
+							<small>{%= (data[i][__("Employee")]) %} - {%= data[i][__("Employee Name")] %} - {%= data[i][__("Designation")] %} - {%= filters.month %}. {%= filters.fiscal_year %}
 							</small>
 						</h2>
 					</div>
+	
+    
+	</div>
+				
+				
+			
+				
 					<table class="table table-bordered table-condensed">
 					<thead>
 						<tr style>

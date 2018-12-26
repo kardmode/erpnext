@@ -37,6 +37,7 @@ class calculate_taxes_and_totals(object):
 		self.manipulate_grand_total_for_inclusive_tax()
 		self.calculate_totals()
 		self._cleanup()
+		self.calculate_total_net_weight()
 
 	def validate_conversion_rate(self):
 		# validate conversion rate
@@ -332,6 +333,30 @@ class calculate_taxes_and_totals(object):
 		self.doc.round_floats_in(self.doc, ["grand_total", "base_grand_total"])
 
 		self.set_rounded_total()
+		
+	def calculate_total_net_weight(self):
+		if self.doc.meta.get_field('total_net_weight'):
+			self.doc.total_net_weight = 0.0
+			base_weight_uom = "Kg"
+			if self.doc.meta.get_field('net_weight_uom'):
+				if self.doc.net_weight_uom:
+					base_weight_uom = self.doc.net_weight_uom
+				else:
+					self.doc.net_weight_uom = base_weight_uom
+			
+			for d in self.doc.items:
+				if d.weight_uom:
+					if d.total_weight:
+						converted_value = 0
+						is_valid, converted_value = convert_weight_unit(d.total_weight,d.weight_uom,base_weight_uom);
+						if is_valid:
+							self.doc.total_net_weight += converted_value
+		
+		
+			
+			
+			
+			
 
 	def set_rounded_total(self):
 		if self.doc.meta.get_field("rounded_total"):
@@ -623,3 +648,50 @@ def get_rounded_tax_amount(itemised_tax, precision):
 	for taxes in itemised_tax.values():
 		for tax_account in taxes:
 			taxes[tax_account]["tax_amount"] = flt(taxes[tax_account]["tax_amount"], precision)
+			
+def is_weight_unit(UOM):
+	weight_array = ['kg','g','tonne']
+	if str(UOM).lower() in weight_array:
+		return True
+	
+	return False
+
+	
+def convert_weight_unit(in_value, in_uom, out_uom):
+	base_value = 0
+	out_value = 0
+	if in_value and in_uom and out_uom:
+		
+		if is_weight_unit(in_uom) and is_weight_unit(out_uom):
+			base_value = convert_weight_to_base(in_uom,in_value)
+			out_value = convert_weight_from_base(out_uom,base_value)
+			return True,out_value
+		
+		return False,out_value
+		
+	
+	return False,out_value
+	
+
+
+def convert_weight_to_base(unit,value):
+	finalvalue = 0
+	if unit == "g":
+		finalvalue = flt(value) * flt(0.001)
+	elif unit == "tonne":
+		finalvalue = flt(value) * flt(1000)
+	else:
+		finalvalue = flt(value)
+	return finalvalue
+
+def convert_weight_from_base(unit,value):
+	finalvalue = 0
+	if unit == "g":
+		finalvalue = flt(value) / flt(0.001)
+	elif unit == "tonne":
+		finalvalue = flt(value) / flt(1000)
+	else:
+		finalvalue = flt(value)
+	return finalvalue
+
+

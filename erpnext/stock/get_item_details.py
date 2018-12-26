@@ -254,6 +254,7 @@ def get_basic_details(args, item):
 		"is_fixed_asset": item.is_fixed_asset,
 		"weight_per_unit":item.weight_per_unit,
 		"weight_uom":item.weight_uom,
+		"hs_code":item.customs_tariff_number,
 	})
 
 	# calculate conversion factor
@@ -467,7 +468,11 @@ def get_conversion_factor(item_code, uom):
 	
 	conversion_factor = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
 	
-	# if not conversion_factor:
+	if not conversion_factor:
+		if uom == "Sheet" and stock_uom == "Nos":
+			conversion_factor = 1
+		elif uom == "Nos" and stock_uom == "Sheet":
+			conversion_factor = 1
 	
 		# conversion_factor = convert_SI(1,stock_uom,uom)
 		# if conversion_factor:
@@ -486,6 +491,37 @@ def get_conversion_factor(item_code, uom):
 				# return {"conversion_factor": None}
 		
 	return {"conversion_factor": conversion_factor}
+	
+@frappe.whitelist()
+def get_conversion_factor_between_two_units(item_code, initial_uom, final_uom):
+	variant_of,stock_uom = frappe.db.get_value("Item", item_code, ["variant_of","stock_uom"])
+	
+	if not item_code or not initial_uom or not final_uom:
+		return {"conversion_factor": 1}
+	
+	if initial_uom == stock_uom:
+		return get_conversion_factor(item_code, final_uom)
+	else:
+		uom = initial_uom
+		filters = {"parent": item_code, "uom": uom}
+		if variant_of:
+			filters["parent"] = ("in", (item_code, variant_of))
+
+		conversion_factor_initial = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
+	
+		uom = final_uom
+		filters = {"parent": item_code, "uom": uom}
+		if variant_of:
+			filters["parent"] = ("in", (item_code, variant_of))
+
+		conversion_factor_final = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
+		
+		
+		if not conversion_factor_initial or not conversion_factor_final:
+			return {"conversion_factor": 1}
+		
+		conversion_factor = (1/conversion_factor_initial) / (1/conversion_factor_final)
+		return {"conversion_factor": conversion_factor}
 
 @frappe.whitelist()
 def get_SI_units(type = "length"):

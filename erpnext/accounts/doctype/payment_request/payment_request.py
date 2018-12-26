@@ -33,8 +33,8 @@ class PaymentRequest(Document):
 		# self.validate_payment_request()
 		# self.validate_currency()
 		
-		self.request_in_words = money_in_words(self.advance_required, self.currency)
-		self.in_words = money_in_words(self.outstanding_amount, self.currency)
+		self.grand_total_requested = flt(self.advance_required) + flt(self.vat) - flt(self.additional_discount_amount)
+		self.request_in_words = money_in_words(self.grand_total_requested, self.currency)
 
 
 	def validate_reference_document(self):
@@ -282,17 +282,17 @@ class PaymentRequest(Document):
 		
 		
 		
-		total_advance = flt(grand_total)-flt(outstanding_amount)
 		
 		self.currency ="AED"
 		self.grand_total = grand_total
 		
 		
 		self.outstanding_amount = outstanding_amount
-		self.total_advance = total_advance
-		
+		self.total_advance = flt(grand_total)-flt(outstanding_amount)
 		self.in_words = money_in_words(self.outstanding_amount, self.currency)
-		self.request_in_words = money_in_words(self.advance_required, self.currency)
+		
+		self.grand_total_requested = flt(self.advance_required) + flt(self.vat) - flt(self.additional_discount_amount)
+		self.request_in_words = money_in_words(self.grand_total_requested, self.currency)
 
 @frappe.whitelist(allow_guest=True)
 def make_payment_request(**args):

@@ -1,15 +1,17 @@
 {
+ "add_company_abbr_to_name": 1, 
  "allow_copy": 1, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
  "allow_rename": 0, 
+ "append_company_abbr_to_name": "0", 
  "beta": 0, 
  "creation": "2013-01-21 12:03:47", 
  "custom": 0, 
  "default_print_format": "", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Other", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -1001,7 +1003,7 @@
  "issingle": 1, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-11-08 02:09:05.208775", 
+ "modified": "2018-11-04 00:52:14.593329", 
  "modified_by": "Administrator", 
  "module": "Manufacturing", 
  "name": "Production Planning Tool", 

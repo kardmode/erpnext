@@ -15,11 +15,10 @@
 			<div class="primary">
 					{{ _(doc.item_code) }}
 			</div>
-		{%- endif %}
-
-	{%- if doc.in_format_data("item_name") and "item_name" in display_columns and columns|length == 0 and
-		not (doc.in_format_data("item_code")) -%}
-				{{ _(doc.item_name) }}
+	{%- elif doc.in_format_data("item_name") and "item_name" in display_columns -%}
+			<div class="primary_name">
+					{{ _(doc.item_name) }}
+			</div>
 	{%- endif %}
 
 
