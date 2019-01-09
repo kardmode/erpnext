@@ -60,6 +60,10 @@ class LeaveApplication(Document):
 	def on_cancel(self):
 		# notify leave applier about cancellation
 		self.notify_employee("cancelled")
+		
+	def on_trash(self):
+		if self.status != "Open":
+			frappe.throw(_("Only Leave Applications with status 'Open' can be deleted"))
 
 	def validate_dates(self):
 		if self.from_date and self.to_date and (getdate(self.to_date) < getdate(self.from_date)):
@@ -72,10 +76,14 @@ class LeaveApplication(Document):
 				frappe.throw(_("Half Day Date should be between From Date and To Date"))
 
 		if not is_lwp(self.leave_type):
-			self.validate_dates_acorss_allocation()
+			self.validate_dates_across_allocation()
 			self.validate_back_dated_application()
 
-	def validate_dates_acorss_allocation(self):
+	def validate_dates_across_allocation(self):
+	
+		if frappe.db.get_value("Leave Type", self.leave_type, "allow_negative"):
+			return
+	
 		def _get_leave_alloction_record(date):
 			allocation = frappe.db.sql("""select name from `tabLeave Allocation`
 				where employee=%s and leave_type=%s and docstatus=1
@@ -147,8 +155,9 @@ class LeaveApplication(Document):
 
 				if self.status != "Rejected" and self.leave_balance < self.total_leave_days:
 					if frappe.db.get_value("Leave Type", self.leave_type, "allow_negative"):
-						frappe.msgprint(_("Note: There is not enough leave balance for Leave Type {0}")
-							.format(self.leave_type))
+						pass
+						# frappe.msgprint(_("Note: There is not enough leave balance for Leave Type {0}")
+							# .format(self.leave_type))
 					else:
 						frappe.throw(_("There is not enough leave balance for Leave Type {0}")
 							.format(self.leave_type))

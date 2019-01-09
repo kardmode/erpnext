@@ -233,8 +233,11 @@ class SalarySlip(TransactionBase):
 					# total_absent = total_absent+1
 			
 					
-			self.absent_days = flt(total_absent) 
-			self.unverified_days = flt(self.total_working_days) - flt(total_days)
+			self.absent_days = flt(total_absent)
+			
+
+			self.unverified_days = flt(self.total_working_days) - flt(total_days) - self.on_leave_days
+
 			self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
 			self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(frappe.db.get_single_value("Regulations", "overtime_fridays_rate"))
 			self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
@@ -377,7 +380,7 @@ class SalarySlip(TransactionBase):
 
 	def get_leave_details(self, joining_date=None, relieving_date=None, lwp=None):
 	
-		self.get_attendance_details()
+		
 		
 		if not joining_date:
 			joining_date, relieving_date = frappe.db.get_value("Employee", self.employee,
@@ -386,6 +389,9 @@ class SalarySlip(TransactionBase):
 		holidays = self.get_holidays_for_employee(self.start_date, self.end_date)
 		working_days = date_diff(self.end_date, self.start_date) + 1
 		actual_lwp = self.calculate_lwp(holidays, working_days)
+		self.on_leave_days = actual_lwp
+		self.get_attendance_details()
+		
 		if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
 			working_days -= len(holidays)
 			if working_days < 0:
@@ -455,7 +461,7 @@ class SalarySlip(TransactionBase):
 				select t1.name, t1.half_day
 				from `tabLeave Application` t1, `tabLeave Type` t2
 				where t2.name = t1.leave_type
-				and t2.is_lwp = 1
+				and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
 				and t1.docstatus < 2
 				and t1.status in ('Approved','Back From Leave')
 				and t1.employee = %(employee)s
@@ -596,8 +602,8 @@ class SalarySlip(TransactionBase):
 		# self.gratuity_calculation = ''
 		
 		if not relieving_date:
-			if self.encash_leave:
-				leave_encashment_amount,self.leave_calculation = self.calculate_leaveadvance(salaryperday, joining_date)
+			leave_encashment_amount,self.leave_calculation = self.calculate_leaveadvance(salaryperday, joining_date)
+
 		# elif relieving_date <= getdate(self.end_date):
 			# gratuity_encashment, self.gratuity_calculation, leave_encashment_amount = calculate_gratuity(self.employee,salaryperday,joining_date, relieving_date)
 
@@ -693,9 +699,11 @@ class SalarySlip(TransactionBase):
 		leave_calculation = ''
 		
 		leave = frappe.db.sql("""
-			select from_date,to_date,leave_type
-			from `tabLeave Application` t1
-			where (t1.leave_type = 'Vacation Leave' OR t1.leave_type = 'Encash Leave')
+			select t1.from_date,t1.to_date,t1.leave_type,t2.is_paid_in_advance,t2.is_present_during_period
+			from `tabLeave Application` t1, `tabLeave Type` t2
+			where 
+			t2.name = t1.leave_type
+			and t2.is_paid_in_advance = 1
 			and t1.docstatus < 2
 			and t1.status in ('Approved','Back From Leave')
 			and t1.employee = %s
@@ -704,40 +712,39 @@ class SalarySlip(TransactionBase):
 		
 		
 		if leave:
-			if leave[0].leave_type == "Vacation Leave":
+			if leave[0].is_present_during_period == False:
 				end_date = leave[0].from_date
 				# Relieving date should be decremented since leave applications include the first day
 				end_date = end_date - timedelta(days=1)
 
 				if end_date < getdate(self.start_date):
-					self.encash_leave = 0
-					frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
+					# self.encash_leave = 0
+					# frappe.msgprint(_("No leave applications found for this period. Please approve a leave application for this employee"))
 					return leaveadvance,leave_calculation
 					
 				if date_diff(end_date, joining_date) < 365:
-					frappe.msgprint(_("This employee has worked at the company for less than a year."))
+					# frappe.msgprint(_("This employee has worked at the company for less than a year."))
+					pass
 				
 				if len(leave)>1:
 					joining_date = leave[1].to_date
 					
 					# Joining date should be incremented since leave applications include the last day
 					joining_date = joining_date + timedelta(days=1)
-					frappe.msgprint(_("Calculating Leave From Date {0} To Date {1}.").format(joining_date,end_date))
+					# frappe.msgprint(_("Calculating Leave From Date {0} To Date {1}.").format(joining_date,end_date))
 				else:
-					frappe.msgprint(_("No previous application found for this employee. Using company joining date."))
+					pass
+					# frappe.msgprint(_("No previous application found for this employee. Using company joining date."))
 
 
-			elif leave[0].leave_type == "Encash Leave":					
+			else:					
 				end_date = leave[0].to_date
 				joining_date = leave[0].from_date
-				frappe.msgprint(_("Special Case: Leave Encashment application dated {0}.").format(end_date))
-			else:
-				self.encash_leave = 0
-				frappe.msgprint(_("No VACATION/ENCASH leave applications found for this period. Change LEAVE WITHOUT PAY Applications to VACATION/ENCASH"))
-				return leaveadvance,leave_calculation
+				# frappe.msgprint(_("Special Case: Leave Encashment application dated {0}.").format(end_date))
+
 		else:
-			self.encash_leave = 0
-			frappe.msgprint(_("No leave applications found for this period. Please approve a valid leave application for this employee"))
+			# self.encash_leave = 0
+			# frappe.msgprint(_("No leave applications found for this period. Please approve a valid leave application for this employee"))
 			return leaveadvance,leave_calculation
 		
 		payment_days = date_diff(end_date, joining_date)+1
@@ -751,11 +758,20 @@ class SalarySlip(TransactionBase):
 			self.precision("net_pay"))
 		
 		from frappe.utils import formatdate
-
+		
+		
+	
+		
+		leave_type_text = ""
+		if leave[0].is_present_during_period == False:
+			leave_type_text = "Away for Leave"
+		else:
+			leave_type_text = "Present for Leave"
+		header_text = str(leave[0].leave_type) + " - Paid In Advance - " + str(leave_type_text)
 		joiningtext = "From Date: " + formatdate(joining_date) + " - To Date: " + formatdate(end_date) + " - Total Working Days: " + str(payment_days) 
 		workingdaystext =  "Leave Days Due (Rounded): " + str(leavedaysdue)
 		leavetext = "30 Days Leave Accumulated Every Year"
-		leave_calculation = joiningtext + " - " + workingdaystext + "<br>" + leavetext + "<br>"
+		leave_calculation = header_text + "<br>" + joiningtext + " - " + workingdaystext + "<br>" + leavetext + "<br>"
 		
 		return leaveadvance,leave_calculation
 	
@@ -851,15 +867,22 @@ def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contr
 	
 	from erpnext.hr.doctype.leave_application.leave_application \
 		import get_approved_leaves_for_period
-	leave_type = "Vacation Leave"
-	leavedaystaken = get_approved_leaves_for_period(employee, leave_type, 
-			joining_date, relieving_date)
-	leave_type = "Encash Leave"				
-	leavedaystaken += flt(get_approved_leaves_for_period(employee, leave_type, joining_date, relieving_date))
 	
-	leave_type = "Leave Without Pay"
-	leavedaystaken += flt(get_approved_leaves_for_period(employee, leave_type, joining_date, relieving_date))
-
+	
+	leave_types = frappe.db.sql("""
+			select name
+			from `tabLeave Type` t2
+			where 
+			t2.is_paid_in_advance = 1
+			and t1.docstatus < 2
+			and t1.status in ('Approved','Back From Leave')
+			and t1.employee = %s
+			and t1.from_date <= %s""", (employee, dt), as_dict=True)
+	
+	leavedaystaken = 0
+	
+	for leave_type in leave_types:
+		leavedaystaken += get_approved_leaves_for_period(employee, leave_type, joining_date, relieving_date)
 	leavesbalance = leavedaysdue - leavedaystaken
 	
 	

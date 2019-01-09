@@ -295,7 +295,7 @@ cur_frm.cscript.arrear_amount = function(doc,dt,dn){
 
 // Leave encashment
 cur_frm.cscript.encash_leave = function(doc,dt,dn){
-	calculate_earnings(doc, dt, dn);	
+	// calculate_earnings(doc, dt, dn);	
 }
 
 // Loan deduction

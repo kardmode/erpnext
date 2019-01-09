@@ -120,7 +120,8 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
 				if(!r.messages) r.messages = [];
 				
-				r.messages = $.map(r.message.messages, function(v) {
+				if(r.exc || r.error || r.message.error) {
+					r.messages = $.map(r.message.messages, function(v) {
 						var msg = v.replace("Inserted", "Valid")
 							.replace("Updated", "Valid").split("<");
 						if (msg.length > 1) {
@@ -130,6 +131,15 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 						}
 						return v;
 					});
+				
+				}
+				else{
+					r.messages = r.message.messages;
+					
+				}
+				
+					
+								
 				
 				// replace links if error has occured
 				if(r.exc || r.error || r.message.error) {

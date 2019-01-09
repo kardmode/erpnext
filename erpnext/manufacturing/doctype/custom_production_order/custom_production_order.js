@@ -281,8 +281,8 @@ frappe.ui.form.on('Custom Production Order', {
 });
 
 frappe.ui.form.on("Custom Production Item",{
-	bom:function(frm, cdt, cdn) {
-	},
+	// bom:function(frm, cdt, cdn) {
+	// },
 	item_code:function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
 		

@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import cstr,time_diff,time_diff_in_seconds,getdate, get_datetime, get_time,flt,cint, nowdate
+from frappe.utils import cstr,time_diff,time_diff_in_seconds,getdate, get_datetime, get_time,flt,cint, nowdate,formatdate
 from frappe import _
 
 class NegativeHoursError(frappe.ValidationError): pass
@@ -19,7 +19,7 @@ class Attendance(Document):
 			(self.employee, self.attendance_date, self.name))
 
 		if res:
-			frappe.throw(_("Attendance for employee {0} is already marked, date {1}").format(self.employee,self.attendance_date))
+			frappe.throw(_("Attendance for employee {0} is already marked, date {1}").format(self.employee,formatdate(self.attendance_date)))
 
 		set_employee_name(self)
 	
@@ -47,9 +47,25 @@ class Attendance(Document):
 			
 		if self.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
 			self.departure_time = "00:00:00"
+		
+		try:
+			self.departure_time = get_time(self.departure_time ).strftime("%H:%M:%S")
+		except Exception, e:
+			frappe.throw(_("Possible error in departure time {0} for employee {1}: {2}").format(self.departure_time,self.employee, cstr(e)))
+		except ValueError, e:
+			frappe.throw(_("Possible error in departure time {0} for employee {1}: {2}").format(self.departure_time,self.employee, cstr(e)))
+		except:
+			frappe.throw(_("Possible error in departure time {0} for employee {1}: {2}").format(self.departure_time,self.employee))
+		
+		try:
+			self.arrival_time = get_time(self.arrival_time).strftime("%H:%M:%S")
+		except Exception, e:
+			frappe.throw(_("Possible error in arrival time {0} for employee {1}").format(self.arrival_time,self.employee, cstr(e)))
+		except ValueError, e:
+			frappe.throw(_("Possible error in arrival time {0} for employee {1}").format(self.arrival_time,self.employee, cstr(e)))
+		except:
+			frappe.throw(_("Possible error in arrival time {0} for employee {1}").format(self.arrival_time,self.employee))
 			
-		self.departure_time = get_time(self.departure_time ).strftime("%H:%M:%S")
-		self.arrival_time = get_time(self.arrival_time).strftime("%H:%M:%S")
 		
 		totalworkhours = 0
 		try:

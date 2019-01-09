@@ -7,4 +7,7 @@ import frappe
 from frappe.model.document import Document
 
 class LeaveType(Document):
-	pass
+	def validate(self):
+		if self.is_lwp ==1:
+			self.is_paid_in_advance = 0
+			self.is_present_during_period = 0

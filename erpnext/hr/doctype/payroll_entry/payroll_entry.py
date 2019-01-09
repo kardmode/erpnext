@@ -79,10 +79,7 @@ class PayrollEntry(Document):
 						new_emp_list.append(e)
 				else:
 					payment_days = 0
-					payment_days = flt(self.get_payment_days(joining_date, relieving_date))-flt(lwp)
-					if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
-						holidays = self.get_holidays_for_employee(joining_date, relieving_date)
-						payment_days -= len(holidays)
+					payment_days = flt(self.get_payment_days(e.employee,joining_date, relieving_date))-flt(lwp)
 					if payment_days > 0:
 						new_emp_list.append(e)
 
@@ -90,7 +87,7 @@ class PayrollEntry(Document):
 
 			return new_emp_list
 
-	def get_payment_days(self, joining_date, relieving_date):
+	def get_payment_days(self,employee, joining_date, relieving_date):
 		start_date = getdate(self.start_date)
 		if joining_date:
 			if getdate(self.start_date) <= joining_date <= getdate(self.end_date):
@@ -108,12 +105,14 @@ class PayrollEntry(Document):
 
 		payment_days = date_diff(end_date, start_date) + 1
 		
-		
-		
+		if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
+			holidays = self.get_holidays_for_employee(employee,start_date, end_date)
+			payment_days -= len(holidays)
 		return payment_days
 		
-	def get_holidays_for_employee(self, start_date, end_date):
-		holiday_list = get_holiday_list_for_employee(self.employee)
+		
+	def get_holidays_for_employee(self,employee, start_date, end_date):
+		holiday_list = get_holiday_list_for_employee(employee)
 		holidays = frappe.db.sql_list('''select holiday_date from `tabHoliday`
 			where
 				parent=%(holiday_list)s
@@ -477,7 +476,8 @@ class PayrollEntry(Document):
 			leave = frappe.db.sql("""
 				select t1.name, t1.half_day, t1.leave_type
 				from `tabLeave Application` t1, `tabLeave Type` t2
-				where t1.leave_type <> 'Encash Leave'
+				where t2.name = t1.leave_type
+				and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
 				and t1.docstatus < 2
 				and t1.status in ('Approved','Back From Leave')
 				and t1.employee = %s

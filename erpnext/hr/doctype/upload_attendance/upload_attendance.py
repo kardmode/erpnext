@@ -5,9 +5,10 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import flt,cstr, add_days, date_diff, get_datetime,getdate,get_time,cstr
+from frappe.utils import flt,cstr, add_days, date_diff, get_datetime,getdate,get_time,cstr,formatdate
 from frappe import _
 from frappe.utils.csvutils import UnicodeWriter
+from frappe.utils.dateutils import parse_date
 from frappe.model.document import Document
 
 class UploadAttendance(Document):
@@ -116,7 +117,6 @@ def upload(import_settings = None):
 	else:
 		import_settings = params.get("import_settings")
 		
-	
 
 	from frappe.utils.csvutils import check_record, import_doc
 	
@@ -128,37 +128,40 @@ def upload(import_settings = None):
 		d = frappe._dict(zip(columns, row))
 		d["doctype"] = "Attendance"
 		
-		if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
-			d.arrival_time = "00:00:00"
+		# if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			# d.arrival_time = "00:00:00"
 			
-		if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
-			d.departure_time = "00:00:00"
+		# if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			# d.departure_time = "00:00:00"
 			
-		d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
-		d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
+		# d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
+		# d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
+		
+		
 		
 		
 		if import_settings == "ignore":
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, getdate(d.attendance_date)),as_dict=True)
+			(d.employee, getdate(parse_date(d.attendance_date))),as_dict=True)
 			if attendance:
+				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
 
-				ret.append('Ignored row (#%d) %s : %s' % (row_idx+1,
-					len(row)>1 and row[1] or "", cstr(d.employee)))
+				# ret.append('Ignored row (#%d) %s : %s - %s' % (row_idx+1,
+					# len(row)>1 and row[1] or "", cstr(d.employee),link))
 			else:
 				try:
 					check_record(d)
 					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
 				except Exception, e:
-					error = True
+					# error = True
 					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
 						len(row)>1 and row[1] or "", cstr(e)))
-					frappe.errprint(frappe.get_traceback())
+					# frappe.errprint(frappe.get_traceback())
 				
 				
 		elif import_settings == "update":
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-				(d.employee, getdate(d.attendance_date)),as_dict=True)
+			(d.employee, getdate(parse_date(d.attendance_date))),as_dict=True)
 			
 			if attendance:
 				d["docstatus"] = attendance[0].docstatus
@@ -173,16 +176,27 @@ def upload(import_settings = None):
 				error = True
 				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
 					len(row)>1 and row[1] or "", cstr(e)))
-				frappe.errprint(frappe.get_traceback())
+				# frappe.errprint(frappe.get_traceback())
 		else:
-			try:
-				check_record(d)
-				ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
-			except Exception, e:
+			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
+			(d.employee, getdate(parse_date(d.attendance_date))),as_dict=True)
+			
+			
+			if attendance:
 				error = True
-				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-					len(row)>1 and row[1] or "", cstr(e)))
-				frappe.errprint(frappe.get_traceback())
+				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
+				ret.append('Error for row (#%d) %s : %s - %s. Attendance Date %s Already Marked' % (row_idx+1,
+					len(row)>1 and row[1] or "", cstr(d.employee),str(d.attendance_date),link))
+			else:
+				
+				try:
+					check_record(d)
+					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+				except Exception, e:
+					error = True
+					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+						len(row)>1 and row[1] or "", cstr(e)))
+					# frappe.errprint(frappe.get_traceback())
 	
 	if not started:
 		error = True
@@ -211,14 +225,14 @@ def update_attendance(start_date,end_date):
 	for att in attendances:
 		d = frappe.get_doc("Attendance", att.name)
 		
-		if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
-			d.arrival_time = "00:00:00"
+		# if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			# d.arrival_time = "00:00:00"
 			
-		if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
-			d.departure_time = "00:00:00"
+		# if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
+			# d.departure_time = "00:00:00"
 			
-		d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
-		d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
+		# d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
+		# d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
 
 		d.save()
 		

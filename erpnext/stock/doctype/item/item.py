@@ -47,6 +47,8 @@ class Item(WebsiteGenerator):
 				self.item_code = make_autoname(self.naming_series+'.#####')
 		elif not self.item_code:
 			msgprint(_("Item Code is mandatory because Item is not automatically numbered"), raise_exception=1)
+		
+		# self.name = self.processString(self.item_code)
 
 		self.name = self.item_code
 		
@@ -55,11 +57,10 @@ class Item(WebsiteGenerator):
 		import re
 		rx = re.compile('\W+')
 		code = rx.sub(' ', word).strip()
-		
-		code = word
-		
-		code = str(code).replace(" x ", "x")
-		code = str(code).replace(" X ", "x")
+		code = code.strip()
+		code = frappe.db.escape(word)
+		# code = str(code).replace(" x ", "x")
+		# code = str(code).replace(" X ", "x")
 		# code = str(code).replace('"', 'in')
 		# code = str(code).replace('" ', 'in ')
 		# code = str(code).replace(' " ', ' in ')
@@ -67,29 +68,29 @@ class Item(WebsiteGenerator):
 		# code = str(code).replace("' ",'ft ')
 		# code = str(code).replace(" ' ",' ft ')
 	
-		words = code.split()
-		newword = ""
-		for s in words:
-			if str(s).lower() in ["x"]:
-				s = str(s).lower()
+		# words = code.split()
+		# newword = ""
+		# for s in words:
+			# if str(s).lower() in ["x"]:
+				# s = str(s).lower()
 				
-				if newword == "":
-					newword = s
-				else:
-					newword = newword + ' ' + s
-			elif str(s).lower() in ["mm","ft","in","cm","m"]:
-				s = str(s).lower()
+				# if newword == "":
+					# newword = s
+				# else:
+					# newword = newword + ' ' + s
+			# elif str(s).lower() in ["mm","ft","in","cm","m"]:
+				# s = str(s).lower()
 				
-				if newword == "":
-					newword = s
-				else:
-					newword = newword + s
-			else:
-				s = str(s).capitalize()
-				if newword == "":
-					newword = s
-				else:
-					newword = newword + ' ' + s
+				# if newword == "":
+					# newword = s
+				# else:
+					# newword = newword + s
+			# else:
+				# s = str(s).capitalize()
+				# if newword == "":
+					# newword = s
+				# else:
+					# newword = newword + ' ' + s
 					
 
 		code = code.strip()
@@ -100,7 +101,7 @@ class Item(WebsiteGenerator):
 	
 
 	def before_insert(self):
-		self.item_code = self.processString(self.item_code)
+		# self.item_code = self.processString(self.item_code)
 
 		if not self.item_name:
 			self.item_name = self.item_code
