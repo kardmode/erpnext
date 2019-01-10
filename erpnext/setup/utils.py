@@ -119,7 +119,7 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None):
 				conversion_factor = 1/3.68
 				
 			
-			api_url = "http://api.fixer.io/{0}".format(transaction_date)
+			api_url = "https://frankfurter.app/{0}".format(transaction_date)
 			response = requests.get(api_url, params={
 				"base": from_currency,
 				"symbols": to_currency

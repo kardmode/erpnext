@@ -33,7 +33,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				item.margin_rate_or_amount = 0;
 				item.rate_with_margin = 0;
 			}
-
+			item.base_rate_with_margin = item.rate_with_margin * flt(frm.doc.conversion_rate);
 			cur_frm.cscript.set_gross_profit(item);
 			cur_frm.cscript.calculate_taxes_and_totals();
 
@@ -133,7 +133,8 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 
 
 		if(
-			this.frm.fields_dict["payment_terms_template"]
+			this.frm.docstatus < 2
+			&& this.frm.fields_dict["payment_terms_template"]
 			&& this.frm.fields_dict["payment_schedule"]
 			&& this.frm.doc.payment_terms_template
 			&& !this.frm.doc.payment_schedule.length
@@ -266,8 +267,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		
 		
 		this.set_dynamic_labels();
-		// this.setup_sms();
-
+		this.setup_sms();
 	},
 
 	apply_default_taxes: function() {
@@ -275,15 +275,20 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		var taxes_and_charges_field = frappe.meta.get_docfield(me.frm.doc.doctype, "taxes_and_charges",
 			me.frm.doc.name);
 
-		if(taxes_and_charges_field) {
+		if (!this.frm.doc.taxes_and_charges && this.frm.doc.taxes) {
+			return;
+		}
+
+		if (taxes_and_charges_field) {
 			return frappe.call({
 				method: "erpnext.controllers.accounts_controller.get_default_taxes_and_charges",
 				args: {
 					"master_doctype": taxes_and_charges_field.options,
+					"tax_template": me.frm.doc.taxes_and_charges,
 					"company": me.frm.doc.company
 				},
 				callback: function(r) {
-					if(!r.exc) {
+					if(!r.exc && r.message) {
 						frappe.run_serially([
 							() => {
 								// directly set in doc, so as not to call triggers
@@ -435,7 +440,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				item.serial_no = valid_serial_nos.join('\n');
 
 				refresh_field("serial_no", item.name, item.parentfield);
-				if(!doc.is_return) {
+				if(!doc.is_return && cint(user_defaults.set_qty_in_transactions_based_on_serial_no_input)) {
 					frappe.model.set_value(item.doctype, item.name,
 						"qty", valid_serial_nos.length / item.conversion_factor);
 					frappe.model.set_value(item.doctype, item.name, "stock_qty", valid_serial_nos.length);
@@ -493,7 +498,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				}
 
 				var party = me.frm.doc[frappe.model.scrub(party_type)];
-				if(party) {
+				if(party && me.frm.doc.company) {
 					return frappe.call({
 						method: "erpnext.accounts.party.get_party_account",
 						args: {
@@ -558,8 +563,10 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					},
 					callback: function(r, rt) {
 						if(r.message) {
-							me.frm.set_value("due_date", r.message);
+							me.frm.doc.due_date = r.message;
+							refresh_field("due_date");
 							frappe.ui.form.trigger(me.frm.doc.doctype, "currency");
+							me.recalculate_terms();
 						}
 					}
 				})
@@ -599,6 +606,53 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		}
 	},
 
+
+	due_date: function() {
+		// due_date is to be changed, payment terms template and/or payment schedule must
+		// be removed as due_date is automatically changed based on payment terms
+		if (this.frm.doc.due_date && !this.frm.updating_party_details && !this.frm.doc.is_pos) {
+			if (this.frm.doc.payment_terms_template ||
+				(this.frm.doc.payment_schedule && this.frm.doc.payment_schedule.length)) {
+				var message1 = "";
+				var message2 = "";
+				var final_message = "Please clear the ";
+
+				if (this.frm.doc.payment_terms_template) {
+					message1 = "selected Payment Terms Template";
+					final_message = final_message + message1;
+				}
+
+				if ((this.frm.doc.payment_schedule || []).length) {
+					message2 = "Payment Schedule Table";
+					if (message1.length !== 0) message2 = " and " + message2;
+					final_message = final_message + message2;
+				}
+				frappe.msgprint(final_message);
+			}
+		}
+	},
+
+	recalculate_terms: function() {
+		const doc = this.frm.doc;
+
+		if (doc.payment_terms_template) {
+			this.payment_terms_template();
+		} else if (doc.payment_schedule) {
+			const me = this;
+			doc.payment_schedule.forEach(
+				function(term) {
+					if (term.payment_term) {
+						me.payment_term(doc, term.doctype, term.name);
+					} else {
+						frappe.model.set_value(
+							term.doctype, term.name, 'due_date',
+							doc.posting_date || doc.transaction_date
+						);
+					}
+				}
+			);
+		}
+	},
 
 	get_company_currency: function() {
 		return erpnext.get_currency(this.frm.doc.company);
@@ -683,6 +737,9 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				}
 			}).fail(() => this.frm.set_value('shipping_rule', ''));
 		}
+		else {
+			me.calculate_taxes_and_totals();
+		}
 	},
 
 	set_actual_charges_based_on_currency: function() {
@@ -736,7 +793,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		}
 
 		if(!this.in_apply_price_list) {
-			this.apply_price_list();
+			this.apply_price_list(null, true);
 		}
 	},
 
@@ -842,7 +899,8 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		this.frm.toggle_reqd("plc_conversion_rate",
 			!!(this.frm.doc.price_list_name && this.frm.doc.price_list_currency));
 
-		if(this.frm.doc_currency!==this.frm.doc.currency) {
+		if(this.frm.doc_currency!==this.frm.doc.currency
+			|| this.frm.doc_currency!==this.frm.doc.price_list_currency) {
 			// reset names only when the currency is different
 
 			var company_currency = this.get_company_currency();
@@ -1122,7 +1180,13 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		if(!price_list_rate_changed) me.calculate_taxes_and_totals();
 	},
 
-	apply_price_list: function(item) {
+	apply_price_list: function(item, reset_plc_conversion) {
+		// We need to reset plc_conversion_rate sometimes because the call to
+		// `erpnext.stock.get_item_details.apply_price_list` is sensitive to its value
+		if (!reset_plc_conversion) {
+			this.frm.set_value("plc_conversion_rate", "");
+		}
+
 		var me = this;
 		var args = this._get_args(item);
 		if (!((args.items && args.items.length) || args.price_list)) {
@@ -1152,6 +1216,8 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					me.in_apply_price_list = false;
 				}
 			}
+		}).always(() => {
+			me.in_apply_price_list = false;
 		});
 	},
 
@@ -1335,11 +1401,14 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 	payment_terms_template: function() {
 		var me = this;
 		if(this.frm.doc.payment_terms_template) {
+			var posting_date = this.frm.doc.bill_date ||
+				this.frm.doc.posting_date || this.frm.doc.transaction_date;
+
 			frappe.call({
 				method: "erpnext.controllers.accounts_controller.get_payment_terms",
 				args: {
 					terms_template: this.frm.doc.payment_terms_template,
-					posting_date: this.frm.doc.posting_date || this.frm.doc.transaction_date,
+					posting_date: posting_date,
 					grand_total: this.frm.doc.rounded_total || this.frm.doc.grand_total
 				},
 				callback: function(r) {

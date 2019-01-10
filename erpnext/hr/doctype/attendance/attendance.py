@@ -142,18 +142,23 @@ class Attendance(Document):
 		
 	def check_leave_record(self):
 
-		leave_record = frappe.db.sql("""select name from `tabLeave Application`
-			where employee = %s and %s between from_date and to_date and status in ('Approved','Back From Leave')
-			and docstatus < 2 and leave_type <> 'Encash Leave'""", (self.employee, self.attendance_date), as_dict=True)
+		leave_record = frappe.db.sql("""select leave_type, half_day, half_day_date from `tabLeave Application` t1, `tabLeave Type` t2
+			where 
+			t2.name = t1.leave_type
+			and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
+			and t1.employee = %s and %s between t1.from_date and t1.to_date and t1.status in ('Approved','Back From Leave')
+			and t1.docstatus < 2""", (self.employee, self.attendance_date), as_dict=True)
 
 		if leave_record:
-			if leave_record[0].half_day:
-				self.status = 'Half Day'
-				frappe.msgprint(_("Employee {0} on Half day on {1}").format(self.employee, self.attendance_date))
-			else:
-				self.status = 'On Leave'
-				self.leave_type = leave_record[0].leave_type
-				frappe.msgprint(_("Employee {0} on Leave on {1}").format(self.employee, self.attendance_date))
+			for d in leave_record:
+				if d.half_day_date == getdate(self.attendance_date):
+					self.status = 'Half Day'
+					frappe.msgprint(_("Employee {0} on Half day on {1}").format(self.employee, self.attendance_date))
+				else:
+					self.status = 'On Leave'
+					self.leave_type = d.leave_type
+					frappe.msgprint(_("Employee {0} on Leave on {1}").format(self.employee, self.attendance_date))
+
 		if self.status == "On Leave" and not leave_record:
 			frappe.throw(_("No leave record found for employee {0} for {1}").format(self.employee, self.attendance_date))
 		

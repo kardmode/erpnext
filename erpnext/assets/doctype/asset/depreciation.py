@@ -5,13 +5,13 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import flt, today, getdate
+from frappe.utils import flt, today, getdate, cint
 
 def post_depreciation_entries(date=None):
 	# Return if automatic booking of asset depreciation is disabled
-	if not frappe.db.get_value("Accounts Settings", None, "book_asset_depreciation_entry_automatically"):
+	if not cint(frappe.db.get_value("Accounts Settings", None, "book_asset_depreciation_entry_automatically")):
 		return
-		
+
 	if not date:
 		date = today()
 	for asset in get_depreciable_assets(date):
@@ -38,7 +38,7 @@ def make_depreciation_entry(asset_name, date=None):
 
 	depreciation_cost_center, depreciation_series = frappe.db.get_value("Company", asset.company,
 		["depreciation_cost_center", "series_for_depreciation_entry"])
-	
+	depreciation_cost_center = asset.cost_center or depreciation_cost_center
 
 	for d in asset.get("schedules"):
 		if not d.journal_entry and getdate(d.schedule_date) <= getdate(date):
@@ -151,13 +151,12 @@ def restore_asset(asset_name):
 	asset.set_status()
 
 @frappe.whitelist()
-def get_gl_entries_on_asset_disposal(asset, is_sale=False):
+def get_gl_entries_on_asset_disposal(asset, selling_amount=0):
 	fixed_asset_account, accumulated_depr_account, depr_expense_account = get_depreciation_accounts(asset)
-	accumulated_depr_amount = flt(asset.gross_purchase_amount) - flt(asset.value_after_depreciation)
+	disposal_account, depreciation_cost_center = get_disposal_account_and_cost_center(asset.company)
+	depreciation_cost_center = asset.cost_center or depreciation_cost_center
 
-	expense_account, cost_center = get_disposal_account_and_cost_center(asset.company)
-	if is_sale:
-		expense_account = depr_expense_account
+	accumulated_depr_amount = flt(asset.gross_purchase_amount) - flt(asset.value_after_depreciation)
 
 	gl_entries = [
 		{
@@ -172,12 +171,14 @@ def get_gl_entries_on_asset_disposal(asset, is_sale=False):
 		}
 	]
 
-	if flt(asset.value_after_depreciation):
+	profit_amount = flt(selling_amount) - flt(asset.value_after_depreciation)
+	if profit_amount:
+		debit_or_credit = "debit" if profit_amount < 0 else "credit"
 		gl_entries.append({
-			"account": expense_account,
-			"cost_center": cost_center,
-			"debit": flt(asset.value_after_depreciation),
-			"debit_in_account_currency": flt(asset.value_after_depreciation)
+			"account": disposal_account,
+			"cost_center": depreciation_cost_center,
+			debit_or_credit: abs(profit_amount),
+			debit_or_credit + "_in_account_currency": abs(profit_amount)
 		})
 
 	return gl_entries

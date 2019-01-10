@@ -29,6 +29,7 @@ class calculate_taxes_and_totals(object):
 			self.set_item_wise_tax_breakup()
 
 	def _calculate(self):
+		self.validate_conversion_rate()
 		self.calculate_item_values()
 		self.initialize_taxes()
 		self.determine_exclusive_rate()
@@ -65,8 +66,11 @@ class calculate_taxes_and_totals(object):
 				if item.doctype in ['Quotation Item', 'Sales Order Item', 'Delivery Note Item', 'Sales Invoice Item']:
 					item.rate_with_margin, item.base_rate_with_margin = self.calculate_margin(item)
 
-					item.rate = flt(item.rate_with_margin * (1.0 - (item.discount_percentage / 100.0)), item.precision("rate"))\
-						if item.rate_with_margin > 0 else item.rate
+					if flt(item.rate_with_margin) > 0:
+						item.rate = flt(item.rate_with_margin * (1.0 - (item.discount_percentage / 100.0)), item.precision("rate"))
+						item.discount_amount = item.rate_with_margin - item.rate
+				elif flt(item.price_list_rate) > 0:
+						item.discount_amount = item.price_list_rate - item.rate
 
 				item.net_rate = item.rate
 				
@@ -358,6 +362,13 @@ class calculate_taxes_and_totals(object):
 			
 			
 
+	def calculate_total_net_weight(self):
+		if self.doc.meta.get_field('total_net_weight'):
+			self.doc.total_net_weight = 0.0
+			for d in self.doc.items:
+				if d.total_weight:
+					self.doc.total_net_weight += d.total_weight
+
 	def set_rounded_total(self):
 		if self.doc.meta.get_field("rounded_total"):
 			if self.doc.is_rounded_total_disabled():
@@ -446,13 +457,15 @@ class calculate_taxes_and_totals(object):
 
 			self.doc.total_advance = flt(total_allocated_amount, self.doc.precision("total_advance"))
 
+			grand_total = self.doc.rounded_total or self.doc.grand_total
+
 			if self.doc.party_account_currency == self.doc.currency:
-				invoice_total = flt(self.doc.grand_total - flt(self.doc.write_off_amount),
+				invoice_total = flt(grand_total - flt(self.doc.write_off_amount),
 					self.doc.precision("grand_total"))
 			else:
 				base_write_off_amount = flt(flt(self.doc.write_off_amount) * self.doc.conversion_rate,
 					self.doc.precision("base_write_off_amount"))
-				invoice_total = flt(self.doc.grand_total * self.doc.conversion_rate,
+				invoice_total = flt(grand_total * self.doc.conversion_rate,
 					self.doc.precision("grand_total")) - base_write_off_amount
 
 			if invoice_total > 0 and self.doc.total_advance > invoice_total:
@@ -522,11 +535,13 @@ class calculate_taxes_and_totals(object):
 		if self.doc.doctype == "Sales Invoice" \
 			and self.doc.paid_amount > self.doc.grand_total and not self.doc.is_return \
 			and any([d.type == "Cash" for d in self.doc.payments]):
+			grand_total = self.doc.rounded_total or self.doc.grand_total
+			base_grand_total = self.doc.base_rounded_total or self.doc.base_grand_total
 
-			self.doc.change_amount = flt(self.doc.paid_amount - self.doc.grand_total +
+			self.doc.change_amount = flt(self.doc.paid_amount - grand_total +
 				self.doc.write_off_amount, self.doc.precision("change_amount"))
 
-			self.doc.base_change_amount = flt(self.doc.base_paid_amount - self.doc.base_grand_total +
+			self.doc.base_change_amount = flt(self.doc.base_paid_amount - base_grand_total +
 				self.doc.base_write_off_amount, self.doc.precision("base_change_amount"))
 
 	def calculate_write_off_amount(self):
@@ -587,7 +602,8 @@ def get_itemised_tax_breakup_html(doc):
 			itemised_tax=itemised_tax,
 			itemised_taxable_amount=itemised_taxable_amount,
 			tax_accounts=tax_accounts,
-			company_currency=erpnext.get_company_currency(doc.company)
+			conversion_rate=doc.conversion_rate,
+			currency=doc.currency
 		)
 	)
 
@@ -620,16 +636,19 @@ def get_itemised_tax(taxes):
 			for item_code, tax_data in item_tax_map.items():
 				itemised_tax.setdefault(item_code, frappe._dict())
 
+				tax_rate = 0.0
+				tax_amount = 0.0
+
 				if isinstance(tax_data, list):
-					itemised_tax[item_code][tax.description] = frappe._dict(dict(
-						tax_rate=flt(tax_data[0]),
-						tax_amount=flt(tax_data[1])
-					))
+					tax_rate = flt(tax_data[0])
+					tax_amount = flt(tax_data[1])
 				else:
-					itemised_tax[item_code][tax.description] = frappe._dict(dict(
-						tax_rate=flt(tax_data),
-						tax_amount=0.0
-					))
+					tax_rate = flt(tax_data)
+
+				itemised_tax[item_code][tax.description] = frappe._dict(dict(
+					tax_rate = tax_rate,
+					tax_amount = tax_amount
+				))
 
 	return itemised_tax
 

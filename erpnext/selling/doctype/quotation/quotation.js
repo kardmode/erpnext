@@ -42,7 +42,7 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 
 		var me = this;
 
-		if (doc.__islocal) {
+		if (doc.__islocal && !doc.valid_till) {
 			this.frm.set_value('valid_till', frappe.datetime.add_months(doc.transaction_date, 1))
 		}
 
@@ -83,8 +83,8 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 						get_query_filters: {
 							status: ["not in", ["Lost", "Closed"]],
 							company: me.frm.doc.company,
-							// cannot set enquiry_type as setter, as the fieldname is order_type
-							enquiry_type: me.frm.doc.order_type,
+							// cannot set opportunity_type as setter, as the fieldname is order_type
+							opportunity_type: me.frm.doc.order_type,
 						}
 					})
 				}, __("Get items from"), "btn-default");
@@ -195,7 +195,7 @@ cur_frm.cscript['Declare Order Lost'] = function(){
 		return cur_frm.call({
 			method: "declare_order_lost",
 			doc: cur_frm.doc,
-			args: args.reason,
+			args: args,
 			callback: function(r) {
 				if(r.exc) {
 					frappe.msgprint(__("There were errors."));

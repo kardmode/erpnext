@@ -45,8 +45,9 @@ def add_data(w, args):
 		for employee in employees:
 			existing_attendance = {}
 			if existing_attendance_records \
-				and tuple([date, employee.name]) in existing_attendance_records:
-					existing_attendance = existing_attendance_records[tuple([date, employee.name])]
+				and tuple([getdate(date), employee.name]) in existing_attendance_records:
+					existing_attendance = existing_attendance_records[tuple([getdate(date), employee.name])]
+
 			row = [
 				existing_attendance and existing_attendance.name or "",
 				employee.name, employee.employee_name, date,
@@ -126,17 +127,9 @@ def upload(import_settings = None):
 		started = True
 		row_idx = i + 1
 		d = frappe._dict(zip(columns, row))
+
 		d["doctype"] = "Attendance"
-		
-		# if d.arrival_time in ["#--:--","00:00","0:00:00","00:00:0"]:
-			# d.arrival_time = "00:00:00"
-			
-		# if d.departure_time in ["#--:--","00:00","0:00:00","00:00:0"]:
-			# d.departure_time = "00:00:00"
-			
-		# d.departure_time = get_time(d.departure_time).strftime("%H:%M:%S")
-		# d.arrival_time = get_time(d.arrival_time).strftime("%H:%M:%S")
-		
+
 		
 		
 		
@@ -203,6 +196,19 @@ def upload(import_settings = None):
 		ret.append('Error reading csv file')
 	
 
+		if d.name:
+			d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
+
+		try:
+			check_record(d)
+			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=True))
+		except AttributeError:
+			pass
+		except Exception as e:
+			error = True
+			ret.append('Error for row (#%d) %s : %s' % (row_idx,
+				len(row)>1 and row[1] or "", cstr(e)))
+			# frappe.errprint(frappe.get_traceback())
 
 	if error:
 		frappe.db.rollback()

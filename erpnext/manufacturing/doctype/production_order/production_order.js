@@ -84,14 +84,11 @@ frappe.ui.form.on("Production Order", {
 				]
 			}
 		});
-		
-		frm.set_query("delivery_note", function() {
-			return{
-				filters:[
-					['Delivery Note', 'status', 'in', 'Draft']
-				]
-			}
-		});
+
+
+		// formatter for production order operation
+		frm.set_indicator_formatter('operation',
+			function(doc) { return (frm.doc.qty==doc.completed_qty) ? "green" : "orange" });
 	},
 	
 	onload: function(frm) {
@@ -107,10 +104,6 @@ frappe.ui.form.on("Production Order", {
 			});
 			erpnext.production_order.set_default_warehouse(frm);
 		}
-
-		// formatter for production order operation
-		frm.set_indicator_formatter('operation',
-			function(doc) { return (frm.doc.qty==doc.completed_qty) ? "green" : "orange" });
 	},
 
 	refresh: function(frm) {

@@ -65,7 +65,7 @@ class MaterialRequest(BuyingController):
 			self.status = "Draft"
 
 		from erpnext.controllers.status_updater import validate_status
-		validate_status(self.status, 
+		validate_status(self.status,
 			["Draft", "Submitted", "Stopped", "Cancelled", "Pending",
 			"Partially Ordered", "Ordered", "Issued", "Transferred"])
 
@@ -240,7 +240,9 @@ def make_purchase_order(source_name, target_doc=None):
 				["name", "material_request_item"],
 				["parent", "material_request"],
 				["uom", "stock_uom"],
-				["uom", "uom"]
+				["uom", "uom"],
+				["sales_order", "sales_order"],
+				["sales_order_item", "sales_order_item"]
 			],
 			"postprocess": update_item,
 			"condition": lambda doc: doc.ordered_qty < doc.stock_qty
@@ -344,7 +346,8 @@ def make_supplier_quotation(source_name, target_doc=None):
 			"doctype": "Supplier Quotation Item",
 			"field_map": {
 				"name": "material_request_item",
-				"parent": "material_request"
+				"parent": "material_request",
+				"sales_order": "sales_order"
 			}
 		}
 	}, target_doc, postprocess)
@@ -414,6 +417,7 @@ def raise_production_orders(material_request):
 				prod_order.material_request_item = d.name
 				prod_order.planned_start_date = mr.transaction_date
 				prod_order.company = mr.company
+				prod_order.set_production_order_operations()
 				prod_order.save()
 				production_orders.append(prod_order.name)
 			else:

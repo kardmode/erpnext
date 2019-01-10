@@ -84,12 +84,14 @@ class DeliveryNote(SellingController):
 		item_meta = frappe.get_meta("Delivery Note Item")
 		print_hide_fields = {
 			"parent": ["grand_total", "rounded_total", "in_words", "currency", "total", "taxes"],
-			"items": ["rate", "amount", "price_list_rate", "discount_percentage"]
+			"items": ["rate", "amount", "discount_amount", "price_list_rate", "discount_percentage"]
 		}
 
 		for key, fieldname in print_hide_fields.items():
 			for f in fieldname:
 				toggle_print_hide(self.meta if key == "parent" else item_meta, f)
+
+		super(DeliveryNote, self).before_print()
 
 	def set_actual_qty(self):
 		for d in self.get('items'):
@@ -253,13 +255,22 @@ class DeliveryNote(SellingController):
 	def check_credit_limit(self):
 		from erpnext.selling.doctype.customer.customer import check_credit_limit
 
+		extra_amount = 0
 		validate_against_credit_limit = False
-		for d in self.get("items"):
-			if not (d.against_sales_order or d.against_sales_invoice):
-				validate_against_credit_limit = True
-				break
+		bypass_credit_limit_check_at_sales_order = cint(frappe.db.get_value("Customer", self.customer,
+			"bypass_credit_limit_check_at_sales_order"))
+		if bypass_credit_limit_check_at_sales_order:
+			validate_against_credit_limit = True
+			extra_amount = self.base_grand_total
+		else:
+			for d in self.get("items"):
+				if not (d.against_sales_order or d.against_sales_invoice):
+					validate_against_credit_limit = True
+					break
+
 		if validate_against_credit_limit:
-			check_credit_limit(self.customer, self.company)
+			check_credit_limit(self.customer, self.company,
+				bypass_credit_limit_check_at_sales_order, extra_amount)
 
 	def validate_packed_qty(self):
 		"""
@@ -318,7 +329,8 @@ class DeliveryNote(SellingController):
 
 		for dn in set(updated_delivery_notes):
 			dn_doc = self if (dn == self.name) else frappe.get_doc("Delivery Note", dn)
-			dn_doc.update_billing_percentage(update_modified=update_modified)
+			if dn_doc.net_total > 0:
+				dn_doc.update_billing_percentage(update_modified=update_modified)
 
 		self.load_from_db()
 		
@@ -510,8 +522,24 @@ def get_invoiced_qty_map(delivery_note):
 
 	return invoiced_qty_map
 
+def get_returned_qty_map(sales_orders):
+	"""returns a map: {so_detail: returned_qty}"""
+	returned_qty_map = {}
+
+	for name, returned_qty in frappe.get_all('Sales Order Item', fields = ["name", "returned_qty"],
+		filters = {'parent': ('in', sales_orders), 'docstatus': 1}, as_list=1):
+		if not returned_qty_map.get(name):
+				returned_qty_map[name] = 0
+		returned_qty_map[name] += returned_qty
+
+	return returned_qty_map
+
 @frappe.whitelist()
 def make_sales_invoice(source_name, target_doc=None):
+	doc = frappe.get_doc('Delivery Note', source_name)
+	sales_orders = [d.against_sales_order for d in doc.items]
+	returned_qty_map = get_returned_qty_map(sales_orders)
+
 	invoiced_qty_map = get_invoiced_qty_map(source_name)
 
 
@@ -525,6 +553,7 @@ def make_sales_invoice(source_name, target_doc=None):
 		target.is_pos = 0
 		target.ignore_pricing_rule = 1
 		target.run_method("set_missing_values")
+		target.run_method("set_po_nos")
 
 		if len(target.get("items")) == 0:
 			frappe.throw(_("All these items have already been invoiced"))
@@ -537,7 +566,9 @@ def make_sales_invoice(source_name, target_doc=None):
 			target.update(get_fetch_values("Sales Invoice", 'company_address', target.company_address))	
 
 	def update_item(source_doc, target_doc, source_parent):
-		target_doc.qty = source_doc.qty - invoiced_qty_map.get(source_doc.name, 0)
+		target_doc.qty = (source_doc.qty -
+			invoiced_qty_map.get(source_doc.name, 0) - returned_qty_map.get(source_doc.so_detail, 0))
+
 		if source_doc.serial_no and source_parent.per_billed > 0:
 			target_doc.serial_no = get_delivery_note_serial_no(source_doc.item_code,
 				target_doc.qty, source_parent.name)

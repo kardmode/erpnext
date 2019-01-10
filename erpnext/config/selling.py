@@ -174,6 +174,11 @@ def get_data():
 					"name": "Industry Type",
 					"description": _("Track Leads by Industry Type.")
 				},
+				{
+					"type": "doctype",
+					"name": "Lead Source",
+					"description": _("Track Leads by Lead Source.")
+				},
 			]
 		},
 		{

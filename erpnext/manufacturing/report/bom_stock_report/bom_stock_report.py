@@ -35,6 +35,7 @@ def execute(filters=None):
 		row = [item.item_code,item.description,required_qty,item.required_uom,stock_qty,item.stock_uom,item.actual_qty,can_build]
 		data.append(row)
 
+
 	return columns, data
 
 def get_columns():
@@ -59,6 +60,13 @@ def get_bom_stock(filters):
 	bom = filters.get("bom")
 	if not bom: 
 		return []
+
+	table = "`tabBOM Item`"
+	qty_field = "qty"
+
+	if filters.get("show_exploded_view"):
+		table = "`tabBOM Explosion Item`"
+		qty_field = "stock_qty"
 
 	if filters.get("warehouse"):
 		warehouse_details = frappe.db.get_value("Warehouse", filters.get("warehouse"), ["lft", "rgt"], as_dict=1)
@@ -94,3 +102,20 @@ def get_bom_stock(filters):
 				and bom.name = '%s'
 
 			GROUP BY bom_item.item_code""" % (conditions, bom,bom),as_dict=1)
+
+	# return frappe.db.sql("""
+			# SELECT
+				# bom_item.item_code ,
+				# bom_item.description ,
+				# bom_item.{qty_field},
+				# sum(ledger.actual_qty) as actual_qty,
+				# sum(FLOOR(ledger.actual_qty / bom_item.{qty_field}))as to_build
+			# FROM
+				# {table} AS bom_item
+				# LEFT JOIN `tabBin` AS ledger
+				# ON bom_item.item_code = ledger.item_code
+				# {conditions}
+			# WHERE
+				# bom_item.parent = '{bom}' and bom_item.parenttype='BOM'
+
+			# GROUP BY bom_item.item_code""".format(qty_field=qty_field, table=table, conditions=conditions, bom=bom))

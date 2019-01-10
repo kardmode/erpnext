@@ -8,9 +8,9 @@ QUnit.test("test: HR Settings", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('HR Settings', [
+	frappe.run_serially([
 		// insert a new HR Settings
-		() => frappe.tests.make([
+		() => frappe.tests.make('HR Settings', [
 			// values to be set
 			{key: 'value'}
 		]),

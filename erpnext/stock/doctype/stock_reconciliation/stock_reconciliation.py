@@ -55,7 +55,9 @@ class StockReconciliation(StockController):
 
 				item.current_qty = qty
 				item.current_valuation_rate = rate
-				self.difference_amount += (flt(item.qty) * flt(item.valuation_rate or rate) - (flt(qty) * flt(rate)))
+				self.difference_amount += (flt(item.qty, item.precision("qty")) * \
+					flt(item.valuation_rate or rate, item.precision("valuation_rate")) \
+					- flt(qty, item.precision("qty")) * flt(rate, item.precision("valuation_rate")))
 				return True
 
 		items = filter(lambda d: _changed(d), self.items)
@@ -107,7 +109,7 @@ class StockReconciliation(StockController):
 				self.validation_messages.append(_get_msg(row_num,
 					_("Negative Valuation Rate is not allowed")))
 
-			if row.qty and not row.valuation_rate:
+			if row.qty and row.valuation_rate in ["", None]:
 				row.valuation_rate = get_stock_balance(row.item_code, row.warehouse,
 							self.posting_date, self.posting_time, with_valuation_rate=True)[1]
 				if not row.valuation_rate:
@@ -178,7 +180,7 @@ class StockReconciliation(StockController):
 				frappe.throw(_("Valuation Rate required for Item in row {0}").format(row.idx))
 
 			if ((previous_sle and row.qty == previous_sle.get("qty_after_transaction")
-				and row.valuation_rate == previous_sle.get("valuation_rate"))
+				and (row.valuation_rate == previous_sle.get("valuation_rate") or row.qty == 0))
 				or (not previous_sle and not row.qty)):
 					continue
 
@@ -197,8 +199,8 @@ class StockReconciliation(StockController):
 			"company": self.company,
 			"stock_uom": frappe.db.get_value("Item", row.item_code, "stock_uom"),
 			"is_cancelled": "No",
-			"qty_after_transaction": row.qty,
-			"valuation_rate": row.valuation_rate
+			"qty_after_transaction": flt(row.qty, row.precision("qty")),
+			"valuation_rate": flt(row.valuation_rate, row.precision("valuation_rate"))
 		})
 		self.make_sl_entries([args])
 
@@ -242,8 +244,10 @@ class StockReconciliation(StockController):
 
 	def set_total_qty_and_amount(self):
 		for d in self.get("items"):
-			d.amount = flt(d.qty) * flt(d.valuation_rate)
-			d.current_amount = flt(d.current_qty) * flt(d.current_valuation_rate)
+			d.amount = flt(d.qty, d.precision("qty")) * flt(d.valuation_rate, d.precision("valuation_rate"))
+			d.current_amount = (flt(d.current_qty,
+				d.precision("current_qty")) * flt(d.current_valuation_rate, d.precision("current_valuation_rate")))
+
 			d.quantity_difference = flt(d.qty) - flt(d.current_qty)
 			d.amount_difference = flt(d.amount) - flt(d.current_amount)
 

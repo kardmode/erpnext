@@ -18,6 +18,10 @@ frappe.query_reports["BOM Stock Report"] = {
 			"fieldtype": "Float",
 			"default": "1",
 			"reqd": 1
+		}, {
+			"fieldname": "show_exploded_view",
+			"label": __("Show exploded view"),
+			"fieldtype": "Check"
 		}
 	]
 }

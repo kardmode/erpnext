@@ -111,6 +111,8 @@ class SalesInvoice(SellingController):
 		self.set_billing_hours_and_amount()
 		self.update_timesheet_billing_for_project()
 		self.set_status()
+		if self.is_pos and not self.is_return:
+			self.verify_payment_amount_is_positive()
 
 	def before_save(self):
 		set_account_for_mode_of_payment(self)
@@ -124,7 +126,7 @@ class SalesInvoice(SellingController):
 
 		self.check_prev_docstatus()
 
-		if self.is_return:
+		if self.is_return and not self.update_billed_amount_in_sales_order:
 			# NOTE status updating bypassed for is_return
 			self.status_updater = []
 
@@ -152,7 +154,7 @@ class SalesInvoice(SellingController):
 
 		self.update_time_sheet(self.name)
 
-		self.update_current_month_sales()
+		update_company_current_month_sales(self.company)
 		self.update_project()
 
 	def validate_pos_paid_amount(self):
@@ -169,7 +171,7 @@ class SalesInvoice(SellingController):
 		if frappe.db.get_single_value('Accounts Settings', 'unlink_payment_on_cancellation_of_invoice'):
 			unlink_ref_doc_from_payment_entries(self)
 
-		if self.is_return:
+		if self.is_return and not self.update_billed_amount_in_sales_order:
 			# NOTE status updating bypassed for is_return
 			self.status_updater = []
 
@@ -191,15 +193,8 @@ class SalesInvoice(SellingController):
 		self.make_gl_entries_on_cancel()
 		frappe.db.set(self, 'status', 'Cancelled')
 
-		self.update_current_month_sales()
+		update_company_current_month_sales(self.company)
 		self.update_project()
-
-	def update_current_month_sales(self):
-		if frappe.flags.in_test:
-			update_company_current_month_sales(self.company)
-		else:
-			frappe.enqueue('erpnext.setup.doctype.company.company.update_company_current_month_sales',
-				company=self.company)
 
 	def update_status_updater_args(self):
 		if cint(self.update_stock):
@@ -241,12 +236,17 @@ class SalesInvoice(SellingController):
 		from erpnext.selling.doctype.customer.customer import check_credit_limit
 
 		validate_against_credit_limit = False
+		bypass_credit_limit_check_at_sales_order = cint(frappe.db.get_value("Customer", self.customer,
+			"bypass_credit_limit_check_at_sales_order"))
+		if bypass_credit_limit_check_at_sales_order:
+			validate_against_credit_limit = True
+
 		for d in self.get("items"):
 			if not (d.sales_order or d.delivery_note):
 				validate_against_credit_limit = True
 				break
 		if validate_against_credit_limit:
-			check_credit_limit(self.customer, self.company)
+			check_credit_limit(self.customer, self.company, bypass_credit_limit_check_at_sales_order)
 
 	def set_missing_values(self, for_validate=False):
 		pos = self.set_pos_fields(for_validate)
@@ -254,12 +254,16 @@ class SalesInvoice(SellingController):
 		if not self.debit_to:
 			self.debit_to = get_party_account("Customer", self.customer, self.company)
 		if not self.due_date and self.customer:
-			self.due_date = get_due_date(self.posting_date, "Customer", self.customer)
+			self.due_date = get_due_date(self.posting_date, "Customer", self.customer, self.company)
 
 		super(SalesInvoice, self).set_missing_values(for_validate)
 
 		if pos:
-			return {"print_format": pos.get("print_format_for_online") }
+			return {
+				"print_format": pos.get("print_format_for_online"),
+				"allow_edit_rate": pos.get("allow_user_to_edit_rate"),
+				"allow_edit_discount": pos.get("allow_user_to_edit_discount")
+			}
 
 	def update_time_sheet(self, sales_invoice):
 		for d in self.timesheets:
@@ -324,6 +328,7 @@ class SalesInvoice(SellingController):
 			if not for_validate and not self.customer:
 				self.customer = pos.customer
 
+			self.ignore_pricing_rule = pos.ignore_pricing_rule
 			if pos.get('account_for_change_amount'):
 				self.account_for_change_amount = pos.get('account_for_change_amount')
 
@@ -340,7 +345,7 @@ class SalesInvoice(SellingController):
 			for item in self.get("items"):
 				if item.get('item_code'):
 					for fname, val in get_pos_profile_item_details(pos,
-						frappe._dict(item.as_dict()), pos).items():
+						frappe._dict(item.as_dict()), pos, True).items():
 
 						if (not for_validate) or (for_validate and not item.get(fname)):
 							item.set(fname, val)
@@ -594,9 +599,6 @@ class SalesInvoice(SellingController):
 	def make_gl_entries(self, gl_entries=None, repost_future_gle=True, from_repost=False):
 		auto_accounting_for_stock = erpnext.is_perpetual_inventory_enabled(self.company)
 
-		if not self.grand_total:
-			return
-
 		if not gl_entries:
 			gl_entries = self.get_gl_entries()
 
@@ -646,7 +648,9 @@ class SalesInvoice(SellingController):
 		return gl_entries
 
 	def make_customer_gl_entry(self, gl_entries):
-		grand_total = self.rounded_total or self.grand_total
+		# Checked both rounding_adjustment and rounded_total 
+		# because rounded_total had value even before introcution of posting GLE based on rounded total
+		grand_total = self.rounded_total if (self.rounding_adjustment and self.rounded_total) else self.grand_total
 		if grand_total:
 			# Didnot use base_grand_total to book rounding loss gle
 			grand_total_in_company_currency = flt(grand_total * self.conversion_rate,
@@ -674,9 +678,11 @@ class SalesInvoice(SellingController):
 					self.get_gl_dict({
 						"account": tax.account_head,
 						"against": self.customer,
-						"credit": flt(tax.base_tax_amount_after_discount_amount),
-						"credit_in_account_currency": flt(tax.base_tax_amount_after_discount_amount) \
-							if account_currency==self.company_currency else flt(tax.tax_amount_after_discount_amount),
+						"credit": flt(tax.base_tax_amount_after_discount_amount,
+							tax.precision("tax_amount_after_discount_amount")),
+						"credit_in_account_currency": (flt(tax.base_tax_amount_after_discount_amount,
+							tax.precision("base_tax_amount_after_discount_amount")) if account_currency==self.company_currency else
+							flt(tax.tax_amount_after_discount_amount, tax.precision("tax_amount_after_discount_amount"))),
 						"cost_center": tax.cost_center
 					}, account_currency)
 				)
@@ -684,29 +690,30 @@ class SalesInvoice(SellingController):
 	def make_item_gl_entries(self, gl_entries):
 		# income account gl entries
 		for item in self.get("items"):
-			if flt(item.base_net_amount):
-				account_currency = get_account_currency(item.income_account)
-				gl_entries.append(
-					self.get_gl_dict({
-						"account": item.income_account,
-						"against": self.customer,
-						"credit": item.base_net_amount,
-						"credit_in_account_currency": item.base_net_amount \
-							if account_currency==self.company_currency else item.net_amount,
-						"cost_center": item.cost_center
-					}, account_currency)
-				)
-
+			if flt(item.base_net_amount, item.precision("base_net_amount")):
 				if item.is_fixed_asset:
 					asset = frappe.get_doc("Asset", item.asset)
 
-					fixed_asset_gl_entries = get_gl_entries_on_asset_disposal(asset, is_sale=True)
+					fixed_asset_gl_entries = get_gl_entries_on_asset_disposal(asset, item.base_net_amount)
 					for gle in fixed_asset_gl_entries:
 						gle["against"] = self.customer
 						gl_entries.append(self.get_gl_dict(gle))
 
 					asset.db_set("disposal_date", self.posting_date)
 					asset.set_status("Sold" if self.docstatus==1 else None)
+				else:
+					account_currency = get_account_currency(item.income_account)
+					gl_entries.append(
+						self.get_gl_dict({
+							"account": item.income_account,
+							"against": self.customer,
+							"credit": flt(item.base_net_amount, item.precision("base_net_amount")),
+							"credit_in_account_currency": (flt(item.base_net_amount, item.precision("base_net_amount"))
+								if account_currency==self.company_currency
+								else flt(item.net_amount, item.precision("net_amount"))),
+							"cost_center": item.cost_center
+						}, account_currency)
+					)
 
 		# expense account gl entries
 		if cint(self.update_stock) and \
@@ -774,7 +781,7 @@ class SalesInvoice(SellingController):
 
 	def make_write_off_gl_entry(self, gl_entries):
 		# write off entries, applicable if only pos
-		if self.write_off_account and self.write_off_amount:
+		if self.write_off_account and flt(self.write_off_amount, self.precision("write_off_amount")):
 			write_off_account_currency = get_account_currency(self.write_off_account)
 			default_cost_center = frappe.db.get_value('Company', self.company, 'cost_center')
 
@@ -784,9 +791,10 @@ class SalesInvoice(SellingController):
 					"party_type": "Customer",
 					"party": self.customer,
 					"against": self.write_off_account,
-					"credit": self.base_write_off_amount,
-					"credit_in_account_currency": self.base_write_off_amount \
-						if self.party_account_currency==self.company_currency else self.write_off_amount,
+					"credit": flt(self.base_write_off_amount, self.precision("base_write_off_amount")),
+					"credit_in_account_currency": (flt(self.base_write_off_amount,
+						self.precision("base_write_off_amount")) if self.party_account_currency==self.company_currency
+						else flt(self.write_off_amount, self.precision("write_off_amount"))),
 					"against_voucher": self.return_against if cint(self.is_return) else self.name,
 					"against_voucher_type": self.doctype
 				}, self.party_account_currency)
@@ -795,15 +803,16 @@ class SalesInvoice(SellingController):
 				self.get_gl_dict({
 					"account": self.write_off_account,
 					"against": self.customer,
-					"debit": self.base_write_off_amount,
-					"debit_in_account_currency": self.base_write_off_amount \
-						if write_off_account_currency==self.company_currency else self.write_off_amount,
+					"debit": flt(self.base_write_off_amount, self.precision("base_write_off_amount")),
+					"debit_in_account_currency": (flt(self.base_write_off_amount,
+						self.precision("base_write_off_amount")) if write_off_account_currency==self.company_currency
+						else flt(self.write_off_amount, self.precision("write_off_amount"))),
 					"cost_center": self.write_off_cost_center or default_cost_center
 				}, write_off_account_currency)
 			)
 
 	def make_gle_for_rounding_adjustment(self, gl_entries):
-		if self.rounding_adjustment:
+		if flt(self.rounding_adjustment, self.precision("rounding_adjustment")):
 			round_off_account, round_off_cost_center = \
 				get_round_off_account_and_cost_center(self.company)
 
@@ -811,8 +820,10 @@ class SalesInvoice(SellingController):
 				self.get_gl_dict({
 					"account": round_off_account,
 					"against": self.customer,
-					"credit_in_account_currency": self.rounding_adjustment,
-					"credit": self.base_rounding_adjustment,
+					"credit_in_account_currency": flt(self.rounding_adjustment,
+						self.precision("rounding_adjustment")),
+					"credit": flt(self.base_rounding_adjustment,
+						self.precision("base_rounding_adjustment")),
 					"cost_center": round_off_cost_center,
 				}
 			))
@@ -912,6 +923,11 @@ class SalesInvoice(SellingController):
 			project.flags.dont_sync_tasks = True
 			project.update_billed_amount()
 			project.save()
+
+	def verify_payment_amount_is_positive(self):
+		for entry in self.payments:
+			if entry.amount < 0:
+				frappe.throw(_("Row #{0} (Payment Table): Amount must be positive").format(entry.idx))
 
 def get_list_context(context=None):
 	from erpnext.controllers.website_list_for_contact import get_list_context

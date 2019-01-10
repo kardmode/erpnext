@@ -71,7 +71,7 @@ frappe.treeview_settings["Account"] = {
 
 		// financial statements
 		for (let report of ['Trial Balance', 'General Ledger', 'Balance Sheet',
-			'Profit and Loss', 'Cash Flow Statement', 'Accounts Payable', 'Accounts Receivable']) {
+			'Profit and Loss Statement', 'Cash Flow Statement', 'Accounts Payable', 'Accounts Receivable']) {
 			treeview.page.add_inner_button(__(report), function() {
 				frappe.set_route('query-report', report, {company: get_company()});
 			}, __('Financial Statements'));
@@ -79,15 +79,17 @@ frappe.treeview_settings["Account"] = {
 
 	},
 	onrender: function(node) {
-		var dr_or_cr = node.data.balance < 0 ? "Cr" : "Dr";
-		if (node.data && node.data.balance!==undefined) {
-			$('<span class="balance-area pull-right text-muted small">'
-				+ (node.data.balance_in_account_currency ?
-					(format_currency(Math.abs(node.data.balance_in_account_currency),
-						node.data.account_currency) + " / ") : "")
-				+ format_currency(Math.abs(node.data.balance), node.data.company_currency)
-				+ " " + dr_or_cr
-				+ '</span>').insertBefore(node.$ul);
+		if(frappe.boot.user.can_read.indexOf("GL Entry") !== -1){
+			var dr_or_cr = node.data.balance < 0 ? "Cr" : "Dr";
+			if (node.data && node.data.balance!==undefined) {
+				$('<span class="balance-area pull-right text-muted small">'
+					+ (node.data.balance_in_account_currency ?
+						(format_currency(Math.abs(node.data.balance_in_account_currency),
+							node.data.account_currency) + " / ") : "")
+					+ format_currency(Math.abs(node.data.balance), node.data.company_currency)
+					+ " " + dr_or_cr
+					+ '</span>').insertBefore(node.$ul);
+			}
 		}
 	},
 	toolbar: [

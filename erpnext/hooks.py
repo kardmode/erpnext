@@ -12,9 +12,11 @@ app_license = "GNU General Public License (v3)"
 source_link = "https://github.com/frappe/erpnext"
 
 
-develop_version = '9.x.x-develop'
+develop_version = '10.x.x-develop'
 
 error_report_email = "notify@maarifagroup.com"
+
+docs_app = "foundation"
 
 app_include_js = "assets/js/erpnext.min.js"
 app_include_css = "assets/css/erpnext.css"
@@ -206,6 +208,9 @@ doc_events = {
 	},
 	'Address': {
 		'validate': 'erpnext.regional.india.utils.validate_gstin_for_india'
+	},
+	('Sales Invoice', 'Purchase Invoice', 'Delivery Note'): {
+		'validate': 'erpnext.regional.india.utils.set_place_of_supply'
 	}
 }
 

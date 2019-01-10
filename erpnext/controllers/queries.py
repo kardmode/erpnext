@@ -152,9 +152,15 @@ def tax_account_query(doctype, txt, searchfield, start, page_len, filters):
 def item_query(doctype, txt, searchfield, start, page_len, filters, as_dict=False):
 	conditions = []
 
-	return frappe.db.sql("""select tabItem.name, tabItem.item_group, tabItem.image,
+	description_cond = ''
+	if frappe.db.count('Item', cache=True) < 50000:
+		# scan description only if items are less than 50000
+		description_cond = 'or tabItem.description LIKE %(txt)s'
+
+	return frappe.db.sql("""select tabItem.name,
 		if(length(tabItem.item_name) > 40,
 			concat(substr(tabItem.item_name, 1, 40), "..."), item_name) as item_name,
+		tabItem.item_group,
 		if(length(tabItem.description) > 40, \
 			concat(substr(tabItem.description, 1, 40), "..."), description) as decription
 		from tabItem
@@ -166,7 +172,7 @@ def item_query(doctype, txt, searchfield, start, page_len, filters, as_dict=Fals
 				or tabItem.item_group LIKE %(txt)s
 				or tabItem.item_name LIKE %(txt)s
 				or tabItem.barcode LIKE %(txt)s
-				or tabItem.description LIKE %(txt)s)
+				{description_cond})
 			{fcond} {mcond}
 		order by
 			if(locate(%(_txt)s, name), locate(%(_txt)s, name), 99999),
@@ -176,7 +182,8 @@ def item_query(doctype, txt, searchfield, start, page_len, filters, as_dict=Fals
 		limit %(start)s, %(page_len)s """.format(
 			key=searchfield,
 			fcond=get_filters_cond(doctype, filters, conditions).replace('%', '%%'),
-			mcond=get_match_cond(doctype).replace('%', '%%')),
+			mcond=get_match_cond(doctype).replace('%', '%%'),
+			description_cond = description_cond),
 			{
 				"today": nowdate(),
 				"txt": "%%%s%%" % txt,
@@ -211,7 +218,8 @@ def bom(doctype, txt, searchfield, start, page_len, filters):
 def get_project_name(doctype, txt, searchfield, start, page_len, filters):
 	cond = ''
 	if filters.get('customer'):
-		cond = '(`tabProject`.customer = "' + filters['customer'] + '" or ifnull(`tabProject`.customer,"")="") and'
+		cond = """(`tabProject`.customer = '%s' or
+			ifnull(`tabProject`.customer,"")="") and""" %(frappe.db.escape(filters.get("customer")))
 
 	return frappe.db.sql("""select `tabProject`.name from `tabProject`
 		where `tabProject`.status not in ("Completed", "Cancelled")
@@ -257,7 +265,7 @@ def get_delivery_notes_to_be_billed(doctype, txt, searchfield, start, page_len, 
 def get_batch_no(doctype, txt, searchfield, start, page_len, filters):
 	cond = ""
 	if filters.get("posting_date"):
-		cond = "and (ifnull(batch.expiry_date, '')='' or batch.expiry_date >= %(posting_date)s)"
+		cond = "and (batch.expiry_date is null or batch.expiry_date >= %(posting_date)s)"
 
 	batch_nos = None
 	args = {
@@ -414,10 +422,11 @@ def get_doctype_wise_filters(filters):
 
 @frappe.whitelist()
 def get_batch_numbers(doctype, txt, searchfield, start, page_len, filters):
-	query = 'select batch_id from `tabBatch` ' \
-			'where (`tabBatch`.expiry_date >= CURDATE() or `tabBatch`.expiry_date IS NULL)'
+	query = """select batch_id from `tabBatch`
+			where (expiry_date >= CURDATE() or expiry_date IS NULL)
+			and name like '{txt}'""".format(txt = frappe.db.escape('%{0}%'.format(txt)))
 
-	if filters and filters.get('item_code'):
-		query += 'where item = %(item_code)s' % filters
+	if filters and filters.get('item'):
+		query += " and item = '{item}'".format(item = frappe.db.escape(filters.get('item')))
 
 	return frappe.db.sql(query)

@@ -18,9 +18,14 @@ from erpnext.utilities.transaction_base import TransactionBase
 from frappe.utils.background_jobs import enqueue
 
 class SalarySlip(TransactionBase):
+
+	# def __init__(self, *args, **kwargs):
+		# super(SalarySlip, self).__init__(*args, **kwargs)
+		# self.series = 'Sal Slip/{0}/.#####'.format(self.employee)
+
 	# def autoname(self):
-		# self.name = make_autoname(self.employee + '-SS-.#####')
-		
+		# self.name = make_autoname(self.series)
+
 	def validate(self):
 		self.status = self.get_status()
 		self.validate_dates()
@@ -295,9 +300,10 @@ class SalarySlip(TransactionBase):
 
 
 	def get_date_details(self):
-		date_details = get_start_end_dates(self.payroll_frequency, self.start_date or self.posting_date)
-		self.start_date = date_details.start_date
-		self.end_date = date_details.end_date
+		if not self.end_date:
+			date_details = get_start_end_dates(self.payroll_frequency, self.start_date or self.posting_date)
+			self.start_date = date_details.start_date
+			self.end_date = date_details.end_date
 
 
 	def check_sal_struct(self, joining_date, relieving_date):
@@ -318,7 +324,8 @@ class SalarySlip(TransactionBase):
 			if len(st_name) > 1:
 				frappe.msgprint(_("Multiple active Salary Structures found for employee {0} for the given dates")
 					.format(self.employee), title=_('Warning'))
-			return st_name and st_name[0][0] or ''
+			self.salary_structure = st_name and st_name[0][0] or ''
+			return self.salary_structure
 		else:
 			self.salary_structure = None
 			frappe.msgprint(_("No active or default Salary Structure found for employee {0} for the given dates")
@@ -785,12 +792,16 @@ class SalarySlip(TransactionBase):
 		else:
 			self.set_status()
 			self.update_status(self.name)
-			if(frappe.db.get_single_value("HR Settings", "email_salary_slip_to_employee")):
+			if(frappe.db.get_single_value("HR Settings", "email_salary_slip_to_employee")) and not frappe.flags.via_payroll_entry:
 				self.email_salary_slip()
 
 	def on_cancel(self):
 		self.set_status()
 		self.update_status()
+
+	def on_trash(self):
+		from frappe.model.naming import revert_series_if_last
+		revert_series_if_last(self.series, self.name)
 
 	def email_salary_slip(self):
 		receiver = frappe.db.get_value("Employee", self.employee, "prefered_email")
@@ -870,14 +881,10 @@ def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contr
 	
 	
 	leave_types = frappe.db.sql("""
-			select name
+			select t2.name
 			from `tabLeave Type` t2
 			where 
-			t2.is_paid_in_advance = 1
-			and t1.docstatus < 2
-			and t1.status in ('Approved','Back From Leave')
-			and t1.employee = %s
-			and t1.from_date <= %s""", (employee, dt), as_dict=True)
+			t2.is_paid_in_advance = 1""", as_dict=True)
 	
 	leavedaystaken = 0
 	

@@ -98,9 +98,9 @@ cur_frm.cscript.refresh = function(doc) {
 			if (cint(doc.total_amount_reimbursed) > 0 && frappe.model.can_read(entry_doctype)) {
 				cur_frm.add_custom_button(__('Bank Entries'), function() {
 					frappe.route_options = {
-						entry_route_doctype: me.frm.doc.doctype,
-						entry_route_name: me.frm.doc.name,
-						company: me.frm.doc.company
+						party_type: "Employee",
+						party: doc.employee,
+						company: doc.company
 					};
 					frappe.set_route("List", entry_doctype);
 				}, __("View"));
@@ -205,7 +205,7 @@ frappe.ui.form.on("Expense Claim", {
 	make_payment_entry: function(frm) {
 		var method = "erpnext.accounts.doctype.payment_entry.payment_entry.get_payment_entry";
 		if(frm.doc.__onload && frm.doc.__onload.make_payment_via_journal_entry) {
-			method = "erpnext.hr.doctype.expense_claim.expense_claim.make_bank_entry"
+			method = "erpnext.hr.doctype.expense_claim.expense_claim.make_bank_entry";
 		}
 		return frappe.call({
 			method: method,
@@ -262,27 +262,30 @@ frappe.ui.form.on("Expense Claim", {
 	},
 
 	get_advances: function(frm) {
-		return frappe.call({
-			method: "erpnext.hr.doctype.expense_claim.expense_claim.get_advances",
-			args: {
-				employee: frm.doc.employee
-			},
-			callback: function(r, rt) {
-				frappe.model.clear_table(frm.doc, "advances");
-				if(r.message) {
-					$.each(r.message, function(i, d) {
-						var row = frappe.model.add_child(frm.doc, "Expense Claim Advance", "advances");
-						row.employee_advance = d.name;
-						row.posting_date = d.posting_date;
-						row.advance_account = d.advance_account;
-						row.advance_paid = d.paid_amount;
-						row.unclaimed_amount = flt(d.paid_amount) - flt(d.claimed_amount);
-						row.allocated_amount = flt(d.paid_amount) - flt(d.claimed_amount);
-					});
-					refresh_field("advances");
+		frappe.model.clear_table(frm.doc, "advances");
+		if (frm.doc.employee) {
+			return frappe.call({
+				method: "erpnext.hr.doctype.expense_claim.expense_claim.get_advances",
+				args: {
+					employee: frm.doc.employee
+				},
+				callback: function(r, rt) {
+				
+					if(r.message) {
+						$.each(r.message, function(i, d) {
+							var row = frappe.model.add_child(frm.doc, "Expense Claim Advance", "advances");
+							row.employee_advance = d.name;
+							row.posting_date = d.posting_date;
+							row.advance_account = d.advance_account;
+							row.advance_paid = d.paid_amount;
+							row.unclaimed_amount = flt(d.paid_amount) - flt(d.claimed_amount);
+							row.allocated_amount = flt(d.paid_amount) - flt(d.claimed_amount);
+						});
+						refresh_field("advances");
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 });
 
