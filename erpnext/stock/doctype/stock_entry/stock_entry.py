@@ -675,11 +675,11 @@ class StockEntry(StockController):
 						if self.purpose in ["Material Transfer for Manufacture","Manufacture"]:
 							item["from_warehouse"],enough_stock = get_best_warehouse(item.item_code,item.qty,item.default_warehouse,company = self.company)
 
-\						#Get Reserve Warehouse from PO
+						#Get Reserve Warehouse from PO
 						if self.purchase_order and self.purpose=="Subcontract":
 							item["from_warehouse"] = item_wh.get(item.item_code)
 						# item["to_warehouse"] = self.to_warehouse if self.purpose=="Subcontract" else ""
-\
+
 					self.add_to_stock_entry_detail(item_dict)
 
 					if self.purpose != "Subcontract":
