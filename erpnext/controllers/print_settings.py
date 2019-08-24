@@ -14,14 +14,9 @@ def print_settings_for_item_table(doc):
 		"tax_amount":"templates/print_formats/includes/item_table_tax_rate.html"
 	}
 	
-
-	
 	doc.hide_in_print_layout = ["uom", "stock_uom","weight_uom"]
 
 	doc.flags.compact_item_print = cint(frappe.db.get_value("Print Settings", None, "compact_item_print"))
-
-	# if doc.doctype in ["Purchase Receipt Item"]:
-		# doc.flags.compact_item_print=0
 	
 	if doc.flags.compact_item_print:
 
@@ -30,10 +25,14 @@ def print_settings_for_item_table(doc):
 		
 		
 		doc.flags.format_columns = format_columns
+	
+	if doc.doctype == "Supplier Quotation Item":
+		doc.flags.compact_item_fields = doc.flags.compact_item_fields + ["mrp_request_rate"]
+	
 	doc.flags.format_columns_custom = format_columns_custom
 
 def format_columns(display_columns, compact_fields):
-	compact_fields = compact_fields + ["image", "item_code", "item_name"]
+	compact_fields = compact_fields + ["image", "item_code"]
 	final_columns = []
 	for column in display_columns:
 		if column not in compact_fields:
@@ -41,7 +40,7 @@ def format_columns(display_columns, compact_fields):
 	return final_columns
 	
 def format_columns_custom(display_columns, compact_fields):
-	compact_fields = compact_fields + ["image", "item_code", "item_name"]
+	compact_fields = compact_fields + ["image", "item_code"]
 	final_columns = []
 	for column in display_columns:
 		if column.fieldname not in compact_fields:

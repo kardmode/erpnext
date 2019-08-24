@@ -130,7 +130,12 @@ def upload(import_settings = None):
 
 		d["doctype"] = "Attendance"
 
-		
+		try:
+			parse_date(d.attendance_date)
+		except Exception, e:
+			# error = True
+			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+				len(row)>1 and row[1] or "", cstr(e)))
 		
 		
 		if import_settings == "ignore":
@@ -178,7 +183,7 @@ def upload(import_settings = None):
 			if attendance:
 				error = True
 				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
-				ret.append('Error for row (#%d) %s : %s - %s. Attendance Date %s Already Marked' % (row_idx+1,
+				ret.append('Error for row (#%d) %s : %s - %s. Attendance Date %s Already Marked or Check Spreadsheet For Duplicates' % (row_idx+1,
 					len(row)>1 and row[1] or "", cstr(d.employee),str(d.attendance_date),link))
 			else:
 				

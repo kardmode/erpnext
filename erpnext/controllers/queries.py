@@ -430,3 +430,81 @@ def get_batch_numbers(doctype, txt, searchfield, start, page_len, filters):
 		query += " and item = '{item}'".format(item = frappe.db.escape(filters.get('item')))
 
 	return frappe.db.sql(query)
+
+						
+@frappe.whitelist()
+def get_items_from(doc_type,doc_name):
+
+	conditions = "t1.item_code"
+	if doc_type == "Purchase Receipt":
+		conditions += ", t1.received_qty, t1.uom, t1.stock_uom"
+	elif doc_type == "Delivery Note":
+		conditions += ", t1.qty, t1.uom,t1.stock_qty, t1.stock_uom"
+	
+	doctypeitem_name = 'tab' + str(doc_type) + ' Item'
+	doctype_name = 'tab' + str(doc_type)
+	
+	query = "select " + conditions + " from `" +  doctypeitem_name + "` t1,`" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
+	new_dict = frappe.db.sql(query, (doc_name), as_dict=1)
+
+	return new_dict
+	
+@frappe.whitelist()
+def get_items_from_csv():
+	if not frappe.has_permission("Quotation", "create"):
+		raise frappe.PermissionError
+
+	from frappe.utils.csvutils import read_csv_content_from_uploaded_file
+	from frappe.modules import scrub
+
+	rows = read_csv_content_from_uploaded_file()
+	rows = filter(lambda x: x and any(x), rows)
+	if not rows:
+		msg = [_("Please select a csv file")]
+		return {"messages": msg, "error": msg}
+	columns = [scrub(f) for f in rows[0]]
+	columns[0] = "item_code"
+	ret = []
+	error = False
+	messages = []
+	start_row = 1
+	for i, row in enumerate(rows[start_row:]):
+		
+		row_idx = i + start_row
+		d = frappe._dict(zip(columns, row))
+		itemdict = frappe.db.sql("""select name,item_group, is_sales_item from `tabItem` where name = %s and docstatus < 2""",d.item_code, as_dict=1)
+		
+		if itemdict:
+			item = itemdict[0]
+			newitem = {}
+			newitem["item_code"] = item.name
+			newitem["qty"] = d.quantity
+			newitem["item_group"] = item.item_group
+			if d.page_break:
+				newitem["page_break"] = True
+			else:
+				newitem["page_break"] = False
+			
+			if item.is_sales_item:
+			
+				if str(item.item_group).lower() == "raw material":
+					messages.append('Ignored Row (#%d) %s : Item is a raw material' % (row_idx,row[0]))		
+				elif str(item.item_group).lower() == "assemblypart":
+					messages.append('Ignored Row (#%d) %s : Item is an assembly part' % (row_idx,row[0]))		
+				else:
+					ret.append(newitem)
+					if d.page_break:
+						messages.append('Row (#%d) %s : Item added with Page Break' % (row_idx,row[0]))	
+					else:
+						messages.append('Row (#%d) %s : Item added' % (row_idx,row[0]))	
+			else:
+				error = True
+				messages.append('Error for row (#%d) %s : Item is not a sales item' % (row_idx,row[0]))		
+		else:
+			error = True
+			messages.append('Error for row (#%d) %s : Invalid Item Code' % (row_idx,row[0]))		
+		
+
+	return {"items":ret,"messages": messages, "error": error}
+
+

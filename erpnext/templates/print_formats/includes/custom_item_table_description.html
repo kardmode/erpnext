@@ -51,32 +51,7 @@
 		
 		{%- endfor -%}
 		
-		
-		
-		<!-- {%- for fieldname in columns -%}
-			{% if doc.get(fieldname) and doc.in_format_data(fieldname) -%}
-				
-				{% if fieldname == "description"  -%}
-					
-					{% if not (doc.item_code == doc.item_name == doc.description)  -%}
-					<p>{{ doc.get_formatted(fieldname, translated=True)  }}</p>
-					{% endif %}
-					
-				{% else  -%}
-					
-					
-					<p>
-					
-					{% if doc.meta.get_label(fieldname)  -%}
-					<strong>{{ _(doc.meta.get_label(fieldname)) }}:</strong>
-					{% endif %}
-					
-					{{ doc.get_formatted(fieldname, translated=True)  }}
-					</p>
-				{% endif %}
-			
-			{% endif %}
-		{%- endfor -%} -->
+	
 	{% else  -%}
 	
 		

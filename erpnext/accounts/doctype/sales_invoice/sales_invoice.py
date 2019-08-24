@@ -69,6 +69,8 @@ class SalesInvoice(SellingController):
 		if not self.is_pos:
 			self.so_dn_required()
 
+		self.mrp_validate_items()
+
 		self.validate_proj_cust()
 		self.validate_with_previous_doc()
 		self.validate_uom_is_integer("stock_uom", "stock_qty")
@@ -500,6 +502,22 @@ class SalesInvoice(SellingController):
 			msgprint(_("Please remove this Invoice {0} from C-Form {1}")
 				.format(self.name, self.c_form_no), raise_exception = 1)
 
+	def mrp_validate_items(self):
+		for d in self.get('items'):
+			if d.expense_account:
+				if frappe.db.get_value("Account", d.expense_account, "company") != self.company:
+					d.expense_account = frappe.db.get_value("Company", self.company, "default_expense_account")
+			
+			if d.income_account:
+				if frappe.db.get_value("Account", d.income_account, "company") != self.company:
+					d.income_account = frappe.db.get_value("Company", self.company, "default_income_account")
+			
+			if d.cost_center:
+				if frappe.db.get_value("Cost Center", d.cost_center, "company") != self.company:
+					d.cost_center = frappe.db.get_value("Company", self.company, "cost_center")
+
+
+			
 	def validate_dropship_item(self):
 		for item in self.items:
 			if item.sales_order:
@@ -1017,23 +1035,70 @@ def set_account_for_mode_of_payment(self):
 			data.account = get_bank_cash_account(data.mode_of_payment, self.company).get("account")
 
 
-def update_item(target_doc,discount=5):
-	target_items = target_doc.items
-	factor = 1-flt(discount)/100
-	for item in target_items:
+def update_item(target_doc,source_doc,company,discount_percent=0):
+	factor = 1-flt(discount_percent)/100
+
+	for item in target_doc.items:
 		item.base_rate = factor * flt(item.base_rate)
 		item.rate = factor * flt(item.rate)
 		item.base_amount = item.qty * flt(item.base_rate)		
 		item.amount = item.qty * flt(item.rate)
 
 @frappe.whitelist()		
-def make_sales_invoice(source_name, discount_percent):
+def make_sales_invoice(data):
+		import json
+		args = json.loads(data)
+		
+		source_name = args["source_name"]
+		project_discount_percent = args["project_discount_percent"]
+		per_item_discount_percent = args["per_item_discount_percent"]
+		company= args["company"]
+		project= args["project"]
+		taxes_and_charges= args["taxes_and_charges"]
+		tc_name= args["tc_name"]
+		customer= args["customer"]
+		
 		source_doc = frappe.get_doc("Sales Invoice", source_name)
 		target_doc = frappe.copy_doc(source_doc, ignore_no_copy=False)
+		target_doc.customer = customer
+
 		target_doc.naming_series = source_doc.naming_series
 		target_doc.posting_date = source_doc.posting_date
 		target_doc.due_date = source_doc.due_date
-		update_item(target_doc, discount_percent)
+		target_doc.company = company
+		target_doc.project = project
+		target_doc.taxes_and_charges = taxes_and_charges
+		target_doc.tc_name = tc_name
+		
+
+		target_doc.taxes = []
+		target_doc.terms = ""
+		
+		# fetch terms
+		if target_doc.tc_name and not target_doc.terms:
+			target_doc.terms = frappe.db.get_value("Terms and Conditions", target_doc.tc_name, "terms")
+
+		# fetch charges
+		if target_doc.taxes_and_charges and not len(target_doc.get("taxes")):
+			target_doc.set_taxes()
+
+		
+		
+		target_doc.ignore_pricing_rule = 1
+		target_doc.run_method("set_missing_values")
+		target_doc.run_method("calculate_taxes_and_totals")
+		
+		update_item(target_doc,source_doc,company,per_item_discount_percent)
+		
+
+		factor = 1-flt(project_discount_percent)/100
+		target_doc.project_total = factor * flt(source_doc.project_total)
+
 		# target_doc.insert(ignore_permissions=True)
 
-		return target_doc
+		
+		can_read = False
+		if target_doc.has_permission('read'):
+			can_read = True
+		# frappe.db.commit()
+		return target_doc, can_read

@@ -470,8 +470,41 @@ class StockEntry(StockController):
 				frappe.throw(_("Quantity in row {0} ({1}) must be same as manufactured quantity {2}"). \
 					format(d.idx, d.transfer_qty, self.fg_completed_qty))
 
-			if self.production_order and self.purpose == "Manufacture" and d.t_warehouse:
+			if self.production_order and self.purpose == "Manufacture" and d.t_warehouse and not d.s_warehouse:
 				items_with_target_warehouse.append(d.item_code)
+			elif not self.production_order and self.purpose == "Manufacture" and d.t_warehouse and not d.s_warehouse:
+				items_with_target_warehouse.append(d.item_code)
+				
+			if self.purpose == "Manufacture":
+				if d.s_warehouse and d.t_warehouse:
+					frappe.throw(_("Row {0} ({1}) can't have a source and target warehouse for manufacturing"). \
+					format(d.idx,d.item_code))
+			elif self.purpose in ["Material Transfer for Manufacture","Material Transfer"]:
+				if not d.s_warehouse or not d.t_warehouse:
+					frappe.throw(_("Row {0} ({1}) must have a source and target warehouse for transfer"). \
+					format(d.idx,d.item_code))
+			elif self.purpose in ["Material Issue"]:
+				if d.t_warehouse:
+					frappe.throw(_("Row {0} ({1}) must not have a target warehouse for material issue"). \
+					format(d.idx,d.item_code))
+				
+				if not d.s_warehouse:
+					frappe.throw(_("Row {0} ({1}) must have a source warehouse for material issue"). \
+					format(d.idx,d.item_code))
+			elif self.purpose in ["Material Receipt"]:
+				if d.s_warehouse:
+					frappe.throw(_("Row {0} ({1}) must not have source warehouse for receipt"). \
+					format(d.idx,d.item_code))
+				if not d.t_warehouse:
+					frappe.throw(_("Row {0} ({1}) must have a target warehouse for receipt"). \
+					format(d.idx,d.item_code))	
+		
+		if self.purpose == "Manufacture":		
+			if len(items_with_target_warehouse) <= 0:
+				frappe.throw(_("Item to manufacture must be included in table"))	
+			elif len(items_with_target_warehouse) > 1:
+				frappe.throw(_("Only one item to manufacture must be included in table"))
+				
 
 		if self.production_order and self.purpose == "Manufacture":
 			production_item = frappe.db.get_value("Production Order",

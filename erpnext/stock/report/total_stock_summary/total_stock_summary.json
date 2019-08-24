@@ -8,12 +8,12 @@
  "favorite": 1, 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-04-01 19:06:34.064150", 
+ "modified": "2019-03-05 22:40:04.346806", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Total Stock Summary", 
  "owner": "Administrator", 
- "ref_doctype": "Stock Entry", 
+ "ref_doctype": "Item", 
  "report_name": "Total Stock Summary", 
  "report_type": "Script Report", 
  "roles": [
@@ -28,6 +28,9 @@
   }, 
   {
    "role": "Stock Manager"
+  }, 
+  {
+   "role": "Accounts Manager"
   }
  ]
 }

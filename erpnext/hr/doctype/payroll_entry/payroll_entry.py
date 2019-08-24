@@ -16,7 +16,12 @@ from erpnext.hr.doctype.employee.employee import get_holiday_list_for_employee
 class PayrollEntry(Document):
 
 	def on_submit(self):
-		self.create_salary_slips()
+		result = self.create_salary_slips()
+		if result == "error":
+			frappe.throw(
+				_("No Salary Slips Were Created or Updated. Check that Salary Slips have not already been created."),
+				title='Error'
+			)
 		
 	def get_emp_list(self):
 		"""
@@ -47,9 +52,10 @@ class PayrollEntry(Document):
 				where
 					docstatus != 2 and
 					is_active = 'Yes' and
+					company = %(company)s and
 					ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 					{condition}""".format(condition=condition),
-				{"salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
+				{"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
 
 		if sal_struct:
 			cond += "and t2.parent IN %(sal_struct)s "
@@ -59,7 +65,7 @@ class PayrollEntry(Document):
 				from
 					`tabEmployee` t1, `tabSalary Structure Employee` t2
 				where
-					t1.docstatus!=2 and t1.status !='Left'
+					t1.docstatus!=2 and t1.status !='Left' and t1.exclude_from_payroll_entry !=1
 					and t1.name = t2.employee
 			%s """% cond, {"sal_struct": sal_struct}, as_dict=True)
 			
@@ -168,10 +174,14 @@ class PayrollEntry(Document):
 		self.created = 1;
 		emp_list = self.get_emp_list()
 		ss_list = []
+		
+		employee_count = len(emp_list)
+		existing_count = 0
+		new_count = 0
+		
 		if emp_list:
 			for emp in emp_list:
-				if not frappe.db.sql("""select
-						name from `tabSalary Slip`
+				if not frappe.db.sql("""select name from `tabSalary Slip`
 					where
 						employee = %s and
 						start_date >= %s and
@@ -186,23 +196,31 @@ class PayrollEntry(Document):
 						"start_date": self.start_date,
 						"end_date": self.end_date,
 						"employee": emp['employee'],
-						"employee_name": frappe.get_value("Employee", {"name":emp['employee']}, "employee_name"),
+						"employee_name": emp['employee_name'],
 						"company": self.company,
 						"posting_date": self.posting_date
 					})
 					
 					ss.insert()
+					frappe.db.commit()
 					ss_dict = {}
 					ss_dict["Employee Name"] = ss.employee_name
 					ss_dict["Total Pay"] = fmt_money(ss.rounded_total,currency = frappe.defaults.get_global_default("currency"))
 					ss_dict["Salary Slip"] = format_as_links(ss.name)[0]
 					ss_list.append(ss_dict)
-		return create_log(ss_list)
+					
+					new_count = new_count + 1
+				else:
+					existing_count = existing_count + 1
+		msg = "Employees: " + str(employee_count) + " - " + "Existing Salary Slips: " + str(existing_count) + " - " + "New Salary Slips Created: " + str(new_count)
+		
+		# return employee_count,existing_count,new_count
+		return len(ss_list), msg
 		
 		
 	def update_salary_slips(self):
 		"""
-			Update salary slip for selected employees if already not created
+			Update salary slip for selected employees if already created
 		"""
 		self.check_permission('write')
 		
@@ -216,7 +234,31 @@ class PayrollEntry(Document):
 			ss_dict["Total Pay"] = fmt_money(ss.rounded_total,currency = frappe.defaults.get_global_default("currency"))
 			ss_dict["Salary Slip"] = format_as_links(ss.name)[0]
 			ss_list.append(ss_dict)
-		return create_log(ss_list)
+		
+		msg = str(len(salary_slips))
+		return len(ss_list), msg
+		
+	def delete_duplicate_salary_slips(self):
+		"""
+			Delete Duplicate salary slips for selected employees if already created
+		"""
+		self.check_permission('write')
+		
+		salary_slips = self.get_sal_slip_list(0,as_dict=True)
+		emp_list = {}
+		duplicates = []
+		for d in salary_slips:
+			if d.employee in emp_list:
+				duplicates.append(d.name)
+			else:
+				emp_list[d.employee] = d.name
+		
+		for d in duplicates:
+			ss = frappe.get_doc("Salary Slip", d)
+			ss.delete()
+		
+		msg = str(len(duplicates))
+		return len(duplicates), msg
 
 	def get_sal_slip_list(self, ss_status, as_dict=False):
 		"""
@@ -230,7 +272,7 @@ class PayrollEntry(Document):
 		cond += """ order by employee_name"""
 
 		ss_list = frappe.db.sql("""
-			select t1.name, t1.salary_structure from `tabSalary Slip` t1
+			select t1.name, t1.salary_structure, t1.employee from `tabSalary Slip` t1
 			where t1.docstatus = %s and t1.start_date >= %s and t1.end_date <= %s
 			and ifnull(salary_slip_based_on_timesheet,0) = %s %s
 		""" % ('%s', '%s', '%s','%s', cond), (ss_status, self.start_date, self.end_date, self.salary_slip_based_on_timesheet), as_dict=as_dict)
@@ -241,8 +283,6 @@ class PayrollEntry(Document):
 			Submit all salary slips based on selected criteria
 		"""
 		self.check_permission('write')
-
-		# self.create_salary_slips()
 
 		jv_name = ""
 		ss_list = self.get_sal_slip_list(ss_status=0)
@@ -594,18 +634,8 @@ def get_month_details(year, month):
 		frappe.throw(_("Fiscal Year {0} not found").format(year))
 
 
-@frappe.whitelist()
-def create_log(ss_list):
-	if not ss_list:
-		frappe.throw(
-			_("There's no employee for the given criteria. Check that Salary Slips have not already been created."),
-			title='Error'
-		)
-	return ss_list
-
-
-def format_as_links(salary_slip):
-	return ['<a href="#Form/Salary Slip/{0}">{0}</a>'.format(salary_slip)]
+def format_as_links(salary_slip_name):
+	return ['<a href="#Form/Salary Slip/{0}">{0}</a>'.format(salary_slip_name)]
 
 
 def create_submit_log(submitted_ss, not_submitted_ss, jv_name):
@@ -669,5 +699,5 @@ def payroll_entry_has_bank_entries(name):
 
 	return response
 	
-	
+
 

@@ -326,3 +326,16 @@ def get_customer_primary_contact(doctype, txt, searchfield, start, page_len, fil
 			'customer': customer,
 			'txt': '%%%s%%' % txt
 		})
+		
+def get_customer_details(customer):
+	doc_details = frappe.db.sql("""
+						select tax_id,customer_name_in_arabic
+						from `tabCustomer`
+						where
+						name = %s
+						""", (customer), as_dict=True)
+						
+	if doc_details:
+		return doc_details[0]
+	else:
+		return None

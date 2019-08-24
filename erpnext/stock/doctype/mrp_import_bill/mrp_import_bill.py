@@ -1,0 +1,244 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and contributors
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
+import frappe, math
+from frappe.utils import cint,flt
+from frappe import throw, _
+from frappe.model.document import Document
+
+class MRPImportBill(Document):
+	def autoname(self):
+		if self.company:
+			suffix = " - " + frappe.db.get_value("Company", self.company, "abbr")
+			if not self.document_name.endswith(suffix):
+				self.name = self.document_name + suffix
+		else:
+			self.name = self.document_name
+			
+	def get_summary(self):
+		items = get_items_in_bill(self.name)
+		summary = self.create_condensed_table(items)
+		
+	
+	def on_update(self):
+		if self.disabled:
+			self.on_disable()
+			
+	def on_disable(self):
+	
+		bins = frappe.db.sql("select * from `tabMRP Import Entry` where import_bill = %s",
+			self.name, as_dict=1)
+		
+		final_qty = 0
+		for d in bins:
+			final_qty = final_qty + flt(d['stock_qty'])
+		
+		if final_qty != 0:
+			throw(_("Import Bill {0} can not be disabled as quantity exists for Item {1}").format(self.name, d['item_code']))
+	
+
+
+	def on_trash(self):
+		# delete bin
+		
+		if self.check_if_sle_exists():
+			throw(_("Warehouse can not be deleted as MRP Import Entry exists for this bill."))
+			
+		
+
+
+	def check_if_sle_exists(self):
+		return frappe.db.sql("""select name from `tabMRP Import Entry`
+			where import_bill = %s limit 1""", self.name)
+
+	
+					
+					
+def create_condensed_table(items):
+	summary = ""
+	
+	joiningtext = """<table class="table table-bordered table-condensed">"""
+	joiningtext += """<thead>
+			<tr style>
+				<th>Entry Name</th>
+				<th>Item Code</th>
+				<th>Total Qty</th>
+				<th>Stock UOM</th>
+				<th></th>
+			</tr></thead><tbody>"""
+				
+	for key, value in items.iteritems():
+		
+		joiningtext += """<tr>
+					<td>""" + str(key) +"""</td>
+					<td>""" + str(value["item_code"]) +"""</td>
+					<td>""" + str(value["stock_qty"]) +"""</td>
+					<td>""" + str(value["stock_uom"]) +"""</td>
+					</tr>"""
+	joiningtext += """</tbody></table>"""
+	summary += joiningtext
+	return summary
+
+def get_items_in_bill(import_bill):
+	bins = frappe.db.sql("select t1.item_code,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type from `tabMRP Import Entry Item` t1, `tabMRP Import Entry` t2 where t1.import_bill = %s and t2.name = t1.parent and t2.docstatus = 1 order by t2.posting_date",
+			import_bill, as_dict=1)
+	
+	item_dict = {}
+	import copy
+	new_list = copy.deepcopy(bins)
+	for item in new_list:
+		item_code = item["item_code"]
+		
+		
+		
+		if item_dict.has_key(item_code):
+		
+			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+				item_dict[item_code]["stock_qty"] += flt(item["stock_qty"])
+			else:
+				item_dict[item_code]["stock_qty"] -= flt(item["stock_qty"])
+			
+		else:
+			item_dict[item_code] = item
+			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+				item_dict[item_code]["stock_qty"] = flt(item["stock_qty"])
+			else:
+				item_dict[item_code]["stock_qty"] = -1 * flt(item["stock_qty"])
+			
+
+	return item_dict
+
+@frappe.whitelist()
+def get_total_qty_for_item(import_bill,item_code,posting_date=None,posting_time=None):
+
+	stock_details = []
+	
+	if posting_date and posting_time:
+		
+		stock_details = frappe.db.sql("""
+						select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type
+						from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
+						where t2.import_bill = %s and t2.item_code = %s
+						and t2.stock_qty <> 0 and t1.name = t2.parent and t1.docstatus = 1
+						and (t1.posting_date < %s or (t1.posting_date = %s and t1.posting_time < %s))
+						ORDER BY t2.stock_qty DESC
+						""", (import_bill,item_code,posting_date,posting_date,posting_time), as_dict=True)	
+	else:
+		stock_details = frappe.db.sql("""
+						select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type
+						from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
+						where t2.import_bill = %s and t2.item_code = %s
+						and t2.stock_qty <> 0 and t1.name = t2.parent and t1.docstatus = 1
+						ORDER BY t2.stock_qty DESC
+						""", (import_bill,item_code), as_dict=True)	
+					
+	
+
+	total_qty = 0
+	for d in stock_details:
+
+		if d.transaction_type in ["Purchase Receipt","Addition"]:
+			total_qty = total_qty + flt(d.stock_qty)
+			
+		else:
+			total_qty = total_qty - flt(d.stock_qty)
+			
+	return total_qty
+	
+@frappe.whitelist()
+def get_bills_and_stock(item_code=None,company = None):
+
+	if not item_code or not company:
+		return []
+
+
+	stock_details = frappe.db.sql("""
+					select t1.name, t2.import_bill, t2.item_code,t2.stock_qty,t2.stock_uom, t2.item_name, t1.transaction_type
+					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
+					where t1.company = %s 
+					and t1.docstatus = 1
+					and t2.parent =  t1.name 
+					and t2.item_code = %s
+					and t2.stock_qty <> 0 ORDER BY t2.stock_qty DESC
+					""", (company,item_code), as_dict=True)		
+	best_warehouses = []
+	
+	item_dict = {}
+	import copy
+	new_list = copy.deepcopy(stock_details)
+	for item in new_list:
+		import_bill = item["import_bill"]
+
+		if item_dict.has_key(import_bill):
+		
+			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+				item_dict[import_bill]["stock_qty"] += flt(item["stock_qty"])
+			else:
+				item_dict[import_bill]["stock_qty"] -= flt(item["stock_qty"])
+		else:
+			item_dict[import_bill] = item
+			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+				item_dict[import_bill]["stock_qty"] = flt(item["stock_qty"])
+			else:
+				item_dict[import_bill]["stock_qty"] = -1 * flt(item["stock_qty"])
+			
+		
+
+	return item_dict
+	
+@frappe.whitelist()
+def get_best_bill(item_code=None,item_qty = 0, order_by_least = False,company = None):
+	
+	enough_stock = False
+	
+	best_warehouse = None
+
+	if not item_code or not company:
+		return best_warehouse,enough_stock
+	
+	item_dict = get_bills_and_stock(item_code,company=company)
+	
+	highest_qty = 0
+	best_warehouse = None
+	
+	for key in item_dict:
+		warehouse_info =item_dict[key]
+		if warehouse_info.stock_qty > highest_qty:
+			highest_qty = warehouse_info.stock_qty
+			best_warehouse = warehouse_info.import_bill
+			if flt(highest_qty) >= flt(item_qty):
+				enough_stock = True
+				
+	return best_warehouse,highest_qty,enough_stock
+	
+		
+
+@frappe.whitelist()	
+def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
+
+	best_warehouses = []
+		
+	if filters and filters.get('item_code'):
+		item_code = frappe.db.escape(filters.get('item_code'))
+	else:
+		return best_warehouses
+		
+	if filters and filters.get('company'):
+		company = frappe.db.escape(filters.get('company'))
+	else:
+		return best_warehouses
+	
+
+		
+	stock_details = get_bills_and_stock(item_code,company = company)
+	
+	for key in stock_details:
+		warehouse_info =stock_details[key]
+		qty = warehouse_info.stock_qty
+		best_warehouse = warehouse_info.import_bill
+		best_warehouses.append((best_warehouse,))
+		
+	return best_warehouses
+

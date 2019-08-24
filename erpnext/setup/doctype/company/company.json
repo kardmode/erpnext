@@ -1,4 +1,7 @@
 {
+ "add_company_abbr_to_name": 0, 
+ "add_date_to_name": 0, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 1, 
@@ -10,7 +13,6 @@
  "description": "Legal Entity / Subsidiary with a separate Chart of Accounts belonging to the Organization.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -2021,7 +2023,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2018-01-29 12:40:24.646920", 
+ "modified": "2019-02-07 22:08:07.747857", 
  "modified_by": "Administrator", 
  "module": "Setup", 
  "name": "Company", 

@@ -23,9 +23,35 @@ def execute(filters=None):
 	iwb_map = get_item_warehouse_map(filters, sle)
 	item_map = get_item_details(items, sle, filters)
 	item_reorder_detail_map = get_item_reorder_details(item_map.keys())
-
+	
+	if filters.get("report_style") == "Minimal":
+		columns = [
+			_("Item")+":Link/Item:300",
+			# _("Item Name")+"::150",
+			_("Item Group")+":Link/Item Group:300",
+			# _("Brand")+"::90",
+			# _("Description")+"::140",
+			_("Warehouse")+":Link/Warehouse:200",
+			_("Stock UOM")+":Link/UOM:50",
+			# _("Opening Qty")+":Float:100",
+			# _("Opening Value")+":Float:60",
+			# _("In Qty")+":Float:100",
+			# _("In Value")+":Float:80",
+			# _("Out Qty")+":Float:100",
+			# _("Out Value")+":Float:80",
+			_("Balance Qty")+":Float:100",
+			# _("Balance Value")+":Float:100",
+			# _("Valuation Rate")+":Float:100"
+			# ,_("Reorder Level")+":Float:80",
+			# _("Reorder Qty")+":Float:80",
+			# _("Company")+":Link/Company:100"
+		]
+	
 	data = []
 	for (company, item, warehouse) in sorted(iwb_map):
+		if not company == filters.get("company"):
+			continue
+	
 		qty_dict = iwb_map[(company, item, warehouse)]
 		item_reorder_level = 0
 		item_reorder_qty = 0
@@ -33,28 +59,7 @@ def execute(filters=None):
 			item_reorder_level = item_reorder_detail_map[item + warehouse]["warehouse_reorder_level"]
 			item_reorder_qty = item_reorder_detail_map[item + warehouse]["warehouse_reorder_qty"]
 
-		if filters.get('compact', 0) == 1:
-			columns = [
-				_("Item")+":Link/Item:300",
-				# _("Item Name")+"::150",
-				_("Item Group")+"::200",
-				# _("Brand")+"::90",
-				# _("Description")+"::140",
-				_("Warehouse")+":Link/Warehouse:200",
-				_("Stock UOM")+":Link/UOM:50",
-				# _("Opening Qty")+":Float:100",
-				# _("Opening Value")+":Float:60",
-				# _("In Qty")+":Float:100",
-				# _("In Value")+":Float:80",
-				# _("Out Qty")+":Float:100",
-				# _("Out Value")+":Float:80",
-				_("Balance Qty")+":Float:100",
-				# _("Balance Value")+":Float:100",
-				# _("Valuation Rate")+":Float:100"
-				# ,_("Reorder Level")+":Float:80",
-				# _("Reorder Qty")+":Float:80",
-				# _("Company")+":Link/Company:100"
-			]
+		if filters.get("report_style") == "Minimal":
 		
 		
 			report_data = [item, 
@@ -95,7 +100,7 @@ def execute(filters=None):
 				# qty_dict.out_val, 
 				qty_dict.bal_qty,
 				qty_dict.bal_val, 
-				qty_dict.val_rate
+				qty_dict.val_rate,
 				# item_reorder_level,
 				# item_reorder_qty,
 				# company
@@ -119,7 +124,7 @@ def get_columns():
 	columns = [
 		_("Item")+":Link/Item:200",
 		# _("Item Name")+"::150",
-		_("Item Group")+"::100",
+		_("Item Group")+":Link/Item Group:100",
 		# _("Brand")+"::90",
 		# _("Description")+"::140",
 		_("Warehouse")+":Link/Warehouse:100",

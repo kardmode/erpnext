@@ -17,7 +17,7 @@ frappe.query_reports["WPS"] = {
 			"label": __("Fiscal Year"),
 			"fieldtype": "Link",
 			"options": "Fiscal Year",
-			"default": frappe.sys_defaults.fiscal_year,
+			"default": new Date().getFullYear(),
 		},
 		{
 			"fieldname":"company",

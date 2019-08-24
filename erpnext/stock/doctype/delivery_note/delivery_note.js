@@ -23,14 +23,15 @@ frappe.ui.form.on("Delivery Note", {
 
 		//erpnext.queries.setup_warehouse_query(frm);
 
-		frm.set_query('project', function(doc) {
+		/* frm.set_query('project', function(doc) {
 			return {
-				query: "erpnext.controllers.queries.get_project_name",
-				filters: {
-					'customer': doc.customer
-				}
+				filters: [
+						['Project', 'customer', '=', doc.customer],
+						['Project', 'status', 'in', ['Open']],
+						['Project', 'company', '=', doc.company],
+					]
 			}
-		})
+		}) */
 
 		frm.set_query('transporter_name', function(doc) {
 			return {
@@ -136,6 +137,13 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 			if (doc.docstatus==1) {
 				this.frm.add_custom_button(__('Sales Return'), function() {
 					me.make_sales_return() }, __("Make"));
+					
+				this.frm.add_custom_button(__('Purchase Receipt - For Transfer'), function() {
+					me.make_purchase_receipt() }, __("Make"));
+					
+				this.frm.add_custom_button(__('Delivery Note - For Transfer'), function() {
+					me.make_transfer_dn() }, __("Make"));
+					
 			}
 
 			if(doc.docstatus==0 && !doc.__islocal) {
@@ -191,6 +199,9 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 							}
 						})
 					}, __("Get items from"));
+					
+					
+				
 			}
 		}
 
@@ -251,6 +262,107 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 			frm: this.frm
 		})
 	},
+	
+	make_purchase_receipt: function() {
+		
+		frappe.model.open_mapped_doc({
+				method: "erpnext.stock.doctype.delivery_note.delivery_note.make_purchase_receipt",
+				frm: cur_frm
+			})
+		/* 
+		var dialog = new frappe.ui.Dialog({
+			title: __("Make Purchase Receipt"),
+			fields: [
+				{fieldname:'company', fieldtype:'Link', options: 'Company',label: __('Company'),reqd:1},
+				{fieldname:'supplier', fieldtype:'Link', options: 'Supplier',label: __('Supplier'),reqd:1},
+			]
+		});
+		
+		dialog.fields_dict["company"].get_query = function(){
+			return {
+				filters: [
+					]
+					
+				
+			};
+		};
+			
+		
+		dialog.set_primary_action(__("Make"), function() {
+		
+			var filters = dialog.get_values();
+			
+			frappe.call({
+				args:{
+					company:filters.company,
+					supplier:filters.customer,
+					source_name:cur_frm.doc.name,
+					project:filters.project,
+				},
+				method: "erpnext.stock.doctype.delivery_note.delivery_note.make_purchase_receipt",
+				callback: function(r) {
+					dialog.hide();
+
+				}
+			});
+		
+		});
+		dialog.show();
+		 */
+	}, 
+	
+	make_transfer_dn: function() {
+			
+		var dialog = new frappe.ui.Dialog({
+			title: __("Make Delivery Note"),
+			fields: [
+				{fieldname:'company', fieldtype:'Link', options: 'Company',label: __('Company'),reqd:1},
+				{fieldname:'customer', fieldtype:'Link', options: 'Customer',label: __('Customer'),reqd:1},
+				{fieldname:'project', fieldtype:'Link', options: 'Project',label: __('Project'),reqd:1},
+			]
+		});
+		
+		
+		dialog.fields_dict["project"].get_query = function(){
+			
+			var dialog_filters = dialog.get_values();
+			
+			return {
+				filters: [
+						['Project', 'customer', '=', dialog_filters.customer],
+						['Project', 'status', 'in', ['Open']],
+						['Project', 'company', '=', dialog_filters.company],
+					]
+			};
+		};
+			
+		
+		dialog.set_primary_action(__("Make"), function() {
+		
+			var filters = dialog.get_values();
+			
+			
+			frappe.call({
+				args:{
+					company:filters.company,
+					customer:filters.customer,
+					source_name:cur_frm.doc.name,
+					project:filters.project,
+				},
+				method: "erpnext.stock.doctype.delivery_note.delivery_note.make_transfer_dn",
+				callback: function(r) {
+					dialog.hide();
+					console.log(r);
+					// frappe.msgprint(__("{0} Result", [r.message]));
+
+				}
+			});
+
+		
+		});
+		dialog.show();
+	}, 
+	
 	
 	make_bom_stock_entry: function() {
 		frappe.call({

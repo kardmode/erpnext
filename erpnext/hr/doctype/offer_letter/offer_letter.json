@@ -1,8 +1,12 @@
 {
+ "add_company_abbr_to_name": 1, 
+ "add_date_to_name": 1, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 1, 
  "allow_rename": 0, 
+ "append_company_abbr_to_name": "0", 
  "autoname": "Offer-.#####", 
  "beta": 0, 
  "creation": "2015-03-04 14:20:17.662207", 
@@ -10,7 +14,7 @@
  "default_print_format": "", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Other", 
+ "document_type": "Setup", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -420,7 +424,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-11-08 00:16:10.675622", 
+ "modified": "2019-02-05 22:42:51.994957", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "Offer Letter", 

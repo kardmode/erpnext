@@ -1,4 +1,7 @@
 {
+ "add_company_abbr_to_name": 0, 
+ "add_date_to_name": 1, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 1, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
@@ -9,7 +12,7 @@
  "description": "Replace a particular BOM in all other BOMs where it is used. It will replace the old BOM link, update cost and regenerate \"BOM Explosion Item\" table as per new BOM.\nIt also updates latest price in all the BOMs.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Other", 
+ "document_type": "Tools", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [
@@ -208,7 +211,7 @@
  "issingle": 1, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-07-02 16:17:09.014102", 
+ "modified": "2019-02-07 23:14:40.914007", 
  "modified_by": "Administrator", 
  "module": "Manufacturing", 
  "name": "BOM Update Tool", 

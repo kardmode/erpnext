@@ -105,32 +105,6 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			});
 		}
 		
-	// },
-	// onload: function() {
-		// var me = this;
-		// if(this.frm.doc.__islocal) {
-			// var today = frappe.datetime.get_today(),
-				// currency = frappe.defaults.get_user_default("currency");
-
-			// $.each({
-				// currency: currency,
-				// price_list_currency: currency,
-				// status: "Draft",
-				// is_subcontracted: "No",
-			// }, function(fieldname, value) {
-				// if(me.frm.fields_dict[fieldname] && !me.frm.doc[fieldname])
-					// me.frm.set_value(fieldname, value);
-			// });
-
-			// if(this.frm.doc.company && !this.frm.doc.amended_from) {
-				// this.frm.trigger("company");
-			// }
-			
-			// /* var message = frappe.db.get_value('DocType Help Message', {'doctype_name': this.frm.doc.doctype}, 'message');
-			// frappe.msgprint(message);
- // */
-		// }
-
 
 		if(
 			this.frm.docstatus < 2
@@ -175,6 +149,11 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				};
 			});
 		}
+		
+		erpnext.queries.setup_project_query(this.frm);
+		
+		
+		
 	},
 	onload: function() {
 		var me = this;
@@ -256,18 +235,148 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		erpnext.hide_company();
 
 		
-		// var me = this;
-		
-		// Modified 
-		// if (me.frm.doc.items){
-			// if(me.frm.doc.items.length<10){
-				// this.set_dynamic_labels();
-			// }
-		// }
-		
-		
 		this.set_dynamic_labels();
-		this.setup_sms();
+		// this.setup_sms();
+		
+		if (this.frm.doc.docstatus==0) {
+			cur_frm.add_custom_button(__('CSV'),
+			function() {
+				var me = this;
+
+				var dialog = new frappe.ui.Dialog({
+					title: "Add items from CSV",
+					fields: [
+						{"fieldtype": "HTML", "label": __(""), "fieldname": "import_html",
+							"reqd": 1 },
+						{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log",
+							"reqd": 1 },
+						{"fieldtype": "Check", "label": __("Keep Previous Entries"), "fieldname": "keep_previous"},
+						{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
+					]
+				});
+
+				var $wrapper = $(dialog.fields_dict.import_html.wrapper).empty();
+
+				// upload
+				frappe.upload.make({
+					parent: $wrapper,
+					args: {
+						method: 'erpnext.controllers.queries.get_items_from_csv',
+					},
+					btn: $(dialog.fields_dict.update.wrapper),
+					callback: function(attachment, r) {
+						var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
+						var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
+						
+						var items = r.message.items;
+						var messages = r.message.messages;
+						var error = r.message.error;
+						if(!r.messages) r.messages = [];
+
+						r.messages = $.map(messages, function(v) {
+							return v;
+						});
+						
+						if (error){
+							r.messages = ["<h4 style='color:red'>"+__("Import Failed")+"</h4>"]
+								.concat(r.messages)
+
+						} else {
+							r.messages = ["<h4 style='color:green'>"+__("Import Succeeded")+"</h4>"]
+								.concat(r.messages)
+							
+							if(!$keep_previous.is(":checked")){	
+								 cur_frm.doc.items = [];
+							}
+							$.each(items, function(i, item) {
+								var d = frappe.model.add_child(cur_frm.doc, cur_frm.doctype + " Item", "items");
+									d.item_code = item.item_code;
+									d.qty = item.qty;
+									d.page_break = item.page_break;
+									console.log(d);
+									cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+									
+								});
+						
+							cur_frm.refresh_field('items');
+							me.calculate_taxes_and_totals();
+
+						}
+						
+						$.each(r.messages, function(i, v) {
+							var $p = $('<p>').html(v).appendTo($log_wrapper);
+							if(v.substr(0,5)=='Error') {
+								$p.css('color', 'red');
+							}else if(v.substr(0,6)=='Header') {
+								$p.css('color', 'green');
+							} else if(v.substr(0,7)=='Updated') {
+								$p.css('color', 'green');
+							}
+						});
+					},
+					is_private: false
+				});
+
+				
+				dialog.show();
+
+				
+				
+			}, __("Get items from"), "btn-default");
+	
+			
+			cur_frm.add_custom_button(__('Doc'),
+				function() {
+					/* erpnext.utils.map_current_doc({
+						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
+						source_doctype: "Product Bundle",
+						get_query_filters: {
+						}
+					}) */
+					cur_frm.trigger('get_items_from');
+					
+				}, __("Get items from"), "btn-default");
+			
+			cur_frm.add_custom_button(__('Room Quantity'),
+				function() {
+					/* erpnext.utils.map_current_doc({
+						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
+						source_doctype: "Product Bundle",
+						get_query_filters: {
+						}
+					}) */
+					cur_frm.trigger('multiply_room');
+					
+				}, __("Modify"), "btn-default");
+				
+			cur_frm.add_custom_button(__('Items Quantity'),
+				function() {
+					/* erpnext.utils.map_current_doc({
+						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
+						source_doctype: "Product Bundle",
+						get_query_filters: {
+						}
+					}) */
+					cur_frm.trigger('multiply_items');
+					
+				}, __("Modify"), "btn-default");
+			cur_frm.add_custom_button(__('Items Rate'),
+				function() {
+
+					cur_frm.trigger('multiply_rate');
+					
+				}, __("Modify"), "btn-default");
+			
+			cur_frm.add_custom_button(__('Pro Bata'),
+				function() {
+
+					cur_frm.trigger('pro_rata');
+					
+				}, __("Modify"), "btn-default");
+			
+		}
+		
+		
 	},
 
 	apply_default_taxes: function() {
@@ -865,31 +974,24 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			{
 				cur_frm.set_value("net_weight_uom",base_weight_uom);
 			}
-		}
 			
-				
-
-		
-		
-		$.each(this.frm.doc["items"] || [], function(i, item) {
-			if(item.weight_uom)
-			{
-				var converted_info = convert_weight_unit(item.total_weight,item.weight_uom,base_weight_uom);
-				if(converted_info[0])
-					total += flt(converted_info[1]);
-				else
+			$.each(this.frm.doc["items"] || [], function(i, item) {
+				if(item.weight_uom)
 				{
-					frappe.msgprint(__("The weight_uom " + item.weight_uom + " of item " + item.item_code + ",row " + i + " is invalid."));
+					var converted_info = convert_weight_unit(item.total_weight,item.weight_uom,base_weight_uom);
+					if(converted_info[0])
+						total += flt(converted_info[1]);
+					else
+					{
+						frappe.msgprint(__("The weight_uom " + item.weight_uom + " of item " + item.item_code + ",row " + i + " is invalid."));
+					}
+					
 				}
 				
-			}
-				
-		});
-		
-		me.frm.set_value("total_net_weight",total);
-		
-		//refresh_field("total_net_weight");
-		//refresh_field("net_weight_uom");
+			});
+			
+			cur_frm.set_value("total_net_weight",total);
+		}
 		
 		this.shipping_rule();
 	},
@@ -1476,6 +1578,229 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			frappe.msgprint(__("The net weight uom required is invalid."));
 			return;
 		}
+	},
+	get_items_from:function (frm) {
+		var me=this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Get Items From Doc"),
+			fields: [
+				{fieldname:'doc_type', fieldtype:'Select', options: ['Purchase Receipt','Delivery Note','Product Collection'], label: __('Type')},
+				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name')},
+				// {fieldname:'sec_break', fieldtype:'Section Break'},
+				// {fieldname:'qty', fieldtype:'Int', label: __('Quantity'),default:1},
+			]
+		});
+		
+		
+		dialog.fields_dict["doc_name"].get_query = function(){
+			return {
+				filters: [
+						['docstatus', '<', '2'],
+						// ['status', '!=', 'Closed'],
+						// ['company', '=', frm.doc.company],
+					]
+					
+				
+			};
+		};
+		
+		dialog.set_primary_action(__("Get Items"), function() {
+		
+		var filters = dialog.get_values();
+
+		frappe.call({
+			method:'erpnext.controllers.queries.get_items_from',
+			args:{
+				doc_type: filters.doc_type,
+				doc_name: filters.doc_name
+			},
+			callback:function (r) {
+			
+				console.log(r);
+				// if ( dialog.get_value('qty') >0)
+					// qty = dialog.get_value('qty');
+				
+				// cur_frm.set_value("room_qty",qty);
+				
+				cur_frm.set_value("items",[]);
+					
+				for (var i=0; i< r.message.length; i++) {
+					var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.items.df.options, cur_frm.fields_dict.items.df.fieldname);
+					row.item_code = r.message[i].item_code;
+					
+					if ( dialog.get_value('doc_type') == "Purchase Receipt")
+						row.qty = r.message[i].received_qty;
+					else
+					{
+						row.qty =  r.message[i].qty;
+					}
+					
+					row.uom = r.message[i].uom;
+					row.stock_uom = r.message[i].stock_uom;
+					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
+
+
+				}
+				cur_frm.refresh_field('items');
+				me.calculate_taxes_and_totals();
+				cur_frm.dirty();
+				dialog.hide();
+			}
+		})
+		});
+		dialog.show();
+	},
+	
+	
+	multiply_room:function (frm) {
+		var me=this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Multiply Room"),
+			fields: [
+				// {fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				// {fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Int', label: __('Quantity'),default:'1'},
+			]
+		});
+		dialog.set_primary_action(__("Change"), function() {
+		
+			var filters = dialog.get_values();
+
+			var qty =1;
+			var filter_qty = 1;
+			if ( dialog.get_value('qty') > 0)
+				filter_qty = dialog.get_value('qty');
+			
+			original_qty = cur_frm.doc.room_qty;
+			qty = flt(filter_qty)/flt(original_qty);
+			cur_frm.set_value("room_qty",filter_qty);
+			
+			var items = cur_frm.doc.items;
+			$.each(items, function(i, item) {
+				item.qty = flt(item.qty) * flt(qty);
+				cur_frm.script_manager.trigger("item_qty", item.doctype, item.name);
+
+			});
+			cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+			cur_frm.dirty();
+			dialog.hide();
+		});
+		dialog.show();
+	},
+	
+	multiply_items:function (frm) {
+		var me = this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Multiply All Items"),
+			fields: [
+				//{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				//{fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Float', label: __('Quantity'),default:'1'},
+			]
+		});
+		dialog.set_primary_action(__("Multiply"), function() {
+		
+			var filters = dialog.get_values();
+			var qty =1;
+			var filter_qty = 1;
+			if ( dialog.get_value('qty') > 0)
+				filter_qty = dialog.get_value('qty');
+			
+			original_qty = cur_frm.doc.room_qty;
+			qty = filter_qty;
+
+			//cur_frm.set_value("room_qty",qty);
+			
+			var items = cur_frm.doc.items;
+
+			$.each(items, function(i, item) {
+				item.qty = flt(item.qty) * flt(qty);
+				cur_frm.script_manager.trigger("item_code", item.doctype, item.name);
+
+			});
+			
+			cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+			cur_frm.dirty();
+			dialog.hide();
+		});
+		dialog.show();
+	},
+	
+	multiply_rate:function (frm) {
+		var me = this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Multiply All Item Rate"),
+			fields: [
+				//{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				//{fieldname:'base_variable', fieldtype:'Section Break'},
+				{fieldname:'qty', fieldtype:'Float', label: __('Percent'),default:'100'},
+			]
+		});
+		dialog.set_primary_action(__("Multiply"), function() {
+		
+			var filters = dialog.get_values();
+			var percent = 100;
+			if ( dialog.get_value('qty') > 0)
+				percent = dialog.get_value('qty');
+			
+			
+			var items = cur_frm.doc.items;
+
+			$.each(items, function(i, item) {
+				item.rate = flt(item.rate) * flt(percent)/100;
+				//cur_frm.script_manager.trigger("item_code", item.doctype, item.name);
+
+			});
+			
+			cur_frm.refresh_field('items');
+			me.calculate_taxes_and_totals();
+			cur_frm.dirty();
+
+			dialog.hide();
+		});
+		dialog.show();
+	},
+
+	pro_rata:function (frm) {
+		var me = this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Pro Rata Item Rate"),
+			fields: [
+				//{fieldname:'bundle', fieldtype:'Link', options: 'Product Collection', label: __('Collection')},
+				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
+				{fieldname:'target', fieldtype:'Float', label: __('Total Required'),default:me.frm.doc.grand_total},
+				//{fieldname:'base_variable', fieldtype:'Section Break'},
+				//{fieldname:'qty', fieldtype:'Float', label: __('Percent'),default:'100'},
+			]
+		});
+		dialog.set_primary_action(__("Bata"), function() {
+		
+			var filters = dialog.get_values();
+			
+			var target = original_total = me.frm.doc.grand_total;
+			if ( dialog.get_value('target') > 0)
+				target = dialog.get_value('target');
+			
+			var percent_change = (target-original_total)/original_total
+			
+			var items = cur_frm.doc.items;
+			$.each(items, function(i, item) {
+				var new_amount = item.amount*(1+percent_change);
+				item.rate = flt(new_amount/item.qty);
+			});
+			
+			cur_frm.refresh_field('items');
+			me.calculate_taxes_and_totals();
+			cur_frm.dirty();
+
+			dialog.hide();
+		});
+		dialog.show();
 	},
 	
 });

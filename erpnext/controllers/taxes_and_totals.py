@@ -355,19 +355,10 @@ class calculate_taxes_and_totals(object):
 						is_valid, converted_value = convert_weight_unit(d.total_weight,d.weight_uom,base_weight_uom);
 						if is_valid:
 							self.doc.total_net_weight += converted_value
+						else:
+							frappe.msgprint(_("The weight_uom {0} of item {1} is invalid.").format(d.weight_uom,d.item_code))
 		
 		
-			
-			
-			
-			
-
-	def calculate_total_net_weight(self):
-		if self.doc.meta.get_field('total_net_weight'):
-			self.doc.total_net_weight = 0.0
-			for d in self.doc.items:
-				if d.total_weight:
-					self.doc.total_net_weight += d.total_weight
 
 	def set_rounded_total(self):
 		if self.doc.meta.get_field("rounded_total"):

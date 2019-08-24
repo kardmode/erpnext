@@ -1,4 +1,7 @@
 {
+ "add_company_abbr_to_name": 1, 
+ "add_date_to_name": 1, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 1, 
@@ -9,7 +12,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Documents", 
  "editable_grid": 1, 
  "fields": [
   {
@@ -3363,7 +3366,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2018-07-23 11:27:52.534561", 
+ "modified": "2019-03-07 16:35:37.636246", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Purchase Receipt", 

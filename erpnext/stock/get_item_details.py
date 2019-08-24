@@ -475,18 +475,20 @@ def get_serial_nos_by_fifo(args):
 
 @frappe.whitelist()
 def get_conversion_factor(item_code, uom):
-	variant_of,stock_uom = frappe.db.get_value("Item", item_code, ["variant_of","stock_uom"])
+	variant_of = frappe.db.get_value("Item", item_code, "variant_of")
+	stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
+
 	filters = {"parent": item_code, "uom": uom}
 	if variant_of:
 		filters["parent"] = ("in", (item_code, variant_of))
-	
-	conversion_factor = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
+	conversion_factor = frappe.db.get_value("UOM Conversion Detail",
+		filters, "conversion_factor")
 	
 	if not conversion_factor:
 		if uom == "Sheet" and stock_uom == "Nos":
-			conversion_factor = 1
+			conversion_factor = 1.0
 		elif uom == "Nos" and stock_uom == "Sheet":
-			conversion_factor = 1
+			conversion_factor = 1.0
 	
 		# conversion_factor = convert_SI(1,stock_uom,uom)
 		# if conversion_factor:
@@ -508,7 +510,8 @@ def get_conversion_factor(item_code, uom):
 	
 @frappe.whitelist()
 def get_conversion_factor_between_two_units(item_code, initial_uom, final_uom):
-	variant_of,stock_uom = frappe.db.get_value("Item", item_code, ["variant_of","stock_uom"])
+	variant_of = frappe.db.get_value("Item", item_code, "variant_of")
+	stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
 	
 	if not item_code or not initial_uom or not final_uom:
 		return {"conversion_factor": 1}

@@ -689,26 +689,27 @@ class BOM(WebsiteGenerator):
 		
 
 	def build_bom(self):
-		
-		bomitems = self.bomitems
+	
+		bomitems = self.get("bomitems")
 		if not (bomitems):
 			frappe.throw(_("No items provided"))
 		
-		depthOriginal = self.depth
-		widthOriginal = self.width
-		heightOriginal = self.height
+		depthOriginal = convert_units(self.depthunit,self.depth)
+		widthOriginal = convert_units(self.widthunit,self.width)
+		heightOriginal = convert_units(self.heightunit,self.height)
+		
 		qtyOriginal = self.quantity or 1
 		
 		
-		merged,summary,final = build_bom_ext(bomitems,qtyOriginal)
+		merged,summary,final = build_bom_ext(bomitems,qtyOriginal,depthOriginal,widthOriginal,heightOriginal)
 	
 		
 		self.update_bom_builder(merged)
 		self.set('summary',summary)
 		
-		self.check_recursion()
-		self.update_stock_qty()
-		self.update_exploded_items()
+		# self.check_recursion()
+		# self.update_stock_qty()
+		# self.update_exploded_items()
 		
 		
 		
@@ -1105,16 +1106,16 @@ def process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perime
 		conversion_factor = get_conversion_factor(d_edging, required_uom).get("conversion_factor")
 		
 		if not conversion_factor:
-			frappe.throw(_("Item {0} has no conversion factor for {1}").format(d_edging,required_uom))
-		
-		conversion_factor = flt(1/conversion_factor)
-				
-		qty = flt(required_qty)/flt(conversion_factor)
-		detail = side + " " + edging_sides
-
-		
-		newitem = {"side":detail,"item_code":d_edging,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-		return newitem
+			frappe.throw(_("Edgebanding Item {0} has no conversion factor for {1}. Edgebanding Not Added").format(d_edging,required_uom))
+			return None
+			
+		else:
+			conversion_factor = flt(1/conversion_factor)
+			qty = flt(required_qty)/flt(conversion_factor)
+			detail = side + " " + edging_sides		
+			newitem = {"side":detail,"item_code":d_edging,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+			return newitem
+			
 	else:
 		return None
 		
@@ -1138,23 +1139,24 @@ def process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,
 		conversion_factor = get_conversion_factor(d_laminate, required_uom).get("conversion_factor")
 		
 		if not conversion_factor:
-			frappe.throw(_("Item {0} has no conversion factor for {1}").format(d_laminate,required_uom))
+			frappe.throw(_("Laminate Item {0} has no conversion factor for {1}. Laminate Not Added").format(d_laminate,required_uom))
+			return None
+		else:
+			conversion_factor = flt(1/conversion_factor)
 		
-		conversion_factor = flt(1/conversion_factor)
-		
-		
-		stock_uom = laminate_info[0].stock_uom
-		# calculate stock required_qty using dimensions of item
-		qty = flt(required_qty) / flt(conversion_factor)
-		
-		detail = side + " " + laminate_sides
-		newitem = {"side":detail,"item_code":d_laminate,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-		return newitem
+			stock_uom = laminate_info[0].stock_uom
+			# calculate stock required_qty using dimensions of item
+			qty = flt(required_qty) / flt(conversion_factor)
+			
+			detail = side + " " + laminate_sides
+			newitem = {"side":detail,"item_code":d_laminate,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
+			return newitem
 		
 
 		# if glueitem:
+			
 			# glueinfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", glueitem, as_dict = 1)
-			# required_qty = required_qty*200
+			# required_qty = required_qty
 			# required_uom = "g"
 			# conversion_factor = get_conversion_factor(glueitem, required_uom).get("conversion_factor") or 1.0
 			# stock_uom = glueinfo[0].stock_uom
@@ -1295,7 +1297,7 @@ def get_material_list(items,qty,qtyOriginal):
 	return merged,summary,final 
 	
 @frappe.whitelist()
-def build_bom_ext(bomitems,qtyOriginal=1):
+def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightOriginal=0):
 	
 	summary = ""
 	merged = []
@@ -1327,46 +1329,84 @@ def build_bom_ext(bomitems,qtyOriginal=1):
 			
 		
 		bb_item = d.bb_item
-		bb_qty = d.bb_qty
-		requom = d.requom			
+		bb_qty = 1
+		
+		
 		calculation = frappe.db.get_value("BOM Part", side,["calculation"])
+
+		
+		if calculation in ["formula-int","formula-float"]:
+			if d.bb_qty:
+				bb_qty = d.bb_qty
+			else:
+				frappe.throw(_("No qty provided"))	
+		else:
+			if d.bb_qty and is_number(d.bb_qty):
+				bb_qty = flt(d.bb_qty)*flt(qtyOriginal)
+			else:
+				frappe.throw(_("Qty is not valid"))
+		
+		required_qty = bb_qty
+		stock_qty = bb_qty
+		requom = d.requom			
 
 		d_edging = d.edging
 		edging_sides = d.edgebanding
 		d_laminate = d.laminate
 		laminate_sides = d.laminate_sides
 				
-	
-		
-					
-		bb_qty = flt(bb_qty)*flt(qtyOriginal)
-		required_qty = bb_qty
-		qty = flt(bb_qty)
-		
 
 		item = frappe.db.sql("""select stock_uom,depth,depthunit,width,widthunit,height,heightunit from `tabItem` where name=%s""", bb_item, as_dict = 1)
 		if not item:
 			frappe.throw(_("Item {0} does not exist").format(bb_item))
 
-		conversion_factor = 1.0
+
 		stock_uom = item[0].stock_uom
 		required_uom = requom
 		
+		conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+
+		
+		is_hardware = False
+		has_edging = False
+		has_laminate = False
 		
 		
 
 		if calculation in ["nos"]:
 			required_qty = bb_qty
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+			is_hardware = True
+			has_edging = False
+			has_laminate = False
+		elif calculation in ["formula-int","formula-float"]:
 			
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
 			
-			conversion_factor = flt(1/conversion_factor)
+			data = frappe._dict()
+			data["d"] = depthOriginal
+			data["w"] = widthOriginal
+			data["h"] = heightOriginal
+			data["c1"] = length
+			data["c2"] = width
+			data["c3"] = height
 			
-			qty = flt(required_qty)/flt(conversion_factor)
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			custom.append(newitem)
+			struct_row = frappe._dict()
+			struct_row["amount"] = 0
+			struct_row["condition"] = None
+			struct_row["formula"] = d.bb_qty
+			struct_row["amount_based_on_formula"] = True
+			
+			formula_qty = eval_condition_and_formula(struct_row, data)
+			required_qty = formula_qty * flt(qtyOriginal)
+			
+			
+			if calculation == "formula-int":
+				from frappe.utils import ceil
+				required_qty = ceil(required_qty)
+			
+			is_hardware = False
+			has_edging = False
+			has_laminate = False
+			
 		elif calculation in ["height-profile","depth-profile","width-profile"]:
 			if calculation in ["width-profile"]:
 				required_qty = width * bb_qty
@@ -1375,17 +1415,11 @@ def build_bom_ext(bomitems,qtyOriginal=1):
 			else:
 				required_qty = length * bb_qty
 				
+			is_hardware = False
+			has_edging = False
+			has_laminate = False
+				
 			
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor") 
-			
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
-			
-			conversion_factor = flt(1/conversion_factor)
-			
-			qty = flt(required_qty)/flt(conversion_factor)
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
 		elif calculation in ["user-input-height","user-input-depth","user-input-width"]:
 			if calculation in ["user-input-width"]:
 				required_qty = width * bb_qty
@@ -1394,17 +1428,9 @@ def build_bom_ext(bomitems,qtyOriginal=1):
 			else:
 				required_qty = length * bb_qty
 				
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor") 
-			
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
-			
-			conversion_factor = flt(1/conversion_factor)
-			
-			qty = flt(required_qty)/flt(conversion_factor)
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
-		
+			is_hardware = False
+			has_edging = False
+			has_laminate = False
 		
 		elif calculation in ["perimeter","perimeter-width","perimeter-length"]:
 
@@ -1415,40 +1441,19 @@ def build_bom_ext(bomitems,qtyOriginal=1):
 			else:
 				required_qty = perimeter * bb_qty
 				
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+			is_hardware = False
+			has_edging = True
+			has_laminate = False
 			
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
-			
-			conversion_factor = flt(1/conversion_factor)
-			
-			qty = flt(required_qty)/flt(conversion_factor)
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
-			
-			new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
-			if new_edging:
-				edgebanding.append(new_edging)
 		
 		elif calculation in ["circle-perimeter"]:
 			from math import pi
 			perimeter = pi*flt(length)
 			required_qty = perimeter * bb_qty
 			
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
-			
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
-			
-			conversion_factor = flt(1/conversion_factor)
-			
-			qty = flt(required_qty)/flt(conversion_factor)
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
-			
-			new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
-			if new_edging:
-				edgebanding.append(new_edging)
+			is_hardware = False
+			has_edging = True
+			has_laminate = False
 		
 		elif calculation in ["circle-area"]:
 		
@@ -1460,77 +1465,51 @@ def build_bom_ext(bomitems,qtyOriginal=1):
 			
 			required_qty = farea * bb_qty
 			
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
-			
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
-			
-			conversion_factor = flt(1/conversion_factor)
-			
-			# calculate stock required_qty using dimensions of item
-			qty = flt(required_qty) / flt(conversion_factor)
-			
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
-			
-			new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
-			if new_laminate:
-				laminate.append(new_laminate)
-
-			new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
-			if new_edging:
-				edgebanding.append(new_edging)
+			is_hardware = False
+			has_edging = True
+			has_laminate = True
 
 			
 		elif calculation in ["area"]:
 
 			required_qty = farea * bb_qty
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
-	
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
+			is_hardware = False
+			has_edging = True
+			has_laminate = True
 			
-			conversion_factor = flt(1/conversion_factor)
-			
-			# calculate stock required_qty using dimensions of item
-			qty = flt(required_qty) / flt(conversion_factor)
-			
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
-			
-			new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
-			if new_laminate:
-				laminate.append(new_laminate)
-
-			new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
-			if new_edging:
-				edgebanding.append(new_edging)
 		elif calculation in ["volume"]:
+			
 			required_qty = fvolume * bb_qty
+			is_hardware = False
+			has_edging = True
+			has_laminate = True
 			
-			conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
-	
-			if not conversion_factor:
-				frappe.throw(_("Item {0} has no conversion factor for {1}").format(bb_item,required_uom))
 			
+			
+		if not conversion_factor:
+			frappe.throw(_("Item {0} has no conversion factor for {1}. Item Not Added").format(bb_item,required_uom))
+		else:
+		
 			conversion_factor = flt(1/conversion_factor)
 			
-			# calculate stock required_qty using dimensions of item
-			qty = flt(required_qty) / flt(conversion_factor)
+			stock_qty = flt(required_qty)/flt(conversion_factor)
 			
-			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":qty,"stock_qty":qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
-			mdf.append(newitem)
+			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"required_qty":required_qty,"qty":stock_qty,"stock_qty":stock_qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"required_uom":required_uom}
 			
-			new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
-			if new_laminate:
-				laminate.append(new_laminate)
-
-			new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
-			if new_edging:
-				edgebanding.append(new_edging)
-			
-			
-	
+			if is_hardware:
+				custom.append(newitem)
+			else:
+				mdf.append(newitem)
+				
+			if has_laminate:
+				
+				new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
+				if new_laminate:
+					laminate.append(new_laminate)
+			if has_edging:
+				new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
+				if new_edging:
+					edgebanding.append(new_edging)
 		
 	
 	if len(custom)> 0 :
@@ -1546,6 +1525,36 @@ def build_bom_ext(bomitems,qtyOriginal=1):
 	
 	return merged,summary,final
 	
+	
+def eval_condition_and_formula(d, data):
+	try:
+		condition = d.condition.strip() if d.condition else None
+		if condition:
+			if not frappe.safe_eval(condition, None, data):
+				return None
+		amount = d.amount
+		if d.amount_based_on_formula:
+			formula = d.formula.strip() if d.formula else None
+			if formula:
+				amount = frappe.safe_eval(formula, None, data)
+		data[d.abbr] = amount
+
+		return amount
+
+	except NameError as err:
+		frappe.throw(_("Name error: {0}".format(err)))
+	except SyntaxError as err:
+		frappe.throw(_("Syntax error in formula or condition: {0}".format(err)))
+	except Exception as e:
+		frappe.throw(_("Error in formula or condition: {0}".format(e)))
+		raise
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+		
 def _get_exploded_items(items):
 	""" Get all raw materials including items from child bom"""
 	cur_exploded_items = {}

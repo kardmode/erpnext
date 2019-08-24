@@ -35,7 +35,8 @@ def execute(filters=None):
 		total_ot = 0
 		total_otf = 0
 		total_oth = 0
-		
+		import calendar
+
 		for day in range(filters["total_days_in_month"]):
 			details = emp.get(day + 1)
 			row = ['', '', '','']
@@ -66,7 +67,6 @@ def execute(filters=None):
 
 			
 			
-			import calendar
 			daynumber = calendar.weekday(cint(filters.fiscal_year),cint(filters.month),cint(day+1))
 			dayofweek = str(calendar.day_name[daynumber])[:3]
 			textdate = dayofweek + ' ' + str(day+1)

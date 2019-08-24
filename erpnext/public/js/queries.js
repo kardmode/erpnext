@@ -79,7 +79,7 @@ $.extend(erpnext.queries, {
 	company_address_query: function(doc) {
 		return {
 			query: 'frappe.contacts.doctype.address.address.address_query',
-			filters: { is_your_company_address: 1, link_doctype: 'Company', link_name: doc.company || '' }
+			filters: { /* is_your_company_address: 1,  */link_doctype: 'Company', link_name: doc.company || '' }
 		};
 	},
 
@@ -116,6 +116,17 @@ $.extend(erpnext.queries, {
 				["Warehouse", "disabled", "=",0]
 			]
 		}
+	},
+	
+	project:function(doc) {
+		var filters = {
+			'status': ["in",["Open"]],
+			// "company": doc.company
+		};
+
+		return {
+			filters: filters
+		};
 	}
 });
 
@@ -154,6 +165,34 @@ erpnext.queries.setup_warehouse_query = function(frm){
 			$.extend(filters, {"query":"erpnext.controllers.queries.warehouse_query"});
 			filters["filters"].push(["Bin", "item_code", "=", row.item_code]);
 		}
-		return filters
+		return filters;
 	});
+}
+
+
+erpnext.queries.setup_project_query = function(frm){
+	if(frm.fields_dict["items"].grid.get_field('project')) {
+		frm.set_query('project', 'items', function(doc, cdt, cdn) {
+			var filters = erpnext.queries.project(frm.doc);
+			if (frm.fields_dict["customer"] && frm.doc.customer) 
+			{
+				filters["filters"]["customer"] = frm.doc.customer;
+			}
+			return filters;
+		});
+	}
+	
+	if(frm.fields_dict["project"]) {
+		frm.set_query('project', function() {
+			var filters = erpnext.queries.project(frm.doc);
+			if (frm.fields_dict["customer"] && frm.doc.customer) 
+			{
+				filters["filters"]["customer"]  = frm.doc.customer;
+			}
+			return filters;
+		})
+			
+	}
+	
+	
 }

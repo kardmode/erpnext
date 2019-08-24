@@ -10,6 +10,7 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 		this.frm.set_value("att_fr_date", frappe.datetime.get_today());
 		this.frm.set_value("att_to_date", frappe.datetime.get_today());
 		this.frm.set_value("import_settings", "default");
+		this.frm.set_value("only_show_errors", 1);
 		this.frm.trigger("set_start_end_dates");
 	},
 
@@ -122,14 +123,20 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 				
 				if(r.exc || r.error || r.message.error) {
 					r.messages = $.map(r.message.messages, function(v) {
-						var msg = v.replace("Inserted", "Valid")
-							.replace("Updated", "Valid").split("<");
-						if (msg.length > 1) {
-							v = msg[0] + (msg[1].split(">").slice(-1)[0]);
-						} else {
-							v = msg[0];
+						if(cur_frm.doc.only_show_errors === 1)
+						{
+							if(v.search(/error/i) > -1)
+							{
+								return v;
+							}
 						}
-						return v;
+						else{
+							var msg = v.replace("Inserted", "Valid").replace("Updated","Valid");
+							
+
+							return msg;
+						}
+						
 					});
 				
 				}

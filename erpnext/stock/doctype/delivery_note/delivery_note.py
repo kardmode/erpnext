@@ -666,5 +666,115 @@ def update_delivery_note_status(docname, status):
 	
 
 		
+@frappe.whitelist()
+def make_purchase_receipt(source_name, target_doc=None):
+	def update_item(obj, target, source_parent):
+		# target.qty = flt(obj.qty) - flt(obj.received_qty)
+		# target.stock_qty = (flt(obj.qty) - flt(obj.received_qty)) * flt(obj.conversion_factor)
+		# target.amount = (flt(obj.qty) - flt(obj.received_qty)) * flt(obj.rate)
+		# target.base_amount = (flt(obj.qty) - flt(obj.received_qty)) * \
+			# flt(obj.rate) * flt(source_parent.conversion_rate)
+		target.project = source_parent.project
+		
+	def update_target_doc(obj, target, source_parent):
+		pass
+	
+	def set_missing_values(source, target):
+		target.supplier = source.company
+		target.supplier_delivery_note = source.name
+		
+		target.company = source.customer
+		
+		
+		target.shipping_address = source.shipping_address_name
+		target.title = source.title
+		
+		target.ignore_pricing_rule = 1
+		target.run_method("set_missing_values")
+		target.run_method("calculate_taxes_and_totals")
+
+		
+
+		
+		if not target.company == source.company:
+			from erpnext.stock.utils import get_default_warehouse
+
+			default_warehouse = get_default_warehouse(company = target.company).get("source_warehouse")
+
+			for d in target.get("items"):
+				d.warehouse = default_warehouse 
+		
+		target.flags.ignore_permissions = True
+		target.insert()
+
+	doc = get_mapped_doc("Delivery Note", source_name,	{
+		"Delivery Note": {
+			"doctype": "Purchase Receipt",
+			"field_map": {
+				# "per_billed": "per_billed"
+			},
+			"validation": {
+				"docstatus": ["=", 1],
+			}
+		},
+		"Delivery Note Item": {
+			"doctype": "Purchase Receipt Item",
+			# "field_map": {
+				# "name": "delivery_note_item",
+				# "parent": "delivery_note"
+			# },
+			"postprocess": update_item
+		},
+		"Sales Taxes and Charges": {
+			"doctype": "Purchase Taxes and Charges",
+			"add_if_empty": True
+		}
+	}, target_doc, set_missing_values)
+
+	return doc
+	
+@frappe.whitelist()
+def make_transfer_dn(company,customer,source_name,project=None):
+	try:
+		current_dn = frappe.get_doc("Delivery Note", source_name)
+
+		new_dn = frappe.copy_doc(current_dn, ignore_no_copy=True)
+		
+		new_dn.company = company
+		new_dn.company_trn = frappe.db.get_value("Company",company,"tax_id")
+		
+		new_dn.customer = customer
+		new_dn.project = project
+		
+		from erpnext.selling.doctype.customer.customer import get_customer_details
+		from frappe.contacts.doctype.address.address import get_default_address,get_address_display
+		
+		customer_details = get_customer_details(customer)
+		
+		if customer_details:
+			new_dn.tax_id = customer_details.tax_id
+			new_dn.customer_name_in_arabic = customer_details.customer_name_in_arabic
+		
+		new_dn.shipping_address_name = get_default_address('Customer', customer)
+		new_dn.shipping_address = get_address_display(new_dn.shipping_address_name)
+		new_dn.customer_address = get_default_address('Customer', customer)
+		new_dn.address_display = get_address_display(new_dn.customer_address)
+
+		if not new_dn.company == current_dn.company:
+			from erpnext.stock.utils import get_default_warehouse
+
+			default_warehouse = get_default_warehouse(company = new_dn.company).get("source_warehouse")
+
+			for d in new_dn.get("items"):
+				d.warehouse = default_warehouse 
+		
+		new_dn.insert(ignore_permissions=True)
+
+		return new_dn.name
+	
+	except:
+		return False
+
+	
 
 

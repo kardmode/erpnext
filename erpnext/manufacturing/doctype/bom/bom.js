@@ -282,7 +282,7 @@ frappe.ui.form.on("BOM", {
 		
 		if (frm.doc.depth === 0 && frm.doc.width === 0 && frm.doc.height === 0){
 			frappe.msgprint(__("Depth, width and height missing or equal to 0"));
-									cur_frm.dirty();
+			cur_frm.dirty();
 			return;
 		}
 		
@@ -290,7 +290,7 @@ frappe.ui.form.on("BOM", {
 			
 			doc: frm.doc,
 			method: "build_bom",
-			freeze:true,
+			freeze:false,
 			callback: function(r) {
 				refresh_field("summary");
 				refresh_field("items");
@@ -520,6 +520,7 @@ erpnext.bom.update_cost = function(doc) {
 	erpnext.bom.calculate_op_cost(doc);
 	erpnext.bom.calculate_scrap_materials_cost(doc);
 	erpnext.bom.calculate_total(doc);
+	cur_frm.dirty();
 };
 
 erpnext.bom.calculate_op_cost = function(doc) {

@@ -16,7 +16,7 @@ frappe.query_reports["Attendance Slip"] = {
 			"label": __("Fiscal Year"),
 			"fieldtype": "Link",
 			"options": "Fiscal Year",
-			"default": frappe.sys_defaults.fiscal_year,
+			"default": new Date().getFullYear(),
 		},
 		{
 			"fieldname":"employee",

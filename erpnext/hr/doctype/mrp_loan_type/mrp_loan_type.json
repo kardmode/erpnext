@@ -1,5 +1,7 @@
 {
  "add_company_abbr_to_name": 0, 
+ "add_date_to_name": 0, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
@@ -117,7 +119,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-12-22 20:32:37.976693", 
+ "modified": "2019-01-12 16:43:14.323733", 
  "modified_by": "Administrator", 
  "module": "HR", 
  "name": "MRP Loan Type", 

@@ -1,5 +1,7 @@
 {
  "add_company_abbr_to_name": 1, 
+ "add_date_to_name": 1, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
@@ -11,7 +13,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Other", 
+ "document_type": "", 
  "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
@@ -541,7 +543,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-12-16 22:29:02.686807", 
+ "modified": "2019-02-07 23:22:51.717221", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Delivery Trip", 

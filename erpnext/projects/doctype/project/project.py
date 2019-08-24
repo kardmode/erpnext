@@ -12,6 +12,14 @@ from erpnext.controllers.queries import get_filters_cond
 from frappe.desk.reportview import get_match_cond
 
 class Project(Document):
+
+	def autoname(self):
+		if self.company:
+			prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
+			if not self.project_name.endswith(prefix):
+				self.name = prefix + self.project_name
+		else:
+			self.name = self.project_name
 	
 	def calculate_sales(self, doctype):
 		grand_total = 0
@@ -483,13 +491,18 @@ class Project(Document):
 		self.update_costing_and_percentage_complete()
 		self.update_dependencies_on_duplicated_project()
 		
-		if self.status != 'Open' or self.is_active == 'No':
+		if self.status != 'Open':
 			self.validate_child_status()
 
 		self.update_nsm_model()
+		
+	def validate_parent_status(self):
+		if self.parent_project:
+			if frappe.db.sql("""select name from `tabProject` where name = %s and is_group = 0 limit 1""", self.name):
+				self.parent_project = None
 	
 	def validate_child_status(self):
-		if frappe.db.sql("""select name from `tabProject` where parent_project = %s and (is_active = 'Yes' or status = 'Open') limit 1""", self.name):
+		if frappe.db.sql("""select name from `tabProject` where parent_project = %s and (status = 'Open') limit 1""", self.name):
 			frappe.throw(_("Child projects are still Active or Open"))	
 	
 	def on_trash(self):

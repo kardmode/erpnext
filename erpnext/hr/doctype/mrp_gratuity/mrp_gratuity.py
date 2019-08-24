@@ -4,6 +4,8 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import msgprint, _
+
 from frappe.model.document import Document
 from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,fmt_money, add_to_date, formatdate,money_in_words
 from erpnext.hr.doctype.payroll_entry.payroll_entry import get_start_end_dates
@@ -48,9 +50,10 @@ class MRPGratuity(Document):
 	def check_sal_struct(self, joining_date, relieving_date):
 		cond = ''
 		payroll_frequency = "Monthly"
-		date_details = get_start_end_dates(payroll_frequency,self.posting_date)
+		date_details = get_start_end_dates(payroll_frequency,self.relieving_date)
 		start_date = date_details.start_date
 		end_date = date_details.end_date
+		
 		
 		
 		if payroll_frequency:
@@ -91,7 +94,7 @@ class MRPGratuity(Document):
 	def check_loan_deductions(self):
 		payroll_frequency = "Monthly"
 
-		date_details = get_start_end_dates(payroll_frequency,self.posting_date)
+		date_details = get_start_end_dates(payroll_frequency,self.relieving_date)
 		it = date_details.start_date
 		dt = date_details.end_date
 		

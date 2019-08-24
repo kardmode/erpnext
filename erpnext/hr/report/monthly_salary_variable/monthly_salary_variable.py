@@ -43,8 +43,7 @@ def execute(filters=None):
 		
 		if vars:
 			for d in vars:
-				row += [d.payroll_agent_code,d.payroll_agent_id]
-				row += [d.mol_id]
+				row += [d.mol_id,d.payroll_agent_code,d.payroll_agent_id]
 		
 		row += [ss.employee_name]
 
@@ -74,9 +73,8 @@ def execute(filters=None):
 	
 def get_columns(salary_slips):
 	columns = [
-		_("Agent Code") + "::150",_("Agent ID") + "::180"
+		_("MOL ID") + "::180",_("Agent Code") + "::150",_("Agent ID") + "::180"
 	]
-	columns = columns +	["MOL ID::180"]
 
 	columns = columns +	["Employee Name::160"]
 	

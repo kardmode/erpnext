@@ -7,24 +7,24 @@ frappe.ui.form.on('Product Collection', {
 	},
 	
 	validate: function(frm) {
-		if(frm.doc.new_item_code)
+		if(frm.doc.item_code)
 		{
 			
-			var code = frm.doc.new_item_code;
+			var code = frm.doc.item_code;
 			var newword = code.trim();
-			frm.doc.new_item_code = newword.trim();
+			frm.doc.item_code = newword.trim();
 		}
 	},
 	
-	new_item_code: function(frm) {
+	item_code: function(frm) {
 		
-		if(frm.doc.new_item_code)
+		if(frm.doc.item_code)
 		{
 			
-			var code = frm.doc.new_item_code;
+			var code = frm.doc.item_code;
 			var newword = code.trim();
 
-			frm.set_value("new_item_code", newword.trim());
+			frm.set_value("item_code", newword.trim());
 		}
 
 	},

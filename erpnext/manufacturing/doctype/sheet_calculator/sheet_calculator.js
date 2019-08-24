@@ -3,6 +3,10 @@
 
 frappe.ui.form.on('Sheet Calculator', {
 	refresh: function(frm) {
+		frm.add_custom_button(__("Calculate"), function() {
+					frm.trigger("calculate_sheets");
+				},null,"primary");
+				
 		frm.trigger("calculate_sheets");
 	},
 	
@@ -84,7 +88,9 @@ var get_dimensions = function(frm) {
 	var panel_summary = "Perimeter (m): " + panelperimeter.toFixed(4) + "<br>"
 	+ "Area (m2): " + panelarea.toFixed(4) + "<br>"
 	+ "Volume (m3): " + panelvolume.toFixed(4) + "<br>"
-	+ "Volume (cft): " + panelvolumecft.toFixed(4) + "<br>";
+	+ "Volume (cft): " + panelvolumecft.toFixed(4) + "<br>"
+	+ "Number of sheets = Panel Area / Sheet Area<br>";
+
 	
 	var conversion_factor = 1/flt(farea);
 
@@ -109,5 +115,22 @@ var get_dimensions = function(frm) {
 	frm.set_value("num_of_stock_vol", num_of_stock_vol);
 	frm.set_value("cft_conversion_factor", cft_conversion_factor);
 	frm.set_value("cubic_m_conversion_factor", cubic_m_conversion_factor);
+	
+	var radiusCircle = convert_units(frm.doc.circle_radius_units,frm.doc.circle_radius);
+	var circlearea = flt(radiusCircle) * flt(radiusCircle) * 3.14;
+	var circleperimeter = flt(radiusCircle) * 3.14 * 2;
+
+	
+	var number_of_sheets_round_top = flt(circlearea) / flt(farea);
+	var finished_qty_per_stock_round_top = 1/flt(number_of_sheets_round_top);
+	var round_top_summary = "Radius (m): " + radiusCircle.toFixed(4) + "<br>"
+	+ "Perimeter (m): " + circleperimeter.toFixed(4) + "<br>"
+	+ "Area (m2): " + circlearea.toFixed(4) + "<br>"
+	+ "Number of sheets = Circle Area / Sheet Area<br>";
+	
+	frm.set_value("number_of_sheets_round_top", number_of_sheets_round_top);
+	frm.set_value("finished_qty_per_stock_round_top", finished_qty_per_stock_round_top);
+	frm.set_value("round_top_summary", round_top_summary);
+
 
 }

@@ -105,7 +105,19 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 			this.frm.cscript.quotation_btn();
 		}
 		
-		/* if(!this.frm.doc.__islocal) {
+		if(!this.frm.doc.__islocal) {
+			
+			if(this.frm.doc.docstatus == 0)
+			{
+				this.frm.add_custom_button(__('Advance Payment'), function() { 
+			
+					
+					make_advance_payment_invoice(cur_frm);
+				
+				},
+					__("Modify"));
+			}
+			
 			this.frm.add_custom_button(__('Duplicate Invoice'), function() { 
 			
 				duplicate_invoice(cur_frm);
@@ -113,7 +125,7 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 			
 			},
 				__("Make"));
-		} */
+		}
 
 		this.set_default_print_format();
 	},
@@ -672,36 +684,164 @@ var duplicate_invoice = function(frm){
 		var dialog = new frappe.ui.Dialog({
 			title: "Copy Invoice",
 			fields: [
-				{"fieldtype": "Float", "label": __("Discount Percent"), "fieldname": "discount_percent",default:'1'},
+				{"fieldtype": "Percent", "label": __("Project Total Discount Percent"), "fieldname": "project_discount_percent",default:'0',reqd:'1'},
+				{"fieldtype": "Percent", "label": __("Per Item Discount Percent"), "fieldname": "per_item_discount_percent",default:'0',reqd:'1'},
+				{"fieldtype": "Section Break", "fieldname": "sec"},
+				{"fieldtype": "Link", "label": __("Company"), "fieldname": "company","options":"Company",reqd:'1'},
+								{"fieldtype": "Column Break", "fieldname": "col"},
+
+				{"fieldtype": "Link", "label": __("Customer"), "fieldname": "customer","options":"Customer",reqd:'1'},
+								{"fieldtype": "Section Break", "fieldname": "sec"},
+				{"fieldtype": "Link", "label": __("Project"), "fieldname": "project","options":"Project",reqd:'1'},
+								{"fieldtype": "Section Break", "fieldname": "sec"},
+
+				{"fieldtype": "Link", "label": __("Taxes And Charges"), "fieldname": "taxes_and_charges","options":"Sales Taxes and Charges Template"},
+												{"fieldtype": "Column Break", "fieldname": "col"},
+
+				{"fieldtype": "Link", "label": __("Terms"), "fieldname": "tc_name","options":"Terms and Conditions"},
 			]
 		});
+		
+		dialog.fields_dict["project"].get_query = function(){
+			return {
+				filters: {
+					"company": dialog.get_value("company"),
+					"customer": dialog.get_value("customer"),
+				}
+			};
+		};
+		
+		dialog.fields_dict["taxes_and_charges"].get_query = function(){
+			return {
+				filters: {
+					"company": dialog.get_value("company"),
+				}
+			};
+		};
+		
+		
 		
 		dialog.set_primary_action(__("Copy"), function() {
 			args = dialog.get_values();
 			if(!args) return;
-			var discount_percent = args.discount_percent;
-			dialog.hide();
+			args["source_name"] = doc.name;
+			
 			frappe.call({
 				method: "erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_invoice",
 				args: {
-					"source_name":doc.name,
-					"discount_percent":discount_percent,
+					"data": JSON.stringify(args),
 				},
 				callback: function(r) {
-					
 					if(!r.exc) {
-						frappe.model.sync(r.message);
+						var new_doc = r.message[0];
+						var can_read = r.message[1];
+						frappe.model.sync(new_doc);
 						// if(opts.run_link_triggers) {
-							// frappe.get_doc(r.message.doctype, r.message.name).__run_link_triggers = true;
+						 frappe.get_doc(new_doc.doctype, new_doc.name).__run_link_triggers = true;
 						// }
-						frappe.set_route("Form", r.message.doctype, r.message.name);
+						if(can_read)
+							frappe.set_route("Form", new_doc.doctype, new_doc.name);
 					}
 				}
 			});
+			
+			dialog.hide(); 
 		});
 		
 		dialog.show();
 			
 
 }
+
+
+var make_advance_payment_invoice = function(frm){
+		var doc = frm.doc;
+		
+		var dialog = new frappe.ui.Dialog({
+			title: "Will Modify Project Total and Item Table",
+			fields: [
+				{"fieldtype": "Currency", "label": __("Project Total"), "fieldname": "project_total",default:frm.doc.project_total,reqd:'1'},
+				{"fieldtype": "Column Break", "fieldname": "col_1"},
+
+				{"fieldtype": "Percent", "label": __("Project Total Discount Percent"), "fieldname": "project_percent",default:'0',reqd:'1'},
+				{"fieldtype": "Section Break", "fieldname": "sec_1"},
+								{"fieldtype": "Link", "label": __("Advance Payment Item"), "fieldname": "item_code","options":"Item",reqd:'1'},
+
+				{"fieldtype": "Column Break", "fieldname": "col_2"},
+				{"fieldtype": "Percent", "label": __("Advance Payment Percent"), "fieldname": "advance_payment_percent",reqd:'1'},
+
+								{"fieldtype": "Section Break", "fieldname": "sec_1"},
+
+				{"fieldtype": "Small Text", "label": __("Custom Name"), "fieldname": "item_name"},
+								{"fieldtype": "Column Break", "fieldname": "col_2"},
+
+				{"fieldtype": "Small Text", "label": __("Description"), "fieldname": "description"},
+			]
+		});
+		
+		dialog.fields_dict["item_code"].get_query = function(){
+			return{
+				filters:[
+					['Item', 'item_code', 'like', '%payment%'],
+				]
+			}
+		};
+		
+		dialog.set_primary_action(__("Modify"), function() {
+			args = dialog.get_values();
+			if(!args) return;
+			
+			var advance_payment_percent = args.advance_payment_percent;
+			var project_percent = args.project_percent;
+			var item_code = args.item_code;
+			var item_name = args.item_name;
+			var description = args.description;
+			var project_total = args.project_total;
+			project_total = project_total * (100 - project_percent)/100;
+			
+			frm.set_value("project_total", project_total);
+			
+			frm.doc.items = [];
+			
+			var d = frappe.model.add_child(frm.doc, "Sales Invoice Item", "items");
+			d.item_code = item_code;
+			
+			cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+			
+			setTimeout(func, 1000);
+			function func() {
+				d.qty = 1;
+				d.uom = 'Nos';
+				var item_name_txt = advance_payment_percent + "% " + d.item_code;
+				d.item_name = item_name ? item_name:item_name_txt;
+				d.description = description;
+				d.rate = project_total * advance_payment_percent/100;
+				cur_frm.script_manager.trigger("rate", d.doctype, d.name);
+
+				
+				cur_frm.refresh();
+			
+				dialog.hide();
+			}
+			
+			
+			
+			
+			//frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
+			//frappe.model.set_value(d.doctype, d.name, "rate", rate);
+			//frappe.model.set_value(d.doctype, d.name, "amount", rate);
+
+			//cur_frm.script_manager.trigger("qty", d.doctype, d.name);
+			//cur_frm.script_manager.trigger("rate", d.doctype, d.name);
+			
+			
+			
+		});
+		
+		dialog.show();
+			
+
+}
+
+
 

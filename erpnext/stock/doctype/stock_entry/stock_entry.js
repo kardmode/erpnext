@@ -118,7 +118,7 @@ frappe.ui.form.on('Stock Entry', {
 		frm.fields_dict.items.grid.refresh();
 		frm.cscript.toggle_related_fields(frm.doc);
 		var doc = frm.doc
-		frm.set_value("items", []);
+		//frm.set_value("items", []);
 		frm.set_value("bom_no", "");
 		if(doc.docstatus == 0) {
 			if (doc.purpose === 'Manufacture'){
@@ -731,8 +731,8 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 		var row = frappe.get_doc(cdt, cdn);
 		this.frm.script_manager.copy_from_first_row("items", row, ["expense_account", "cost_center"]);
 
-		if(!row.s_warehouse) row.s_warehouse = this.frm.doc.from_warehouse;
-		if(!row.t_warehouse) row.t_warehouse = this.frm.doc.to_warehouse;
+		//if(!row.s_warehouse) row.s_warehouse = this.frm.doc.from_warehouse;
+		//if(!row.t_warehouse) row.t_warehouse = this.frm.doc.to_warehouse;
 	},
 
 	source_mandatory: ["Material Issue", "Material Transfer", "Subcontract", "Material Transfer for Manufacture"],

@@ -1,4 +1,7 @@
 {
+ "add_company_abbr_to_name": 0, 
+ "add_date_to_name": 0, 
+ "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
  "allow_import": 1, 
@@ -9,7 +12,7 @@
  "description": "A logical Warehouse against which stock entries are made.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Documents", 
  "editable_grid": 0, 
  "fields": [
   {
@@ -818,7 +821,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-02-28 09:15:33.463838", 
+ "modified": "2019-02-28 22:32:19.281449", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Warehouse", 

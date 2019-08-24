@@ -188,6 +188,9 @@ frappe.ui.form.on("Request for Quotation Supplier",{
 			callback: function(r){
 				if(r.message){
 					frappe.model.set_value(cdt, cdn, 'contact', r.message.contact_person)
+					frappe.model.set_value(cdt, cdn, 'supplier_address', r.message.supplier_address)
+					frappe.model.set_value(cdt, cdn, 'address_display', r.message.address_display)
+					frappe.model.set_value(cdt, cdn, 'contact_display', r.message.contact_display)
 					frappe.model.set_value(cdt, cdn, 'email_id', r.message.contact_email)
 				}
 			}

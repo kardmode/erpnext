@@ -41,13 +41,21 @@ frappe.ui.form.on("Salary Slip", {
 
 
 	start_date: function(frm, dt, dn){
-		if(frm.doc.start_date){
-			frm.trigger("set_end_date");
-			get_emp_and_leave_details(frm.doc, dt, dn);
-		}
+						get_emp_and_leave_details(frm.doc, dt, dn);
+
+	},
+	
+	enable_attendance: function(frm, dt, dn){
+						get_emp_and_leave_details(frm.doc, dt, dn);
+
+	},
+	
+	employee: function(frm, dt, dn){
+						get_emp_and_leave_details(frm.doc, dt, dn);
+
 	},
 
-	set_end_date: function(frm){
+	set_end_date: function(frm,dt,dn){
 		frappe.call({
 			method: 'erpnext.hr.doctype.payroll_entry.payroll_entry.get_end_date',
 			args: {
@@ -58,6 +66,8 @@ frappe.ui.form.on("Salary Slip", {
 				if (r.message) {
 					frm.set_value('end_date', r.message.end_date);
 				}
+				
+
 			}
 		})
 	},
@@ -89,9 +99,9 @@ frappe.ui.form.on("Salary Slip", {
 		get_emp_and_leave_details(frm.doc, dt, dn);
 	},
 
-	employee: function(frm, dt, dn) {
-		get_emp_and_leave_details(frm.doc, dt, dn);
-	},
+	// employee: function(frm, dt, dn) {
+		// get_emp_and_leave_details(frm.doc, dt, dn);
+	// },
 
 	toggle_fields: function(frm) {
 		frm.toggle_display(['hourly_wages', 'timesheets'],
@@ -152,18 +162,7 @@ frappe.ui.form.on('Salary Slip Timesheet', {
 
 // Get leave details
 //---------------------------------------------------------------------
-cur_frm.cscript.start_date = function(doc, dt, dn){
-	if(doc.start_date){
-		get_emp_and_leave_details(doc, dt, dn);
-	}
-}
 
-cur_frm.cscript.end_date = cur_frm.cscript.enable_attendance = cur_frm.cscript.start_date;
-
-cur_frm.cscript.employee = function(doc,dt,dn){
-	// doc.salary_structure = '';
-	cur_frm.cscript.start_date(doc, dt, dn)
-}
 
 var get_emp_and_leave_details = function(doc, dt, dn) {
 	return frappe.call({
@@ -305,7 +304,7 @@ cur_frm.cscript.arrear_amount = function(doc,dt,dn){
 
 // Leave encashment
 cur_frm.cscript.encash_leave = function(doc,dt,dn){
-	// calculate_earnings(doc, dt, dn);	
+	calculate_earnings(doc, dt, dn);	
 }
 
 // Loan deduction

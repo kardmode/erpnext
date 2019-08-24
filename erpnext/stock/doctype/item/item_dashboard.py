@@ -40,7 +40,7 @@ def get_data():
 			},
 			{
 				'label': _('Manufacture'),
-				'items': ['Production Order']
+				'items': ['MRP Production Order']
 			}
 		]
 	}

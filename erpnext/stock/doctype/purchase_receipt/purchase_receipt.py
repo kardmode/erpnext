@@ -58,6 +58,8 @@ class PurchaseReceipt(BuyingController):
 	def validate(self):
 		self.validate_posting_time()
 		super(PurchaseReceipt, self).validate()
+		
+		self.validate_supplier_with_dn()
 
 		if self._action=="submit":
 			self.make_batches('warehouse')
@@ -75,6 +77,17 @@ class PurchaseReceipt(BuyingController):
 
 		if getdate(self.posting_date) > getdate(nowdate()):
 			throw(_("Posting Date cannot be future date"))
+			
+	def validate_supplier_with_dn(self):
+		if self.supplier_delivery_note:
+			duplicate_pr = None
+			if cint(self.get("__islocal")):
+				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where supplier = %s and supplier_delivery_note = %s and docstatus = 1 limit 1""", (self.supplier,self.supplier_delivery_note),as_dict=True)
+			else:
+				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where name <> %s and supplier = %s and supplier_delivery_note = %s limit 1""", (self.name,self.supplier,self.supplier_delivery_note),as_dict=True)
+
+			if duplicate_pr:
+				frappe.throw(_("Supplier Delivery Note Identical to {0}").format(duplicate_pr[0].name))
 
 	def validate_with_previous_doc(self):
 		super(PurchaseReceipt, self).validate_with_previous_doc({
@@ -437,3 +450,38 @@ def make_purchase_return(source_name, target_doc=None):
 def update_purchase_receipt_status(docname, status):
 	pr = frappe.get_doc("Purchase Receipt", docname)
 	pr.update_status(status)
+	
+	
+@frappe.whitelist()
+def make_delivery_note(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+
+	def set_missing_values(source, target):
+		doc = frappe.get_doc(target)
+		doc.ignore_pricing_rule = 1
+		doc.run_method("set_missing_values")
+		# doc.run_method("calculate_taxes_and_totals")
+
+	def update_item(source_doc, target_doc, source_parent):
+		target_doc.qty = source_doc.qty
+
+	doclist = get_mapped_doc("Purchase Receipt", source_name,	{
+		"Purchase Receipt": {
+			"doctype": "Delivery Note",
+			"validation": {
+				"docstatus": ["=", 1],
+			},
+		},
+		"Purchase Receipt Item": {
+			"doctype": "Delivery Note Item",
+			"field_map": {
+				# "name": "pr_detail",
+				# "parent": "purchase_receipt",
+				# "purchase_order_item": "po_detail",
+				# "purchase_order": "purchase_order",
+			},
+			"postprocess": update_item
+		}
+	}, target_doc, set_missing_values)
+
+	return doclist

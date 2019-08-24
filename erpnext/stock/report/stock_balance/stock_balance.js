@@ -4,6 +4,14 @@
 frappe.query_reports["Stock Balance"] = {
 	"filters": [
 		{
+			"fieldname":"company",
+			"label": __("Company"),
+			"fieldtype": "Link",
+			"options": "Company",
+			"reqd": 1,
+			"default": frappe.defaults.get_user_default("Company")
+		},
+		{
 			"fieldname":"from_date",
 			"label": __("From Date"),
 			"fieldtype": "Date",
@@ -53,10 +61,11 @@ frappe.query_reports["Stock Balance"] = {
 			},
 		},
 		{
-			"fieldname": "compact",
-			"label": __("Compact"),
-			"fieldtype": "Check",
-			"default": 1
+			"fieldname": "report_style",
+			"label": __("Report Style"),
+			"fieldtype": "Select",
+			"options":["Default","Minimal"],
+			"default":"Minimal"
 		},
 		{
 			"fieldname": "show_variant_attributes",
