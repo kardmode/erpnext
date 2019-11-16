@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe, math
-from frappe.utils import cint,flt
+from frappe.utils import cstr, flt, cint,nowtime, nowdate, add_days, comma_and, getdate
 from frappe import throw, _
 from frappe.model.document import Document
 
@@ -81,13 +81,21 @@ def create_condensed_table(items):
 	summary += joiningtext
 	return summary
 
-def get_items_in_bill(import_bill):
-	bins = frappe.db.sql("select t1.item_code,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type from `tabMRP Import Entry Item` t1, `tabMRP Import Entry` t2 where t1.import_bill = %s and t2.name = t1.parent and t2.docstatus = 1 order by t2.posting_date",
-			import_bill, as_dict=1)
+def get_items_in_bill(import_bill,posting_date=None,posting_time=None):
+	if not posting_date:
+		posting_date = nowdate()
+	if not posting_time:
+		posting_time = nowtime()
+	
+	stock_details = frappe.db.sql("""select t1.item_code,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type 
+									from `tabMRP Import Entry Item` t1, `tabMRP Import Entry` t2 
+									where t1.import_bill = %s and t2.name = t1.parent and t2.docstatus = 1 
+									and (t2.posting_date < %s or (t2.posting_date = %s and t2.posting_time < %s))
+									ORDER BY t2.posting_date""", (import_bill,posting_date,posting_date,posting_time), as_dict=True)
 	
 	item_dict = {}
 	import copy
-	new_list = copy.deepcopy(bins)
+	new_list = copy.deepcopy(stock_details)
 	for item in new_list:
 		item_code = item["item_code"]
 		
@@ -148,12 +156,17 @@ def get_total_qty_for_item(import_bill,item_code,posting_date=None,posting_time=
 	return total_qty
 	
 @frappe.whitelist()
-def get_bills_and_stock(item_code=None,company = None):
+def get_bills_and_stock(item_code=None,company = None,posting_date=None,posting_time=None):
 
 	if not item_code or not company:
 		return []
 
-
+	if not posting_date:
+		posting_date = nowdate()
+	if not posting_time:
+		posting_time = nowtime()
+	
+	
 	stock_details = frappe.db.sql("""
 					select t1.name, t2.import_bill, t2.item_code,t2.stock_qty,t2.stock_uom, t2.item_name, t1.transaction_type
 					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
@@ -161,8 +174,12 @@ def get_bills_and_stock(item_code=None,company = None):
 					and t1.docstatus = 1
 					and t2.parent =  t1.name 
 					and t2.item_code = %s
-					and t2.stock_qty <> 0 ORDER BY t2.stock_qty DESC
-					""", (company,item_code), as_dict=True)		
+					and t2.stock_qty <> 0
+					and (t1.posting_date < %s or (t1.posting_date = %s and t1.posting_time < %s))
+					ORDER BY t2.stock_qty DESC
+					""", (company,item_code,posting_date,posting_date,posting_time), as_dict=True)		
+	
+	
 	best_warehouses = []
 	
 	item_dict = {}
@@ -189,7 +206,7 @@ def get_bills_and_stock(item_code=None,company = None):
 	return item_dict
 	
 @frappe.whitelist()
-def get_best_bill(item_code=None,item_qty = 0, order_by_least = False,company = None):
+def get_best_bill(item_code=None,item_qty = 0, order_by_least = False,company = None,posting_date=None,posting_time=None):
 	
 	enough_stock = False
 	
@@ -198,7 +215,7 @@ def get_best_bill(item_code=None,item_qty = 0, order_by_least = False,company = 
 	if not item_code or not company:
 		return best_warehouse,enough_stock
 	
-	item_dict = get_bills_and_stock(item_code,company=company)
+	item_dict = get_bills_and_stock(item_code,company=company,posting_date = posting_date,posting_time = posting_time)
 	
 	highest_qty = 0
 	best_warehouse = None
@@ -221,18 +238,24 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 	best_warehouses = []
 		
 	if filters and filters.get('item_code'):
-		item_code = frappe.db.escape(filters.get('item_code'))
+		item_code = filters.get('item_code')
 	else:
 		return best_warehouses
 		
 	if filters and filters.get('company'):
-		company = frappe.db.escape(filters.get('company'))
+		company = filters.get('company')
 	else:
 		return best_warehouses
-	
-
 		
-	stock_details = get_bills_and_stock(item_code,company = company)
+	posting_date = None
+	posting_time = None
+	if filters and filters.get('posting_date'):
+		posting_date = filters.get('posting_date')
+		
+	if filters and filters.get('filters'):
+		filters = filters.get('filters')
+		
+	stock_details = get_bills_and_stock(item_code,company = company,posting_date = posting_date,posting_time = posting_time)
 	
 	for key in stock_details:
 		warehouse_info =stock_details[key]

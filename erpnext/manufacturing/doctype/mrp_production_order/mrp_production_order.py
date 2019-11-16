@@ -24,7 +24,7 @@ class MRPProductionOrder(Document):
 
 		if not self.per_item_summary:
 			self.per_item_summary = "No per item summary"
-		self.get_stock_entries()
+		# self.get_stock_entries()
 		self.get_summary()
 		
 	def on_submit(self):
@@ -73,7 +73,6 @@ class MRPProductionOrder(Document):
 		
 		
 		if not stock_entries:
-			self.summary = summary
 			return summary
 		
 		summary = ''
@@ -102,13 +101,12 @@ class MRPProductionOrder(Document):
 			items.append(dict)
 		
 		summary = create_condensed_table(items)
-		self.summary = summary
 		return summary
 		
 						
 	def get_summary(self,should_save = False):
-		final_items =[]
-		final_summary = ""
+		final_unmerged_items =[]
+		final_per_item_summary = ""
 		
 		from erpnext.manufacturing.doctype.bom.bom import merge_bom_items
 		
@@ -150,43 +148,32 @@ class MRPProductionOrder(Document):
 				
 				if bom.get("bomitems"):
 					updated_builder_items = calculate_builder_items_dimensions(bom.get("bomitems"),fg_item.depth,fg_item.depthunit,fg_item.width,fg_item.widthunit,fg_item.height,fg_item.heightunit)
-					
-					merged,summary,final = build_bom_ext(updated_builder_items,qty,depthOriginal,widthOriginal,heightOriginal)
-
+					merged,summary,unmerged = build_bom_ext(updated_builder_items,qty,depthOriginal,widthOriginal,heightOriginal)
 				elif bom.get("items"):
 					qtyOriginal = bom.quantity
 					merged,summary,unmerged = get_material_list(bom.get("items"),qty,qtyOriginal)
 					
-				final_items = final_items + unmerged
-				
-				
 				
 				fg_merged_items,fg_raw_material_cost = self.update_bom_builder(merged)
-				fg_summary = create_condensed_table_exploded_items(fg_merged_items,self.company)
+				fg_summary = create_condensed_table_exploded_items(fg_merged_items,self.company)	
 				
-				final_summary = final_summary + '<br>' + str(fg_item.item_code) + ' @ ' + str(fg_item.qty) + ' ' + str(fg_item.uom) + '<br>' + fg_summary
+				final_per_item_summary = final_per_item_summary + '<br>' + str(fg_item.item_code) + ' @ ' + str(fg_item.qty) + ' ' + str(fg_item.uom) + '<br>' + fg_summary
+				final_unmerged_items = final_unmerged_items + unmerged
 		
 		
 		
 		
-
-		final_merged_items,raw_material_cost = self.update_bom_builder(merge_bom_items(final_items))
-		
+		final_merged_items,raw_material_cost = self.update_bom_builder(merge_bom_items(final_unmerged_items))
 		self.combined_summary = create_condensed_table_exploded_items(final_merged_items,self.company)
-		# self.set('exploded_items', [])
-		
-		
-		# self.get_exploded_items(final_merged_items)
-		# self.add_exploded_items()
-		self.per_item_summary = final_summary
+		self.per_item_summary = final_per_item_summary
 		
 		if should_save:
 			self.save()
 		
 		if len(final_merged_items) > 0:
-			return True
+			return "True"
 		else:
-			return False
+			return "False"
 	
 	
 	def update_bom_builder(self,merged):
@@ -380,18 +367,11 @@ class MRPProductionOrder(Document):
 				conversion_factor = get_conversion_factor(fg_item.item_code,fg_item.uom).get("conversion_factor")
 				if not conversion_factor:
 					conversion_factor = 1
+				
 				stock_entry.fg_completed_qty = flt(fg_item.qty) * flt(conversion_factor)
-						
 				
-				
-				
-				
-				
-				
-
 				stock_entry.from_warehouse = default_warehouses.get("source_warehouse")
 				stock_entry.to_warehouse = default_warehouses.get("fg_warehouse")
-
 				stock_entry.title = 'Manufacture {0}'.format(fg_item.item_code)
 					
 				if fg_item.uom == bom.uom:
@@ -413,7 +393,7 @@ class MRPProductionOrder(Document):
 					
 				if bom.get("bomitems"):
 					updated_builder_items = calculate_builder_items_dimensions(bom.get("bomitems"),fg_item.depth,fg_item.depthunit,fg_item.width,fg_item.widthunit,fg_item.height,fg_item.heightunit)
-					merged,summary,final = build_bom_ext(updated_builder_items,qty,depthOriginal,widthOriginal,heightOriginal)
+					merged,summary,unmerged = build_bom_ext(updated_builder_items,qty,depthOriginal,widthOriginal,heightOriginal)
 
 				elif bom.get("items"):
 					
@@ -493,17 +473,22 @@ class MRPProductionOrder(Document):
 			
 	def submit_entries(self):
 	
-		stock_entries = frappe.db.sql("""select name from `tabStock Entry` where custom_production_order=%s and docstatus < 1""", self.name, as_dict = 1)
-		success = False
+		items = self.get("items")
+		if not items:
+			return False
 		
-		for se in stock_entries:
-			se_doc = frappe.get_doc("Stock Entry", se.name)
-			if se_doc:
-				try:
-					se_doc.submit()
-					success = True
-				except:
-					pass
+		for fg_item in items:
+			stock_entries = frappe.db.sql("""select name from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 1""",  (self.name,fg_item.item_code), as_dict = 1)
+			success = False
+			
+			for se in stock_entries:
+				se_doc = frappe.get_doc("Stock Entry", se.name)
+				if se_doc:
+					try:
+						se_doc.submit()
+						success = True
+					except:
+						pass
 		return success
 		
 	def delete_entries(self,delete_submitted =False,delete_draft = True):
@@ -552,7 +537,7 @@ def get_item_det(item_code):
 def create_condensed_table(items):
 	summary = ""
 	
-	joiningtext = """<table class="table table-bordered table-condensed">"""
+	joiningtext = """<table class="small table table-bordered table-condensed">"""
 	joiningtext += """<thead>
 			<tr style>
 				<th>Stock Entry</th>

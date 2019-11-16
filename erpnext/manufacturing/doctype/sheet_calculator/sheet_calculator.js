@@ -64,10 +64,15 @@ var get_dimensions = function(frm) {
 	var fvolume = flt(length) * flt(width) * flt(height);
 	var fvolumecft = fvolume * 35.3147;
 	
+	var price_per_sqm = frm.doc.price_per_sheet / farea;
+
+	
+	
 	var stock_summary = "Perimeter (m): " + perimeter.toFixed(4) + "<br>"
 	+ "Area (m2): " + farea.toFixed(4) + "<br>"
 	+ "Volume (m3): " + fvolume.toFixed(4) + "<br>"
-	+ "Volume (cft): " + fvolumecft.toFixed(4) + "<br>";
+	+ "Volume (cft): " + fvolumecft.toFixed(4) + "<br>"
+	+ "Price Per sqm: " + price_per_sqm.toFixed(5) + "<br>";
 	
 	
 	
@@ -85,11 +90,17 @@ var get_dimensions = function(frm) {
 	var panelvolume = flt(depthPanel) * flt(widthPanel) * flt(heightPanel);
 	var panelvolumecft = panelvolume * 35.3147;
 	
+	
+	var price_per_panel = panelarea*frm.doc.price_per_sheet / farea;
+	
+	
 	var panel_summary = "Perimeter (m): " + panelperimeter.toFixed(4) + "<br>"
 	+ "Area (m2): " + panelarea.toFixed(4) + "<br>"
 	+ "Volume (m3): " + panelvolume.toFixed(4) + "<br>"
 	+ "Volume (cft): " + panelvolumecft.toFixed(4) + "<br>"
-	+ "Number of sheets = Panel Area / Sheet Area<br>";
+	+ "Number of sheets = Panel Area / Sheet Area" + "<br>"
+	+ "Price Per Panel: " + price_per_panel.toFixed(5) + "<br>";
+
 
 	
 	var conversion_factor = 1/flt(farea);
@@ -120,13 +131,15 @@ var get_dimensions = function(frm) {
 	var circlearea = flt(radiusCircle) * flt(radiusCircle) * 3.14;
 	var circleperimeter = flt(radiusCircle) * 3.14 * 2;
 
+	var price_per_top = panelarea*frm.doc.price_per_sheet / circlearea;
 	
 	var number_of_sheets_round_top = flt(circlearea) / flt(farea);
 	var finished_qty_per_stock_round_top = 1/flt(number_of_sheets_round_top);
 	var round_top_summary = "Radius (m): " + radiusCircle.toFixed(4) + "<br>"
 	+ "Perimeter (m): " + circleperimeter.toFixed(4) + "<br>"
 	+ "Area (m2): " + circlearea.toFixed(4) + "<br>"
-	+ "Number of sheets = Circle Area / Sheet Area<br>";
+	+ "Number of sheets = Circle Area / Sheet Area" + "<br>"
+	+ "Price Per Round Top: " + price_per_top.toFixed(5) + "<br>";
 	
 	frm.set_value("number_of_sheets_round_top", number_of_sheets_round_top);
 	frm.set_value("finished_qty_per_stock_round_top", finished_qty_per_stock_round_top);

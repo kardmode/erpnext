@@ -74,7 +74,7 @@ frappe.ui.form.on('MRP Production Order', {
 				}
 			}); */
 			
-			frm.trigger("refresh_se_summary");
+			frm.trigger("make_dashboard");
 			// var df = frappe.meta.get_docfield("BOM Explosion Item", "source_warehouse", cur_frm.doc.name);
 			// df.read_only = 0;
 			//refresh_field("exploded_items");
@@ -123,17 +123,25 @@ frappe.ui.form.on('MRP Production Order', {
 		
 		
 	},
-	refresh_se_summary: function(frm) {
-		frappe.call({
-				doc: cur_frm.doc,
+	
+	make_dashboard: function(frm) {
+		if (frm.doc.items) {
+			frappe.call({
+				doc: frm.doc,
 				method: "get_stock_entries",
-				freeze: true,
+				freeze: false,
 				callback: function(r) {
-					refresh_field("summary");
+					frm.dashboard.add_section(
+						r.message
+					);
+					frm.dashboard.show();
 				}
 			});
-		
+
+			
+		}
 	},
+	
 	reference_doctype: function(frm) {
 		if (frm.doc.reference_doctype == "")
 		{
@@ -201,24 +209,25 @@ frappe.ui.form.on('MRP Production Order', {
 				doc: cur_frm.doc,
 				method: "get_summary",
 				args:{
-					should_save:true
+					should_save:false
 				},
 				freeze: true,
 					freeze_message: "Please wait ..",
 				callback: function(r) {
-					if(r.message)
+					console.log(r);
+					if(r.message == "True")
 					{
-						// refresh_field("exploded_items");
 						refresh_field("combined_summary");
 						refresh_field("per_item_summary");
 						cur_frm.dirty();
-						// cur_frm.save();
-						
-						
+
 					}
 					else 
 					{
-						frappe.msgprint(__("No items found in BOM"));
+						refresh_field("combined_summary");
+						refresh_field("per_item_summary");
+						cur_frm.dirty();
+						// frappe.msgprint(__("No items found in BOM"));
 					}
 				}
 			});

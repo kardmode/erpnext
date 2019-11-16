@@ -1,5 +1,5 @@
 {
- "add_company_abbr_to_name": 0, 
+ "add_company_abbr_to_name": 1, 
  "add_date_to_name": 1, 
  "add_posting_date_to_name": 0, 
  "allow_copy": 0, 
@@ -1866,7 +1866,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-03-15 19:26:04.032760", 
+ "modified": "2019-10-13 14:17:18.515938", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "Stock Entry", 

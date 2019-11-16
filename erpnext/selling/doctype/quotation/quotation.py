@@ -17,10 +17,6 @@ form_grid_templates = {
 }
 
 class Quotation(SellingController):
-	def autoname(self):
-		import datetime
-		year = (getdate(self.transaction_date)).year
-		self.name = make_autoname('QTN-'+ str(year) + '.#####')
 	def set_indicator(self):
 		if self.docstatus==1:
 			self.indicator_color = 'blue'

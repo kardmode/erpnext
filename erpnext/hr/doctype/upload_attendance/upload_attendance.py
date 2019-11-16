@@ -129,18 +129,34 @@ def upload(import_settings = None):
 		d = frappe._dict(zip(columns, row))
 
 		d["doctype"] = "Attendance"
-
+		
+		
+		date_error = False
 		try:
 			parse_date(d.attendance_date)
-		except Exception, e:
-			# error = True
+		except Exception as e:
+			date_error = True
 			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
 				len(row)>1 and row[1] or "", cstr(e)))
+		except ValueError as e:
+			date_error = True
+			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
+				len(row)>1 and row[1] or "", cstr(e)))
+		except:
+			date_error = True
+			ret.append('Error for row (#%d) %s' % (row_idx+1,
+				len(row)>1 and row[1] or ""))
 		
+		if date_error == True:
+			if import_settings != "ignore":
+				error = True
+			continue
 		
+		formatted_attendance_date = getdate(parse_date(d.attendance_date))
+				
 		if import_settings == "ignore":
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, getdate(parse_date(d.attendance_date))),as_dict=True)
+			(d.employee, formatted_attendance_date),as_dict=True)
 			if attendance:
 				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
 
@@ -159,14 +175,12 @@ def upload(import_settings = None):
 				
 		elif import_settings == "update":
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, getdate(parse_date(d.attendance_date))),as_dict=True)
+			(d.employee, formatted_attendance_date),as_dict=True)
 			
 			if attendance:
 				d["docstatus"] = attendance[0].docstatus
 				d["name"] = attendance[0].name
 				
-	
-		
 			try:
 				check_record(d)
 				ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
@@ -177,8 +191,7 @@ def upload(import_settings = None):
 				# frappe.errprint(frappe.get_traceback())
 		else:
 			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, getdate(parse_date(d.attendance_date))),as_dict=True)
-			
+			(d.employee, formatted_attendance_date),as_dict=True)
 			
 			if attendance:
 				error = True
@@ -186,7 +199,6 @@ def upload(import_settings = None):
 				ret.append('Error for row (#%d) %s : %s - %s. Attendance Date %s Already Marked or Check Spreadsheet For Duplicates' % (row_idx+1,
 					len(row)>1 and row[1] or "", cstr(d.employee),str(d.attendance_date),link))
 			else:
-				
 				try:
 					check_record(d)
 					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
@@ -199,21 +211,6 @@ def upload(import_settings = None):
 	if not started:
 		error = True
 		ret.append('Error reading csv file')
-	
-
-		if d.name:
-			d["docstatus"] = frappe.db.get_value("Attendance", d.name, "docstatus")
-
-		try:
-			check_record(d)
-			ret.append(import_doc(d, "Attendance", 1, row_idx, submit=True))
-		except AttributeError:
-			pass
-		except Exception as e:
-			error = True
-			ret.append('Error for row (#%d) %s : %s' % (row_idx,
-				len(row)>1 and row[1] or "", cstr(e)))
-			# frappe.errprint(frappe.get_traceback())
 
 	if error:
 		frappe.db.rollback()

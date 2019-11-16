@@ -437,14 +437,21 @@ def get_items_from(doc_type,doc_name):
 
 	conditions = "t1.item_code"
 	if doc_type == "Purchase Receipt":
-		conditions += ", t1.received_qty, t1.uom, t1.stock_uom"
-	elif doc_type == "Delivery Note":
-		conditions += ", t1.qty, t1.uom,t1.stock_qty, t1.stock_uom"
+		conditions += ", t1.item_name, t1.received_qty as qty, t1.uom, t1.stock_uom"
+	elif doc_type == "Product Collection":
+		conditions += ", t1.qty"
+	else:
+		conditions += ", t1.item_name, t1.qty, t1.uom,t1.stock_qty, t1.stock_uom"
 	
-	doctypeitem_name = 'tab' + str(doc_type) + ' Item'
-	doctype_name = 'tab' + str(doc_type)
+	doctypeitem_name = str(doc_type) + ' Item'
+	doctype_name = str(doc_type)
 	
-	query = "select " + conditions + " from `" +  doctypeitem_name + "` t1,`" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
+	if frappe.get_meta(doctypeitem_name).has_field('rate'):
+		conditions += ", t1.rate"
+	if frappe.get_meta(doctype_name).has_field('amount'):
+		conditions += ", t1.amount"
+	
+	query = "select " + conditions + " from `tab" +  doctypeitem_name + "` t1,`tab" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
 	new_dict = frappe.db.sql(query, (doc_name), as_dict=1)
 
 	return new_dict

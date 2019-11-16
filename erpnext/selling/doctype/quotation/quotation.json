@@ -12,7 +12,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Documents", 
  "editable_grid": 1, 
  "fields": [
   {
@@ -2914,7 +2914,7 @@
  "istable": 0, 
  "max_attachments": 1, 
  "menu_index": 0, 
- "modified": "2019-01-27 15:15:34.644517", 
+ "modified": "2019-10-14 21:37:29.695065", 
  "modified_by": "Administrator", 
  "module": "Selling", 
  "name": "Quotation", 

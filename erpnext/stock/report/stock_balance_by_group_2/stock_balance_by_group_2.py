@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import flt, cint, getdate
 
 def execute(filters=None):
 	if not filters: filters = {}
@@ -169,6 +169,49 @@ def get_item_warehouse_map(filters):
 		qty_dict.val_rate = d.valuation_rate
 		qty_dict.bal_qty += qty_diff
 		qty_dict.bal_val += value_diff
+
+	iwb_map = filter_items_with_no_transactions(iwb_map)
+	iwb_map = filter_items_with_custom_filters(filters,iwb_map)
+	return iwb_map
+	
+def filter_items_with_no_transactions(iwb_map):
+	for (company, item, warehouse) in sorted(iwb_map):
+		qty_dict = iwb_map[(company, item, warehouse)]
+		
+		no_transactions = True
+		float_precision = cint(frappe.db.get_default("float_precision")) or 3
+		for key, val in qty_dict.items():
+			val = flt(val, float_precision)
+			qty_dict[key] = val
+			if key != "val_rate" and val:
+				no_transactions = False
+		
+		if no_transactions:
+			iwb_map.pop((company, item, warehouse))
+
+	return iwb_map
+	
+def filter_items_with_custom_filters(filters,iwb_map):
+	for (company, item, warehouse) in sorted(iwb_map):
+		qty_dict = iwb_map[(company, item, warehouse)]
+		
+		
+		if filters.get("hide_disabled") == 1:
+			warehouse_details = frappe.db.get_value("Warehouse", warehouse , ["disabled"], as_dict=1)
+			if warehouse_details:
+				if warehouse_details.disabled == True:
+					iwb_map.pop((company, item, warehouse))
+					continue
+		
+		if filters.get("hide_negative_qty") == 1:
+			if qty_dict.bal_qty < 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
+				
+		if filters.get("hide_zero_qty") == 1:
+			if qty_dict.bal_qty == 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
 
 	return iwb_map
 

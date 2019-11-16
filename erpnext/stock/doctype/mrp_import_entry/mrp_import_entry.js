@@ -8,7 +8,7 @@ frappe.ui.form.on('MRP Import Entry', {
 
 					frm.set_value("posting_time", frappe.datetime.now_time());
 					//frm.set_value("posting_date", frappe.datetime.get_today()+frappe.datetime.now_time());
-					frm.set_df_property("reference_name", "read_only", 1);
+					// frm.set_df_property("reference_name", "read_only", 1);
 		}
 		else
 		{
@@ -47,7 +47,9 @@ frappe.ui.form.on('MRP Import Entry', {
 					query: "erpnext.stock.doctype.mrp_import_bill.mrp_import_bill.import_bill_query",
 					filters: {
 						"item_code":row.item_code,
-						"company":cur_frm.doc.company
+						"company":cur_frm.doc.company,
+						"posting_date":cur_frm.doc.posting_date,
+						"posting_time":cur_frm.doc.posting_time
 					}
 				};
 			}
@@ -74,20 +76,20 @@ frappe.ui.form.on('MRP Import Entry', {
 				frm.add_custom_button(__('Purchase Receipt'),
 					function () {
 						frm.trigger("import_from_purchase_receipt");
-					}, __("Get items from"));
+					}, __("Create Entry From"));
 					
 					
 			frm.add_custom_button(__('Delivery Note'),
 					function () {
 												frm.trigger("import_from_delivery_note");
 
-					}, __("Get items from"));
+					}, __("Create Entry From"));
 					
-			frm.add_custom_button(__('Production Order'),
-					function () {
-												frm.trigger("import_from_production_order");
+			// frm.add_custom_button(__('Production Order'),
+					// function () {
+												// frm.trigger("import_from_production_order");
 
-					}, __("Get items from"));
+					// }, __("Create Entry From"));
 					
 			frm.add_custom_button(__('Set Import Bill'),
 						function () {
@@ -99,8 +101,8 @@ frappe.ui.form.on('MRP Import Entry', {
 								frm.trigger("set_import_bill_for_dn");
 							else if(frm.doc.transaction_type == "Deduction")
 								frm.trigger("set_import_bill_for_dn");
-							else if(frm.doc.transaction_type == "MRP Production Order")
-								frm.trigger("set_import_bill_for_pr");
+							// else if(frm.doc.transaction_type == "MRP Production Order")
+								// frm.trigger("set_import_bill_for_pr");
 						});
 		}
 
@@ -114,12 +116,12 @@ frappe.ui.form.on('MRP Import Entry', {
 		if(frm.doc.transaction_type == "Addition" || frm.doc.transaction_type == "Deduction")
 		{
 			frm.set_value("reference_name","");
-			frm.set_df_property("reference_name", "read_only", 1);
+			// frm.set_df_property("reference_name", "read_only", 1);
 
 		}
 		else
 		{
-			frm.set_df_property("reference_name", "read_only", 0);
+			// frm.set_df_property("reference_name", "read_only", 0);
 
 		}
 		
@@ -134,7 +136,7 @@ frappe.ui.form.on('MRP Import Entry', {
 	
 	import_from_purchase_receipt: function(frm) {
 		var dialog = new frappe.ui.Dialog({
-			title: __("Get Items from Purchase Receipt"),
+			title: __("Create Entry From Purchase Receipt"),
 			fields: [
 				{fieldname:'import_bill', fieldtype:'Link', options: 'MRP Import Bill',label: __('Import Bill'),reqd:1},
 				{fieldname:'purchase_receipt', fieldtype:'Link', options: 'Purchase Receipt',label: __('Purchase Receipt'),reqd:1},
@@ -180,7 +182,7 @@ frappe.ui.form.on('MRP Import Entry', {
 	
 	import_from_delivery_note: function(frm) {
 		var dialog = new frappe.ui.Dialog({
-			title: __("Get Items from Delivery Note"),
+			title: __("Create Entry From Delivery Note"),
 			fields: [
 				{fieldname:'delivery_note', fieldtype:'Link', options: 'Delivery Note',label: __('Delivery Note'),reqd:1},
 			]
@@ -226,7 +228,7 @@ frappe.ui.form.on('MRP Import Entry', {
 	
 	import_from_production_order: function(frm) {
 		var dialog = new frappe.ui.Dialog({
-			title: __("Get Items from Production Order"),
+			title: __("Create Entry From Production Order"),
 			fields: [
 				{fieldname:'mrp_production_order', fieldtype:'Link', options: 'MRP Production Order',label: __('MRP Production Order'),reqd:1},
 			]
@@ -236,7 +238,7 @@ frappe.ui.form.on('MRP Import Entry', {
 			return {
 				filters: [
 						['docstatus', '=', '1'],
-						// ['status', '!=', 'Closed'],
+						['status', '=', 'Completed'],
 						['company', '=', frm.doc.company],
 					]
 					

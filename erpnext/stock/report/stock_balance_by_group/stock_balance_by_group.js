@@ -43,5 +43,23 @@ frappe.query_reports["Stock Balance By Group"] = {
 			"options":["By Item","By Group"],
 			"default":"By Group"
 		},
+		{
+			"fieldname": "hide_disabled",
+			"label": __("Hide Disabled"),
+			"fieldtype": "Check",
+			"default":1
+		},
+		{
+			"fieldname": "hide_zero_qty",
+			"label": __("Hide Zero Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
+		{
+			"fieldname": "hide_negative_qty",
+			"label": __("Hide Negative Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
 	]
 }

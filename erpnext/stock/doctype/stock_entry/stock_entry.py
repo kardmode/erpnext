@@ -1108,7 +1108,6 @@ def get_warehouse_details(args):
 def get_best_warehouse(item_code=None,item_qty = 0,default_warehouse = None,order_by_least = False,company = None):
 	
 	enough_stock = False
-	
 	best_warehouse = get_default_warehouse(company = company).get("source_warehouse")
 	
 	if not item_code:
@@ -1117,13 +1116,13 @@ def get_best_warehouse(item_code=None,item_qty = 0,default_warehouse = None,orde
 	if not company:
 		return best_warehouse,enough_stock
 	
-	stock_details = frappe.db.sql("select warehouse,actual_qty from `tabBin` where item_code = %s AND actual_qty > 0 ORDER BY actual_qty DESC",item_code,as_dict=1)
+	stock_details = frappe.db.sql("select t1.warehouse, t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY t1.actual_qty DESC",item_code,as_dict=1)
 	
 	best_warehouses = []	
 	
 	for stdetail in stock_details:
-		company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
-		if company == company_of_warehouse:
+		company_of_warehouse,is_disabled = frappe.get_value('Warehouse', stdetail.warehouse, ['company','disabled'])
+		if (company == company_of_warehouse) and is_disabled == False:
 			best_warehouses.append(stdetail.warehouse)
 			if flt(stdetail.actual_qty) >= flt(item_qty):
 				enough_stock = True
@@ -1149,28 +1148,44 @@ def get_warehouses_with_stock(doctype, txt, searchfield, start, page_len, filter
 	
 	company = filters.get("company")
 	item_code = filters.get("item_code")
-	stock_details = frappe.db.sql("select t1.warehouse from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY actual_qty DESC",(item_code),as_dict=0)
 	
-	
+	stock_details = frappe.db.sql("select t1.warehouse, t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY t1.actual_qty DESC",item_code,as_dict=1)
 	
 	default_warehouse = get_default_warehouse(company = company).get("source_warehouse")
 	
 	best_warehouses = []
 	
-
-	
 	for stdetail in stock_details:
-		if stdetail[0] != default_warehouse:
-			company_of_warehouse = frappe.get_value('Warehouse', stdetail[0], 'company')
-			if company == company_of_warehouse:
-				best_warehouses.append(stdetail)
+		if stdetail.warehouse != default_warehouse:
+			company_of_warehouse,is_disabled = frappe.get_value('Warehouse', stdetail.warehouse, ['company','disabled'])
+
+			if (company == company_of_warehouse) and is_disabled == False:
+				best_warehouses.append((stdetail.warehouse,))
 	
 	best_warehouses.append((default_warehouse,))
 	
-
-	
 	return best_warehouses
 
+@frappe.whitelist()	
+def get_warehouses_and_stock(item_code,company):
+
+	if not item_code or not company:
+		return []
+
+
+	stock_details = frappe.db.sql("select t1.warehouse,t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty <> 0 ORDER BY actual_qty DESC",item_code,as_dict=1)
+	
+	default_warehouse = get_default_warehouse(company = company).get("source_warehouse")
+	
+	best_warehouses = []
+		
+	for stdetail in stock_details:
+		company_of_warehouse,is_disabled = frappe.get_value('Warehouse', stdetail.warehouse, ['company','disabled'])
+
+		if (company == company_of_warehouse) and is_disabled == False:
+			best_warehouses.append(stdetail)
+	
+	return best_warehouses
 			
 	
 def validate_sample_quantity(item_code, sample_quantity, qty, batch_no = None):
@@ -1192,28 +1207,4 @@ def validate_sample_quantity(item_code, sample_quantity, qty, batch_no = None):
 		sample_quantity = qty_diff
 	return sample_quantity
 	
-def get_warehouses_and_stock(item_code,company):
 
-	if not item_code or not company:
-		return []
-
-
-	stock_details = frappe.db.sql("select t1.warehouse,t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty <> 0 ORDER BY actual_qty DESC",(item_code),as_dict=1)
-	
-	
-	
-	default_warehouse = get_default_warehouse(company = company).get("source_warehouse")
-	
-	best_warehouses = []
-	
-
-	
-	for stdetail in stock_details:
-		company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
-		if company == company_of_warehouse:
-			best_warehouses.append(stdetail)
-	
-	
-
-	
-	return best_warehouses

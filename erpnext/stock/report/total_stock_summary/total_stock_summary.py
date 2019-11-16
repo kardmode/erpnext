@@ -27,6 +27,15 @@ def get_columns():
 def get_total_stock(filters):
 	conditions = ""
 	columns = ""
+	
+	# if filters.get("hide_zero_qty") == 1:
+		# conditions += " AND actual_qty != 0"
+	
+	if filters.get("hide_negative_qty") == 1:
+		conditions += " AND actual_qty > 0 "
+	
+	if filters.get("hide_disabled") == 1:
+		conditions += " AND warehouse.disabled = 0"
 
 	if filters.get("group_by") == "Warehouse":
 		if filters.get("company"):
@@ -37,6 +46,9 @@ def get_total_stock(filters):
 	else:
 		conditions += " GROUP BY warehouse.company, item.item_code"
 		columns += " warehouse.company, '' as warehouse"
+		
+	
+
 
 	return frappe.db.sql("""
 			SELECT

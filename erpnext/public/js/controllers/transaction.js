@@ -325,7 +325,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			}, __("Get items from"), "btn-default");
 	
 			
-			cur_frm.add_custom_button(__('Doc'),
+			cur_frm.add_custom_button(__('Document'),
 				function() {
 					/* erpnext.utils.map_current_doc({
 						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
@@ -335,7 +335,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					}) */
 					cur_frm.trigger('get_items_from');
 					
-				}, __("Get items from"), "btn-default");
+				}, __("Copy Items From"), "btn-default");
 			
 			cur_frm.add_custom_button(__('Room Quantity'),
 				function() {
@@ -1581,13 +1581,19 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 	},
 	get_items_from:function (frm) {
 		var me=this;
+		
+		var doc_options = ['Delivery Note','Purchase Order','Purchase Receipt','Product Collection','Sales Order',
+		'Sales Invoice','Quotation'];
+		
 		var dialog = new frappe.ui.Dialog({
-			title: __("Get Items From Doc"),
+			title: __("Get Items From Document"),
 			fields: [
-				{fieldname:'doc_type', fieldtype:'Select', options: ['Purchase Receipt','Delivery Note','Product Collection'], label: __('Type')},
+				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items')},
+				{fieldname:'sec_1', fieldtype:'Section Break'},
+				{fieldname:'doc_type', fieldtype:'Select', options: doc_options, label: __('Type')},
+				{fieldname:'col_1', fieldtype:'Column Break'},
 				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name')},
-				// {fieldname:'sec_break', fieldtype:'Section Break'},
-				// {fieldname:'qty', fieldtype:'Int', label: __('Quantity'),default:1},
+				// {fieldname:'qty', fieldtype:'float', label: __('Quantity'),default:1},
 			]
 		});
 		
@@ -1614,37 +1620,68 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				doc_type: filters.doc_type,
 				doc_name: filters.doc_name
 			},
+			// freeze: true,
+			// freeze_message: __("Getting Items..."),
 			callback:function (r) {
 			
-				console.log(r);
-				// if ( dialog.get_value('qty') >0)
-					// qty = dialog.get_value('qty');
+
+				if(filters.clear_items === 1)
+					cur_frm.set_value("items",[]);
 				
-				// cur_frm.set_value("room_qty",qty);
+				var row_info = {};
+				var row_count = cur_frm.doc.items.length;
 				
-				cur_frm.set_value("items",[]);
-					
+				
 				for (var i=0; i< r.message.length; i++) {
 					var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.items.df.options, cur_frm.fields_dict.items.df.fieldname);
-					row.item_code = r.message[i].item_code;
+					row.item_code = r.message[i].item_code
 					
-					if ( dialog.get_value('doc_type') == "Purchase Receipt")
-						row.qty = r.message[i].received_qty;
-					else
+					
+					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
+					var row_index = row_count + i;
+					row_info[row_index] = r.message[i];
+					
+					/* for (var key in r.message[i]) {
+						var has_margin_field = frappe.meta.has_field(row.doctype, key);
+						if(has_margin_field)
+						{
+							row[key] = r.message[i][key];
+						}
+					
+					} */
+				}
+				
+				dialog.hide();
+				frappe.show_progress(__("Getting Items.."),0);
+
+				//code before the pause
+				setTimeout(function(){
+					for(var row_index in row_info)
 					{
-						row.qty =  r.message[i].qty;
+						var row = cur_frm.doc.items[row_index];
+						var data = row_info[row_index];
+
+						for (var key in data) {
+							var has_margin_field = frappe.meta.has_field(row.doctype, key);
+							if(has_margin_field)
+							{
+								row[key] = data[key];
+							}
+					
+						}
+						
 					}
 					
-					row.uom = r.message[i].uom;
-					row.stock_uom = r.message[i].stock_uom;
-					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
+					cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+					cur_frm.dirty();
+					frappe.show_progress(__("Getting Items.."),100);
 
+				}, 1000);
 
-				}
-				cur_frm.refresh_field('items');
-				me.calculate_taxes_and_totals();
-				cur_frm.dirty();
-				dialog.hide();
+				
+				
+				
 			}
 		})
 		});

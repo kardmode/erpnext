@@ -135,7 +135,7 @@ class Attendance(Document):
 					if self.status != "On Leave":
 						self.status = 'Absent'
 				else:
-					frappe.throw(_("Please check the time for employee {0}, date {1}").format(self.employee,self.attendance_date))
+					frappe.throw(_("Work Hours equal 0. Please check the time for employee {0}, date {1}, arrival time {2}, departure time {3}").format(self.employee,self.attendance_date,self.arrival_time,self.departure_time))
 
 
 

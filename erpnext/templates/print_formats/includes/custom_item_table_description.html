@@ -2,7 +2,7 @@
 {%- set compact_fields = doc.flags.compact_item_fields -%}
 {%- set display_columns = visible_columns|map(attribute="fieldname")| list -%}
 {%- set columns = doc.flags.format_columns(display_columns, compact_fields) -%}
-{%- set field_columns = doc.flags.format_columns_custom(visible_columns, compact_fields) -%}
+{%- set columns_with_info = doc.flags.format_columns_custom(visible_columns, compact_fields) -%}
 
 {% if doc.in_format_data("image") and doc.get("image") and "image" in display_columns -%}
 <div class="pull-left" style="max-width: 40%; margin-right: 10px;">
@@ -12,49 +12,35 @@
 
 <div>
 	{% if doc.in_format_data("item_code") and "item_code" in display_columns -%}
-			<div class="primary">
-					{{ _(doc.item_code) }}
+			<div class="primary" data-fieldname="item_code">
+				{{ _(doc.item_code) }}
 			</div>
 	{%- elif doc.in_format_data("item_name") and "item_name" in display_columns -%}
-			<div class="primary_name">
-					{{ _(doc.item_name) }}
+			<div class="primary" data-fieldname="item_name">
+				{{ _(doc.item_name) }}
 			</div>
 	{%- endif %}
 
-
 	{% if compact -%}
-		{%- for field in field_columns -%}
+		{%- for field in columns_with_info -%}
 			{%- set fieldname = field.fieldname -%}
-
 			
 			{% if doc.get(fieldname) and doc.in_format_data(fieldname) -%}
-				
 				{% if fieldname == "description"  -%}
-					
-					{% if not (doc.item_code == doc.item_name == doc.description)  -%}
-					<p>{{ doc.get_formatted(fieldname, translated=True)  }}</p>
+					{% if not (doc.item_code == doc.item_name == doc.description) -%}
+						<div data-fieldname="description">
+							{{ doc.get_formatted(fieldname, translated=True)  }}
+						</div>
 					{% endif %}
-					
 				{% else  -%}
-					<p>
-					
-					{% if field.print_label  -%}
-					<strong>{{ _(field.print_label) }}:</strong>
-					{% endif %}
-					
-					{{ doc.get_formatted(fieldname, translated=True)  }}
-					</p>
-
+					<div data-fieldname="{{fieldname}}">
+						{% if field.print_label  -%}
+							<strong>{{ _(field.print_label) }}:</strong>
+						{% endif %}
+						{{ doc.get_formatted(fieldname, translated=True)  }}
+					</div>
 				{% endif %}
-			
 			{% endif %}
-		
 		{%- endfor -%}
-		
-	
-	{% else  -%}
-	
-		
-	
 	{%- endif %}
 </div>

@@ -12,7 +12,7 @@
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Setup", 
+ "document_type": "Customize", 
  "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
@@ -271,7 +271,7 @@
  "istable": 0, 
  "max_attachments": 0, 
  "menu_index": 0, 
- "modified": "2019-02-07 18:14:58.580701", 
+ "modified": "2019-09-24 16:23:11.266389", 
  "modified_by": "Administrator", 
  "module": "Setup", 
  "name": "Global Defaults", 

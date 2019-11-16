@@ -3,6 +3,10 @@
 
 frappe.ui.form.on('Profile Calculator', {
 	refresh: function(frm) {
+		frm.add_custom_button(__("Calculate"), function() {
+					frm.trigger("calculate");
+				},null,"primary");
+				
 		frm.trigger("calculate");
 	},
 	
@@ -57,8 +61,12 @@ var get_dimensions = function(frm) {
 	var stock_required = flt(finished_length) / flt(material_length);
 	var finished_qty_per_stock = 1/flt(stock_required);
 	
+	var price_per_piece = finished_length * frm.doc.price_per_stock / material_length;
+	var stock_summary = "Price Per Piece: " + price_per_piece.toFixed(5) + "<br>";
+	
 	frm.set_value("stock_required", stock_required);
 	frm.set_value("conversion_factor", conversion_factor);
 	frm.set_value("finished_qty_per_stock", finished_qty_per_stock);
+	frm.set_value("stock_summary", stock_summary);
 
 }

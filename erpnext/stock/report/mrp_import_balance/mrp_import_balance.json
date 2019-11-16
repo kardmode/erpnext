@@ -9,7 +9,7 @@
  "idx": 0, 
  "is_standard": "Yes", 
  "letter_head": "Science Lab Inc", 
- "modified": "2019-04-04 00:57:09.206508", 
+ "modified": "2019-09-21 14:26:32.397268", 
  "modified_by": "Administrator", 
  "module": "Stock", 
  "name": "MRP Import Balance", 
@@ -23,6 +23,9 @@
   }, 
   {
    "role": "Stock User"
+  }, 
+  {
+   "role": "Stock Helper"
   }
  ]
 }

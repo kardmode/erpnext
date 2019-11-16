@@ -60,8 +60,6 @@ def execute(filters=None):
 			item_reorder_qty = item_reorder_detail_map[item + warehouse]["warehouse_reorder_qty"]
 
 		if filters.get("report_style") == "Minimal":
-		
-		
 			report_data = [item, 
 				# item_map[item]["item_name"],
 				item_map[item]["item_group"],
@@ -225,6 +223,7 @@ def get_item_warehouse_map(filters, sle):
 		qty_dict.bal_val += value_diff
 		
 	iwb_map = filter_items_with_no_transactions(iwb_map)
+	iwb_map = filter_items_with_custom_filters(filters,iwb_map)
 
 	return iwb_map
 	
@@ -242,6 +241,31 @@ def filter_items_with_no_transactions(iwb_map):
 		
 		if no_transactions:
 			iwb_map.pop((company, item, warehouse))
+
+	return iwb_map
+	
+	
+def filter_items_with_custom_filters(filters,iwb_map):
+	for (company, item, warehouse) in sorted(iwb_map):
+		qty_dict = iwb_map[(company, item, warehouse)]
+		
+		
+		if filters.get("hide_disabled") == 1:
+			warehouse_details = frappe.db.get_value("Warehouse", warehouse , ["disabled"], as_dict=1)
+			if warehouse_details:
+				if warehouse_details.disabled == True:
+					iwb_map.pop((company, item, warehouse))
+					continue
+		
+		if filters.get("hide_negative_qty") == 1:
+			if qty_dict.bal_qty < 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
+				
+		if filters.get("hide_zero_qty") == 1:
+			if qty_dict.bal_qty == 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
 
 	return iwb_map
 

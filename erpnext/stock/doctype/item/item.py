@@ -122,6 +122,7 @@ class Item(WebsiteGenerator):
 
 		if self.is_sales_item and not self.get('is_item_from_hub'):
 			self.publish_in_hub = 1
+		self.publish_in_hub = 0
 
 	def after_insert(self):
 	

@@ -20,5 +20,17 @@ frappe.query_reports["Total Stock Summary"] = {
 			"width": "80",
 			"options": "Company"
 		},
+		{
+			"fieldname": "hide_disabled",
+			"label": __("Hide Disabled"),
+			"fieldtype": "Check",
+			"default":1
+		},
+		{
+			"fieldname": "hide_negative_qty",
+			"label": __("Hide Negative Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
 	]
 }

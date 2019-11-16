@@ -38,7 +38,8 @@ def format_columns(display_columns, compact_fields):
 		if column not in compact_fields:
 			final_columns.append(column)
 	return final_columns
-	
+
+# gets the more info from print format builder	
 def format_columns_custom(display_columns, compact_fields):
 	compact_fields = compact_fields + ["image", "item_code"]
 	final_columns = []
