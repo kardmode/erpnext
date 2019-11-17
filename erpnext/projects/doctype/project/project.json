@@ -70,7 +70,7 @@
    "label": "Project Name",
    "oldfieldtype": "Data",
    "reqd": 1,
-   "unique": 1
+   "unique": 0
   },
   {
    "default": "Open",
