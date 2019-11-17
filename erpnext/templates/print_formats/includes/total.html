@@ -1,6 +1,7 @@
 <div class="row data-field" data-fieldname="total" data-fieldtype="Currency">
 	{% if doc.flags.show_inclusive_tax_in_print %}
 		<div class="col-xs-4 {%- if doc._align_labels_right %} text-right{%- endif -%}">
+
 			<label>{{ _("Total (Without Tax)") }}</label></div>
 		<div class="col-xs-8 text-right">
 			{{ doc.get_formatted("net_total", doc) }}

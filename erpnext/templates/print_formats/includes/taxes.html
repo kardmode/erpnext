@@ -2,6 +2,7 @@
 	{%- if doc.discount_amount -%}
 		<div class="row data-field" data-fieldname="discount_amount" data-fieldtype="Currency">
 			<div class="print_label col-xs-4 {%- if doc._align_labels_right %} text-right{%- endif -%}">
+
 				<label>{{ _(doc.meta.get_label('discount_amount')) }}</label></div>
 			<div class="col-xs-8 text-right value">
 				{{ doc.get_formatted("discount_amount", doc) }}
@@ -21,6 +22,7 @@
 			{%- if (charge.tax_amount or doc.flags.print_taxes_with_zero_amount) and (not charge.included_in_print_rate or doc.flags.show_inclusive_tax_in_print) and charge.category != "Account Ledger Only" -%}
 			<div class="row data-field" data-fieldtype="Currency">
 				<div class="print_label col-xs-4 {%- if doc._align_labels_right %} text-right{%- endif -%}">
+
 					<label>{{ charge.get_formatted("description") }}</label></div>
 				<div class="col-xs-8 text-right value">
 					{{ frappe.format_value(frappe.utils.flt(charge.tax_amount),

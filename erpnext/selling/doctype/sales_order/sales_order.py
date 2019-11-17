@@ -77,9 +77,7 @@ class SalesOrder(SellingController):
 				frappe.msgprint(_("Warning: Sales Order {0} already exists against Customer's Purchase Order {1}").format(so[0][0], self.po_no))
 
 	def validate_for_items(self):
-		check_list = []
 		for d in self.get('items'):
-			check_list.append(cstr(d.item_code))
 
 			# used for production plan
 			d.transaction_date = self.transaction_date
@@ -87,13 +85,6 @@ class SalesOrder(SellingController):
 			tot_avail_qty = frappe.db.sql("select projected_qty from `tabBin` \
 				where item_code = %s and warehouse = %s", (d.item_code, d.warehouse))
 			d.projected_qty = tot_avail_qty and flt(tot_avail_qty[0][0]) or 0
-
-		# check for same entry multiple times
-		unique_chk_list = set(check_list)
-		if len(unique_chk_list) != len(check_list) and \
-			not cint(frappe.db.get_single_value("Selling Settings", "allow_multiple_items")):
-			frappe.msgprint(_("Same item has been entered multiple times"),
-				title=_("Warning"), indicator='orange')
 
 	def product_bundle_has_stock_item(self, product_bundle):
 		"""Returns true if product bundle has stock item"""
@@ -1020,3 +1011,15 @@ def make_raw_material_request(items, company, sales_order, project=None):
 	material_request.run_method("set_missing_values")
 	material_request.submit()
 	return material_request
+
+def update_produced_qty_in_so_item(sales_order_item):
+	#for multiple work orders against same sales order item
+	linked_wo_with_so_item = frappe.db.get_all('Work Order', ['produced_qty'], {
+		'sales_order_item': sales_order_item,
+		'docstatus': 1
+	})
+	if len(linked_wo_with_so_item) > 0:
+		total_produced_qty = 0
+		for wo in linked_wo_with_so_item:
+			total_produced_qty += flt(wo.get('produced_qty'))
+		frappe.db.set_value('Sales Order Item', sales_order_item, 'produced_qty', total_produced_qty)

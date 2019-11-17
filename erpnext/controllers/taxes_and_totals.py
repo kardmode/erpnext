@@ -76,12 +76,12 @@ class calculate_taxes_and_totals(object):
 						item.discount_amount = item.price_list_rate - item.rate
 
 				item.net_rate = item.rate
-				
-				if str(item.item_group).lower() in ['header1','header2']:
-					item.amount = 0
+
+
+				if not item.qty and self.doc.get("is_return"):
+					item.amount = flt(-1 * item.rate, item.precision("amount"))
 				else:
 					item.amount = flt(item.rate * item.qty,	item.precision("amount"))
-
 
 				item.net_amount = item.amount
 

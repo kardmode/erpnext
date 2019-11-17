@@ -324,7 +324,6 @@ frappe.ui.form.on('Payroll Entry', {
 		}
 		
 		
-
 		// if (slip_status.draft) {
 			// frm.add_custom_button(__("Submit Salary Slips"),
 				// function() {
