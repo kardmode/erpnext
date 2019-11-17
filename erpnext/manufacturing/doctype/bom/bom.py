@@ -7,6 +7,7 @@ from frappe.utils import cint, cstr, flt
 from frappe import _
 from erpnext.setup.utils import get_exchange_rate
 from erpnext.stock.get_item_details import get_conversion_factor
+from frappe.website.website_generator import WebsiteGenerator
 from erpnext.stock.get_item_details import get_price_list_rate
 
 import functools
