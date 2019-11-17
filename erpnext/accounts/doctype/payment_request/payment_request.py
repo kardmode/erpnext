@@ -37,7 +37,7 @@ class PaymentRequest(Document):
 		# self.validate_currency()
 		# self.validate_subscription_details()
 		self.grand_total_requested = flt(self.advance_required) + flt(self.vat) - flt(self.additional_discount_amount)
-		self.request_in_words = money_in_words(self.grand_total_requested, self.currency)8
+		self.request_in_words = money_in_words(self.grand_total_requested, self.currency)
 
 	def validate_reference_document(self):
 		if not self.reference_doctype or not self.reference_name:
