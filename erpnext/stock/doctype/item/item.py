@@ -243,8 +243,6 @@ class Item(WebsiteGenerator):
 		if self.description:
 			self.description = self.description.strip()
 			
-
-=
 	def validate_manufacturer(self):
 		list_man = [(x.manufacturer, x.manufacturer_part_no) for x in self.get('manufacturers')]
 		set_man = set(list_man)
