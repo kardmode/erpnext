@@ -8,9 +8,9 @@ QUnit.test("test: Timesheet", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Timesheet', [
+	frappe.run_serially([
 		// insert a new Timesheet
-		() => frappe.tests.make([
+		() => frappe.tests.make('Timesheet', [
 			// values to be set
 			{key: 'value'}
 		]),

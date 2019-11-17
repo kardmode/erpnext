@@ -14,6 +14,7 @@ def execute(filters=None):
 
 def _execute(filters=None, additional_table_columns=None, additional_query_columns=None):
 	if not filters: filters = {}
+	filters.update({"from_date": filters.get("date_range") and filters.get("date_range")[0], "to_date": filters.get("date_range") and filters.get("date_range")[1]})
 	columns = get_columns(additional_table_columns)
 
 	company_currency = erpnext.get_company_currency(filters.get('company'))
@@ -41,7 +42,7 @@ def _execute(filters=None, additional_table_columns=None, additional_query_colum
 		if not delivery_note and d.update_stock:
 			delivery_note = d.parent
 
-		row = [d.item_code, d.item_name, d.item_group, d.parent, d.posting_date, d.customer, d.customer_name]
+		row = [d.item_code, d.item_name, d.item_group, d.description, d.parent, d.posting_date, d.customer, d.customer_name]
 
 		if additional_query_columns:
 			for col in additional_query_columns:
@@ -53,8 +54,10 @@ def _execute(filters=None, additional_table_columns=None, additional_query_colum
 			delivery_note, d.income_account, d.cost_center, d.stock_qty, d.stock_uom
 		]
 
-		row += [(d.base_net_rate * d.qty)/d.stock_qty, d.base_net_amount] \
-			if d.stock_uom != d.uom and d.stock_qty != 0 else [d.base_net_rate, d.base_net_amount]
+		if d.stock_uom != d.uom and d.stock_qty:
+			row += [(d.base_net_rate * d.qty)/d.stock_qty, d.base_net_amount]
+		else:
+			row += [d.base_net_rate, d.base_net_amount]
 
 		total_tax = 0
 		for tax in tax_columns:
@@ -71,7 +74,7 @@ def _execute(filters=None, additional_table_columns=None, additional_query_colum
 def get_columns(additional_table_columns):
 	columns = [
 		_("Item Code") + ":Link/Item:120", _("Item Name") + "::120",
-		_("Item Group") + ":Link/Item Group:100", _("Invoice") + ":Link/Sales Invoice:120",
+		_("Item Group") + ":Link/Item Group:100", "Description::150", _("Invoice") + ":Link/Sales Invoice:120",
 		_("Posting Date") + ":Date:80", _("Customer") + ":Link/Customer:120",
 		_("Customer Name") + "::120"]
 
@@ -99,7 +102,9 @@ def get_conditions(filters):
 		("customer", " and `tabSales Invoice`.customer = %(customer)s"),
 		("item_code", " and `tabSales Invoice Item`.item_code = %(item_code)s"),
 		("from_date", " and `tabSales Invoice`.posting_date>=%(from_date)s"),
-		("to_date", " and `tabSales Invoice`.posting_date<=%(to_date)s")):
+		("to_date", " and `tabSales Invoice`.posting_date<=%(to_date)s"),
+		("company_gstin", " and `tabSales Invoice`.company_gstin = %(company_gstin)s"),
+		("invoice_type", " and `tabSales Invoice`.invoice_type = %(invoice_type)s")):
 			if filters.get(opts[0]):
 				conditions += opts[1]
 
@@ -108,15 +113,32 @@ def get_conditions(filters):
 			where parent=`tabSales Invoice`.name
 				and ifnull(`tabSales Invoice Payment`.mode_of_payment, '') = %(mode_of_payment)s)"""
 
+	if filters.get("warehouse"):
+		conditions +=  """ and exists(select name from `tabSales Invoice Item`
+			 where parent=`tabSales Invoice`.name
+			 	and ifnull(`tabSales Invoice Item`.warehouse, '') = %(warehouse)s)"""
+
+
+	if filters.get("brand"):
+		conditions +=  """ and exists(select name from `tabSales Invoice Item`
+			 where parent=`tabSales Invoice`.name
+			 	and ifnull(`tabSales Invoice Item`.brand, '') = %(brand)s)"""
+
+	if filters.get("item_group"):
+		conditions +=  """ and exists(select name from `tabSales Invoice Item`
+			 where parent=`tabSales Invoice`.name
+			 	and ifnull(`tabSales Invoice Item`.item_group, '') = %(item_group)s)"""
+
+
 	return conditions
 
 def get_items(filters, additional_query_columns):
 	conditions = get_conditions(filters)
 	match_conditions = frappe.build_match_conditions("Sales Invoice")
-	
+
 	if match_conditions:
 		match_conditions = " and {0} ".format(match_conditions)
-	
+
 	if additional_query_columns:
 		additional_query_columns = ', ' + ', '.join(additional_query_columns)
 
@@ -127,7 +149,7 @@ def get_items(filters, additional_query_columns):
 			`tabSales Invoice`.project, `tabSales Invoice`.customer, `tabSales Invoice`.remarks,
 			`tabSales Invoice`.territory, `tabSales Invoice`.company, `tabSales Invoice`.base_net_total,
 			`tabSales Invoice Item`.item_code, `tabSales Invoice Item`.item_name,
-			`tabSales Invoice Item`.item_group, `tabSales Invoice Item`.sales_order,
+			`tabSales Invoice Item`.item_group, `tabSales Invoice Item`.description, `tabSales Invoice Item`.sales_order,
 			`tabSales Invoice Item`.delivery_note, `tabSales Invoice Item`.income_account,
 			`tabSales Invoice Item`.cost_center, `tabSales Invoice Item`.stock_qty,
 			`tabSales Invoice Item`.stock_uom, `tabSales Invoice Item`.base_net_rate,
@@ -192,7 +214,7 @@ def get_tax_accounts(item_list, columns, company_currency,
 			%s
 		order by description
 	""" % (tax_doctype, '%s', ', '.join(['%s']*len(invoice_item_row)), conditions),
-		tuple([doctype] + invoice_item_row.keys()))
+		tuple([doctype] + list(invoice_item_row)))
 
 	for name, parent, description, item_wise_tax_detail, charge_type, tax_amount in tax_details:
 		description = handle_html(description)

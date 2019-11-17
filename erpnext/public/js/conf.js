@@ -14,7 +14,7 @@ $(document).bind('toolbar_setup', function() {
 	// $('.navbar-home').html('<img class="erpnext-icon" src="'+
 			// frappe.urllib.get_base_url()+'/assets/erpnext/images/home-icon.png" />');
 
-	$('[data-link="docs"]').attr("href", "https://frappe.github.io/erpnext/")
+	$('[data-link="docs"]').attr("href", "https://erpnext.com/docs")
 	$('[data-link="issues"]').attr("href", "https://github.com/frappe/erpnext/issues")
 
 
@@ -24,10 +24,10 @@ $(document).bind('toolbar_setup', function() {
 	// additional help links for erpnext
 	var $help_menu = $('.dropdown-help ul .documentation-links');
 
+	// $('<li><a data-link-type="forum" href="https://erpnext.com/docs/user/manual" \
+		// target="_blank">'+__('Documentation')+'</a></li>').insertBefore($help_menu);
 	// $('<li><a data-link-type="forum" href="https://discuss.erpnext.com" \
 		// target="_blank">'+__('User Forum')+'</a></li>').insertBefore($help_menu);
-	// $('<li><a href="https://gitter.im/frappe/erpnext" \
-		// target="_blank">'+__('Chat')+'</a></li>').insertBefore($help_menu);
 	// $('<li><a href="https://github.com/frappe/erpnext/issues" \
 		// target="_blank">'+__('Report an Issue')+'</a></li>').insertBefore($help_menu);
 
@@ -42,14 +42,15 @@ $.extend(frappe.create_routes, {
 	"Item Group": "Tree/Item Group",
 	"Sales Person": "Tree/Sales Person",
 	"Account": "Tree/Account",
-	"Cost Center": "Tree/Cost Center"
+	"Cost Center": "Tree/Cost Center",
+	"Department": "Tree/Department",
 });
 
 // preferred modules for breadcrumbs
 $.extend(frappe.breadcrumbs.preferred, {
 	"Item Group": "Stock",
 	"Customer Group": "Selling",
-	"Supplier Type": "Buying",
+	"Supplier Group": "Buying",
 	"Territory": "Selling",
 	"Sales Person": "Selling",
 	"Sales Partner": "Selling",

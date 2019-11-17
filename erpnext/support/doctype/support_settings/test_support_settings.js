@@ -8,9 +8,9 @@ QUnit.test("test: Support Settings", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Support Settings', [
+	frappe.run_serially([
 		// insert a new Support Settings
-		() => frappe.tests.make([
+		() => frappe.tests.make('Support Settings', [
 			// values to be set
 			{key: 'value'}
 		]),

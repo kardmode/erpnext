@@ -19,22 +19,21 @@ frappe.ui.form.on("Communication", {
 		if(!in_list(["Lead", "Opportunity"], frm.doc.reference_doctype)) {
 			frm.add_custom_button(__("Lead"), () => {
 				frappe.confirm(__(confirm_msg, [__("Lead")]), () => {
-					frm.trigger('make_lead_from_communication');	
+					frm.trigger('make_lead_from_communication');
 				})
-			}, "Make");
+			}, __("Make"));
 
 			frm.add_custom_button(__("Opportunity"), () => {
 				frappe.confirm(__(confirm_msg, [__("Opportunity")]), () => {
 					frm.trigger('make_opportunity_from_communication');
 				})
-			}, "Make");
+			}, __("Make"));
 		}
-		frm.page.set_inner_btn_group_as_primary(__("Make"));
 	},
 
 	make_lead_from_communication: (frm) => {
 		return frappe.call({
-			method: "frappe.email.inbox.make_lead_from_communication",
+			method: "erpnext.crm.doctype.lead.lead.make_lead_from_communication",
 			args: {
 				communication: frm.doc.name
 			},
@@ -49,7 +48,7 @@ frappe.ui.form.on("Communication", {
 
 	make_issue_from_communication: (frm) => {
 		return frappe.call({
-			method: "frappe.email.inbox.make_issue_from_communication",
+			method: "erpnext.support.doctype.issue.issue.make_issue_from_communication",
 			args: {
 				communication: frm.doc.name
 			},
@@ -64,7 +63,7 @@ frappe.ui.form.on("Communication", {
 
 	make_opportunity_from_communication: (frm) => {
 		return frappe.call({
-			method: "frappe.email.inbox.make_opportunity_from_communication",
+			method: "erpnext.crm.doctype.opportunity.opportunity.make_opportunity_from_communication",
 			args: {
 				communication: frm.doc.name
 			},

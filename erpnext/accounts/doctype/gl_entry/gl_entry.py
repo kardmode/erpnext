@@ -6,6 +6,7 @@ import frappe, erpnext
 from frappe import _
 from frappe.utils import flt, fmt_money, getdate, formatdate
 from frappe.model.document import Document
+from frappe.model.meta import get_field_precision
 from erpnext.accounts.party import validate_party_gle_currency, validate_party_frozen_disabled
 from erpnext.accounts.utils import get_account_currency
 from erpnext.accounts.utils import get_fiscal_year
@@ -18,14 +19,13 @@ class GLEntry(Document):
 		self.flags.ignore_submit_comment = True
 		self.check_mandatory()
 		self.validate_and_set_fiscal_year()
+		self.pl_must_have_cost_center()
+		self.validate_cost_center()
 
 		if not self.flags.from_repost:
-			self.pl_must_have_cost_center()
 			self.check_pl_account()
-			self.validate_cost_center()
 			self.validate_party()
 			self.validate_currency()
-
 
 	def on_update_with_args(self, adv_adj, update_outstanding = 'Yes', from_repost=False):
 		if not from_repost:
@@ -57,7 +57,7 @@ class GLEntry(Document):
 					.format(self.voucher_type, self.voucher_no, self.account))
 
 		# Zero value transaction is not allowed
-		if not (flt(self.debit) or flt(self.credit)):
+		if not (flt(self.debit, self.precision("debit")) or flt(self.credit, self.precision("credit"))):
 			frappe.throw(_("{0} {1}: Either debit or credit amount is required for {2}")
 				.format(self.voucher_type, self.voucher_no, self.account))
 
@@ -67,14 +67,16 @@ class GLEntry(Document):
 				frappe.throw(_("{0} {1}: Cost Center is required for 'Profit and Loss' account {2}. Please set up a default Cost Center for the Company.")
 					.format(self.voucher_type, self.voucher_no, self.account))
 		else:
-			if self.cost_center:
+			from erpnext.accounts.utils import get_allow_cost_center_in_entry_of_bs_account
+			if not get_allow_cost_center_in_entry_of_bs_account() and self.cost_center:
 				self.cost_center = None
 			if self.project:
 				self.project = None
 
 	def check_pl_account(self):
 		if self.is_opening=='Yes' and \
-				frappe.db.get_value("Account", self.account, "report_type")=="Profit and Loss":
+				frappe.db.get_value("Account", self.account, "report_type")=="Profit and Loss" and \
+				self.voucher_type not in ['Purchase Invoice', 'Sales Invoice']:
 			frappe.throw(_("{0} {1}: 'Profit and Loss' type account {2} not allowed in Opening Entry")
 				.format(self.voucher_type, self.voucher_no, self.account))
 
@@ -215,17 +217,23 @@ def validate_frozen_account(account, adv_adj=None):
 def update_against_account(voucher_type, voucher_no):
 	entries = frappe.db.get_all("GL Entry",
 		filters={"voucher_type": voucher_type, "voucher_no": voucher_no},
-		fields=["name", "party", "against", "debit", "credit", "account"])
+		fields=["name", "party", "against", "debit", "credit", "account", "company"])
+
+	if not entries:
+		return
+	company_currency = erpnext.get_company_currency(entries[0].company)
+	precision = get_field_precision(frappe.get_meta("GL Entry")
+			.get_field("debit"), company_currency)
 
 	accounts_debited, accounts_credited = [], []
 	for d in entries:
-		if flt(d.debit > 0): accounts_debited.append(d.party or d.account)
-		if flt(d.credit) > 0: accounts_credited.append(d.party or d.account)
+		if flt(d.debit, precision) > 0: accounts_debited.append(d.party or d.account)
+		if flt(d.credit, precision) > 0: accounts_credited.append(d.party or d.account)
 
 	for d in entries:
-		if flt(d.debit > 0):
+		if flt(d.debit, precision) > 0:
 			new_against = ", ".join(list(set(accounts_credited)))
-		if flt(d.credit > 0):
+		if flt(d.credit, precision) > 0:
 			new_against = ", ".join(list(set(accounts_debited)))
 
 		if d.against != new_against:

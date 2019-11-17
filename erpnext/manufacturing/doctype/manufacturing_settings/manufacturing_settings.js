@@ -5,4 +5,5 @@ frappe.ui.form.on('Manufacturing Settings', {
 	refresh: function(frm) {
 
 	}
+
 });

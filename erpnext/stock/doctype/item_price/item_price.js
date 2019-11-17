@@ -12,6 +12,7 @@ frappe.ui.form.on("Item Price", {
 		frm.add_fetch("item_code", "item_name", "item_name");
 		frm.add_fetch("item_code", "description", "item_description");
 		frm.add_fetch("item_code", "stock_uom", "stock_uom");
+		frm.add_fetch("item_code", "stock_uom", "uom");
 
 		frm.set_df_property("bulk_import_help", "options",
 			'<a href="#data-import-tool/Item Price">' + __("Import in Bulk") + '</a>');

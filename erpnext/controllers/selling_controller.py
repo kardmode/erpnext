@@ -8,6 +8,7 @@ from frappe import _, throw
 from erpnext.stock.get_item_details import get_bin_details
 from erpnext.stock.utils import get_incoming_rate
 from erpnext.stock.get_item_details import get_conversion_factor
+from erpnext.stock.doctype.item.item import set_item_default
 from frappe.contacts.doctype.address.address import get_address_display
 
 from erpnext.controllers.stock_controller import StockController
@@ -16,7 +17,7 @@ class SellingController(StockController):
 	def __setup__(self):
 		if hasattr(self, "taxes"):
 			self.flags.print_taxes_with_zero_amount = cint(frappe.db.get_single_value("Print Settings",
-				 "print_taxes_with_zero_amount"))
+				"print_taxes_with_zero_amount"))
 			self.flags.show_inclusive_tax_in_print = self.is_inclusive_tax()
 
 			self.print_templates = {
@@ -42,10 +43,12 @@ class SellingController(StockController):
 		self.validate_selling_price()
 		self.set_qty_as_per_stock_uom()
 		self.set_po_nos()
+		self.set_gross_profit()
+		set_default_income_account_for_item(self)
 		self.set_customer_address()
-		check_active_sales_items(self)
 
 	def set_missing_values(self, for_validate=False):
+
 		super(SellingController, self).set_missing_values(for_validate)
 
 		# set contact and address details for customer, if they are not mentioned
@@ -53,26 +56,39 @@ class SellingController(StockController):
 		self.set_price_list_and_item_details(for_validate=for_validate)
 
 	def set_missing_lead_customer_details(self):
+		customer, lead = None, None
 		if getattr(self, "customer", None):
+			customer = self.customer
+		elif self.doctype == "Opportunity" and self.party_name:
+			if self.opportunity_from == "Customer":
+				customer = self.party_name
+			else:
+				lead = self.party_name
+		elif self.doctype == "Quotation" and self.party_name:
+			if self.quotation_to == "Customer":
+				customer = self.party_name
+			else:
+				lead = self.party_name
+
+		if customer:
 			from erpnext.accounts.party import _get_party_details
 			fetch_payment_terms_template = False
 			if (self.get("__islocal") or
 				self.company != frappe.db.get_value(self.doctype, self.name, 'company')):
 				fetch_payment_terms_template = True
 
-			party_details = _get_party_details(self.customer,
+			party_details = _get_party_details(customer,
 				ignore_permissions=self.flags.ignore_permissions,
 				doctype=self.doctype, company=self.company,
-				fetch_payment_terms_template=fetch_payment_terms_template)
+				fetch_payment_terms_template=fetch_payment_terms_template,
+				party_address=self.customer_address, shipping_address=self.shipping_address_name)
 			if not self.meta.get_field("sales_team"):
 				party_details.pop("sales_team")
-
 			self.update_if_missing(party_details)
 
-		elif getattr(self, "lead", None):
+		elif lead:
 			from erpnext.crm.doctype.lead.lead import get_lead_details
-			self.update_if_missing(get_lead_details(
-				self.lead,
+			self.update_if_missing(get_lead_details(lead,
 				posting_date=self.get('transaction_date') or self.get('posting_date'),
 				company=self.company))
 
@@ -141,10 +157,12 @@ class SellingController(StockController):
 
 	def validate_max_discount(self):
 		for d in self.get("items"):
-			discount = flt(frappe.db.get_value("Item", d.item_code, "max_discount"))
+			if d.item_code:
+				discount = flt(frappe.get_cached_value("Item", d.item_code, "max_discount"))
 
-			if discount and flt(d.discount_percentage) > discount:
-				frappe.throw(_("Maximum discount for Item {0} is {1}%").format(d.item_code, discount))
+
+				if discount and flt(d.discount_percentage) > discount:
+					frappe.throw(_("Maximum discount for Item {0} is {1}%").format(d.item_code, discount))
 
 	def set_qty_as_per_stock_uom(self):
 		for d in self.get("items"):
@@ -168,7 +186,7 @@ class SellingController(StockController):
 			if not it.item_code:
 				continue
 
-			last_purchase_rate, is_stock_item = frappe.db.get_value("Item", it.item_code, ["last_purchase_rate", "is_stock_item"])
+			last_purchase_rate, is_stock_item = frappe.get_cached_value("Item", it.item_code, ["last_purchase_rate", "is_stock_item"])
 			last_purchase_rate_in_sales_uom = last_purchase_rate / (it.conversion_factor or 1)
 			if flt(it.base_rate) < flt(last_purchase_rate_in_sales_uom):
 				throw_message(it.item_name, last_purchase_rate_in_sales_uom, "last purchase rate")
@@ -344,7 +362,7 @@ class SellingController(StockController):
 
 		sl_entries = []
 		for d in self.get_item_list():
-			if frappe.db.get_value("Item", d.item_code, "is_stock_item") == 1 and flt(d.qty):
+			if frappe.get_cached_value("Item", d.item_code, "is_stock_item") == 1 and flt(d.qty):
 				if flt(d.conversion_factor)==0.0:
 					d.conversion_factor = get_conversion_factor(d.item_code, d.uom).get("conversion_factor") or 1.0
 				return_rate = 0
@@ -404,7 +422,14 @@ class SellingController(StockController):
 			sales_orders = list(set([d.get(ref_fieldname) for d in self.items if d.get(ref_fieldname)]))
 			if sales_orders:
 				po_nos = frappe.get_all('Sales Order', 'po_no', filters = {'name': ('in', sales_orders)})
-				self.po_no = ', '.join(list(set([d.po_no for d in po_nos if d.po_no])))
+				if po_nos and po_nos[0].get('po_no'):
+					self.po_no = ', '.join(list(set([d.po_no for d in po_nos if d.po_no])))
+
+	def set_gross_profit(self):
+		if self.doctype == "Sales Order":
+			for item in self.items:
+				item.gross_profit = flt(((item.base_rate - item.valuation_rate) * item.stock_qty), self.precision("amount", item))
+
 
 	def set_customer_address(self):
 		address_dict = {
@@ -422,16 +447,8 @@ class SellingController(StockController):
 		from erpnext.controllers.buying_controller import validate_item_type
 		validate_item_type(self, "is_sales_item", "sales")
 
-def check_active_sales_items(obj):
+def set_default_income_account_for_item(obj):
 	for d in obj.get("items"):
 		if d.item_code:
-			item = frappe.db.sql("""select docstatus,
-				income_account from tabItem where name = %s""",
-				d.item_code, as_dict=True)[0]
-
-			if getattr(d, "income_account", None) and not item.income_account:
-				frappe.db.set_value("Item", d.item_code, "income_account",
-					d.income_account)
-					
-
-			
+			if getattr(d, "income_account", None):
+				set_item_default(d.item_code, obj.company, 'income_account', d.income_account)

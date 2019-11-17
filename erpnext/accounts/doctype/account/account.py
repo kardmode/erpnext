@@ -5,13 +5,18 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cint, cstr
 from frappe import throw, _
-from frappe.utils.nestedset import NestedSet
+from frappe.utils.nestedset import NestedSet, get_ancestors_of, get_descendants_of
 
 class RootNotEditable(frappe.ValidationError): pass
 class BalanceMismatchError(frappe.ValidationError): pass
 
 class Account(NestedSet):
 	nsm_parent_field = 'parent_account'
+	def on_update(self):
+		if frappe.local.flags.ignore_on_update:
+			return
+		else:
+			super(Account, self).on_update()
 
 	def onload(self):
 		frozen_accounts_modifier = frappe.db.get_value("Accounts Settings", "Accounts Settings",
@@ -20,20 +25,23 @@ class Account(NestedSet):
 			self.set_onload("can_freeze_account", True)
 
 	def autoname(self):
-		self.name = get_account_autoname(self.account_number, self.account_name, self.company)
+		from erpnext.accounts.utils import get_autoname_with_number
+		self.name = get_autoname_with_number(self.account_number, self.account_name, None, self.company)
 
 	def validate(self):
+		from erpnext.accounts.utils import validate_field_number
 		if frappe.local.flags.allow_unverified_charts:
 			return
 		self.validate_parent()
 		self.validate_root_details()
-		validate_account_number(self.name, self.account_number, self.company)
+		validate_field_number("Account", self.name, self.account_number, self.company, "account_number")
 		self.validate_group_or_ledger()
 		self.set_root_and_report_type()
 		self.validate_mandatory()
 		self.validate_frozen_accounts_modifier()
 		self.validate_balance_must_be_debit_or_credit()
 		self.validate_account_currency()
+		self.validate_root_company_and_sync_account_to_children()
 
 	def validate_parent(self):
 		"""Fetch Parent Details and validate parent account"""
@@ -83,6 +91,45 @@ class Account(NestedSet):
 		if not self.parent_account and not self.is_group:
 			frappe.throw(_("Root Account must be a group"))
 
+	def validate_root_company_and_sync_account_to_children(self):
+		# ignore validation while creating new compnay or while syncing to child companies
+		if frappe.local.flags.ignore_root_company_validation or self.flags.ignore_root_company_validation:
+			return
+
+		ancestors = get_root_company(self.company)
+		if ancestors:
+			if frappe.get_value("Company", self.company, "allow_account_creation_against_child_company"):
+				return
+			frappe.throw(_("Please add the account to root level Company - %s" % ancestors[0]))
+		else:
+			descendants = get_descendants_of('Company', self.company)
+			if not descendants: return
+
+			parent_acc_name_map = {}
+			parent_acc_name = frappe.db.get_value('Account', self.parent_account, "account_name")
+			for d in frappe.db.get_values('Account',
+				{"company": ["in", descendants], "account_name": parent_acc_name},
+				["company", "name"], as_dict=True):
+				parent_acc_name_map[d["company"]] = d["name"]
+
+			if not parent_acc_name_map: return
+
+			for company in descendants:
+				if not parent_acc_name_map.get(company):
+					frappe.throw(_("While creating account for child Company {0}, parent account {1} not found. Please create the parent account in corresponding COA")
+						.format(company, parent_acc_name))
+
+				doc = frappe.copy_doc(self)
+				doc.flags.ignore_root_company_validation = True
+				doc.update({
+					"company": company,
+					"account_currency": None,
+					"parent_account": parent_acc_name_map[company]
+				})
+				doc.save()
+				frappe.msgprint(_("Account {0} is added in the child company {1}")
+					.format(doc.name, company))
+
 	def validate_group_or_ledger(self):
 		if self.get("__islocal"):
 			return
@@ -117,7 +164,7 @@ class Account(NestedSet):
 
 	def validate_account_currency(self):
 		if not self.account_currency:
-			self.account_currency = frappe.db.get_value("Company", self.company, "default_currency")
+			self.account_currency = frappe.get_cached_value('Company',  self.company,  "default_currency")
 
 		elif self.account_currency != frappe.db.get_value("Account", self.name, "account_currency"):
 			if frappe.db.get_value("GL Entry", {"account": self.name}):
@@ -177,17 +224,20 @@ def get_account_currency(account):
 	if not account:
 		return
 	def generator():
-		account_currency, company = frappe.db.get_value("Account", account, ["account_currency", "company"])
+		account_currency, company = frappe.get_cached_value("Account", account, ["account_currency", "company"])
 		if not account_currency:
-			account_currency = frappe.db.get_value("Company", company, "default_currency")
+			account_currency = frappe.get_cached_value('Company',  company,  "default_currency")
 
 		return account_currency
 
 	return frappe.local_cache("account_currency", account, generator)
 
+def on_doctype_update():
+	frappe.db.add_index("Account", ["lft", "rgt"])
+
 def get_account_autoname(account_number, account_name, company):
 	# first validate if company exists
-	company = frappe.db.get_value("Company", company, ["abbr", "name"], as_dict=True)
+	company = frappe.get_cached_value('Company',  company,  ["abbr", "name"], as_dict=True)
 	if not company:
 		frappe.throw(_('Company {0} does not exist').format(company))
 
@@ -218,7 +268,7 @@ def update_account_number(name, account_name, account_number=None):
 
 	new_name = get_account_autoname(account_number, account_name, account.company)
 	if name != new_name:
-		frappe.rename_doc("Account", name, new_name, ignore_permissions=1)
+		frappe.rename_doc("Account", name, new_name, force=1)
 		return new_name
 
 @frappe.whitelist()
@@ -237,6 +287,12 @@ def merge_account(old, new, is_group, root_type, company):
 		frappe.db.set_value("Account", new, "parent_account",
 			frappe.db.get_value("Account", old, "parent_account"))
 
-	frappe.rename_doc("Account", old, new, merge=1, ignore_permissions=1)
+	frappe.rename_doc("Account", old, new, merge=1, force=1)
 
 	return new
+
+@frappe.whitelist()
+def get_root_company(company):
+	# return the topmost company in the hierarchy
+	ancestors = get_ancestors_of('Company', company, "lft asc")
+	return [ancestors[0]] if ancestors else []

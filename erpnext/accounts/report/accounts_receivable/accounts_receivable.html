@@ -1,24 +1,14 @@
-{% if(filters.show_pdc_in_print) { %}
-	<style>
-	@media screen {
-	  .print-format {
-	    padding: 4mm;
-		font-size: 8.0pt !important;
-		font-family: Tahoma, sans-serif;
-	  }
-	}
-	</style>
-{% } %}
 <style>
-	.print-format {
-		padding: 4mm;
-		font-size: 8.0pt !important;
-		font-family: Tahoma, sans-serif;
-	}
+.print-format {
+	padding: 4mm;
+	font-size: 8.0pt !important;
+}
+.print-format td {
+	vertical-align:middle !important;
+}
 </style>
 
-
-<h2 class="text-center">{%= __(report.report_name) %}</h2>
+<h2 class="text-center" style="margin-top:0">{%= __(report.report_name) %}</h2>
 <h4 class="text-center">
 	{% if (filters.customer_name) { %}
 		{%= filters.customer_name %}
@@ -34,15 +24,30 @@
 <h5 class="text-center">
 	{%= __(filters.ageing_based_on) %}
 	{%= __("Until") %}
-	{%= dateutil.str_to_user(filters.report_date) %}
+	{%= frappe.datetime.str_to_user(filters.report_date) %}
 </h5>
-<hr>
+
+<div class="clearfix">
+	<div class="pull-left">
+	{% if(filters.payment_terms) { %}
+		<strong>{%= __("Payment Terms") %}:</strong> {%= filters.payment_terms %}
+	{% } %}
+	</div>
+	<div class="pull-right">
+	{% if(filters.credit_limit) { %}
+		<strong>{%= __("Credit Limit") %}:</strong> {%= format_currency(filters.credit_limit) %}
+	{% } %}
+	</div>
+</div>
+
 {% if(filters.show_pdc_in_print) { %}
 	{% var balance_row = data.slice(-1).pop();
 		   var range1 = report.columns[11].label;
 		   var range2 = report.columns[12].label;
 		   var range3 = report.columns[13].label;
 		   var range4 = report.columns[14].label;
+		   var range5 = report.columns[15].label;
+		   var range6 = report.columns[16].label;
 	%}
 	{% if(balance_row) { %}
 	<table class="table table-bordered table-condensed">
@@ -53,8 +58,10 @@
 	            <col style="width: 18mm;">
 	            <col style="width: 18mm;">
 	            <col style="width: 18mm;">
-	            <col style="width: 18mm;">
-	            <col style="width: 18mm;">
+				<col style="width: 18mm;">
+				<col style="width: 18mm;">
+				<col style="width: 18mm;">
+				<col style="width: 18mm;">
 	        </colgroup>
 
 		<thead>
@@ -64,16 +71,20 @@
 				<th>{%= __(range2) %}</th>
 				<th>{%= __(range3) %}</th>
 				<th>{%= __(range4) %}</th>
+				<th>{%= __(range5) %}</th>
+				<th>{%= __(range6) %}</th>
 				<th>{%= __("Total") %}</th>
 			</tr>
 		</thead>
 		<tbody>
 			<tr>
 				<td>{%= __("Total Outstanding") %}</td>
-				<td class="text-right">{%= format_currency(balance_row[range1]) %}</td>
+				<td class="text-right">{%= format_number(balance_row[range1], null, 2) %}</td>
 				<td class="text-right">{%= format_currency(balance_row[range2]) %}</td>
 				<td class="text-right">{%= format_currency(balance_row[range3]) %}</td>
 				<td class="text-right">{%= format_currency(balance_row[range4]) %}</td>
+				<td class="text-right">{%= format_currency(balance_row[range5]) %}</td>
+				<td class="text-right">{%= format_currency(balance_row[range6]) %}</td>
 				<td class="text-right">
 					{%= format_currency(flt(balance_row[("outstanding_amount")]), data[data.length-1]["currency"]) %}
 					</td>
@@ -83,11 +94,15 @@
 				<td></td>
 				<td></td>
 				<td></td>
+				<td></td>
+				<td></td>
 				<td class="text-right">
 					{%= format_currency(flt(balance_row[("pdc/lc_amount")]), data[data.length-1]["currency"]) %}
 				</td>
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Cheques Required") %}</th>
+				<th></th>
+				<th></th>
 				<th></th>
 				<th></th>
 				<th></th>
@@ -104,22 +119,28 @@
 	<thead>
 		<tr>
 			{% if(report.report_name === "Accounts Receivable" || report.report_name === "Accounts Payable") { %}
-				<th style="width: 18%">{%= __("Date") %}</th>
-				<th style="width: 17%">{%= __("Reference") %}</th>
-				{% if(!filters.show_pdc_in_print) { %}
-				<th style="width: 20%">{%= (filters.customer || filters.supplier) ? __("Remarks"): __("Party") %}</th>
+				<th style="width: 10%">{%= __("Date") %}</th>
+				<th style="width: 4%">{%= __("Age (Days)") %}</th>
+
+				{% if(report.report_name === "Accounts Receivable" && filters.show_sales_person_in_print) { %}
+					<th style="width: 14%">{%= __("Reference") %}</th>
+					<th style="width: 10%">{%= __("Sales Person") %}</th>
+				{% } else { %}
+					<th style="width: 24%">{%= __("Reference") %}</th>
 				{% } %}
-				<th style="width: 10%">{%= __("Invoiced Amount") %}</th>
 				{% if(!filters.show_pdc_in_print) { %}
-					<th style="width: 10%">{%= __("Paid Amount") %}</th>
-					<th style="width: 10%">{%= report.report_name === "Accounts Receivable" ? __('Credit Note') : __('Debit Note') %}</th>
+					<th style="width: 20%">{%= (filters.customer || filters.supplier) ? __("Remarks"): __("Party") %}</th>
 				{% } %}
-				<th style="width: 15%">{%= __("Outstanding Amount") %}</th>
+				<th style="width: 10%; text-align: right">{%= __("Invoiced Amount") %}</th>
+				{% if(!filters.show_pdc_in_print) { %}
+					<th style="width: 10%; text-align: right">{%= __("Paid Amount") %}</th>
+					<th style="width: 10%; text-align: right">{%= report.report_name === "Accounts Receivable" ? __('Credit Note') : __('Debit Note') %}</th>
+				{% } %}
+				<th style="width: 10%; text-align: right">{%= __("Outstanding Amount") %}</th>
 				{% if(filters.show_pdc_in_print) { %}
 					{% if(report.report_name === "Accounts Receivable") { %}
-						<th style="width: 10%">{%= __("Customer LPO No.") %}</th>
+						<th style="width: 12%">{%= __("Customer LPO No.") %}</th>
 					{% } %}
-					<th style="width: 10%">{%= __("PDC/LC Date") %}</th>
 					<th style="width: 10%">{%= __("PDC/LC Ref") %}</th>
 					<th style="width: 10%">{%= __("PDC/LC Amount") %}</th>
 					<th style="width: 10%">{%= __("Remaining Balance") %}</th>
@@ -138,7 +159,8 @@
 			<tr>
 			{% if(report.report_name === "Accounts Receivable" || report.report_name === "Accounts Payable") { %}
 				{% if(data[i][__("Customer")] || data[i][__("Supplier")]) { %}
-					<td>{%= dateutil.str_to_user(data[i]["posting_date"]) %}</td>
+					<td>{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
+					<td style="text-align: right">{%= data[i][__("Age (Days)")] %}</td>
 					<td>
 						{% if(!filters.show_pdc_in_print) { %}
 							{%= data[i]["voucher_type"] %}
@@ -146,6 +168,11 @@
 						{% } %}
 						{%= data[i]["voucher_no"] %}
 					</td>
+
+					{% if(report.report_name === "Accounts Receivable" && filters.show_sales_person_in_print) { %}
+					<td>{%= data[i]["sales_person"] %}</td>
+					{% } %}
+
 					{% if(!filters.show_pdc_in_print) { %}
 					<td>
 						{% if(!(filters.customer || filters.supplier)) { %}
@@ -156,10 +183,15 @@
 								<br> {%= data[i][__("Supplier Name")] %}
 							{% } %}
 						{% } %}
-						<br>{%= __("Remarks") %}:
-						{%= data[i][__("Remarks")] %}
+						<div>
+						{% if data[i][__("Remarks")] %}
+							{%= __("Remarks") %}:
+							{%= data[i][__("Remarks")] %}
+						{% } %}
+						</div>
 					</td>
 					{% } %}
+
 					<td style="text-align: right">
 						{%= format_currency(data[i]["invoiced_amount"], data[i]["currency"]) %}</td>
 
@@ -177,7 +209,6 @@
 							<td style="text-align: right">
 								{%= data[i]["po_no"] %}</td>
 						{% } %}
-						<td style="text-align: right">{%= frappe.datetime.str_to_user(data[i][("pdc/lc_date")]) %}</td>
 						<td style="text-align: right">{%= data[i][("pdc/lc_ref")] %}</td>
 						<td style="text-align: right">{%= format_currency(data[i][("pdc/lc_amount")], data[i]["currency"]) %}</td>
 						<td style="text-align: right">{%= format_currency(data[i][("remaining_balance")], data[i]["currency"]) %}</td>
@@ -187,7 +218,11 @@
 					{% if(!filters.show_pdc_in_print) { %}
 					<td></td>
 					{% } %}
-					<td><b>{%= __("Total") %}</b></td>
+					{% if(report.report_name === "Accounts Receivable" && filters.show_sales_person_in_print) { %}
+					<td></td>
+					{% } %}
+					<td></td>
+					<td style="text-align: right"><b>{%= __("Total") %}</b></td>
 					<td style="text-align: right">
 						{%= format_currency(data[i]["invoiced_amount"], data[i]["currency"] ) %}</td>
 
@@ -204,7 +239,6 @@
 							<td style="text-align: right">
 								{%= data[i][__("Customer LPO")] %}</td>
 						{% } %}
-						<td style="text-align: right">{%= frappe.datetime.str_to_user(data[i][__("PDC/LC Date")]) %}</td>
 						<td style="text-align: right">{%= data[i][("pdc/lc_ref")] %}</td>
 						<td style="text-align: right">{%= format_currency(data[i][("pdc/lc_amount")], data[i]["currency"]) %}</td>
 						<td style="text-align: right">{%= format_currency(data[i][("remaining_balance")], data[i]["currency"]) %}</td>
@@ -238,4 +272,4 @@
 		{% } %}
 	</tbody>
 </table>
-<p class="text-right text-muted">{{ __("Printed On ") }}{%= dateutil.str_to_user(dateutil.get_datetime_as_string()) %}</p>
+<p class="text-right text-muted">{{ __("Printed On ") }}{%= frappe.datetime.str_to_user(frappe.datetime.get_datetime_as_string()) %}</p>

@@ -16,8 +16,9 @@ def print_settings_for_item_table(doc):
 	
 	doc.hide_in_print_layout = ["uom", "stock_uom","weight_uom"]
 
-	doc.flags.compact_item_print = cint(frappe.db.get_value("Print Settings", None, "compact_item_print"))
-	
+
+	doc.flags.compact_item_print = cint(frappe.db.get_single_value("Print Settings", "compact_item_print"))
+
 	if doc.flags.compact_item_print:
 
 		doc.print_templates["item_name"] = "templates/print_formats/includes/custom_item_table_description.html"

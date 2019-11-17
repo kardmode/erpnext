@@ -8,9 +8,9 @@ QUnit.test("test: Bank Guarantee", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Bank Guarantee', [
+	frappe.run_serially([
 		// insert a new Bank Guarantee
-		() => frappe.tests.make([
+		() => frappe.tests.make('Bank Guarantee', [
 			// values to be set
 			{key: 'value'}
 		]),

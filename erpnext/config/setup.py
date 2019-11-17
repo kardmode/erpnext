@@ -11,7 +11,7 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Global Defaults",
-					"label": _("ERP Global Settings"),
+					"label": _("Global Settings"),
 					"description": _("Set Default Values like Company, Currency, Current Fiscal Year, etc."),
 					"hide_count": True
 				}
@@ -44,19 +44,43 @@ def get_data():
 			]
 		},
 		{
+			"label": _("Help"),
+			"items": [
+				{
+					"type": "help",
+					"name": _("Data Import and Export"),
+					"youtube_id": "6wiriRKPhmg"
+				},
+				{
+					"type": "help",
+					"label": _("Setting up Email"),
+					"youtube_id": "YFYe0DrB95o"
+				},
+				{
+					"type": "help",
+					"label": _("Printing and Branding"),
+					"youtube_id": "cKZHcx1znMc"
+				},
+				{
+					"type": "help",
+					"label": _("Users and Permissions"),
+					"youtube_id": "8Slw1hsTmUI"
+				},
+				{
+					"type": "help",
+					"label": _("Workflow"),
+					"youtube_id": "yObJUg9FxFs"
+				},
+			]
+		},
+		{
 			"label": _("Customize"),
-			"icon": "fa fa-cog",
+			"icon": "fa fa-glass",
 			"items": [
 				{
 					"type": "doctype",
 					"name": "Authorization Rule",
 					"description": _("Create rules to restrict transactions based on values.")
-				},
-				{
-					"type": "doctype",
-					"name": "Notification Control",
-					"label": _("Email Notifications"),
-					"description": _("Automatically compose message on submission of transactions.")
 				}
 			]
 		},
@@ -94,5 +118,4 @@ def get_data():
 
 		add_setup_section(data, "erpnext", module, label, icon)
 
-	
 	return data

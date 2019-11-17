@@ -35,4 +35,3 @@ const unchecked_if_checked = function(frm, field_name, fn){
 		return fn(field_name);
 	}
 };
->>>>>>> 84a44f7758cbdcc12a6289f36e5fc2c83dc5afc7

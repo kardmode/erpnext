@@ -27,7 +27,7 @@ status_map = {
 	],
 	"Quotation": [
 		["Draft", None],
-		["Submitted", "eval:self.docstatus==1"],
+		["Open", "eval:self.docstatus==1"],
 		["Lost", "eval:self.status=='Lost'"],
 		["Ordered", "has_sales_order"],
 		["Cancelled", "eval:self.docstatus==2"],
@@ -38,16 +38,15 @@ status_map = {
 		["To Bill", "eval:self.per_delivered == 100 and self.per_billed < 100 and self.docstatus == 1"],
 		["To Deliver", "eval:self.per_delivered < 100 and self.per_billed == 100 and self.docstatus == 1"],
 		["Completed", "eval:self.per_delivered == 100 and self.per_billed == 100 and self.docstatus == 1"],
-		["Completed", "eval:self.order_type == 'Maintenance' and self.per_billed == 100 and self.docstatus == 1"],
 		["Cancelled", "eval:self.docstatus==2"],
 		["Closed", "eval:self.status=='Closed'"],
 	],
 	"Sales Invoice": [
 		["Draft", None],
 		["Submitted", "eval:self.docstatus==1"],
+		["Paid", "eval:self.outstanding_amount==0 and self.docstatus==1"],
 		["Return", "eval:self.is_return==1 and self.docstatus==1"],
-		["Paid", "eval:self.outstanding_amount<=0 and self.docstatus==1 and self.is_return==0"],
-		["Credit Note Issued", "eval:self.outstanding_amount < 0 and self.docstatus==1 and self.is_return==0 and get_value('Sales Invoice', {'is_return': 1, 'return_against': self.name, 'docstatus': 1})"],
+		["Credit Note Issued", "eval:self.outstanding_amount < 0 and self.docstatus==1"],
 		["Unpaid", "eval:self.outstanding_amount > 0 and getdate(self.due_date) >= getdate(nowdate()) and self.docstatus==1"],
 		["Overdue", "eval:self.outstanding_amount > 0 and getdate(self.due_date) < getdate(nowdate()) and self.docstatus==1"],
 		["Cancelled", "eval:self.docstatus==2"],
@@ -55,9 +54,9 @@ status_map = {
 	"Purchase Invoice": [
 		["Draft", None],
 		["Submitted", "eval:self.docstatus==1"],
+		["Paid", "eval:self.outstanding_amount==0 and self.docstatus==1"],
 		["Return", "eval:self.is_return==1 and self.docstatus==1"],
-		["Paid", "eval:self.outstanding_amount<=0 and self.docstatus==1 and self.is_return==0"],
-		["Debit Note Issued", "eval:self.outstanding_amount < 0 and self.docstatus==1 and self.is_return==0 and get_value('Purchase Invoice', {'is_return': 1, 'return_against': self.name, 'docstatus': 1})"],
+		["Debit Note Issued", "eval:self.outstanding_amount < 0 and self.docstatus==1"],
 		["Unpaid", "eval:self.outstanding_amount > 0 and getdate(self.due_date) >= getdate(nowdate()) and self.docstatus==1"],
 		["Overdue", "eval:self.outstanding_amount > 0 and getdate(self.due_date) < getdate(nowdate()) and self.docstatus==1"],
 		["Cancelled", "eval:self.docstatus==2"],
@@ -94,7 +93,12 @@ status_map = {
 		["Partially Ordered", "eval:self.status != 'Stopped' and self.per_ordered < 100 and self.per_ordered > 0 and self.docstatus == 1"],
 		["Ordered", "eval:self.status != 'Stopped' and self.per_ordered == 100 and self.docstatus == 1 and self.material_request_type == 'Purchase'"],
 		["Transferred", "eval:self.status != 'Stopped' and self.per_ordered == 100 and self.docstatus == 1 and self.material_request_type == 'Material Transfer'"],
-		["Issued", "eval:self.status != 'Stopped' and self.per_ordered == 100 and self.docstatus == 1 and self.material_request_type == 'Material Issue'"]
+		["Issued", "eval:self.status != 'Stopped' and self.per_ordered == 100 and self.docstatus == 1 and self.material_request_type == 'Material Issue'"],
+		["Manufactured", "eval:self.status != 'Stopped' and self.per_ordered == 100 and self.docstatus == 1 and self.material_request_type == 'Manufacture'"]
+	],
+	"Bank Transaction": [
+		["Unreconciled", "eval:self.docstatus == 1 and self.unallocated_amount>0"],
+		["Reconciled", "eval:self.docstatus == 1 and self.unallocated_amount<=0"]
 	]
 }
 
@@ -129,7 +133,7 @@ class StatusUpdater(Document):
 					self.status = s[0]
 					break
 				elif s[1].startswith("eval:"):
-					if frappe.safe_eval(s[1][5:], None, { "self": self.as_dict(), "getdate": getdate, 
+					if frappe.safe_eval(s[1][5:], None, { "self": self.as_dict(), "getdate": getdate,
 							"nowdate": nowdate, "get_value": frappe.db.get_value }):
 						self.status = s[0]
 						break
@@ -158,6 +162,9 @@ class StatusUpdater(Document):
 			for d in self.get_all_children():
 				if hasattr(d, 'qty') and d.qty < 0 and not self.get('is_return'):
 					frappe.throw(_("For an item {0}, quantity must be positive number").format(d.item_code))
+
+				if hasattr(d, 'qty') and d.qty > 0 and self.get('is_return'):
+					frappe.throw(_("For an item {0}, quantity must be negative number").format(d.item_code))
 
 				if d.doctype == args['source_dt'] and d.get(args["join_field"]):
 					args['name'] = d.get(args['join_field'])
@@ -253,7 +260,7 @@ class StatusUpdater(Document):
 
 			if args['detail_id']:
 				if not args.get("extra_cond"): args["extra_cond"] = ""
-				
+
 				frappe.db.sql("""update `tab%(target_dt)s`
 					set %(target_field)s = (
 						(select ifnull(sum(%(source_field)s), 0)
@@ -278,7 +285,7 @@ class StatusUpdater(Document):
 		"""Update percent field in parent transaction"""
 
 		self._update_modified(args, update_modified)
-		
+
 		if args.get('target_parent_field'):
 			frappe.db.sql("""update `tab%(target_parent_dt)s`
 				set %(target_parent_field)s = round(
@@ -309,19 +316,27 @@ class StatusUpdater(Document):
 				.format(frappe.db.escape(frappe.session.user))
 
 	def update_billing_status_for_zero_amount_refdoc(self, ref_dt):
-		ref_fieldname = ref_dt.lower().replace(" ", "_")
-		zero_amount_refdoc = []
-		all_zero_amount_refdoc = frappe.db.sql_list("""select name from `tab%s`
-			where docstatus=1 and base_net_total = 0""" % ref_dt)
+		ref_fieldname = frappe.scrub(ref_dt)
 
-		for item in self.get("items"):
-			if item.get(ref_fieldname) \
-				and item.get(ref_fieldname) in all_zero_amount_refdoc \
-				and item.get(ref_fieldname) not in zero_amount_refdoc:
-					zero_amount_refdoc.append(item.get(ref_fieldname))
+		ref_docs = [item.get(ref_fieldname) for item in (self.get('items') or []) if item.get(ref_fieldname)]
+		if not ref_docs:
+			return
 
-		if zero_amount_refdoc:
-			self.update_billing_status(zero_amount_refdoc, ref_dt, ref_fieldname)
+		zero_amount_refdocs = frappe.db.sql_list("""
+			SELECT
+				name
+			from
+				`tab{ref_dt}`
+			where
+				docstatus = 1
+				and base_net_total = 0
+				and name in %(ref_docs)s
+		""".format(ref_dt=ref_dt), {
+			'ref_docs': ref_docs
+		})
+
+		if zero_amount_refdocs:
+			self.update_billing_status(zero_amount_refdocs, ref_dt, ref_fieldname)
 
 	def update_billing_status(self, zero_amount_refdoc, ref_dt, ref_fieldname):
 		for ref_dn in zero_amount_refdoc:
@@ -332,8 +347,7 @@ class StatusUpdater(Document):
 				from `tab%s Item` where %s=%s and docstatus=1""" %
 				(self.doctype, ref_fieldname, '%s'), (ref_dn))[0][0])
 
-			per_billed = ((ref_doc_qty if billed_qty > ref_doc_qty else billed_qty)\
-				/ ref_doc_qty)*100
+			per_billed = (min(ref_doc_qty, billed_qty) / ref_doc_qty) * 100
 
 			ref_doc = frappe.get_doc(ref_dt, ref_dn)
 

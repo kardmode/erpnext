@@ -4,13 +4,14 @@
 from __future__ import unicode_literals
 import frappe
 import urllib
+import copy
 from frappe.utils import nowdate, cint, cstr
 from frappe.utils.nestedset import NestedSet
 from frappe.website.website_generator import WebsiteGenerator
 from frappe.website.render import clear_cache
 from frappe.website.doctype.website_slideshow.website_slideshow import get_slideshow
+from erpnext.shopping_cart.product_info import set_product_info_for_website
 from erpnext.utilities.product import get_qty_in_stock
-
 
 class ItemGroup(NestedSet, WebsiteGenerator):
 	nsm_parent_field = 'parent_item_group'
@@ -69,7 +70,7 @@ class ItemGroup(NestedSet, WebsiteGenerator):
 				limit=context.page_length + 1, search=frappe.form_dict.get("search")),
 			"parents": get_parent_item_groups(self.parent_item_group),
 			"title": self.name,
-			"products_as_list": cint(frappe.db.get_single_value('Website Settings', 'products_as_list'))
+			"products_as_list": cint(frappe.db.get_single_value('Products Settings', 'products_as_list'))
 		})
 
 		if self.slideshow:
@@ -79,6 +80,12 @@ class ItemGroup(NestedSet, WebsiteGenerator):
 
 @frappe.whitelist(allow_guest=True)
 def get_product_list_for_group(product_group=None, start=0, limit=10, search=None):
+	if product_group:
+		item_group = frappe.get_cached_doc('Item Group', product_group)
+		if item_group.is_group:
+			# return child item groups if the type is of "Is Group"
+			return get_child_groups_for_list_in_html(item_group, start, limit, search)
+
 	child_groups = ", ".join(['"' + frappe.db.escape(i[0]) + '"' for i in get_child_groups(product_group)])
 
 	# base query
@@ -105,11 +112,35 @@ def get_product_list_for_group(product_group=None, start=0, limit=10, search=Non
 	query += """order by I.weightage desc, in_stock desc, I.modified desc limit %s, %s""" % (start, limit)
 
 	data = frappe.db.sql(query, {"product_group": product_group,"search": search, "today": nowdate()}, as_dict=1)
-
 	data = adjust_qty_for_expired_items(data)
+
+	if cint(frappe.db.get_single_value("Shopping Cart Settings", "enabled")):
+		for item in data:
+			set_product_info_for_website(item)
 
 	return [get_item_for_list_in_html(r) for r in data]
 
+def get_child_groups_for_list_in_html(item_group, start, limit, search):
+	search_filters = None
+	if search_filters:
+		search_filters = [
+			dict(name = ('like', '%{}%'.format(search))),
+			dict(description = ('like', '%{}%'.format(search)))
+		]
+	data = frappe.db.get_all('Item Group',
+		fields = ['name', 'route', 'description', 'image'],
+		filters = dict(
+			show_in_website = 1,
+			lft = ('>', item_group.lft),
+			rgt = ('<', item_group.rgt),
+		),
+		or_filters = search_filters,
+		order_by = 'weightage desc, name asc',
+		start = start,
+		limit = limit
+	)
+
+	return [get_item_for_list_in_html(r) for r in data]
 
 @frappe.whitelist()
 def adjust_qty_for_expired_items(data):
@@ -119,7 +150,7 @@ def adjust_qty_for_expired_items(data):
 		if item.get('has_batch_no') and item.get('website_warehouse'):
 			stock_qty_dict = get_qty_in_stock(
 				item.get('name'), 'website_warehouse', item.get('website_warehouse'))
-			qty = stock_qty_dict.stock_qty[0][0]
+			qty = stock_qty_dict.stock_qty[0][0] if stock_qty_dict.stock_qty else 0
 			item['in_stock'] = 1 if qty else 0
 		adjusted_data.append(item)
 
@@ -127,7 +158,6 @@ def adjust_qty_for_expired_items(data):
 
 
 
-@frappe.whitelist()
 def get_child_groups(item_group_name):
 	item_group = frappe.get_doc("Item Group", item_group_name)
 	return frappe.db.sql("""select name
@@ -159,50 +189,16 @@ def get_group_item_count(item_group):
 
 @frappe.whitelist()
 def get_parent_item_groups(item_group_name):
+	if not item_group_name:
+		return [{"name": frappe._("Home"), "route":"/"}]
 	item_group = frappe.get_doc("Item Group", item_group_name)
-	return 	[{"name": frappe._("Home"), "route":"/"}]+\
-		frappe.db.sql("""select name, route from `tabItem Group`
+	parent_groups = frappe.db.sql("""select name, route from `tabItem Group`
 		where lft <= %s and rgt >= %s
 		and show_in_website=1
 		order by lft asc""", (item_group.lft, item_group.rgt), as_dict=True)
 
-@frappe.whitelist()
-def get_child_group(item_group_name):
-	item_group = frappe.get_doc("Item Group", item_group_name)
-	return frappe.db.sql("""select name, page_name from `tabItem Group`
-		where lft <= %s and rgt >= %s
-		and show_in_website=1
-		order by lft asc""", (item_group.lft, item_group.rgt), as_dict=True)
+	return 	[{"name": frappe._("Home"), "route":"/"}] + parent_groups
 
-@frappe.whitelist()
-def get_parent_group(item_group_name):
-	item_group = frappe.get_doc("Item Group", item_group_name)	
-	return item_group.parent_item_group or {}
-
-@frappe.whitelist()
-def get_main_parent_group(item_group_name):
-	parent_item_group = frappe.db.get_value("Item Group", item_group_name,"parent_item_group")
-
-	for x in range(0, 5):
-		if str(parent_item_group).lower() != "all items group":
-			item_group_name = parent_item_group
-			parent_item_group = frappe.db.get_value("Item Group", parent_item_group,"parent_item_group")
-		else:
-			break
-	return item_group_name or {}
-
-@frappe.whitelist()
-def is_group(item_group_name):
-	item_group = frappe.get_doc("Item Group", item_group_name)	
-	return item_group.is_group
-
-@frappe.whitelist()
-def has_parent_group(item_group_name):
-	item_group = frappe.get_doc("Item Group", item_group_name)
-	if item_group.parent_item_group == "All Item Groups":
-		return false
-	return true
-	
 def invalidate_cache_for(doc, item_group=None):
 	if not item_group:
 		item_group = doc.name
@@ -211,3 +207,15 @@ def invalidate_cache_for(doc, item_group=None):
 		item_group_name = frappe.db.get_value("Item Group", d.get('name'))
 		if item_group_name:
 			clear_cache(frappe.db.get_value('Item Group', item_group_name, 'route'))
+
+def get_item_group_defaults(item, company):
+	item = frappe.get_cached_doc("Item", item)
+	item_group = frappe.get_cached_doc("Item Group", item.item_group)
+
+	for d in item_group.item_group_defaults or []:
+		if d.company == company:
+			row = copy.deepcopy(d.as_dict())
+			row.pop("name")
+			return row
+
+	return frappe._dict()

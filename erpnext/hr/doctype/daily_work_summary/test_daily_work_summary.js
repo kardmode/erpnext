@@ -8,11 +8,11 @@ QUnit.test("test: Daily Work Summary", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Daily Work Summary', [
+	frappe.run_serially([
 		// insert a new Daily Work Summary
-		() => frappe.tests.make([
+		() => frappe.tests.make('Daily Work Summary', [
 			// values to be set
-			{key: 'value'}
+			{ key: 'value' }
 		]),
 		() => {
 			assert.equal(cur_frm.doc.key, 'value');

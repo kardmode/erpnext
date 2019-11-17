@@ -8,16 +8,24 @@ erpnext.utils.get_party_details = function(frm, method, args, callback) {
 		method = "erpnext.accounts.party.get_party_details";
 	}
 	if(!args) {
-		if(frm.doctype != "Purchase Order" && frm.doc.customer) {
+		if((frm.doctype != "Purchase Order" && frm.doc.customer)
+			|| (frm.doc.party_name && in_list(['Quotation', 'Opportunity'], frm.doc.doctype))) {
+
+			let party_type = "Customer";
+			if(frm.doc.quotation_to && frm.doc.quotation_to === "Lead") {
+				party_type = "Lead";
+			}
+
 			args = {
-				party: frm.doc.customer,
-				party_type: "Customer",
+				party: frm.doc.customer || frm.doc.party_name,
+				party_type: party_type,
 				price_list: frm.doc.selling_price_list
 			};
 		} else if(frm.doc.supplier) {
 			args = {
 				party: frm.doc.supplier,
 				party_type: "Supplier",
+				bill_date: frm.doc.bill_date,
 				price_list: frm.doc.buying_price_list
 			};
 		}
@@ -26,7 +34,7 @@ erpnext.utils.get_party_details = function(frm, method, args, callback) {
 			args.posting_date = frm.doc.posting_date || frm.doc.transaction_date;
 		}
 	}
-	if(!args) return;
+	if(!args || !args.party) return;
 
 	if(frappe.meta.get_docfield(frm.doc.doctype, "taxes")) {
 		if(!erpnext.utils.validate_mandatory(frm, "Posting/Transaction Date",
@@ -41,6 +49,7 @@ erpnext.utils.get_party_details = function(frm, method, args, callback) {
 		args: args,
 		callback: function(r) {
 			if(r.message) {
+				frm.supplier_tds = r.message.supplier_tds;
 				frm.updating_party_details = true;
 				frappe.run_serially([
 					() => frm.set_value(r.message),
@@ -101,7 +110,7 @@ erpnext.utils.get_address_display = function(frm, address_field, display_field, 
 erpnext.utils.set_taxes = function(frm, address_field, display_field, is_your_company_address) {
 	if(frappe.meta.get_docfield(frm.doc.doctype, "taxes") && !is_your_company_address) {
 		if(!erpnext.utils.validate_mandatory(frm, "Lead/Customer/Supplier",
-			frm.doc.customer || frm.doc.supplier || frm.doc.lead, address_field)) {
+			frm.doc.customer || frm.doc.supplier || frm.doc.lead || frm.doc.party_name , address_field)) {
 			return;
 		}
 
@@ -123,6 +132,9 @@ erpnext.utils.set_taxes = function(frm, address_field, display_field, is_your_co
 	} else if (frm.doc.supplier) {
 		party_type = 'Supplier';
 		party = frm.doc.supplier;
+	} else if (frm.doc.quotation_to){
+		party_type = frm.doc.quotation_to;
+		party = frm.doc.party_name;
 	}
 
 	frappe.call({

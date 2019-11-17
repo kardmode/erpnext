@@ -8,9 +8,9 @@ QUnit.test("test: Payment Request", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Payment Request', [
+	frappe.run_serially([
 		// insert a new Payment Request
-		() => frappe.tests.make([
+		() => frappe.tests.make('Payment Request', [
 			// values to be set
 			{key: 'value'}
 		]),

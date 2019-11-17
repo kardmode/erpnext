@@ -8,9 +8,9 @@ QUnit.test("test: Customs Tariff Number", function (assert) {
 	// number of asserts
 	assert.expect(1);
 
-	frappe.run_serially('Customs Tariff Number', [
+	frappe.run_serially([
 		// insert a new Customs Tariff Number
-		() => frappe.tests.make([
+		() => frappe.tests.make('Customs Tariff Number', [
 			// values to be set
 			{key: 'value'}
 		]),

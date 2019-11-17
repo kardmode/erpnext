@@ -7,11 +7,9 @@ from frappe import _
 from frappe.utils import cstr, flt, cint, nowdate, add_days, comma_and, getdate
 
 def execute(filters=None):
-    
-	if not filters: 
-		filters = {}
-
 	data = []
+
+	if not filters: filters = {}
 
 	columns = get_columns()
 
@@ -51,6 +49,7 @@ def get_columns():
         _("Can Build") + ":Float:150",
     ]
 
+
     return columns
 	
 	
@@ -63,6 +62,10 @@ def get_bom_stock(filters):
 
 	table = "`tabBOM Item`"
 	qty_field = "qty"
+
+	qty_to_produce = filters.get("qty_to_produce", 1)
+	if  int(qty_to_produce) <= 0:
+		frappe.throw(_("Quantity to Produce can not be less than Zero"))
 
 	if filters.get("show_exploded_view"):
 		table = "`tabBOM Explosion Item`"
@@ -118,4 +121,11 @@ def get_bom_stock(filters):
 			# WHERE
 				# bom_item.parent = '{bom}' and bom_item.parenttype='BOM'
 
-			# GROUP BY bom_item.item_code""".format(qty_field=qty_field, table=table, conditions=conditions, bom=bom))
+
+			# GROUP BY bom_item.item_code""".format(
+				# qty_field=qty_field,
+				# table=table,
+				# conditions=conditions,
+				# bom=bom,
+				# qty_to_produce=qty_to_produce or 1)
+			# )

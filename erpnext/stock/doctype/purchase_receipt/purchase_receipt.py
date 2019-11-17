@@ -4,15 +4,16 @@
 from __future__ import unicode_literals
 import frappe
 
-from frappe.utils import flt, cint, nowdate
+from frappe.utils import flt, cint, nowdate, getdate
 
 from frappe import throw, _
 import frappe.defaults
-from frappe.utils import getdate
 from erpnext.controllers.buying_controller import BuyingController
 from erpnext.accounts.utils import get_account_currency
 from frappe.desk.notifications import clear_doctype_notifications
 from erpnext.buying.utils import check_for_closed_status
+from erpnext.assets.doctype.asset.asset import get_asset_account, is_cwip_accounting_disabled
+from six import iteritems
 
 form_grid_templates = {
 	"items": "templates/form_grid/item_grid.html"
@@ -22,29 +23,38 @@ class PurchaseReceipt(BuyingController):
 	def __init__(self, *args, **kwargs):
 		super(PurchaseReceipt, self).__init__(*args, **kwargs)
 		self.status_updater = [{
-			'source_dt': 'Purchase Receipt Item',
 			'target_dt': 'Purchase Order Item',
 			'join_field': 'purchase_order_item',
 			'target_field': 'received_qty',
 			'target_parent_dt': 'Purchase Order',
 			'target_parent_field': 'per_received',
 			'target_ref_field': 'qty',
-			'source_field': 'qty',
-			'percent_join_field': 'purchase_order',
-			'overflow_type': 'receipt'
-		},
-		{
 			'source_dt': 'Purchase Receipt Item',
-			'target_dt': 'Purchase Order Item',
-			'join_field': 'purchase_order_item',
-			'target_field': 'returned_qty',
-			'target_parent_dt': 'Purchase Order',
-			# 'target_parent_field': 'per_received',
-			# 'target_ref_field': 'qty',
-			'source_field': '-1 * qty',
-			# 'overflow_type': 'receipt',
-			'extra_cond': """ and exists (select name from `tabPurchase Receipt` where name=`tabPurchase Receipt Item`.parent and is_return=1)"""
+			'source_field': 'received_qty',
+			'second_source_dt': 'Purchase Invoice Item',
+			'second_source_field': 'received_qty',
+			'second_join_field': 'po_detail',
+			'percent_join_field': 'purchase_order',
+			'overflow_type': 'receipt',
+			'second_source_extra_cond': """ and exists(select name from `tabPurchase Invoice`
+				where name=`tabPurchase Invoice Item`.parent and update_stock = 1)"""
 		}]
+		
+		if cint(self.is_return):
+			self.status_updater.append({
+				'source_dt': 'Purchase Receipt Item',
+				'target_dt': 'Purchase Order Item',
+				'join_field': 'purchase_order_item',
+				'target_field': 'returned_qty',
+				'source_field': '-1 * qty',
+				'second_source_dt': 'Purchase Invoice Item',
+				'second_source_field': '-1 * qty',
+				'second_join_field': 'po_detail',
+				'extra_cond': """ and exists (select name from `tabPurchase Receipt`
+					where name=`tabPurchase Receipt Item`.parent and is_return=1)""",
+				'second_source_extra_cond': """ and exists (select name from `tabPurchase Invoice`
+					where name=`tabPurchase Invoice Item`.parent and is_return=1 and update_stock=1)"""
+			})
 		
 	def set_total_qty(self):
 		total_qty = 0
@@ -54,7 +64,7 @@ class PurchaseReceipt(BuyingController):
 			fake_total = fake_total + flt(d.fake_qty)
 		self.total_qty = total_qty
 		self.fake_qty = fake_total
-
+		
 	def validate(self):
 		self.validate_posting_time()
 		super(PurchaseReceipt, self).validate()
@@ -142,10 +152,11 @@ class PurchaseReceipt(BuyingController):
 			self.company, self.base_grand_total)
 
 		self.update_prevdoc_status()
-		if self.per_billed < 100:
+		if cint(self.per_billed) < 100:
 			self.update_billing_status()
 		else:
 			self.status = "Completed"
+
 
 		# Updating stock ledger should always be called after updating prevdoc status,
 		# because updating ordered qty, reserved_qty_for_subcontract in bin
@@ -279,6 +290,8 @@ class PurchaseReceipt(BuyingController):
 					d.rejected_warehouse not in warehouse_with_no_account:
 						warehouse_with_no_account.append(d.warehouse)
 
+		if not is_cwip_accounting_disabled():
+			self.get_asset_gl_entry(gl_entries)
 		# Cost center-wise amount breakup for other charges included for valuation
 		valuation_tax = {}
 		for tax in self.get("taxes"):
@@ -307,7 +320,7 @@ class PurchaseReceipt(BuyingController):
 			total_valuation_amount = sum(valuation_tax.values())
 			amount_including_divisional_loss = negative_expense_to_be_booked
 			i = 1
-			for cost_center, amount in valuation_tax.items():
+			for cost_center, amount in iteritems(valuation_tax):
 				if i == len(valuation_tax):
 					applicable_amount = amount_including_divisional_loss
 				else:
@@ -331,6 +344,43 @@ class PurchaseReceipt(BuyingController):
 				"\n".join(warehouse_with_no_account))
 
 		return process_gl_map(gl_entries)
+
+	def get_asset_gl_entry(self, gl_entries):
+		for d in self.get("items"):
+			if d.is_fixed_asset:
+				arbnb_account = self.get_company_default("asset_received_but_not_billed")
+
+				# CWIP entry
+				cwip_account = get_asset_account("capital_work_in_progress_account", d.asset,
+					company = self.company)
+
+				asset_amount = flt(d.net_amount) + flt(d.item_tax_amount/self.conversion_rate)
+				base_asset_amount = flt(d.base_net_amount + d.item_tax_amount)
+
+				cwip_account_currency = get_account_currency(cwip_account)
+				gl_entries.append(self.get_gl_dict({
+					"account": cwip_account,
+					"against": arbnb_account,
+					"cost_center": d.cost_center,
+					"remarks": self.get("remarks") or _("Accounting Entry for Asset"),
+					"debit": base_asset_amount,
+					"debit_in_account_currency": (base_asset_amount
+						if cwip_account_currency == self.company_currency else asset_amount)
+				}))
+
+				# Asset received but not billed
+				asset_rbnb_currency = get_account_currency(arbnb_account)
+				gl_entries.append(self.get_gl_dict({
+					"account": arbnb_account,
+					"against": cwip_account,
+					"cost_center": d.cost_center,
+					"remarks": self.get("remarks") or _("Accounting Entry for Asset"),
+					"credit": base_asset_amount,
+					"credit_in_account_currency": (base_asset_amount
+						if asset_rbnb_currency == self.company_currency else asset_amount)
+				}))
+
+		return gl_entries
 
 	def update_status(self, status):
 		self.set_status(update=True, status = status)
@@ -388,6 +438,8 @@ def update_billed_amount_based_on_po(po_detail, update_modified=True):
 @frappe.whitelist()
 def make_purchase_invoice(source_name, target_doc=None):
 	from frappe.model.mapper import get_mapped_doc
+	doc = frappe.get_doc('Purchase Receipt', source_name)
+	returned_qty_map = get_returned_qty_map(source_name)
 	invoiced_qty_map = get_invoiced_qty_map(source_name)
 
 	def set_missing_values(source, target):
@@ -396,15 +448,33 @@ def make_purchase_invoice(source_name, target_doc=None):
 
 		doc = frappe.get_doc(target)
 		doc.ignore_pricing_rule = 1
+		doc.run_method("onload")
 		doc.run_method("set_missing_values")
 		doc.run_method("calculate_taxes_and_totals")
 
 	def update_item(source_doc, target_doc, source_parent):
-		target_doc.qty = source_doc.qty - invoiced_qty_map.get(source_doc.name, 0)
+		target_doc.qty, returned_qty = get_pending_qty(source_doc)
+		returned_qty_map[source_doc.item_code] = returned_qty
+
+	def get_pending_qty(item_row):
+		pending_qty = item_row.qty - invoiced_qty_map.get(item_row.name, 0)
+		returned_qty = flt(returned_qty_map.get(item_row.item_code, 0))
+		if returned_qty:
+			if returned_qty >= pending_qty:
+				pending_qty = 0
+				returned_qty -= pending_qty
+			else:
+				pending_qty -= returned_qty
+				returned_qty = 0
+		return pending_qty, returned_qty
+
 
 	doclist = get_mapped_doc("Purchase Receipt", source_name,	{
 		"Purchase Receipt": {
 			"doctype": "Purchase Invoice",
+			"field_map": {
+				"supplier_warehouse":"supplier_warehouse"
+			},
 			"validation": {
 				"docstatus": ["=", 1],
 			},
@@ -416,9 +486,11 @@ def make_purchase_invoice(source_name, target_doc=None):
 				"parent": "purchase_receipt",
 				"purchase_order_item": "po_detail",
 				"purchase_order": "purchase_order",
+				"is_fixed_asset": "is_fixed_asset",
+				"asset": "asset",
 			},
 			"postprocess": update_item,
-			"filter": lambda d: abs(d.qty) - abs(invoiced_qty_map.get(d.name, 0))<=0
+			"filter": lambda d: get_pending_qty(d)[0] <= 0 if not doc.get("is_return") else get_pending_qty(d)[0] > 0
 		},
 		"Purchase Taxes and Charges": {
 			"doctype": "Purchase Taxes and Charges",
@@ -439,6 +511,19 @@ def get_invoiced_qty_map(purchase_receipt):
 			invoiced_qty_map[pr_detail] += qty
 
 	return invoiced_qty_map
+
+def get_returned_qty_map(purchase_receipt):
+	"""returns a map: {so_detail: returned_qty}"""
+	returned_qty_map = frappe._dict(frappe.db.sql("""select pr_item.item_code, sum(abs(pr_item.qty)) as qty
+		from `tabPurchase Receipt Item` pr_item, `tabPurchase Receipt` pr
+		where pr.name = pr_item.parent
+			and pr.docstatus = 1
+			and pr.is_return = 1
+			and pr.return_against = %s
+		group by pr_item.item_code
+	""", purchase_receipt))
+
+	return returned_qty_map
 
 @frappe.whitelist()
 def make_purchase_return(source_name, target_doc=None):

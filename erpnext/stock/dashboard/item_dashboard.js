@@ -260,6 +260,7 @@ erpnext.stock.discard_item = function(item, source, target, actual_qty, rate, ca
 		frappe.call({
 			method: 'erpnext.stock.doctype.stock_entry.stock_entry_utils.make_stock_entry',
 			args: values,
+			freeze: true,
 			callback: function(r) {
 				frappe.show_alert(__('Stock Entry {0} created',
 					['<a href="#Form/Stock Entry/'+r.message.name+'">' + r.message.name+ '</a>']));
