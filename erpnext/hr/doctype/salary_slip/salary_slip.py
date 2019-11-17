@@ -797,7 +797,7 @@ class SalarySlip(TransactionBase):
 					d.rate = flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
 					d.default_amount = flt(self.overtime_hours_holidays) * flt(d.rate) * flt(hourlyrate)
 				
-				if d.salary_component in ["Overtime Weekdays","Overtime Fridays","Overtime Holidays"]
+				if d.salary_component in ["Overtime Weekdays","Overtime Fridays","Overtime Holidays"]:
 					if ((cint(d.depends_on_lwp) == 1 and not self.salary_slip_based_on_timesheet) or 
 					getdate(self.start_date) < joining_date or getdate(self.end_date) > check_end_date):
 			
