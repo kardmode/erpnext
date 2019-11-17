@@ -62,21 +62,25 @@ class calculate_taxes_and_totals(object):
 
 				if item.discount_percentage == 100:
 					item.rate = 0.0
-				elif not item.rate:
-					item.rate = flt(item.price_list_rate *
-						(1.0 - (item.discount_percentage / 100.0)), item.precision("rate"))
+				elif item.price_list_rate:
+					if not item.rate or (item.pricing_rules and item.discount_percentage > 0):
+						item.rate = flt(item.price_list_rate *
+							(1.0 - (item.discount_percentage / 100.0)), item.precision("rate"))
+						item.discount_amount = item.price_list_rate * (item.discount_percentage / 100.0)
+					elif item.discount_amount and item.pricing_rules:
+						item.rate =  item.price_list_rate - item.discount_amount
 
 				if item.doctype in ['Quotation Item', 'Sales Order Item', 'Delivery Note Item', 'Sales Invoice Item']:
 					item.rate_with_margin, item.base_rate_with_margin = self.calculate_margin(item)
-
 					if flt(item.rate_with_margin) > 0:
 						item.rate = flt(item.rate_with_margin * (1.0 - (item.discount_percentage / 100.0)), item.precision("rate"))
 						item.discount_amount = item.rate_with_margin - item.rate
-				elif flt(item.price_list_rate) > 0:
+					elif flt(item.price_list_rate) > 0:
 						item.discount_amount = item.price_list_rate - item.rate
+				elif flt(item.price_list_rate) > 0 and not item.discount_amount:
+					item.discount_amount = item.price_list_rate - item.rate
 
 				item.net_rate = item.rate
-
 
 				if not item.qty and self.doc.get("is_return"):
 					item.amount = flt(-1 * item.rate, item.precision("amount"))
@@ -250,7 +254,7 @@ class calculate_taxes_and_totals(object):
 		# if just for valuation, do not add the tax amount in total
 		# if tax/charges is for deduction, multiply by -1
 		if getattr(tax, "category", None):
-			tax_amount = 0.0 if tax.category in ("Valuation","Account Ledger Only") else tax_amount
+			tax_amount = 0.0 if (tax.category == "Valuation") else tax_amount
 			if self.doc.doctype in ["Purchase Order", "Purchase Invoice", "Purchase Receipt", "Supplier Quotation"]:
 				tax_amount *= -1.0 if (tax.add_deduct_tax == "Deduct") else 1.0
 		return tax_amount
@@ -281,6 +285,8 @@ class calculate_taxes_and_totals(object):
 		elif tax.charge_type == "On Previous Row Total":
 			current_tax_amount = (tax_rate / 100.0) * \
 				self.doc.get("taxes")[cint(tax.row_id) - 1].grand_total_for_current_item
+		elif tax.charge_type == "On Item Quantity":
+			current_tax_amount = tax_rate * item.stock_qty
 
 		self.set_item_wise_tax(item, tax, tax_rate, current_tax_amount)
 
@@ -322,7 +328,7 @@ class calculate_taxes_and_totals(object):
 		self._set_in_company_currency(self.doc, ["total_taxes_and_charges", "rounding_adjustment"])
 
 		if self.doc.doctype in ["Quotation", "Sales Order", "Delivery Note", "Sales Invoice"]:
-			self.doc.base_grand_total = flt(self.doc.grand_total * self.doc.conversion_rate) \
+			self.doc.base_grand_total = flt(self.doc.grand_total * self.doc.conversion_rate, self.doc.precision("base_grand_total")) \
 				if self.doc.total_taxes_and_charges else self.doc.base_net_total
 		else:
 			self.doc.taxes_and_charges_added = self.doc.taxes_and_charges_deducted = 0.0
@@ -335,7 +341,7 @@ class calculate_taxes_and_totals(object):
 
 			self.doc.round_floats_in(self.doc, ["taxes_and_charges_added", "taxes_and_charges_deducted"])
 
-			self.doc.base_grand_total = flt(self.doc.grand_total * self.doc.conversion_rate, self.doc.precision("base_grand_total")) \
+			self.doc.base_grand_total = flt(self.doc.grand_total * self.doc.conversion_rate) \
 				if (self.doc.taxes_and_charges_added or self.doc.taxes_and_charges_deducted) \
 				else self.doc.base_net_total
 
@@ -345,28 +351,13 @@ class calculate_taxes_and_totals(object):
 		self.doc.round_floats_in(self.doc, ["grand_total", "base_grand_total"])
 
 		self.set_rounded_total()
-		
+
 	def calculate_total_net_weight(self):
 		if self.doc.meta.get_field('total_net_weight'):
 			self.doc.total_net_weight = 0.0
-			base_weight_uom = "Kg"
-			if self.doc.meta.get_field('net_weight_uom'):
-				if self.doc.net_weight_uom:
-					base_weight_uom = self.doc.net_weight_uom
-				else:
-					self.doc.net_weight_uom = base_weight_uom
-			
 			for d in self.doc.items:
-				if d.weight_uom:
-					if d.total_weight:
-						converted_value = 0
-						is_valid, converted_value = convert_weight_unit(d.total_weight,d.weight_uom,base_weight_uom);
-						if is_valid:
-							self.doc.total_net_weight += converted_value
-						else:
-							frappe.msgprint(_("The weight_uom {0} of item {1} is invalid.").format(d.weight_uom,d.item_code))
-		
-		
+				if d.total_weight:
+					self.doc.total_net_weight += d.total_weight
 
 	def set_rounded_total(self):
 		if self.doc.meta.get_field("rounded_total"):
@@ -559,16 +550,17 @@ class calculate_taxes_and_totals(object):
 		rate_with_margin = 0.0
 		base_rate_with_margin = 0.0
 		if item.price_list_rate:
-			if item.pricing_rule and not self.doc.ignore_pricing_rule:
-				pricing_rule = frappe.get_doc('Pricing Rule', item.pricing_rule)
+			if item.pricing_rules and not self.doc.ignore_pricing_rule:
+				for d in item.pricing_rules.split(','):
+					pricing_rule = frappe.get_doc('Pricing Rule', d)
 
-				if (pricing_rule.margin_type == 'Amount' and pricing_rule.currency == self.doc.currency)\
-						or (pricing_rule.margin_type == 'Percentage'):
-					item.margin_type = pricing_rule.margin_type
-					item.margin_rate_or_amount = pricing_rule.margin_rate_or_amount
-				else:
-					item.margin_type = None
-					item.margin_rate_or_amount = 0.0
+					if (pricing_rule.margin_type == 'Amount' and pricing_rule.currency == self.doc.currency)\
+							or (pricing_rule.margin_type == 'Percentage'):
+						item.margin_type = pricing_rule.margin_type
+						item.margin_rate_or_amount = pricing_rule.margin_rate_or_amount
+					else:
+						item.margin_type = None
+						item.margin_rate_or_amount = 0.0
 
 			if item.margin_type and item.margin_rate_or_amount:
 				margin_value = item.margin_rate_or_amount if item.margin_type == 'Amount' else flt(item.price_list_rate) * flt(item.margin_rate_or_amount) / 100
@@ -582,16 +574,13 @@ class calculate_taxes_and_totals(object):
 
 def get_itemised_tax_breakup_html(doc):
 	if not doc.taxes:
-		if doc.other_charges_calculation:
-			doc.other_charges_calculation = ""
-			update_itemised_tax_data(doc)
 		return
 	frappe.flags.company = doc.company
 
 	# get headers
 	tax_accounts = []
 	for tax in doc.taxes:
-		if getattr(tax, "category", None) and tax.category in ("Valuation","Account Ledger Only"):
+		if getattr(tax, "category", None) and tax.category=="Valuation":
 			continue
 		if tax.description not in tax_accounts:
 			tax_accounts.append(tax.description)
@@ -638,7 +627,7 @@ def get_itemised_tax_breakup_data(doc):
 def get_itemised_tax(taxes, with_tax_account=False):
 	itemised_tax = {}
 	for tax in taxes:
-		if getattr(tax, "category", None) and tax.category in ("Valuation","Account Ledger Only"):
+		if getattr(tax, "category", None) and tax.category=="Valuation":
 			continue
 
 		item_tax_map = json.loads(tax.item_wise_tax_detail) if tax.item_wise_tax_detail else {}
@@ -674,55 +663,8 @@ def get_itemised_taxable_amount(items):
 
 	return itemised_taxable_amount
 
-
 def get_rounded_tax_amount(itemised_tax, precision):
 	# Rounding based on tax_amount precision
 	for taxes in itemised_tax.values():
 		for tax_account in taxes:
 			taxes[tax_account]["tax_amount"] = flt(taxes[tax_account]["tax_amount"], precision)
-			
-def is_weight_unit(UOM):
-	weight_array = ['kg','g','tonne']
-	if str(UOM).lower() in weight_array:
-		return True
-	
-	return False
-
-	
-def convert_weight_unit(in_value, in_uom, out_uom):
-	base_value = 0
-	out_value = 0
-	if in_value and in_uom and out_uom:
-		
-		if is_weight_unit(in_uom) and is_weight_unit(out_uom):
-			base_value = convert_weight_to_base(in_uom,in_value)
-			out_value = convert_weight_from_base(out_uom,base_value)
-			return True,out_value
-		
-		return False,out_value
-		
-	
-	return False,out_value
-	
-
-
-def convert_weight_to_base(unit,value):
-	finalvalue = 0
-	if unit == "g":
-		finalvalue = flt(value) * flt(0.001)
-	elif unit == "tonne":
-		finalvalue = flt(value) * flt(1000)
-	else:
-		finalvalue = flt(value)
-	return finalvalue
-
-def convert_weight_from_base(unit,value):
-	finalvalue = 0
-	if unit == "g":
-		finalvalue = flt(value) / flt(0.001)
-	elif unit == "tonne":
-		finalvalue = flt(value) / flt(1000)
-	else:
-		finalvalue = flt(value)
-	return finalvalue
-

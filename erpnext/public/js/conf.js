@@ -10,10 +10,6 @@ $(document).bind('toolbar_setup', function() {
 	frappe.help_feedback_link = '<p><a class="text-muted" \
 		href="https://discuss.erpnext.com">Feedback</a></p>'
 
-
-	// $('.navbar-home').html('<img class="erpnext-icon" src="'+
-			// frappe.urllib.get_base_url()+'/assets/erpnext/images/home-icon.png" />');
-
 	$('[data-link="docs"]').attr("href", "https://erpnext.com/docs")
 	$('[data-link="issues"]').attr("href", "https://github.com/frappe/erpnext/issues")
 
@@ -55,4 +51,14 @@ $.extend(frappe.breadcrumbs.preferred, {
 	"Sales Person": "Selling",
 	"Sales Partner": "Selling",
 	"Brand": "Selling"
+});
+
+$.extend(frappe.breadcrumbs.module_map, {
+	'ERPNext Integrations': 'Integrations',
+	'Geo': 'Settings',
+	'Accounts': 'Accounting',
+	'Portal': 'Website',
+	'Utilities': 'Settings',
+	'Shopping Cart': 'Website',
+	'Contacts': 'CRM'
 });

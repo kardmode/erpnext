@@ -1,20 +1,22 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: GNU General Public License v3. See license.txt
 frappe.ui.form.on("Project", {
-	setup: function (frm) {
-		frm.set_indicator_formatter('title',
-			function (doc) {
-				let indicator = 'orange';
-				if (doc.status == 'Overdue') {
-					indicator = 'red';
-				} else if (doc.status == 'Cancelled') {
-					indicator = 'dark grey';
-				} else if (doc.status == 'Closed') {
-					indicator = 'green';
-				}
-				return indicator;
-			}
-		);
+	setup(frm) {
+		frm.make_methods = {
+			'Timesheet': () => {
+				let doctype = 'Timesheet';
+				frappe.model.with_doctype(doctype, () => {
+					let new_doc = frappe.model.get_new_doc(doctype);
+
+					// add a new row and set the project
+					let time_log = frappe.model.get_new_doc('Timesheet Detail');
+					time_log.project = frm.doc.name;
+					new_doc.time_logs = [time_log];
+
+					frappe.ui.form.make_quick_entry(doctype, null, null, new_doc);
+				});
+			},
+		}
 		
 		frm.fields_dict['parent_project'].get_query = function(doc) {
 			return {
@@ -25,7 +27,6 @@ frappe.ui.form.on("Project", {
 			}
 		}
 	},
-
 	onload: function (frm) {
 		var so = frappe.meta.get_docfield("Project", "sales_order");
 		so.get_route_options_for_new_doc = function (field) {
@@ -177,37 +178,8 @@ frappe.ui.form.on("Project", {
 
 			frm.trigger('show_dashboard');
 		}
-	},
-	tasks_refresh: function (frm) {
-		var grid = frm.get_field('tasks').grid;
-		grid.wrapper.find('select[data-fieldname="status"]').each(function () {
-			if ($(this).val() === 'Open') {
-				$(this).addClass('input-indicator-open');
-			} else {
-				$(this).removeClass('input-indicator-open');
-			}
-		});
-	},
-	show_dashboard: function(frm) {
-		if(frm.doc.__onload.activity_summary.length) {
-			var hours = $.map(frm.doc.__onload.activity_summary, function(d) { return d.total_hours });
-			var max_count = Math.max.apply(null, hours);
-			var sum = hours.reduce(function(a, b) { return a + b; }, 0);
-			var section = frm.dashboard.add_section(
-				frappe.render_template('project_dashboard',
-					{
-						data: frm.doc.__onload.activity_summary,
-						max_count: max_count,
-						sum: sum
-					}));
-
-			section.on('click', '.time-sheet-link', function() {
-				var activity_type = $(this).attr('data-activity_type');
-				frappe.set_route('List', 'Timesheet',
-					{'activity_type': activity_type, 'project': frm.doc.name, 'status': ["!=", "Cancelled"]});
-			});
-		}
-	},
+		frm.events.set_buttons(frm);
+	},	
 
 	// company: function(frm) {
 		// var company = locals[':Company'][frm.doc.company];
@@ -252,40 +224,25 @@ frappe.ui.form.on("Project", {
 			});
 		}
 	},
-	
+	set_buttons: function(frm) {
+		if (!frm.is_new()) {
+			frm.add_custom_button(__('Completed'), () => {
+				frm.events.set_status(frm, 'Completed');
+			}, __('Set Status'));
 
-});
-
-frappe.ui.form.on("Project Task", {
-	edit_task: function(frm, doctype, name) {
-		var doc = frappe.get_doc(doctype, name);
-		if(doc.task_id) {
-			frappe.set_route("Form", "Task", doc.task_id);
-		} else {
-			frappe.msgprint(__("Save the document first."));
+			frm.add_custom_button(__('Cancelled'), () => {
+				frm.events.set_status(frm, 'Cancelled');
+			}, __('Set Status'));
 		}
 	},
 
-	edit_timesheet: function(frm, cdt, cdn) {
-		var child = locals[cdt][cdn];
-		frappe.route_options = {"project": frm.doc.project_name, "task": child.task_id};
-		frappe.set_route("List", "Timesheet");
+	set_status: function(frm, status) {
+		frappe.confirm(__('Set Project and all Tasks to status {0}?', [status.bold()]), () => {
+			frappe.xcall('erpnext.projects.doctype.project.project.set_project_status',
+				{project: frm.doc.name, status: status}).then(() => { /* page will auto reload */ });
+		});
 	},
 
-	make_timesheet: function(frm, cdt, cdn) {
-		var child = locals[cdt][cdn];
-		frappe.model.with_doctype('Timesheet', function() {
-			var doc = frappe.model.get_new_doc('Timesheet');
-			var row = frappe.model.add_child(doc, 'time_logs');
-			row.project = frm.doc.project_name;
-			row.task = child.task_id;
-			frappe.set_route('Form', doc.doctype, doc.name);
-		})
-	},
-
-	status: function(frm, doctype, name) {
-		frm.trigger('tasks_refresh');
-	},
 });
 
 

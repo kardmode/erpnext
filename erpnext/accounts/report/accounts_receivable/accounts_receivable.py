@@ -7,6 +7,7 @@ from frappe import _, scrub
 from frappe.utils import getdate, nowdate, flt, cint, formatdate, cstr, now, time_diff_in_seconds
 from collections import OrderedDict
 from erpnext.accounts.utils import get_currency_precision
+from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import get_accounting_dimensions
 
 #  This report gives a summary of all Outstanding Invoices considering the following
 
@@ -520,6 +521,8 @@ class ReceivablePayableReport(object):
 		elif party_type_field=="supplier":
 			self.add_supplier_filters(conditions, values)
 
+		self.add_accounting_dimensions_filters(conditions, values)
+
 		return " and ".join(conditions), values
 
 	def add_common_filters(self, conditions, values, party_type_field):
@@ -585,6 +588,15 @@ class ReceivablePayableReport(object):
 				and name=tabCustomer.{key}))""".format(
 					doctype=doctype, lft=lft, rgt=rgt, key=key)
 
+	def add_accounting_dimensions_filters(self, conditions, values):
+		accounting_dimensions = get_accounting_dimensions()
+
+		if accounting_dimensions:
+			for dimension in accounting_dimensions:
+				if self.filters.get(dimension):
+					conditions.append("{0} = %s".format(dimension))
+					values.append(self.filters.get(dimension))
+
 	def get_gle_balance(self, gle):
 		# get the balance of the GL (debit - credit) or reverse balance based on report type
 		return gle.get(self.dr_or_cr) - self.get_reverse_balance(gle)
@@ -615,13 +627,13 @@ class ReceivablePayableReport(object):
 		self.add_column(label=_(self.party_type), fieldname='party',
 			fieldtype='Link', options=self.party_type, width=180)
 
-		if self.party_type == 'Customer':
-			self.add_column(_("Customer Contact"), fieldname='customer_primary_contact',
-				fieldtype='Link', options='Contact')
-
 		if self.party_naming_by == "Naming Series":
 			self.add_column(_('{0} Name').format(self.party_type),
 				fieldname = scrub(self.party_type) + '_name', fieldtype='Data')
+
+		if self.party_type == 'Customer':
+			self.add_column(_("Customer Contact"), fieldname='customer_primary_contact',
+				fieldtype='Link', options='Contact')
 
 		self.add_column(label=_('Voucher Type'), fieldname='voucher_type', fieldtype='Data')
 		self.add_column(label=_('Voucher No'), fieldname='voucher_no', fieldtype='Dynamic Link',

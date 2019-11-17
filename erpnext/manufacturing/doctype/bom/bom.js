@@ -10,15 +10,16 @@ frappe.ui.form.on("BOM", {
 		frm.add_fetch("item", "item_name", "item_name");
 		frm.add_fetch("item", "stock_uom", "uom");
 
-		// frm.set_query("bom_no", "items", function() {
-			// return {
-				// filters: {
-					// 'currency': frm.doc.currency,
-					// 'company': frm.doc.company
-				// }
-			// }
-		// });
+		/* frm.set_query("bom_no", "items", function() {
+			return {
+				filters: {
+					'currency': frm.doc.currency,
+					'company': frm.doc.company
+				}
+			}
+		}); */
 		
+
 
 		frm.set_query("source_warehouse", "items", function() {
 			return {
@@ -450,8 +451,8 @@ var get_bom_material_detail= function(doc, cdt, cdn, scrap_items) {
 			args: {
 				'item_code': d.item_code,
 				'bom_no': d.bom_no != null ? d.bom_no: '',
-				'qty': d.qty,
 				"scrap_items": scrap_items,
+				'qty': d.qty,
 				"stock_qty": d.stock_qty,
 				"include_item_in_manufacturing": d.include_item_in_manufacturing,
 				"uom": d.uom,
@@ -1096,15 +1097,14 @@ var calculate_builder_dimensions = function(d, build=false) {
 
 		}
 	})
-	
-
 }
 
 
 
-// frappe.ui.form.on("BOM", "with_operations", function(frm) {
-	// if(!cint(frm.doc.with_operations)) {
-		// frm.set_value("operations", []);
-	// }
-	// toggle_operations(frm);
-// });
+/* frappe.ui.form.on("BOM", "with_operations", function(frm) {
+	if(!cint(frm.doc.with_operations)) {
+		frm.set_value("operations", []);
+	}
+	toggle_operations(frm);
+}); */
+

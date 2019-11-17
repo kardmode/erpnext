@@ -54,7 +54,6 @@ frappe.ui.form.on("Salary Slip", {
 		});
 	},
 
-
 	start_date: function(frm, dt, dn){
 		frm.events.get_emp_and_leave_details(frm);
 
@@ -183,7 +182,6 @@ frappe.ui.form.on('Salary Detail', {
 		// calculate_all(frm.doc, dt, dn);
 	// },
 	
-
 })
 
 

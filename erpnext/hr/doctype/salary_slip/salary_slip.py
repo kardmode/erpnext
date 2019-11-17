@@ -60,7 +60,7 @@ class SalarySlip(TransactionBase):
 			if self.salary_slip_based_on_timesheet and (self.total_working_hours > int(max_working_hours)):
 				frappe.msgprint(_("Total working hours should not be greater than max working hours {0}").
 								format(max_working_hours), alert=True)
-	
+
 	def on_submit(self):
 		if self.net_pay < 0:
 			frappe.throw(_("Net Pay cannot be less than 0"))
@@ -79,6 +79,7 @@ class SalarySlip(TransactionBase):
 	# def on_trash(self):
 		# from frappe.model.naming import revert_series_if_last
 		# revert_series_if_last(self.series, self.name)
+
 
 	def get_status(self):
 		if self.docstatus == 0:
@@ -287,6 +288,7 @@ class SalarySlip(TransactionBase):
 				WHEN t2.include_holiday THEN %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
 				END
 				""".format(holidays), {"employee": self.employee, "dt": dt})
+
 			if leave:
 				lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
 		
@@ -310,15 +312,13 @@ class SalarySlip(TransactionBase):
 				"additional_amount": 0.0
 			}
 			doc.append('earnings', wages_row)
-		
+
 	def calculate_net_pay(self):
 		if self.salary_structure:
 			self.calculate_component_amounts()
 
 		self.gross_pay = self.get_component_totals("earnings")
-		self.total_deduction = self.get_component_totals("deductions")
-
-		
+		self.total_deduction = self.get_component_totals("deductions")		
 		# self.set_loan_repayment()
 
 		# self.net_pay = flt(self.gross_pay) - (flt(self.total_deduction) + flt(self.total_loan_repayment))
@@ -329,6 +329,7 @@ class SalarySlip(TransactionBase):
 			
 		self.net_pay = flt(self.gross_pay) - flt(self.total_deduction)
 		self.rounded_total = ceil(self.net_pay)
+
 
 	def calculate_component_amounts(self):
 		if not getattr(self, '_salary_structure_doc', None):
@@ -349,6 +350,7 @@ class SalarySlip(TransactionBase):
 				amount = self.eval_condition_and_formula(struct_row, data)
 				# if amount and struct_row.statistical_component == 0:
 					# self.update_component_row(struct_row, amount, key)
+
 
 	def get_data_for_eval(self):
 		'''Returns data for evaluating formula'''
@@ -384,6 +386,7 @@ class SalarySlip(TransactionBase):
 					amount = flt(frappe.safe_eval(formula, self.whitelisted_globals, data), d.precision("amount"))
 			# if amount:
 				# data[d.abbr] = amount
+
 
 			return amount
 
@@ -475,6 +478,7 @@ class SalarySlip(TransactionBase):
 					component_row.additional_amount = amount - component_row.get("default_amount", 0)
 				else:
 					component_row.additional_amount = amount
+
 
 				if not overwrite and component_row.default_amount:
 					amount += component_row.default_amount
@@ -654,6 +658,7 @@ class SalarySlip(TransactionBase):
 			amount = flt((flt(row.default_amount) * flt(payment_days)
 				/ cint(total_working_days)), row.precision("amount")) + additional_amount
 
+
 		elif not self.payment_days and not self.salary_slip_based_on_timesheet and cint(row.depends_on_payment_days):
 			amount, additional_amount = 0, 0
 		elif not row.amount:
@@ -758,10 +763,7 @@ class SalarySlip(TransactionBase):
 		return struct_row
 
 	def get_component_totals(self, component_type):
-		total = 0.0
-		
-		# for d in self.get(component_type):
-			
+		total = 0.0					
 
 		joining_date, relieving_date = frappe.db.get_value("Employee", self.employee,
 				["date_of_joining", "relieving_date"])
@@ -909,9 +911,6 @@ class SalarySlip(TransactionBase):
 		
 		return total_loan_deduction
 				
-			
-		
-
 
 	def set_component_amounts_based_on_payment_days(self):
 		joining_date, relieving_date = frappe.get_cached_value("Employee", self.employee,
@@ -956,7 +955,6 @@ class SalarySlip(TransactionBase):
 				l.name = rps.parent and rps.payment_date between %s and %s and
 				l.repay_from_salary = 1 and l.docstatus = 1 and l.applicant = %s""",
 			(self.start_date, self.end_date, self.employee), as_dict=True) or []
-
 			
 	def calculate_leaveadvance(self, salaryperday, joining_date):
 		dt = add_days(self.start_date, self.total_working_days+2)
@@ -1055,13 +1053,20 @@ class SalarySlip(TransactionBase):
 
 	def email_salary_slip(self):
 		receiver = frappe.db.get_value("Employee", self.employee, "prefered_email")
+		hr_settings = frappe.get_single("HR Settings")
+		message = "Please see attachment"
+		password = None
+		if hr_settings.encrypt_salary_slips_in_emails:
+			password = generate_password_for_pdf(hr_settings.password_policy, self.employee)
+			message += """<br>Note: Your salary slip is password protected,
+				the password to unlock the PDF is of the format {0}. """.format(hr_settings.password_policy)
 
 		if receiver:
 			email_args = {
 				"recipients": [receiver],
-				"message": _("Please see attachment"),
+				"message": _(message),
 				"subject": 'Salary Slip - from {0} to {1}'.format(self.start_date, self.end_date),
-				"attachments": [frappe.attach_print(self.doctype, self.name, file_name=self.name)],
+				"attachments": [frappe.attach_print(self.doctype, self.name, file_name=self.name, password=password)],
 				"reference_doctype": self.doctype,
 				"reference_name": self.name
 				}
@@ -1087,7 +1092,6 @@ class SalarySlip(TransactionBase):
 			status = self.get_status()
 		self.db_set("status", status)
 
-
 	def process_salary_structure(self, for_preview=0):
 		'''Calculate salary after salary structure details have been updated'''
 		if not self.salary_slip_based_on_timesheet:
@@ -1095,7 +1099,7 @@ class SalarySlip(TransactionBase):
 		self.pull_emp_details()
 		self.get_leave_details(for_preview=for_preview)
 		self.calculate_net_pay()
-			
+
 	def pull_emp_details(self):
 		emp = frappe.db.sql("""select employee_name, department,designation,company,bank_name,bank_ac_no from tabEmployee where employee = %(employee)s""",{"employee": self.employee}, as_dict=True)
 		if emp:
@@ -1109,11 +1113,11 @@ class SalarySlip(TransactionBase):
 			
 		self.letter_head = frappe.db.get_value("Company", self.company, "default_letter_head")
 
+
 	def process_salary_based_on_leave(self, lwp=0):
 		self.get_leave_details(lwp=lwp)
 		self.calculate_net_pay()
-		
-		
+
 	def get_attendance_details(self):
 		
 		self.overtime_hours_weekdays = 0
@@ -1235,9 +1239,6 @@ def unlink_ref_doc_from_salary_slip(ref_no):
 			frappe.db.set_value("Salary Slip", ss_doc.name, "journal_entry", "")
 
 
-
-
-			
 @frappe.whitelist()			
 def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contract_type = "Limited",reason_for_termination = "Resignation"):
 
@@ -1367,3 +1368,6 @@ def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contr
 	gratuity_calculation = joiningtext + "<br>" + workingdaystext + "<br>" + networkingdaytext + "<br><br>" + gratuity_text
 	return gratuity_pay, gratuity_calculation, leave_encashment_amount
 
+def generate_password_for_pdf(policy_template, employee):
+	employee = frappe.get_doc("Employee", employee)
+	return policy_template.format(**employee.as_dict())

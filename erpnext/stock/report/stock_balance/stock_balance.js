@@ -48,8 +48,8 @@ frappe.query_reports["Stock Balance"] = {
 			"options": "Item",
 			"get_query": function() {
 				return {
-					query: "erpnext.controllers.queries.item_query"
-				}
+					query: "erpnext.controllers.queries.item_query",
+				};
 			}
 		},
 		{
@@ -59,12 +59,23 @@ frappe.query_reports["Stock Balance"] = {
 			"width": "80",
 			"options": "Warehouse",
 			"get_query": function() {
-				return{
-					filters: [["Warehouse", "disabled", "=", 0]],
+				var warehouse_type = frappe.query_report.get_filter_value('warehouse_type');
+				if(warehouse_type){
+					return {
+						filters: {
+							'warehouse_type': warehouse_type,
+							'disabled':0
+						}
+					};
 				}
-					
-				
-			},
+			}
+		},
+		{
+			"fieldname": "warehouse_type",
+			"label": __("Warehouse Type"),
+			"fieldtype": "Link",
+			"width": "80",
+			"options": "Warehouse Type"
 		},
 		{
 			"fieldname": "report_style",
@@ -101,6 +112,10 @@ frappe.query_reports["Stock Balance"] = {
 			"label": __("Hide Negative Qty"),
 			"fieldtype": "Check",
 			"default":0
+		{			
+			"fieldname": 'show_stock_ageing_data',
+			"label": __('Show Stock Ageing Data'),
+			"fieldtype": 'Check'
 		},
 	]
-}
+};

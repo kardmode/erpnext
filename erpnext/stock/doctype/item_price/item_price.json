@@ -11,7 +11,7 @@
  "description": "Multiple Item prices.", 
  "docstatus": 0, 
  "doctype": "DocType", 
- "document_type": "Document", 
+ "document_type": "Setup", 
  "editable_grid": 0, 
  "engine": "InnoDB", 
  "fields": [

@@ -10,7 +10,6 @@ cur_frm.email_field = "contact_email";
 
 frappe.provide("erpnext.selling");
 erpnext.selling.SellingController = erpnext.TransactionController.extend({
-
 	setup: function() {
 		this._super();
 		this.frm.add_fetch("sales_partner", "commission_rate", "commission_rate");
@@ -40,8 +39,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			});
 
 		me.frm.set_query('contact_person', erpnext.queries.contact_query);
-		//me.frm.set_query('customer_address', erpnext.queries.address_query);
-		//me.frm.set_query('shipping_address_name', erpnext.queries.address_query);
+		me.frm.set_query('customer_address', erpnext.queries.address_query);
+		me.frm.set_query('shipping_address_name', erpnext.queries.address_query);
 
 		if(this.frm.fields_dict.taxes_and_charges) {
 			this.frm.set_query("taxes_and_charges", function() {
@@ -60,13 +59,18 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			});
 		}
 
+		if(this.frm.fields_dict.tc_name) {
+			this.frm.set_query("tc_name", function() {
+				return { filters: { selling: 1 } };
+			});
+		}
+
 		if(!this.frm.fields_dict["items"]) {
 			return;
 		}
 
 		if(this.frm.fields_dict["items"].grid.get_field('item_code')) {
 			this.frm.set_query("item_code", "items", function() {
-
 				return {
 					query: "erpnext.controllers.queries.item_query",
 					filters: {'is_sales_item': 1}
@@ -80,19 +84,6 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				return me.set_query_for_batch(doc, cdt, cdn)
 			});
 		}
-		
-		this.frm.set_query('warehouse', 'items', function(doc, cdt, cdn) {
-			
-			var item = locals[cdt][cdn];
-			if(!item.item_code) {
-				
-			} else {
-				return {
-					query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
-					filters: {"item_code":item.item_code,"company":doc.company}
-				}
-			}
-		});
 	},
 
 	refresh: function() {
@@ -107,13 +98,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 			this.frm.toggle_display("packing_list", packing_list_exists ? true : false);
 		}
 		this.toggle_editable_price_list_rate();
-		
-
-		
-		
-		
 	},
-	
+
 	customer: function() {
 		var me = this;
 		erpnext.utils.get_party_details(this.frm, null, null, function() {
@@ -123,10 +109,12 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 
 	customer_address: function() {
 		erpnext.utils.get_address_display(this.frm, "customer_address");
+		erpnext.utils.set_taxes_from_address(this.frm, "customer_address", "customer_address", "shipping_address_name");
 	},
 
 	shipping_address_name: function() {
 		erpnext.utils.get_address_display(this.frm, "shipping_address_name", "shipping_address");
+		erpnext.utils.set_taxes_from_address(this.frm, "shipping_address_name", "customer_address", "shipping_address_name");
 	},
 
 	sales_partner: function() {
@@ -146,7 +134,6 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		var item = frappe.get_doc(cdt, cdn);
 		frappe.model.round_floats_in(item, ["price_list_rate", "discount_percentage"]);
 
-
 		// check if child doctype is Sales Order Item/Qutation Item and calculate the rate
 		if(in_list(["Quotation Item", "Sales Order Item", "Delivery Note Item", "Sales Invoice Item"]), cdt)
 			this.apply_pricing_rule_on_item(item);
@@ -159,11 +146,29 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 
 	discount_percentage: function(doc, cdt, cdn) {
 		var item = frappe.get_doc(cdt, cdn);
+		item.discount_amount = 0.0;
+		this.apply_discount_on_item(doc, cdt, cdn, 'discount_percentage');
+	},
+
+	discount_amount: function(doc, cdt, cdn) {
+
+		if(doc.name === cdn) {
+			return;
+		}
+
+		var item = frappe.get_doc(cdt, cdn);
+		item.discount_percentage = 0.0;
+		this.apply_discount_on_item(doc, cdt, cdn, 'discount_amount');
+	},
+
+	apply_discount_on_item: function(doc, cdt, cdn, field) {
+		var item = frappe.get_doc(cdt, cdn);
 		if(!item.price_list_rate) {
-			item.discount_percentage = 0.0;
+			item[field] = 0.0;
 		} else {
 			this.price_list_rate(doc, cdt, cdn);
 		}
+		this.set_gross_profit(item);
 	},
 
 	commission_rate: function() {
@@ -340,24 +345,6 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		refresh_field('product_bundle_help');
 	},
 
-	make_payment_request: function() {
-		frappe.call({
-			method:"erpnext.accounts.doctype.payment_request.payment_request.make_payment_request",
-			args: {
-				"dt": cur_frm.doc.doctype,
-				"dn": cur_frm.doc.name,
-				"recipient_id": cur_frm.doc.contact_email
-			},
-			callback: function(r) {
-				if(!r.exc){
-					var doc = frappe.model.sync(r.message);
-
-					frappe.set_route("Form", r.message.doctype, r.message.name);
-				}
-			}
-		})
-	},
-	
 	margin_rate_or_amount: function(doc, cdt, cdn) {
 		// calculated the revised total margin and rate on margin rate changes
 		var item = locals[cdt][cdn];
@@ -441,7 +428,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 	update_auto_repeat_reference: function(doc) {
 		if (doc.auto_repeat) {
 			frappe.call({
-				method:"frappe.desk.doctype.auto_repeat.auto_repeat.update_reference",
+				method:"frappe.automation.doctype.auto_repeat.auto_repeat.update_reference",
 				args:{
 					docname: doc.auto_repeat,
 					reference:doc.name
@@ -479,3 +466,41 @@ frappe.ui.form.on(cur_frm.doctype,"project", function(frm) {
 	}
 })
 
+frappe.ui.form.on(cur_frm.doctype, {
+	set_as_lost_dialog: function(frm) {
+		var dialog = new frappe.ui.Dialog({
+			title: __("Set as Lost"),
+			fields: [
+				{"fieldtype": "Table MultiSelect",
+				"label": __("Lost Reasons"),
+				"fieldname": "lost_reason",
+				"options": "Lost Reason Detail",
+				"reqd": 1},
+
+				{"fieldtype": "Text", "label": __("Detailed Reason"), "fieldname": "detailed_reason"},
+			],
+			primary_action: function() {
+				var values = dialog.get_values();
+				var reasons = values["lost_reason"];
+				var detailed_reason = values["detailed_reason"];
+
+				frm.call({
+					doc: frm.doc,
+					method: 'declare_enquiry_lost',
+					args: {
+						'lost_reasons_list': reasons,
+						'detailed_reason': detailed_reason
+					},
+					callback: function(r) {
+						dialog.hide();
+						frm.reload_doc();
+					},
+				});
+				refresh_field("lost_reason");
+			},
+			primary_action_label: __('Declare Lost')
+		});
+
+		dialog.show();
+	}
+})

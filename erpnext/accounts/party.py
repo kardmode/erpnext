@@ -8,7 +8,7 @@ from frappe import _, msgprint, scrub
 from frappe.core.doctype.user_permission.user_permission import get_permitted_documents
 from frappe.model.utils import get_fetch_values
 from frappe.utils import (add_days, getdate, formatdate, date_diff,
-	add_years, get_timestamp, nowdate, flt, add_months, get_last_day)
+	add_years, get_timestamp, nowdate, flt, cstr, add_months, get_last_day)
 from frappe.contacts.doctype.address.address import (get_address_display,
 	get_default_address, get_company_address)
 from frappe.contacts.doctype.contact.contact import get_contact_details, get_default_contact
@@ -16,7 +16,7 @@ from erpnext.exceptions import PartyFrozen, PartyDisabled, InvalidAccountCurrenc
 from erpnext.accounts.utils import get_fiscal_year
 from erpnext import get_company_currency
 
-from six import iteritems
+from six import iteritems, string_types
 
 class DuplicatePartyAccountError(frappe.ValidationError): pass
 
@@ -46,14 +46,16 @@ def _get_party_details(party=None, account=None, party_type="Customer", company=
 	party = frappe.get_doc(party_type, party)
 	currency = party.default_currency if party.get("default_currency") else get_company_currency(company)
 
-	out["taxes_and_charges"] = set_taxes(party.name, party_type, posting_date, company, out.customer_group, out.supplier_group)
-	out["payment_terms_template"] = get_pyt_term_template(party.name, party_type, company)
-	set_address_details(out, party, party_type, doctype, company, party_address, shipping_address)
+	party_address, shipping_address = set_address_details(out, party, party_type, doctype, company, party_address, shipping_address)
 	set_contact_details(out, party, party_type)
 	set_other_values(out, party, party_type)
 	set_price_list(out, party, party_type, price_list, pos_profile)
 
-	out["taxes_and_charges"] = set_taxes(party.name, party_type, posting_date, company, out.customer_group, out.supplier_group)
+	out["tax_category"] = get_address_tax_category(party.get("tax_category"),
+		party_address, shipping_address if party_type != "Supplier" else party_address)
+	out["taxes_and_charges"] = set_taxes(party.name, party_type, posting_date, company,
+		customer_group=out.customer_group, supplier_group=out.supplier_group, tax_category=out.tax_category,
+		billing_address=party_address, shipping_address=shipping_address)
 
 	if fetch_payment_terms_template:
 		out["payment_terms_template"] = get_pyt_term_template(party.name, party_type, company)
@@ -102,6 +104,8 @@ def set_address_details(out, party, party_type, doctype=None, company=None, part
 			out.shipping_address_display = get_address_display(out["shipping_address"])
 			out.update(get_fetch_values(doctype, 'shipping_address', out.shipping_address))
 		get_regional_address_details(out, doctype, company)
+
+	return out.get(billing_address_field), out.shipping_address_name
 
 @erpnext.allow_regional
 def get_regional_address_details(out, doctype, company):
@@ -155,7 +159,7 @@ def set_price_list(out, party, party_type, given_price_list, pos=None):
 	# price list
 	price_list = get_permitted_documents('Price List')
 
-	if price_list and len(price_list) == 1:
+	if price_list:
 		price_list = price_list[0]
 	elif pos and party_type == 'Customer':
 		customer_price_list = frappe.get_value('Customer', party.name, 'default_price_list')
@@ -288,8 +292,11 @@ def validate_party_accounts(doc):
 
 		party_account_currency = frappe.db.get_value("Account", account.account, "account_currency", cache=True)
 		existing_gle_currency = get_party_gle_currency(doc.doctype, doc.name, account.company)
-		company_default_currency = frappe.get_cached_value('Company',
-			frappe.db.get_default("Company"),  "default_currency")
+		if frappe.db.get_default("Company"):
+			company_default_currency = frappe.get_cached_value('Company',
+				frappe.db.get_default("Company"),  "default_currency")
+		else:
+			company_default_currency = frappe.db.get_value('Company', account.company, "default_currency")
 
 		if existing_gle_currency and party_account_currency != existing_gle_currency:
 			frappe.throw(_("Accounting entries have already been made in currency {0} for company {1}. Please select a receivable or payable account with currency {0}.").format(existing_gle_currency, account.company))
@@ -361,13 +368,28 @@ def validate_due_date(posting_date, due_date, party_type, party, company=None, b
 					.format(formatdate(default_due_date)))
 
 @frappe.whitelist()
-def set_taxes(party, party_type, posting_date, company, customer_group=None, supplier_group=None,
+def get_address_tax_category(tax_category=None, billing_address=None, shipping_address=None):
+	addr_tax_category_from = frappe.db.get_single_value("Accounts Settings", "determine_address_tax_category_from")
+	if addr_tax_category_from == "Shipping Address":
+		if shipping_address:
+			tax_category = frappe.db.get_value("Address", shipping_address, "tax_category") or tax_category
+	else:
+		if billing_address:
+			tax_category = frappe.db.get_value("Address", billing_address, "tax_category") or tax_category
+
+	return cstr(tax_category)
+
+@frappe.whitelist()
+def set_taxes(party, party_type, posting_date, company, customer_group=None, supplier_group=None, tax_category=None,
 	billing_address=None, shipping_address=None, use_for_shopping_cart=None):
 	from erpnext.accounts.doctype.tax_rule.tax_rule import get_tax_template, get_party_details
 	args = {
 		party_type.lower(): party,
 		"company":			company
 	}
+
+	if tax_category:
+		args['tax_category'] = tax_category
 
 	if customer_group:
 		args['customer_group'] = customer_group
@@ -444,8 +466,8 @@ def get_timeline_data(doctype, name):
 	after = add_years(None, -1).strftime('%Y-%m-%d')
 	group_by='group by date(creation)'
 
-	data = get_communication_data(doctype, name,
-		fields=fields, after=after, group_by=group_by, as_dict=False)
+	data = get_communication_data(doctype, name, after=after, group_by='group by date(creation)',
+		fields='date(C.creation) as creation, count(C.name)',as_dict=False)
 
 	# fetch and append data from Activity Log
 	data += frappe.db.sql("""select {fields}

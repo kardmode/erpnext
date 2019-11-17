@@ -57,8 +57,8 @@ def get_data(args):
 			existing_attendance = {}
 			if existing_attendance_records \
 				and tuple([getdate(date), employee.name]) in existing_attendance_records \
-				and getdate(employee.date_of_joining) >= getdate(date) \
-				and getdate(employee.relieving_date) <= getdate(date):
+				and getdate(employee.date_of_joining) <= getdate(date) \
+				and getdate(employee.relieving_date) >= getdate(date):
 					existing_attendance = existing_attendance_records[tuple([getdate(date), employee.name])]
 			row = [
 				existing_attendance and existing_attendance.name or "",
@@ -113,10 +113,15 @@ def upload(import_settings = None):
 	if not frappe.has_permission("Attendance", "create"):
 		raise frappe.PermissionError
 
-	from frappe.utils.csvutils import read_csv_content_from_uploaded_file
+	from frappe.utils.csvutils import read_csv_content
+	rows = read_csv_content(frappe.local.uploaded_file)
+	if not rows:
+		frappe.throw(_("Please select a csv file"))
+	frappe.enqueue(import_attendances, rows=rows, now=True if len(rows) < 200 else False)
+
+def import_attendances(rows):
 	from frappe.modules import scrub
 
-	rows = read_csv_content_from_uploaded_file()
 	rows = list(filter(lambda x: x and any(x), rows))
 	if not rows:
 		msg = [_("Please select a csv file")]
@@ -126,6 +131,7 @@ def upload(import_settings = None):
 
 	columns = ["employee","attendance_date","arrival_time","departure_time"]
 
+	rows = rows[1:]
 	ret = []
 	error = False
 	started = False
@@ -141,9 +147,8 @@ def upload(import_settings = None):
 		
 
 	from frappe.utils.csvutils import check_record, import_doc
-	
-	
-	for i, row in enumerate(rows[1:]):
+
+	for i, row in enumerate(rows):
 		if not row: continue
 		started = True
 		row_idx = i + 1
@@ -155,6 +160,7 @@ def upload(import_settings = None):
 		date_error = False
 		try:
 			parse_date(d.attendance_date)
+
 		except Exception as e:
 			date_error = True
 			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
@@ -237,6 +243,12 @@ def upload(import_settings = None):
 		frappe.db.rollback()
 	else:
 		frappe.db.commit()
+		
+	# frappe.publish_realtime('import_attendance', dict(
+		# messages=ret,
+		# error=error
+	# ))
+
 	return {"messages": ret, "error": error}
 	
 @frappe.whitelist()
@@ -269,5 +281,3 @@ def update_attendance(start_date,end_date):
 		summary = summary + new_link
 	
 	return summary
-
-		

@@ -12,6 +12,8 @@ class Homepage(Document):
 		if not self.disable_products:
 			if not self.products:
 				self.setup_items()
+		if not self.description:
+			self.description = frappe._("This is an example website auto-generated from ERPNext")
 		delete_page_cache('home')
 
 	def setup_items(self):

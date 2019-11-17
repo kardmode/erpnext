@@ -43,6 +43,7 @@
 			<div class="col-sm-3 text-right" style="margin-top: 8px;">
 				{% if d.actual_qty %}
 				<button class="btn btn-default btn-xs btn-move"
+					data-disable_quick_entry="{{ d.disable_quick_entry }}"
 					data-warehouse="{{ d.warehouse }}"
 					data-actual_qty="{{ d.actual_qty }}"
 					data-item="{{ escape(d.item_code) }}">{{ __("Move") }}</a>
@@ -51,7 +52,9 @@
 					data-actual_qty="{{ d.actual_qty }}"
 					data-item="{{ escape(d.item_code) }}">{{ __("Discard") }}</a>
 				{% endif %}
-				<button class="btn btn-default btn-xs btn-add"
+
+				<button style="margin-left: 7px;" class="btn btn-default btn-xs btn-add"
+					data-disable_quick_entry="{{ d.disable_quick_entry }}"
 					data-warehouse="{{ d.warehouse }}"
 					data-actual_qty="{{ d.actual_qty }}"
 					data-item="{{ escape(d.item_code) }}"

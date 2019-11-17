@@ -37,7 +37,6 @@ frappe.ui.form.on('Quotation', {
 });
 
 erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
-
 	onload: function(doc, dt, dn) {
 		var me = this;
 		this._super(doc, dt, dn);
@@ -69,25 +68,26 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 		}
 
 		if(doc.docstatus == 1 && doc.status!=='Lost') {
-			if(!doc.valid_till || frappe.datetime.get_diff(doc.valid_till, frappe.datetime.get_today()) > 0) {
+			if(!doc.valid_till || frappe.datetime.get_diff(doc.valid_till, frappe.datetime.get_today()) >= 0) {
 				cur_frm.add_custom_button(__('Sales Order'),
-					cur_frm.cscript['Make Sales Order'], __("Make"));
+					cur_frm.cscript['Make Sales Order'], __('Create'));
 			}
 
 			if(doc.status!=="Ordered") {
-				cur_frm.add_custom_button(__('Set as Lost'),
-					cur_frm.cscript['Declare Order Lost']);
-			}
+				this.frm.add_custom_button(__('Set as Lost'), () => {
+						this.frm.trigger('set_as_lost_dialog');
+					});
+				}
 
 			if(!doc.auto_repeat) {
 				cur_frm.add_custom_button(__('Subscription'), function() {
 					erpnext.utils.make_subscription(doc.doctype, doc.name)
-				}, __("Make"))
+				}, __('Create'))
 			}
 
-			cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
+			cur_frm.page.set_inner_btn_group_as_primary(__('Create'));
 		}
-		
+
 		if (this.frm.doc.docstatus===0) {
 			this.frm.add_custom_button(__('Opportunity'),
 				function() {
@@ -117,16 +117,11 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 						}
 					})
 				}, __("Get items from"), "btn-default");
-			
-			
 		}
-		
-		
 
 		this.toggle_reqd_lead_customer();
 
 	},
-
 
 	set_dynamic_field_label: function(){
 		if (this.frm.doc.quotation_to == "Customer")
@@ -203,7 +198,6 @@ erpnext.selling.QuotationController = erpnext.selling.SellingController.extend({
 			}
 		})
 	}
-
 });
 
 cur_frm.script_manager.make(erpnext.selling.QuotationController);
@@ -215,52 +209,9 @@ cur_frm.cscript['Make Sales Order'] = function() {
 	})
 }
 
-cur_frm.cscript['Declare Order Lost'] = function(){
-	var dialog = new frappe.ui.Dialog({
-		title: __('Set as Lost'),
-		fields: [
-			{"fieldtype": "Text", "label": __("Reason for losing"), "fieldname": "reason",
-				"reqd": 1 },
-			{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
-		]
-	});
-
-	dialog.fields_dict.update.$input.click(function() {
-		var args = dialog.get_values();
-		if(!args) return;
-		return cur_frm.call({
-			method: "declare_order_lost",
-			doc: cur_frm.doc,
-			args: args,
-			callback: function(r) {
-				if(r.exc) {
-					frappe.msgprint(__("There were errors."));
-					return;
-				}
-				dialog.hide();
-				cur_frm.refresh();
-			},
-			btn: this
-		})
-	});
-	dialog.show();
-
-}
-
 frappe.ui.form.on("Quotation Item", "items_on_form_rendered", "packed_items_on_form_rendered", function(frm, cdt, cdn) {
 	// enable tax_amount field if Actual
 })
-
-
-
-cur_frm.fields_dict['project'].get_query = function(doc, cdt, cdn) {
-	return {
-		query: "erpnext.controllers.queries.get_project_name",
-		filters: {
-			'customer': doc.customer
-		}
-	}
-}
 
 frappe.ui.form.on("Quotation Item", "stock_balance", function(frm, cdt, cdn) {
 	var d = frappe.model.get_doc(cdt, cdn);

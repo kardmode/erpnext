@@ -207,10 +207,10 @@ def bom(doctype, txt, searchfield, start, page_len, filters):
 			idx desc, name
 		limit %(start)s, %(page_len)s """.format(
 			fcond=get_filters_cond(doctype, filters, conditions).replace('%', '%%'),
-			mcond=get_match_cond(doctype),
-			key=frappe.db.escape(searchfield)),
+			mcond=get_match_cond(doctype).replace('%', '%%'),
+			key=searchfield),
 		{
-			'txt': "%"+frappe.db.escape(txt)+"%",
+			'txt': '%' + txt + '%',
 			'_txt': txt.replace("%", ""),
 			'start': start or 0,
 			'page_len': page_len or 20
@@ -219,7 +219,7 @@ def bom(doctype, txt, searchfield, start, page_len, filters):
 def get_project_name(doctype, txt, searchfield, start, page_len, filters):
 	cond = ''
 	if filters.get('customer'):
-		cond = """(`tabProject`.customer = '%s' or
+		cond = """(`tabProject`.customer = %s or
 			ifnull(`tabProject`.customer,"")="") and""" %(frappe.db.escape(filters.get("customer")))
 
 	return frappe.db.sql("""select `tabProject`.name from `tabProject`
@@ -280,22 +280,31 @@ def get_batch_no(doctype, txt, searchfield, start, page_len, filters):
 		"page_len": page_len
 	}
 
+	having_clause = "having sum(sle.actual_qty) > 0"
+	if filters.get("is_return"):
+		having_clause = ""
+
 	if args.get('warehouse'):
-		batch_nos = frappe.db.sql("""select sle.batch_no, round(sum(sle.actual_qty),2), sle.stock_uom, concat('MFG-',batch.manufacturing_date), concat('EXP-',batch.expiry_date)
-				from `tabStock Ledger Entry` sle
-				    INNER JOIN `tabBatch` batch on sle.batch_no = batch.name
-				where
-					batch.disabled = 0
-					and sle.item_code = %(item_code)s
-					and sle.warehouse = %(warehouse)s
-					and (sle.batch_no like %(txt)s
-					or batch.manufacturing_date like %(txt)s)
-					and batch.docstatus < 2
-					{0}
-					{match_conditions}
-				group by batch_no having sum(sle.actual_qty) > 0
-				order by batch.expiry_date, sle.batch_no desc
-				limit %(start)s, %(page_len)s""".format(cond, match_conditions=get_match_cond(doctype)), args)
+		batch_nos = frappe.db.sql("""select sle.batch_no, round(sum(sle.actual_qty),2), sle.stock_uom,
+				concat('MFG-',batch.manufacturing_date), concat('EXP-',batch.expiry_date)
+			from `tabStock Ledger Entry` sle
+				INNER JOIN `tabBatch` batch on sle.batch_no = batch.name
+			where
+				batch.disabled = 0
+				and sle.item_code = %(item_code)s
+				and sle.warehouse = %(warehouse)s
+				and (sle.batch_no like %(txt)s
+				or batch.manufacturing_date like %(txt)s)
+				and batch.docstatus < 2
+				{cond}
+				{match_conditions}
+			group by batch_no {having_clause}
+			order by batch.expiry_date, sle.batch_no desc
+			limit %(start)s, %(page_len)s""".format(
+				cond=cond,
+				match_conditions=get_match_cond(doctype),
+				having_clause = having_clause
+			), args)
 
 		return batch_nos
 	else:
@@ -354,7 +363,7 @@ def get_income_account(doctype, txt, searchfield, start, page_len, filters):
 				{condition} {match_condition}
 			order by idx desc, name"""
 			.format(condition=condition, match_condition=get_match_cond(doctype), key=searchfield), {
-				'txt': "%%%s%%" % frappe.db.escape(txt),
+				'txt': '%' + txt + '%',
 				'company': filters.get("company", "")
 			})
 
@@ -376,10 +385,10 @@ def get_expense_account(doctype, txt, searchfield, start, page_len, filters):
 			and tabAccount.docstatus!=2
 			and tabAccount.{key} LIKE %(txt)s
 			{condition} {match_condition}"""
-		.format(condition=condition, key=frappe.db.escape(searchfield),
+		.format(condition=condition, key=searchfield,
 			match_condition=get_match_cond(doctype)), {
 			'company': filters.get("company", ""),
-			'txt': "%%%s%%" % frappe.db.escape(txt)
+			'txt': '%' + txt + '%'
 		})
 
 
@@ -399,7 +408,7 @@ def warehouse_query(doctype, txt, searchfield, start, page_len, filters):
 		CONCAT_WS(" : ", "Actual Qty", ifnull( ({sub_query}), 0) ) as actual_qty
 		from `tabWarehouse`
 		where
-		   `tabWarehouse`.`{key}` like '{txt}'
+		   `tabWarehouse`.`{key}` like {txt}
 			{fcond} {mcond}
 		order by
 			`tabWarehouse`.name desc
@@ -407,7 +416,7 @@ def warehouse_query(doctype, txt, searchfield, start, page_len, filters):
 			{start}, {page_len}
 		""".format(
 			sub_query=sub_query,
-			key=frappe.db.escape(searchfield),
+			key=searchfield,
 			fcond=get_filters_cond(doctype, filter_dict.get("Warehouse"), conditions),
 			mcond=get_match_cond(doctype),
 			start=start,
@@ -431,92 +440,26 @@ def get_batch_numbers(doctype, txt, searchfield, start, page_len, filters):
 	query = """select batch_id from `tabBatch`
 			where disabled = 0
 			and (expiry_date >= CURDATE() or expiry_date IS NULL)
-			and name like '{txt}'""".format(txt = frappe.db.escape('%{0}%'.format(txt)))
+			and name like {txt}""".format(txt = frappe.db.escape('%{0}%'.format(txt)))
 
 	if filters and filters.get('item'):
-		query += " and item = '{item}'".format(item = frappe.db.escape(filters.get('item')))
+		query += " and item = {item}".format(item = frappe.db.escape(filters.get('item')))
 
-	return frappe.db.sql(query)
+	return frappe.db.sql(query, filters)
 
-						
 @frappe.whitelist()
-def get_items_from(doc_type,doc_name):
+def item_manufacturer_query(doctype, txt, searchfield, start, page_len, filters):
+	item_filters = [
+		['manufacturer', 'like', '%' + txt + '%'],
+		['item_code', '=', filters.get("item_code")]
+	]
 
-	conditions = "t1.item_code"
-	if doc_type == "Purchase Receipt":
-		conditions += ", t1.item_name, t1.received_qty as qty, t1.uom, t1.stock_uom"
-	elif doc_type == "Product Collection":
-		conditions += ", t1.qty"
-	else:
-		conditions += ", t1.item_name, t1.qty, t1.uom,t1.stock_qty, t1.stock_uom"
-	
-	doctypeitem_name = str(doc_type) + ' Item'
-	doctype_name = str(doc_type)
-	
-	if frappe.get_meta(doctypeitem_name).has_field('rate'):
-		conditions += ", t1.rate"
-	if frappe.get_meta(doctype_name).has_field('amount'):
-		conditions += ", t1.amount"
-	
-	query = "select " + conditions + " from `tab" +  doctypeitem_name + "` t1,`tab" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
-	new_dict = frappe.db.sql(query, (doc_name), as_dict=1)
-
-	return new_dict
-	
-@frappe.whitelist()
-def get_items_from_csv():
-	if not frappe.has_permission("Quotation", "create"):
-		raise frappe.PermissionError
-
-	from frappe.utils.csvutils import read_csv_content_from_uploaded_file
-	from frappe.modules import scrub
-
-	rows = read_csv_content_from_uploaded_file()
-	rows = filter(lambda x: x and any(x), rows)
-	if not rows:
-		msg = [_("Please select a csv file")]
-		return {"messages": msg, "error": msg}
-	columns = [scrub(f) for f in rows[0]]
-	columns[0] = "item_code"
-	ret = []
-	error = False
-	messages = []
-	start_row = 1
-	for i, row in enumerate(rows[start_row:]):
-		
-		row_idx = i + start_row
-		d = frappe._dict(zip(columns, row))
-		itemdict = frappe.db.sql("""select name,item_group, is_sales_item from `tabItem` where name = %s and docstatus < 2""",d.item_code, as_dict=1)
-		
-		if itemdict:
-			item = itemdict[0]
-			newitem = {}
-			newitem["item_code"] = item.name
-			newitem["qty"] = d.quantity
-			newitem["item_group"] = item.item_group
-			if d.page_break:
-				newitem["page_break"] = True
-			else:
-				newitem["page_break"] = False
-			
-			if item.is_sales_item:
-			
-				if str(item.item_group).lower() == "raw material":
-					messages.append('Ignored Row (#%d) %s : Item is a raw material' % (row_idx,row[0]))		
-				elif str(item.item_group).lower() == "assemblypart":
-					messages.append('Ignored Row (#%d) %s : Item is an assembly part' % (row_idx,row[0]))		
-				else:
-					ret.append(newitem)
-					if d.page_break:
-						messages.append('Row (#%d) %s : Item added with Page Break' % (row_idx,row[0]))	
-					else:
-						messages.append('Row (#%d) %s : Item added' % (row_idx,row[0]))	
-			else:
-				error = True
-				messages.append('Error for row (#%d) %s : Item is not a sales item' % (row_idx,row[0]))		
-		else:
-			error = True
-			messages.append('Error for row (#%d) %s : Invalid Item Code' % (row_idx,row[0]))		
-		
-
-	return {"items":ret,"messages": messages, "error": error}
+	item_manufacturers = frappe.get_all(
+		"Item Manufacturer",
+		fields=["manufacturer", "manufacturer_part_no"],
+		filters=item_filters,
+		limit_start=start,
+		limit_page_length=page_len,
+		as_list=1
+	)
+	return item_manufacturers

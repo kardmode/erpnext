@@ -41,8 +41,7 @@ def get_data():
 			},
 			{
 				'label': _('Manufacture'),
-				'items': ['MRP Production Order']
-				# 'items': ['Work Order']
+				'items': ['MRP Production Order','Production Plan', 'Work Order', 'Item Manufacturer']
 			}
 		]
 	}

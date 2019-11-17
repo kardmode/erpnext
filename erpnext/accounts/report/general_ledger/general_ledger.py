@@ -10,6 +10,7 @@ from frappe import _, _dict
 from erpnext.accounts.utils import get_account_currency
 from erpnext.accounts.report.financial_statements import get_cost_centers_with_children
 from six import iteritems
+from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import get_accounting_dimensions
 from collections import OrderedDict
 
 def execute(filters=None):
@@ -26,8 +27,7 @@ def execute(filters=None):
 		account_details.setdefault(acc.name, acc)
 
 	if filters.get('party'):
-		parties = cstr(filters.get("party")).strip()
-		filters.party = [d.strip() for d in parties.split(',') if d]
+		filters.party = frappe.parse_json(filters.get("party"))
 
 	validate_filters(filters, account_details)
 
@@ -61,12 +61,10 @@ def validate_filters(filters, account_details):
 		frappe.throw(_("From Date must be before To Date"))
 
 	if filters.get('project'):
-		projects = cstr(filters.get("project")).strip()
-		filters.project = [d.strip() for d in projects.split(',') if d]
+		filters.project = frappe.parse_json(filters.get('project'))
 
 	if filters.get('cost_center'):
-		cost_centers = cstr(filters.get("cost_center")).strip()
-		filters.cost_center = [d.strip() for d in cost_centers.split(',') if d]
+		filters.cost_center = frappe.parse_json(filters.get('cost_center'))
 
 
 def validate_party(filters):
@@ -196,6 +194,13 @@ def get_conditions(filters):
 	if match_conditions:
 		conditions.append(match_conditions)
 
+	accounting_dimensions = get_accounting_dimensions()
+
+	if accounting_dimensions:
+		for dimension in accounting_dimensions:
+			if filters.get(dimension):
+				conditions.append("{0} in (%({0})s)".format(dimension))
+
 	return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 
@@ -298,7 +303,7 @@ def get_accountwise_gle(filters, gl_entries, gle_map):
 			update_value_in_dict(totals, 'total', gle)
 			if filters.get("group_by") != _('Group by Voucher (Consolidated)'):
 				gle_map[gle.get(group_by)].entries.append(gle)
-			else:
+			elif filters.get("group_by") == _('Group by Voucher (Consolidated)'):
 				key = (gle.get("voucher_type"), gle.get("voucher_no"),
 					gle.get("account"), gle.get("cost_center"))
 				if key not in consolidated_gle:

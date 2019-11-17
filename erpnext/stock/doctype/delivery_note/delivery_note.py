@@ -51,7 +51,7 @@ class DeliveryNote(SellingController):
 			'source_field': 'qty',
 			'percent_join_field': 'against_sales_invoice',
 			'overflow_type': 'delivery',
-			'no_tolerance': 1
+			'no_allowance': 1
 		}]
 		if cint(self.is_return):
 			self.status_updater.append({
@@ -116,7 +116,8 @@ class DeliveryNote(SellingController):
 		self.set_status()
 		self.so_required()
 		self.validate_proj_cust()
-		self.check_close_sales_order("against_sales_order")
+		self.check_sales_order_on_hold_or_close("against_sales_order")
+		self.validate_for_items()
 		self.validate_warehouse()
 		self.validate_uom_is_integer("stock_uom", "stock_qty")
 		self.validate_uom_is_integer("uom", "qty")
@@ -173,6 +174,12 @@ class DeliveryNote(SellingController):
 				frappe.throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
 
+	def validate_for_items(self):
+		for d in self.get('items'):
+			#Customer Provided parts will have zero valuation rate
+			if frappe.db.get_value('Item', d.item_code, 'is_customer_provided_item'):
+				d.allow_zero_valuation_rate = 1
+
 	def validate_warehouse(self):
 		super(DeliveryNote, self).validate_warehouse()
 
@@ -216,7 +223,9 @@ class DeliveryNote(SellingController):
 		self.make_gl_entries()
 
 	def on_cancel(self):
-		self.check_close_sales_order("against_sales_order")
+		super(DeliveryNote, self).on_cancel()
+
+		self.check_sales_order_on_hold_or_close("against_sales_order")
 		self.check_next_docstatus()
 
 		self.update_prevdoc_status()
@@ -235,8 +244,10 @@ class DeliveryNote(SellingController):
 
 		extra_amount = 0
 		validate_against_credit_limit = False
-		bypass_credit_limit_check_at_sales_order = cint(frappe.db.get_value("Customer", self.customer,
-			"bypass_credit_limit_check_at_sales_order"))
+		bypass_credit_limit_check_at_sales_order = cint(frappe.db.get_value("Customer Credit Limit",
+			filters={'parent': self.customer, 'parenttype': 'Customer', 'company': self.company},
+			fieldname="bypass_credit_limit_check"))
+
 		if bypass_credit_limit_check_at_sales_order:
 			validate_against_credit_limit = True
 			extra_amount = self.base_grand_total
@@ -439,7 +450,10 @@ class DeliveryNote(SellingController):
 			return_invoice.is_return = True
 			return_invoice.save()
 			return_invoice.submit()
-			frappe.msgprint(_("Credit Note {0} has been created automatically").format(return_invoice.name))
+
+			credit_note_link = frappe.utils.get_link_to_form('Sales Invoice', return_invoice.name)
+
+			frappe.msgprint(_("Credit Note {0} has been created automatically").format(credit_note_link))
 		except:
 			frappe.throw(_("Could not create Credit Note automatically, please uncheck 'Issue Credit Note' and submit again"))
 
@@ -583,6 +597,9 @@ def make_sales_invoice(source_name, target_doc=None):
 	doc = get_mapped_doc("Delivery Note", source_name, {
 		"Delivery Note": {
 			"doctype": "Sales Invoice",
+			"field_map": {
+				"is_return": "is_return"
+			},
 			"validation": {
 				"docstatus": ["=", 1]
 			}

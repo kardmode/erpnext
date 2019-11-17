@@ -14,6 +14,7 @@ from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.hr.doctype.expense_claim.expense_claim import update_reimbursed_amount
 from erpnext.accounts.doctype.bank_account.bank_account import get_party_bank_account, get_bank_account_details
 from erpnext.controllers.accounts_controller import AccountsController, get_supplier_block_status
+from erpnext.accounts.doctype.invoice_discounting.invoice_discounting import get_party_account_based_on_invoice_discounting
 
 from six import string_types, iteritems
 
@@ -125,7 +126,7 @@ class PaymentEntry(AccountsController):
 			if not self.party:
 				frappe.throw(_("Party is mandatory"))
 
-			_party_name = "title" if self.party_type == "Student" else self.party_type.lower() + "_name"
+			_party_name = "title" if self.party_type in ("Student", "Shareholder") else self.party_type.lower() + "_name"
 			self.party_name = frappe.db.get_value(self.party_type, self.party, _party_name)
 
 		if self.party:
@@ -237,7 +238,7 @@ class PaymentEntry(AccountsController):
 
 					if d.reference_doctype in ("Sales Invoice", "Purchase Invoice", "Expense Claim", "Fees"):
 						if self.party_type == "Customer":
-							ref_party_account = ref_doc.debit_to
+							ref_party_account = get_party_account_based_on_invoice_discounting(d.reference_name) or ref_doc.debit_to
 						elif self.party_type == "Student":
 							ref_party_account = ref_doc.receivable_account
 						elif self.party_type=="Supplier":
@@ -506,7 +507,7 @@ class PaymentEntry(AccountsController):
 						"debit_in_account_currency": d.amount,
 						"debit": d.amount,
 						"cost_center": d.cost_center
-					})
+					}, item=d)
 				)
 
 	def update_advance_paid(self):
@@ -534,6 +535,20 @@ class PaymentEntry(AccountsController):
 			"amount": self.total_allocated_amount * (tax_details['tax']['rate'] / 100)
 		}
 
+	def set_gain_or_loss(self, account_details=None):
+		if not self.difference_amount:
+			self.set_difference_amount()
+
+		row = {
+			'amount': self.difference_amount
+		}
+
+		if account_details:
+			row.update(account_details)
+
+		self.append('deductions', row)
+		self.set_unallocated_amount()
+
 @frappe.whitelist()
 def get_outstanding_reference_documents(args):
 
@@ -541,7 +556,7 @@ def get_outstanding_reference_documents(args):
 		args = json.loads(args)
 
 	if args.get('party_type') == 'Member':
-			return
+		return
 
 	# confirm that Supplier is not blocked
 	if args.get('party_type') == 'Supplier':
@@ -558,22 +573,36 @@ def get_outstanding_reference_documents(args):
 
 	# Get negative outstanding sales /purchase invoices
 	negative_outstanding_invoices = []
-	if args.get("party_type") in ("Supplier", "Customer") and not args.get("voucher_no"):
-		negative_outstanding_invoices = get_negative_outstanding_invoices(args.get("party_type"),
-			args.get("party"), args.get("party_account"), party_account_currency, company_currency)
+
+	if args.get("party_type") not in ["Student", "Employee"] and not args.get("voucher_no"):
+		negative_outstanding_invoices = get_negative_outstanding_invoices(args.get("party_type"), args.get("party"),
+			args.get("party_account"), args.get("company"), party_account_currency, company_currency)
 
 	# Get positive outstanding sales /purchase invoices/ Fees
 	condition = ""
 	if args.get("voucher_type") and args.get("voucher_no"):
-		condition = " and voucher_type='{0}' and voucher_no='{1}'"\
+		condition = " and voucher_type={0} and voucher_no={1}"\
 			.format(frappe.db.escape(args["voucher_type"]), frappe.db.escape(args["voucher_no"]))
 
 	# Add cost center condition
 	if args.get("cost_center") and get_allow_cost_center_in_entry_of_bs_account():
-			condition += " and cost_center='%s'" % args.get("cost_center")
+		condition += " and cost_center='%s'" % args.get("cost_center")
+
+	date_fields_dict = {
+		'posting_date': ['from_posting_date', 'to_posting_date'],
+		'due_date': ['from_due_date', 'to_due_date']
+	}
+
+	for fieldname, date_fields in date_fields_dict.items():
+		if args.get(date_fields[0]) and args.get(date_fields[1]):
+			condition += " and {0} between '{1}' and '{2}'".format(fieldname,
+				args.get(date_fields[0]), args.get(date_fields[1]))
+
+	if args.get("company"):
+		condition += " and company = {0}".format(frappe.db.escape(args.get("company")))
 
 	outstanding_invoices = get_outstanding_invoices(args.get("party_type"), args.get("party"),
-		args.get("party_account"), condition=condition)
+		args.get("party_account"), filters=args, condition=condition)
 
 	for d in outstanding_invoices:
 		d["exchange_rate"] = 1
@@ -591,12 +620,19 @@ def get_outstanding_reference_documents(args):
 	orders_to_be_billed = []
 	if (args.get("party_type") in ("Supplier", "Customer")):
 		orders_to_be_billed =  get_orders_to_be_billed(args.get("posting_date"),args.get("party_type"),
-			args.get("party"), party_account_currency, company_currency)
+			args.get("party"), args.get("company"), party_account_currency, company_currency, filters=args)
 
-	return negative_outstanding_invoices + outstanding_invoices + orders_to_be_billed
+	data = negative_outstanding_invoices + outstanding_invoices + orders_to_be_billed
+
+	if not data:
+		frappe.msgprint(_("No outstanding invoices found for the {0} {1} which qualify the filters you have specified.")
+			.format(args.get("party_type").lower(), frappe.bold(args.get("party"))))
+
+	return data
 
 
-def get_orders_to_be_billed(posting_date, party_type, party, party_account_currency, company_currency, cost_center=None):
+def get_orders_to_be_billed(posting_date, party_type, party,
+	company, party_account_currency, company_currency, cost_center=None, filters=None):
 	if party_type == "Customer":
 		voucher_type = 'Sales Order'
 	elif party_type == "Supplier":
@@ -631,6 +667,7 @@ def get_orders_to_be_billed(posting_date, party_type, party, party_account_curre
 			where
 				{party_type} = %s
 				and docstatus = 1
+				and company = %s
 				and ifnull(status, "") != "Closed"
 				and if({rounded_total_field}, {rounded_total_field}, {grand_total_field}) > advance_paid
 				and abs(100 - per_billed) > 0.01
@@ -643,10 +680,14 @@ def get_orders_to_be_billed(posting_date, party_type, party, party_account_curre
 			"voucher_type": voucher_type,
 			"party_type": scrub(party_type),
 			"condition": condition
-		}), (party), as_dict=True)
+		}), (party, company), as_dict=True)
 
 	order_list = []
 	for d in orders:
+		if not (flt(d.outstanding_amount) >= flt(filters.get("outstanding_amt_greater_than"))
+			and flt(d.outstanding_amount) <= flt(filters.get("outstanding_amt_less_than"))):
+			continue
+
 		d["voucher_type"] = voucher_type
 		# This assumes that the exchange rate required is the one in the SO
 		d["exchange_rate"] = get_exchange_rate(party_account_currency, company_currency, posting_date)
@@ -654,7 +695,8 @@ def get_orders_to_be_billed(posting_date, party_type, party, party_account_curre
 
 	return order_list
 
-def get_negative_outstanding_invoices(party_type, party, party_account, party_account_currency, company_currency, cost_center=None):
+def get_negative_outstanding_invoices(party_type, party, party_account,
+	company, party_account_currency, company_currency, cost_center=None):
 	voucher_type = "Sales Invoice" if party_type == "Customer" else "Purchase Invoice"
 	supplier_condition = ""
 	if voucher_type == "Purchase Invoice":
@@ -675,7 +717,8 @@ def get_negative_outstanding_invoices(party_type, party, party_account, party_ac
 		from
 			`tab{voucher_type}`
 		where
-			{party_type} = %s and {party_account} = %s and docstatus = 1 and outstanding_amount < 0
+			{party_type} = %s and {party_account} = %s and docstatus = 1 and
+			company = %s and outstanding_amount < 0
 			{supplier_condition}
 		order by
 			posting_date, name
@@ -687,7 +730,7 @@ def get_negative_outstanding_invoices(party_type, party, party_account, party_ac
 			"party_type": scrub(party_type),
 			"party_account": "debit_to" if party_type == "Customer" else "credit_to",
 			"cost_center": cost_center
-		}), (party, party_account), as_dict=True)
+		}), (party, party_account, company), as_dict=True)
 
 
 @frappe.whitelist()
@@ -720,7 +763,8 @@ def get_party_details(company, party_type, party, date, cost_center=None):
 def get_account_details(account, date, cost_center=None):
 	frappe.has_permission('Payment Entry', throw=True)
 
-	# to check if the passed account is accessible if the reference doctype is Payment Entry
+
+	# to check if the passed account is accessible under reference doctype Payment Entry
 	account_list = frappe.get_list('Account', {
 		'name': account
 	}, reference_doctype='Payment Entry', limit=1)
@@ -846,7 +890,7 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 
 	# party account
 	if dt == "Sales Invoice":
-		party_account = doc.debit_to
+		party_account = get_party_account_based_on_invoice_discounting(dn) or doc.debit_to
 	elif dt == "Purchase Invoice":
 		party_account = doc.credit_to
 	elif dt == "Fees":
@@ -898,6 +942,10 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 	bank = get_default_bank_cash_account(doc.company, "Bank", mode_of_payment=doc.get("mode_of_payment"),
 		account=bank_account)
 
+	if not bank:
+		bank = get_default_bank_cash_account(doc.company, "Cash", mode_of_payment=doc.get("mode_of_payment"),
+			account=bank_account)
+
 	paid_amount = received_amount = 0
 	if party_account_currency == bank.account_currency:
 		paid_amount = received_amount = abs(outstanding_amount)
@@ -905,10 +953,15 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 		paid_amount = abs(outstanding_amount)
 		if bank_amount:
 			received_amount = bank_amount
+		else:
+			received_amount = paid_amount * doc.conversion_rate
 	else:
 		received_amount = abs(outstanding_amount)
 		if bank_amount:
 			paid_amount = bank_amount
+		else:
+			# if party account currency and bank currency is different then populate paid amount as well
+			paid_amount = received_amount * doc.conversion_rate
 
 	pe = frappe.new_doc("Payment Entry")
 	pe.payment_type = payment_type
@@ -929,7 +982,6 @@ def get_payment_entry(dt, dn, party_amount=None, bank_account=None, bank_amount=
 	pe.paid_to_account_currency = party_account_currency if payment_type=="Pay" else bank.account_currency
 	pe.paid_amount = paid_amount
 	pe.received_amount = received_amount
-	pe.allocate_payment_amount = 1
 	pe.letter_head = doc.get("letter_head")
 
 	if pe.party_type in ["Customer", "Supplier"]:
@@ -986,3 +1038,37 @@ def get_party_and_account_balance(company, date, paid_from=None, paid_to=None, p
 		"paid_from_account_balance": get_balance_on(paid_from, date, cost_center=cost_center),
 		"paid_to_account_balance": get_balance_on(paid_to, date=date, cost_center=cost_center)
 	})
+
+@frappe.whitelist()
+def make_payment_order(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+	def set_missing_values(source, target):
+		target.payment_order_type = "Payment Entry"
+
+	def update_item(source_doc, target_doc, source_parent):
+		target_doc.bank_account = source_parent.party_bank_account
+		target_doc.amount = source_doc.allocated_amount
+		target_doc.account = source_parent.paid_to
+		target_doc.payment_entry = source_parent.name
+		target_doc.supplier = source_parent.party
+		target_doc.mode_of_payment = source_parent.mode_of_payment
+
+
+	doclist = get_mapped_doc("Payment Entry", source_name,	{
+		"Payment Entry": {
+			"doctype": "Payment Order",
+			"validation": {
+				"docstatus": ["=", 1]
+			}
+		},
+		"Payment Entry Reference": {
+			"doctype": "Payment Order Reference",
+			"validation": {
+				"docstatus": ["=", 1]
+			},
+			"postprocess": update_item
+		},
+
+	}, target_doc, set_missing_values)
+
+	return doclist

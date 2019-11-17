@@ -135,8 +135,8 @@ class NamingSeries(Document):
 
 	def validate_series_name(self, n):
 		import re
-		if not (re.match("^[\w\- /.#]*$", n, re.UNICODE) or re.match("\{(.*?)\}", n, re.UNICODE)):
-			throw(_('Special Characters except "-", "#", "." and "/" not allowed in naming series'))
+		if not re.match("^[\w\- /.#{}]*$", n, re.UNICODE):
+			throw(_('Special Characters except "-", "#", ".", "/", "{" and "}" not allowed in naming series'))
 
 	def get_options(self, arg=None):
 		if frappe.get_meta(arg or self.select_doc_for_series).get_field("naming_series"):
@@ -161,12 +161,6 @@ class NamingSeries(Document):
 			frappe.db.sql("update `tabSeries` set current = %s where name = %s",
 				(self.current_value, prefix))
 			msgprint(_("Series Updated Successfully"))
-		if self.custom_prefix:
-			prefix = self.parse_naming_series_custom()
-			self.insert_series(prefix)
-			frappe.db.sql("update `tabSeries` set current = %s where name = %s",
-				(self.current_value, prefix))
-			msgprint(_("Series Updated Successfully"))
 		else:
 			msgprint(_("Please select prefix first"))
 
@@ -178,24 +172,6 @@ class NamingSeries(Document):
 			del parts[-1]
 
 		prefix = parse_naming_series(parts)
-		return prefix
-		
-	def get_current_custom(self, arg=None):
-		"""get series current"""
-		if self.custom_prefix:
-			prefix = self.parse_naming_series_custom()
-			self.current_value = frappe.db.get_value("Series",
-				prefix, "current", order_by = "name")
-				
-	def parse_naming_series_custom(self):
-		parts = self.custom_prefix.split('.')
-		# If series contain date format like INV.YYYY.MM.#####
-		if len(parts) > 2:
-			del parts[-1] # Removed ### from the series
-			prefix = parse_naming_series(parts)
-		else:
-			prefix = parts[0]
-
 		return prefix
 
 def set_by_naming_series(doctype, fieldname, naming_series, hide_name_field=True):

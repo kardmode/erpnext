@@ -48,12 +48,12 @@ def create_or_update_cheque_print_format(template_name):
 			"doc_type": "Payment Entry",
 			"standard": "No",
 			"custom_format": 1,
-			"print_format_type": "Server",
+			"print_format_type": "Jinja",
 			"name": template_name
 		})
 	else:
 		cheque_print = frappe.get_doc("Print Format", template_name)
-	
+
 	doc = frappe.get_doc("Cheque Print Template", template_name)
 	
 	signatory = "{{ doc.company }}" if doc.show_signatory else ''
@@ -70,6 +70,7 @@ def create_or_update_cheque_print_format(template_name):
 	font-size:%(font_size)spx !important;font-weight:%(font_weight)s;">
 		<span style="top: %(acc_pay_dist_from_top_edge)scm; left:%(acc_pay_dist_from_left_edge)scm;
 			border-bottom: solid 1px;border-top:solid 1px; position: absolute;">
+
 				%(message_to_show)s
 		</span>
 		<span style="top:%(date_dist_from_top_edge)scm; left:%(date_dist_from_left_edge)scm;
@@ -136,9 +137,9 @@ def create_or_update_cheque_print_format(template_name):
 		"bearer_dist_from_left_edge": doc.bearer_dist_from_left_edge,
 		"bearer_symbol":doc.bearer_symbol
 	}
-		
+
 	cheque_print.save(ignore_permissions=True)
-	
+
 	frappe.db.set_value("Cheque Print Template", template_name, "has_print_format", 1)
-		
+
 	return cheque_print

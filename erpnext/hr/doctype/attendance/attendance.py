@@ -10,13 +10,12 @@ from frappe import _
 class NegativeHoursError(frappe.ValidationError): pass
 
 from frappe.model.document import Document
-from erpnext.hr.utils import set_employee_name
 from frappe.utils import cstr
 
 class Attendance(Document):
 	def validate_duplicate_record(self):
 		res = frappe.db.sql("""select name from `tabAttendance` where employee = %s and attendance_date = %s
-			and name != %s""",
+			and name != %s and docstatus != 2""",
 			(self.employee, self.attendance_date, self.name))
 
 		if res:
@@ -138,9 +137,6 @@ class Attendance(Document):
 				else:
 					frappe.throw(_("Work Hours equal 0. Please check the time for employee {0}, date {1}, arrival time {2}, departure time {3}").format(self.employee,self.attendance_date,self.arrival_time,self.departure_time))
 
-
-
-		
 	def check_leave_record(self):
 
 		leave_record = frappe.db.sql("""select leave_type, half_day, half_day_date from `tabLeave Application` t1, `tabLeave Type` t2
@@ -168,11 +164,12 @@ class Attendance(Document):
 		from datetime import timedelta
 		date_of_joining = frappe.db.get_value("Employee", self.employee, "date_of_joining")
 
-		if get_datetime(self.attendance_date) > get_datetime(nowdate()) + timedelta(days=30):
+		if self.status not in ('On Leave', 'Half Day') and get_datetime(self.attendance_date) > get_datetime(nowdate()) + timedelta(days=30):
 			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))
 
-		# if getdate(self.attendance_date) > getdate(nowdate()):
-			# frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))				
+		# leaves can be marked for future dates
+		# if self.status not in ('On Leave', 'Half Day') and getdate(self.attendance_date) > getdate(nowdate()):
+			# frappe.throw(_("Attendance can not be marked for future dates"))
 		elif date_of_joining and getdate(self.attendance_date) < getdate(date_of_joining):
 			frappe.throw(_("Attendance date can not be less than employee's joining date"))
 
@@ -247,3 +244,19 @@ def add_attendance(events, start, end, conditions=None):
 		}
 		if e not in events:
 			events.append(e)
+
+
+def mark_absent(employee, attendance_date, shift=None):
+	employee_doc = frappe.get_doc('Employee', employee)
+	if not frappe.db.exists('Attendance', {'employee':employee, 'attendance_date':attendance_date, 'docstatus':('!=', '2')}):
+		doc_dict = {
+			'doctype': 'Attendance',
+			'employee': employee,
+			'attendance_date': attendance_date,
+			'status': 'Absent',
+			'company': employee_doc.company,
+			'shift': shift
+		}
+		attendance = frappe.get_doc(doc_dict).insert()
+		attendance.submit()
+		return attendance.name
