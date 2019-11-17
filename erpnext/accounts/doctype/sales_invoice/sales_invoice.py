@@ -1507,4 +1507,3 @@ def get_loyalty_programs(customer):
 		return []
 	else:
 		return lp_details
-=
