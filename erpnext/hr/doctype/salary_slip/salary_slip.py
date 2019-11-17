@@ -815,11 +815,11 @@ class SalarySlip(TransactionBase):
 					
 						d.amount = d.amount > 0 and d.amount or 0
 
-						elif not self.payment_days and not self.salary_slip_based_on_timesheet and \
-							cint(d.depends_on_lwp):
-							d.amount = 0
-						elif not d.amount:
-							d.amount = d.default_amount
+					elif not self.payment_days and not self.salary_slip_based_on_timesheet and \
+						cint(d.depends_on_lwp):
+						d.amount = 0
+					elif not d.amount:
+						d.amount = d.default_amount
 					
 			if not d.do_not_include_in_total:
 				d.amount = flt(d.amount, d.precision("amount"))
