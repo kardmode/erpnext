@@ -116,10 +116,10 @@ def execute(filters=None):
 		data.append(report_data)
 
 
-			if include_uom:
-				conversion_factors.append(item_map[item].conversion_factor)
+		if include_uom:
+			conversion_factors.append(item_map[item].conversion_factor)
 
-			data.append(report_data)
+		data.append(report_data)
 
 	if filters.get('show_variant_attributes', 0) == 1:
 		columns += ["{}:Data:100".format(i) for i in get_variants_attributes()]
