@@ -259,7 +259,7 @@ class Item(WebsiteGenerator):
 			self.default_material_request_type = "Customer Provided"
 
 	def add_price(self, price_list=None,value = None):
-=		'''Add a new price'''
+		'''Add a new price'''
 		if not price_list:
 			price_list = (frappe.db.get_single_value('Selling Settings', 'selling_price_list')
 						or frappe.db.get_value('Price List', _('Standard Selling')))
