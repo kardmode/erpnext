@@ -1,7 +1,9 @@
 {
+ "add_company_abbr_to_name": 1,
  "autoname": "naming_series:",
  "creation": "2018-05-24 07:18:08.256060",
  "doctype": "DocType",
+ "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -129,7 +131,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2019-10-16 13:38:32.302316",
+ "modified": "2019-11-19 13:59:48.501616",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Blanket Order",

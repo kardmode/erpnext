@@ -2,6 +2,7 @@
  "allow_import": 1,
  "creation": "2019-06-02 04:41:37.332911",
  "doctype": "DocType",
+ "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -54,7 +55,7 @@
    "read_only": 1
   }
  ],
- "modified": "2019-06-06 19:07:31.175919",
+ "modified": "2019-11-18 21:43:02.630171",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item Manufacturer",

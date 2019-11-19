@@ -246,7 +246,7 @@ frappe.ui.form.on("Project", {
 });
 
 
-calculate_sales = function(doctype){
+var calculate_sales = function(doctype){
 	var doc = cur_frm.doc;
 	
 	return $c_obj(doc, 'calculate_sales', {"doctype": doctype}, function(r, rt) {
@@ -256,7 +256,7 @@ calculate_sales = function(doctype){
 }
 
 
-print_summary = function(doctype){
+var print_summary = function(doctype){
 		var doc = cur_frm.doc;
 		
 		var dialog = new frappe.ui.Dialog({

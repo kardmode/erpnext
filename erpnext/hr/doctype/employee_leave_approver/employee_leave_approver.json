@@ -1,0 +1,36 @@
+{
+ "append_company_abbr_to_name": "0",
+ "autoname": "hash",
+ "creation": "2013-04-12 06:56:15",
+ "description": "Users who can approve a specific employee's leave applications",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "leave_approver"
+ ],
+ "fields": [
+  {
+   "fieldname": "leave_approver",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "in_list_view": 1,
+   "label": "Leave Approver",
+   "options": "User",
+   "print_hide": 1,
+   "reqd": 1,
+   "width": "200"
+  }
+ ],
+ "idx": 1,
+ "istable": 1,
+ "modified": "2019-11-18 22:09:56.724465",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Employee Leave Approver",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

@@ -193,11 +193,13 @@
  ],
  "idx": 1,
  "istable": 1,
- "modified": "2019-08-27 18:17:37.167512",
+ "modified": "2019-11-18 21:39:03.290527",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Packed Item",
  "owner": "Administrator",
  "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
  "track_changes": 1
 }

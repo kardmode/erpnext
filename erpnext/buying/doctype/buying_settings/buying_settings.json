@@ -2,7 +2,8 @@
  "creation": "2013-06-25 11:04:03",
  "description": "Settings for Buying Module",
  "doctype": "DocType",
- "document_type": "Other",
+ "document_type": "Setup",
+ "engine": "InnoDB",
  "field_order": [
   "supp_master_name",
   "supplier_group",
@@ -92,7 +93,7 @@
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
- "modified": "2019-08-20 13:13:09.055189",
+ "modified": "2019-11-18 21:39:46.905180",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Buying Settings",
@@ -107,5 +108,7 @@
    "share": 1,
    "write": 1
   }
- ]
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
 }

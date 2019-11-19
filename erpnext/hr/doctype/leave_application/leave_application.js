@@ -5,17 +5,6 @@ cur_frm.add_fetch('employee','employee_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on("Leave Application", {
-	onload: function(frm) {
-		
-		/* if((cint(doc.__islocal) == 1) && !doc.amended_from){
-		if(!doc.leave_approver)
-					cur_frm.set_value("leave_approver", "accounts@maarifagroup.com");
-		} */
-				
-		if (!frm.doc.posting_date) {
-			frm.set_value("posting_date", frappe.datetime.get_today());
-		}
-
 	setup: function(frm) {
 		frm.set_query("leave_approver", function() {
 			return {

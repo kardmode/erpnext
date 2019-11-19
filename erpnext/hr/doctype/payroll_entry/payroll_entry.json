@@ -3,7 +3,7 @@
  "autoname": "HR-PRUN-.YYYY.-.#####",
  "creation": "2017-10-23 15:22:29.291323",
  "doctype": "DocType",
- "document_type": "Other",
+ "document_type": "Documents",
  "engine": "InnoDB",
  "field_order": [
   "section_break0",
@@ -259,22 +259,19 @@
   }
  ],
  "icon": "fa fa-cog",
- "is_submittable": 1,
- "modified": "2019-09-12 15:46:31.436381",
+ "modified": "2019-11-18 22:20:06.946143",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Payroll Entry",
  "owner": "Administrator",
  "permissions": [
   {
-   "cancel": 1,
    "create": 1,
    "delete": 1,
    "read": 1,
    "report": 1,
    "role": "HR Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   }
  ],

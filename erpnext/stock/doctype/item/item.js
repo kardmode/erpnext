@@ -287,10 +287,10 @@ frappe.ui.form.on("Item", {
 		})
 
 		dialog.show();
-	}
+	},
 	set_meta_tags(frm) {
 		frappe.utils.set_meta_tag(frm.doc.route);
-	}
+	},
 });
 
 frappe.ui.form.on('Item Reorder', {

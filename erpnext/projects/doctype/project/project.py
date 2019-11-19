@@ -16,13 +16,13 @@ from frappe.model.document import Document
 
 class Project(Document):
 
-	def autoname(self):
-		if self.company:
-			prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
-			if not self.project_name.endswith(prefix):
-				self.name = prefix + self.project_name
-		else:
-			self.name = self.project_name
+	# def autoname(self):
+		# if self.company:
+			# prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
+			# if not self.project_name.endswith(prefix):
+				# self.name = prefix + self.project_name
+		# else:
+			# self.name = self.project_name
 	
 	def calculate_sales(self, doctype):
 		grand_total = 0
@@ -329,9 +329,6 @@ class Project(Document):
 
 		else:
 			self.status = "Open"
-
-		if not from_validate:
-			self.db_update()
 
 	def update_costing(self):
 		from_time_sheet = frappe.db.sql("""select

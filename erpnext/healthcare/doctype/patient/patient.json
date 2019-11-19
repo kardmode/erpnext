@@ -7,7 +7,7 @@
  "creation": "2017-01-23 14:03:49.084370",
  "description": "Patient",
  "doctype": "DocType",
- "document_type": "Document",
+ "document_type": "Documents",
  "engine": "InnoDB",
  "field_order": [
   "basic_info",
@@ -347,7 +347,7 @@
  "icon": "fa fa-user",
  "image_field": "image",
  "max_attachments": 50,
- "modified": "2019-09-25 23:30:49.905893",
+ "modified": "2019-11-18 21:33:57.120283",
  "modified_by": "Administrator",
  "module": "Healthcare",
  "name": "Patient",

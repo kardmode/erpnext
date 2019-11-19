@@ -12,7 +12,6 @@ from erpnext.manufacturing.doctype.bom.bom import validate_bom_no, get_default_b
 from erpnext.manufacturing.doctype.bom.bom import calculate_builder_items_dimensions, build_bom_ext
 from erpnext.manufacturing.doctype.bom.bom import convert_units
 
-from erpnext.manufacturing.doctype.production_order.production_order import get_item_details
 from erpnext.stock.get_item_details import get_conversion_factor_between_two_units,get_conversion_factor
 from operator import itemgetter
 

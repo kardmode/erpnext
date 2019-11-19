@@ -5,7 +5,7 @@
  "creation": "2013-03-07 18:50:30",
  "description": "Potential Sales Deal",
  "doctype": "DocType",
- "document_type": "Document",
+ "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -412,7 +412,7 @@
  ],
  "icon": "fa fa-info-sign",
  "idx": 195,
- "modified": "2019-09-30 12:58:37.385400",
+ "modified": "2019-11-18 21:33:08.286806",
  "modified_by": "Administrator",
  "module": "CRM",
  "name": "Opportunity",

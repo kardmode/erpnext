@@ -3,6 +3,7 @@
  "autoname": "naming_series:",
  "creation": "2013-05-24 19:29:05",
  "doctype": "DocType",
+ "document_type": "Documents",
  "engine": "InnoDB",
  "field_order": [
   "customer_section",
@@ -1567,7 +1568,7 @@
  "icon": "fa fa-file-text",
  "idx": 181,
  "is_submittable": 1,
- "modified": "2019-10-05 21:39:49.235990",
+ "modified": "2019-11-18 19:49:45.154404",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",

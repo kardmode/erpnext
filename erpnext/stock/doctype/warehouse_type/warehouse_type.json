@@ -2,6 +2,7 @@
  "autoname": "Prompt",
  "creation": "2019-05-21 15:27:06.514511",
  "doctype": "DocType",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "description"
@@ -13,7 +14,7 @@
    "label": "Description"
   }
  ],
- "modified": "2019-05-27 18:35:33.354571",
+ "modified": "2019-11-18 21:42:59.616539",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Warehouse Type",

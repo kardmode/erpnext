@@ -2,7 +2,8 @@
  "allow_import": 1,
  "creation": "2013-01-22 15:11:38",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Documents",
+ "engine": "InnoDB",
  "field_order": [
   "item",
   "item_name",
@@ -487,7 +488,7 @@
  "idx": 1,
  "image_field": "image",
  "is_submittable": 1,
- "modified": "2019-07-30 17:00:09.665068",
+ "modified": "2019-11-19 14:00:43.975099",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",

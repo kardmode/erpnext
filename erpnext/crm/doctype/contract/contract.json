@@ -3,6 +3,7 @@
  "allow_rename": 1,
  "creation": "2018-04-12 06:32:04.582486",
  "doctype": "DocType",
+ "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -226,7 +227,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2019-09-30 00:56:41.559681",
+ "modified": "2019-11-18 21:33:17.212933",
  "modified_by": "Administrator",
  "module": "CRM",
  "name": "Contract",

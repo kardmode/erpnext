@@ -1,8 +1,8 @@
 {
- "_comments": "[]",
  "allow_copy": 1,
  "creation": "2019-09-06 12:01:33.933063",
  "doctype": "DocType",
+ "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -98,7 +98,7 @@
  ],
  "hide_toolbar": 1,
  "issingle": 1,
- "modified": "2019-10-04 21:59:48.597497",
+ "modified": "2019-11-18 21:31:54.359694",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Quick Stock Balance",

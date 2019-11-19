@@ -1,9 +1,10 @@
 {
+ "add_company_abbr_to_name": 1,
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-21 16:16:39",
  "doctype": "DocType",
- "document_type": "Document",
+ "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -1056,7 +1057,7 @@
  "icon": "fa fa-truck",
  "idx": 261,
  "is_submittable": 1,
- "modified": "2019-09-27 14:24:49.044505",
+ "modified": "2019-11-19 13:54:10.871215",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Purchase Receipt",

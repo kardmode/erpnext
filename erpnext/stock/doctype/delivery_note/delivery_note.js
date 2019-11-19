@@ -19,7 +19,7 @@ frappe.ui.form.on("Delivery Note", {
 		frm.set_indicator_formatter('item_code',
 			function(doc) {
 				return (doc.docstatus==1 || doc.qty<=doc.actual_qty) ? "green" : "orange"
-			})
+			});
 
 
 		// erpnext.queries.setup_queries(frm, "Warehouse", function() {
@@ -91,12 +91,12 @@ frappe.ui.form.on("Delivery Note", {
 			frm.add_custom_button(__('Credit Note'), function() {
 				frappe.model.open_mapped_doc({
 					method: "erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
-					frm: cur_frm,
+					frm: cur_frm
 				})
 			}, __('Create'));
 			frm.page.set_inner_btn_group_as_primary(__('Create'));
 		}
-	}
+	},
 });
 
 frappe.ui.form.on("Delivery Note Item", {
@@ -138,7 +138,7 @@ frappe.ui.form.on("Delivery Note Item", {
 			// frappe.model.set_value(d.doctype, d.name, "item_name", item_name);
 				
 		}
-	}
+	},
 });
 
 erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend({
@@ -247,7 +247,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 							}
 						})
 					}, __("Get items from"));
-					
+			}		
 			if (!doc.__islocal && doc.docstatus==1) {
 				this.frm.page.set_inner_btn_group_as_primary(__('Create'));
 			}
@@ -261,7 +261,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 			}
 			if (this.frm.has_perm("submit") && doc.status !== "Closed") {
 				me.frm.add_custom_button(__("Close"), function() { me.close_delivery_note() },
-					__("Status"))
+					__("Status"));
 			}
 		}
 
@@ -280,14 +280,14 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 
 		if(doc.docstatus==1 && doc.status === "Closed" && this.frm.has_perm("submit")) {
 			this.frm.add_custom_button(__('Reopen'), function() { me.reopen_delivery_note() },
-				__("Status"))
+				__("Status"));
 		}
 		erpnext.stock.delivery_note.set_print_hide(doc, dt, dn);
 
 		if(doc.docstatus==1 && !doc.is_return && !doc.auto_repeat) {
 			cur_frm.add_custom_button(__('Subscription'), function() {
 				erpnext.utils.make_subscription(doc.doctype, doc.name)
-			}, __('Create'))
+			}, __('Create'));
 		}
 	},
 
@@ -295,7 +295,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 		frappe.model.open_mapped_doc({
 			method: "erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
 			frm: this.frm
-		})
+		});
 	},
 
 	make_installation_note: function() {
@@ -309,7 +309,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 		frappe.model.open_mapped_doc({
 			method: "erpnext.stock.doctype.delivery_note.delivery_note.make_sales_return",
 			frm: this.frm
-		})
+		});
 	},
 	
 	make_purchase_receipt: function() {
@@ -317,7 +317,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 		frappe.model.open_mapped_doc({
 				method: "erpnext.stock.doctype.delivery_note.delivery_note.make_purchase_receipt",
 				frm: cur_frm
-			})
+			});
 		/* 
 		var dialog = new frappe.ui.Dialog({
 			title: __("Make Purchase Receipt"),
@@ -465,7 +465,7 @@ erpnext.stock.DeliveryNoteController = erpnext.selling.SellingController.extend(
 				frappe.ui.form.is_saving = false;
 			}
 		})
-	}
+	},
 
 });
 
@@ -486,8 +486,8 @@ frappe.ui.form.on('Delivery Note', {
 		// unhide expense_account and cost_center if perpetual inventory is enabled in the company
 		var aii_enabled = erpnext.is_perpetual_inventory_enabled(frm.doc.company)
 		frm.fields_dict["items"].grid.set_column_disp(["expense_account", "cost_center"], aii_enabled);
-	}
-})
+	},
+});
 
 
 
