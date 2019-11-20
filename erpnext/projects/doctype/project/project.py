@@ -16,14 +16,204 @@ from frappe.model.document import Document
 
 class Project(Document):
 
-	# def autoname(self):
-		# if self.company:
-			# prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
-			# if not self.project_name.endswith(prefix):
-				# self.name = prefix + self.project_name
-		# else:
-			# self.name = self.project_name
+	def autoname(self):
+		if self.company:
+			prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
+			if not self.project_name.endswith(prefix):
+				self.name = prefix + self.project_name
+		else:
+			self.name = self.project_name
 	
+	def get_feed(self):
+		return '{0}: {1}'.format(_(self.status), frappe.safe_decode(self.project_name))
+
+	def onload(self):
+		self.set_onload('activity_summary', frappe.db.sql('''select activity_type,
+			sum(hours) as total_hours
+			from `tabTimesheet Detail` where project=%s and docstatus < 2 group by activity_type
+			order by total_hours desc''', self.name, as_dict=True))
+
+		self.update_costing()
+
+	def before_print(self):
+		self.onload()
+
+
+	def validate(self):
+		if not self.is_new():
+			self.copy_from_template()
+		self.send_welcome_email()
+		self.update_costing()
+		self.update_percent_complete()
+
+	def copy_from_template(self):
+		'''
+		Copy tasks from template
+		'''
+		if self.project_template and not frappe.db.get_all('Task', dict(project = self.name), limit=1):
+
+			# has a template, and no loaded tasks, so lets create
+			if not self.expected_start_date:
+				# project starts today
+				self.expected_start_date = today()
+
+			template = frappe.get_doc('Project Template', self.project_template)
+
+			if not self.project_type:
+				self.project_type = template.project_type
+
+			# create tasks from template
+			for task in template.tasks:
+				frappe.get_doc(dict(
+					doctype = 'Task',
+					subject = task.subject,
+					project = self.name,
+					status = 'Open',
+					exp_start_date = add_days(self.expected_start_date, task.start),
+					exp_end_date = add_days(self.expected_start_date, task.start + task.duration),
+					description = task.description,
+					task_weight = task.task_weight
+				)).insert()
+
+	def is_row_updated(self, row, existing_task_data, fields):
+		if self.get("__islocal") or not existing_task_data: return True
+
+		d = existing_task_data.get(row.task_id, {})
+
+		for field in fields:
+			if row.get(field) != d.get(field):
+				return True
+
+	def update_project(self):
+		'''Called externally by Task'''
+		self.update_percent_complete()
+		self.update_costing()
+		self.db_update()
+
+	def after_insert(self):
+		self.copy_from_template()
+		if self.sales_order:
+			frappe.db.set_value("Sales Order", self.sales_order, "project", self.name)
+
+	def update_percent_complete(self):
+		if self.percent_complete_method == "Manual":
+			if self.status == "Completed":
+				self.percent_complete = 100
+			return
+
+		total = frappe.db.count('Task', dict(project=self.name))
+
+		if not total:
+			self.percent_complete = 0
+		else:
+			if (self.percent_complete_method == "Task Completion" and total > 0) or (
+				not self.percent_complete_method and total > 0):
+				completed = frappe.db.sql("""select count(name) from tabTask where
+					project=%s and status in ('Cancelled', 'Completed')""", self.name)[0][0]
+				self.percent_complete = flt(flt(completed) / total * 100, 2)
+
+			if (self.percent_complete_method == "Task Progress" and total > 0):
+				progress = frappe.db.sql("""select sum(progress) from tabTask where
+					project=%s""", self.name)[0][0]
+				self.percent_complete = flt(flt(progress) / total, 2)
+
+			if (self.percent_complete_method == "Task Weight" and total > 0):
+				weight_sum = frappe.db.sql("""select sum(task_weight) from tabTask where
+					project=%s""", self.name)[0][0]
+				weighted_progress = frappe.db.sql("""select progress, task_weight from tabTask where
+					project=%s""", self.name, as_dict=1)
+				pct_complete = 0
+				for row in weighted_progress:
+					pct_complete += row["progress"] * frappe.utils.safe_div(row["task_weight"], weight_sum)
+				self.percent_complete = flt(flt(pct_complete), 2)
+
+		# don't update status if it is cancelled
+		if self.status == 'Cancelled':
+			return
+
+		if self.percent_complete == 100:
+			self.status = "Completed"
+
+		else:
+			self.status = "Open"
+
+	def update_costing(self):
+		from_time_sheet = frappe.db.sql("""select
+			sum(costing_amount) as costing_amount,
+			sum(billing_amount) as billing_amount,
+			min(from_time) as start_date,
+			max(to_time) as end_date,
+			sum(hours) as time
+			from `tabTimesheet Detail` where project = %s and docstatus = 1""", self.name, as_dict=1)[0]
+
+		from_expense_claim = frappe.db.sql("""select
+			sum(total_sanctioned_amount) as total_sanctioned_amount
+			from `tabExpense Claim` where project = %s
+			and docstatus = 1""", self.name, as_dict=1)[0]
+
+		self.actual_start_date = from_time_sheet.start_date
+		self.actual_end_date = from_time_sheet.end_date
+
+		self.total_costing_amount = from_time_sheet.costing_amount
+		self.total_billable_amount = from_time_sheet.billing_amount
+		self.actual_time = from_time_sheet.time
+
+		self.total_expense_claim = from_expense_claim.total_sanctioned_amount
+		self.update_purchase_costing()
+		self.update_sales_amount()
+		self.update_billed_amount()
+		self.calculate_gross_margin()
+
+	def calculate_gross_margin(self):
+		expense_amount = (flt(self.total_costing_amount) + flt(self.total_expense_claim)
+			+ flt(self.total_purchase_cost) + flt(self.get('total_consumed_material_cost', 0)))
+
+		self.gross_margin = flt(self.total_billed_amount) - expense_amount
+		if self.total_billed_amount:
+			self.per_gross_margin = (self.gross_margin / flt(self.total_billed_amount)) * 100
+
+	def update_purchase_costing(self):
+		total_purchase_cost = frappe.db.sql("""select sum(base_net_amount)
+			from `tabPurchase Invoice Item` where project = %s and docstatus=1""", self.name)
+
+		self.total_purchase_cost = total_purchase_cost and total_purchase_cost[0][0] or 0
+
+	def update_sales_amount(self):
+		total_sales_amount = frappe.db.sql("""select sum(base_net_total)
+			from `tabSales Order` where project = %s and docstatus=1""", self.name)
+
+		self.total_sales_amount = total_sales_amount and total_sales_amount[0][0] or 0
+
+	def update_billed_amount(self):
+		total_billed_amount = frappe.db.sql("""select sum(base_net_total)
+			from `tabSales Invoice` where project = %s and docstatus=1""", self.name)
+
+		self.total_billed_amount = total_billed_amount and total_billed_amount[0][0] or 0
+
+	def after_rename(self, old_name, new_name, merge=False):
+		if old_name == self.copied_from:
+			frappe.db.set_value('Project', new_name, 'copied_from', new_name)
+
+	def send_welcome_email(self):
+		url = get_url("/project/?name={0}".format(self.name))
+		messages = (
+			_("You have been invited to collaborate on the project: {0}".format(self.name)),
+			url,
+			_("Join")
+		)
+
+		content = """
+		<p>{0}.</p>
+		<p><a href="{1}">{2}</a></p>
+		"""
+
+		for user in self.users:
+			if user.welcome_email_sent == 0:
+				frappe.sendmail(user.user, subject=_("Project Collaboration Invitation"),
+								content=content.format(*messages))
+				user.welcome_email_sent = 1
+				
+				
 	def calculate_sales(self, doctype):
 		grand_total = 0
 		total_qty = 0
@@ -210,209 +400,7 @@ class Project(Document):
 		
 		return ss_list,doctype
 
-		
-	def get_feed(self):
-		return '{0}: {1}'.format(_(self.status), frappe.safe_decode(self.project_name))
-
-	def onload(self):
-		self.set_onload('activity_summary', frappe.db.sql('''select activity_type,
-			sum(hours) as total_hours
-			from `tabTimesheet Detail` where project=%s and docstatus < 2 group by activity_type
-			order by total_hours desc''', self.name, as_dict=True))
-
-		self.update_costing()
-
-	def before_print(self):
-		self.onload()
-
-	def validate(self):
-		if not self.is_new():
-			self.copy_from_template()
-		self.validate_project_name()
-		self.send_welcome_email()
-		self.update_costing()
-		self.update_percent_complete()
-		
-	def validate_project_name(self):
-		if self.get("__islocal") and frappe.db.exists("Project", self.project_name):
-			frappe.throw(_("Project {0} already exists").format(frappe.safe_decode(self.project_name)))
-
-	def copy_from_template(self):
-		'''
-		Copy tasks from template
-		'''
-		if self.project_template and not frappe.db.get_all('Task', dict(project = self.name), limit=1):
-
-			# has a template, and no loaded tasks, so lets create
-			if not self.expected_start_date:
-				# project starts today
-				self.expected_start_date = today()
-
-			template = frappe.get_doc('Project Template', self.project_template)
-
-			if not self.project_type:
-				self.project_type = template.project_type
-
-			# create tasks from template
-			for task in template.tasks:
-				frappe.get_doc(dict(
-					doctype = 'Task',
-					subject = task.subject,
-					project = self.name,
-					status = 'Open',
-					exp_start_date = add_days(self.expected_start_date, task.start),
-					exp_end_date = add_days(self.expected_start_date, task.start + task.duration),
-					description = task.description,
-					task_weight = task.task_weight
-				)).insert()
-
-	def is_row_updated(self, row, existing_task_data, fields):
-		if self.get("__islocal") or not existing_task_data: return True
-
-		d = existing_task_data.get(row.task_id, {})
-
-		for field in fields:
-			if row.get(field) != d.get(field):
-				return True
-
-
-	def update_project(self):
-		'''Called externally by Task'''
-		self.update_percent_complete()
-		self.update_costing()
-		self.db_update()
-
-	def after_insert(self):
-		self.copy_from_template()
-		if self.sales_order:
-			frappe.db.set_value("Sales Order", self.sales_order, "project", self.name)
-
-
-	def update_percent_complete(self):
-		if self.percent_complete_method == "Manual":
-			if self.status == "Completed":
-				self.percent_complete = 100
-			return
-
-		total = frappe.db.count('Task', dict(project=self.name))
-
-		if not total:
-			self.percent_complete = 0
-		else:
-			if (self.percent_complete_method == "Task Completion" and total > 0) or (
-				not self.percent_complete_method and total > 0):
-				completed = frappe.db.sql("""select count(name) from tabTask where
-					project=%s and status in ('Cancelled', 'Completed')""", self.name)[0][0]
-				self.percent_complete = flt(flt(completed) / total * 100, 2)
-
-			if (self.percent_complete_method == "Task Progress" and total > 0):
-				progress = frappe.db.sql("""select sum(progress) from tabTask where
-					project=%s""", self.name)[0][0]
-				self.percent_complete = flt(flt(progress) / total, 2)
-
-			if (self.percent_complete_method == "Task Weight" and total > 0):
-				weight_sum = frappe.db.sql("""select sum(task_weight) from tabTask where
-					project=%s""", self.name)[0][0]
-				weighted_progress = frappe.db.sql("""select progress, task_weight from tabTask where
-					project=%s""", self.name, as_dict=1)
-				pct_complete = 0
-				for row in weighted_progress:
-					pct_complete += row["progress"] * frappe.utils.safe_div(row["task_weight"], weight_sum)
-				self.percent_complete = flt(flt(pct_complete), 2)
-
-		# don't update status if it is cancelled
-		if self.status == 'Cancelled':
-			return
-
-		if self.percent_complete == 100:
-			self.status = "Completed"
-
-		else:
-			self.status = "Open"
-
-	def update_costing(self):
-		from_time_sheet = frappe.db.sql("""select
-			sum(costing_amount) as costing_amount,
-			sum(billing_amount) as billing_amount,
-			min(from_time) as start_date,
-			max(to_time) as end_date,
-			sum(hours) as time
-			from `tabTimesheet Detail` where project = %s and docstatus = 1""", self.name, as_dict=1)[0]
-
-		from_expense_claim = frappe.db.sql("""select
-			sum(total_sanctioned_amount) as total_sanctioned_amount
-			from `tabExpense Claim` where project = %s
-			and docstatus = 1""", self.name, as_dict=1)[0]
-
-		self.actual_start_date = from_time_sheet.start_date
-		self.actual_end_date = from_time_sheet.end_date
-
-		self.total_costing_amount = from_time_sheet.costing_amount
-		self.total_billable_amount = from_time_sheet.billing_amount
-		self.actual_time = from_time_sheet.time
-
-		self.total_expense_claim = from_expense_claim.total_sanctioned_amount
-		self.update_purchase_costing()
-		self.update_sales_amount()
-		self.update_billed_amount()
-		self.calculate_gross_margin()
-		self.db_update()
-
-	def calculate_gross_margin(self):
-		expense_amount = (flt(self.total_costing_amount) + flt(self.total_expense_claim)
-			+ flt(self.total_purchase_cost) + flt(self.get('total_consumed_material_cost', 0)))
-
-		self.gross_margin = flt(self.total_billed_amount) - expense_amount
-		if self.total_billed_amount:
-			self.per_gross_margin = (self.gross_margin / flt(self.total_billed_amount)) * 100
-
-	def update_purchase_costing(self):
-		total_purchase_cost = frappe.db.sql("""select sum(base_net_amount)
-			from `tabPurchase Invoice Item` where project = %s and docstatus=1""", self.name)
-
-		self.total_purchase_cost = total_purchase_cost and total_purchase_cost[0][0] or 0
-
-	def update_sales_amount(self):
-		total_sales_amount = frappe.db.sql("""select sum(base_net_total)
-			from `tabSales Order` where project = %s and docstatus=1""", self.name)
-
-		self.total_sales_amount = total_sales_amount and total_sales_amount[0][0] or 0
-
-	def update_billed_amount(self):
-		total_billed_amount = frappe.db.sql("""select sum(base_net_total)
-			from `tabSales Invoice` where project = %s and docstatus=1""", self.name)
-
-		self.total_billed_amount = total_billed_amount and total_billed_amount[0][0] or 0
-
-	def after_rename(self, old_name, new_name, merge=False):
-		if old_name == self.copied_from:
-			frappe.db.set_value('Project', new_name, 'copied_from', new_name)
-
-	def send_welcome_email(self):
-		url = get_url("/project/?name={0}".format(self.name))
-		messages = (
-			_("You have been invited to collaborate on the project: {0}".format(self.name)),
-			url,
-			_("Join")
-		)
-
-		content = """
-		<p>{0}.</p>
-		<p><a href="{1}">{2}</a></p>
-		"""
-
-		for user in self.users:
-			if user.welcome_email_sent == 0:
-				frappe.sendmail(user.user, subject=_("Project Collaboration Invitation"),
-								content=content.format(*messages))
-				user.welcome_email_sent = 1
-
 	def on_update(self):
-		self.delete_task()
-		self.load_tasks()
-		self.update_project()
-		self.update_dependencies_on_duplicated_project()
-		
 		if self.status != 'Open':
 			self.validate_child_status()
 
@@ -436,52 +424,7 @@ class Project(Document):
 		
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
-
-	def delete_task(self):
-		if not self.get('deleted_task_list'): return
-
-		for d in self.get('deleted_task_list'):
-			# unlink project
-			frappe.db.set_value('Task', d, 'project', '')
-
-		self.deleted_task_list = []
-
-	def update_dependencies_on_duplicated_project(self):
-		if self.flags.dont_sync_tasks: return
-		if not self.copied_from:
-			self.copied_from = self.name
-
-		if self.name != self.copied_from and self.get('__unsaved'):
-			# duplicated project
-			dependency_map = {}
-			for task in self.tasks:
-				_task = frappe.db.get_value(
-					'Task',
-					{"subject": task.title, "project": self.copied_from},
-					['name', 'depends_on_tasks'],
-					as_dict=True
-				)
-
-				if _task is None:
-					continue
-
-				name = _task.name
-
-				dependency_map[task.title] = [x['subject'] for x in frappe.get_list(
-					'Task Depends On', {"parent": name}, ['subject'])]
-
-			for key, value in iteritems(dependency_map):
-				task_name = frappe.db.get_value('Task', {"subject": key, "project": self.name })
-
-				task_doc = frappe.get_doc('Task', task_name)
-
-				for dt in value:
-					dt_name = frappe.db.get_value('Task', {"subject": dt, "project": self.name})
-					task_doc.append('depends_on', {"task": dt_name})
-
-				task_doc.db_update()
 	
-
 	def check_if_child_exists(self):
 		return frappe.db.sql("""select name from `tabProject`
 			where parent_project = %s limit 1""", self.name)
@@ -574,42 +517,6 @@ def get_users_for_project(doctype, txt, searchfield, start, page_len, filters):
 @frappe.whitelist()
 def get_cost_center_name(project):
 	return frappe.db.get_value("Project", project, "cost_center")
-	
-@frappe.whitelist()
-def get_children(doctype, parent=None, company=None,status=None, is_root=False):
-	from erpnext.stock.utils import get_stock_value_on
-
-	if is_root:
-		parent = ""
-
-	projects = frappe.db.sql("""select name as value,
-		is_group as expandable, total_billed_amount as balance, status, expected_end_date
-		from `tabProject`
-		where docstatus < 2
-		and ifnull(`parent_project`,'') = %s
-		and (`company` = %s or company is null or company = '')
-		and (`status` = %s or company is null or company = '')
-		order by name""", (parent, company,status), as_dict=1)
-
-	return projects
-
-@frappe.whitelist()
-def add_node():
-	from frappe.desk.treeview import make_tree_args
-	args = make_tree_args(**frappe.form_dict)
-
-	if cint(args.is_root):
-		args.parent_project = None
-	else:
-		if cint(args.is_group):
-			frappe.throw(_("Can't add group in group"))	
-
-	frappe.get_doc(args).insert()
-
-@frappe.whitelist()
-def convert_to_group_or_ledger():
-	args = frappe.form_dict
-	return frappe.get_doc("Project", args.docname).convert_to_group_or_ledger()
 
 def hourly_reminder():
 	fields = ["from_time", "to_time"]
@@ -803,3 +710,42 @@ def set_project_status(project, status):
 
 	project.status = status
 	project.save()
+
+
+	
+	
+@frappe.whitelist()
+def add_node():
+	from frappe.desk.treeview import make_tree_args
+	args = make_tree_args(**frappe.form_dict)
+
+	if cint(args.is_root):
+		args.parent_project = None
+	else:
+		if cint(args.is_group):
+			frappe.throw(_("Can't add group in group"))	
+
+	frappe.get_doc(args).insert()
+
+@frappe.whitelist()
+def convert_to_group_or_ledger():
+	args = frappe.form_dict
+	return frappe.get_doc("Project", args.docname).convert_to_group_or_ledger()
+
+@frappe.whitelist()
+def get_children(doctype, parent=None, company=None,status=None, is_root=False):
+	from erpnext.stock.utils import get_stock_value_on
+
+	if is_root:
+		parent = ""
+
+	projects = frappe.db.sql("""select name as value,
+		is_group as expandable, total_billed_amount as balance, status, expected_end_date
+		from `tabProject`
+		where docstatus < 2
+		and ifnull(`parent_project`,'') = %s
+		and (`company` = %s or company is null or company = '')
+		and (`status` = %s or company is null or company = '')
+		order by name""", (parent, company,status), as_dict=1)
+
+	return projects
