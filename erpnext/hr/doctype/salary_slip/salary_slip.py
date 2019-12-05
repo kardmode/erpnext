@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe, erpnext
 import datetime, math
 
-from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,money_in_words
+from frappe.utils import add_days, cint, cstr, flt, getdate, get_datetime, nowdate, rounded, date_diff,money_in_words
 from frappe.model.naming import make_autoname
 from math import ceil
 from datetime import timedelta

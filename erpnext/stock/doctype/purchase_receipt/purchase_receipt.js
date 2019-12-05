@@ -6,33 +6,39 @@
 frappe.provide("erpnext.stock");
 
 frappe.ui.form.on("Purchase Receipt", {
-	setup: function(frm) {
+	setup: (frm) => {
+		frm.make_methods = {
+			'Landed Cost Voucher': () => {
+				let lcv = frappe.model.get_new_doc('Landed Cost Voucher');
+				lcv.company = frm.doc.company;
+
+				let lcv_receipt = frappe.model.get_new_doc('Landed Cost Purchase Receipt');
+				lcv_receipt.receipt_document_type = 'Purchase Receipt';
+				lcv_receipt.receipt_document = frm.doc.name;
+				lcv_receipt.supplier = frm.doc.supplier;
+				lcv_receipt.grand_total = frm.doc.grand_total;
+				lcv.purchase_receipts = [lcv_receipt];
+
+				frappe.set_route("Form", lcv.doctype, lcv.name);
+			},
+		}
+		
 		frm.custom_make_buttons = {
 			'Stock Entry': 'Return',
 			'Purchase Invoice': 'Invoice'
 
 		};
 
-		frm.set_query("asset", "items", function() {
-			return {
-				filters: {
-					"purchase_receipt": frm.doc.name
-				}
-			}
-		});
-	},
-	onload: function(frm) {
-		
-
 
 		frm.set_query("expense_account", "items", function() {
 			return {
 				query: "erpnext.controllers.queries.get_expense_account",
-				filters: {'company': frm.doc.company}
+				filters: {'company': frm.doc.company }
 			}
 		});
-
-
+		
+	},
+	onload: function(frm) {
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
 			return erpnext.queries.warehouse(frm.doc);
 		});
@@ -62,7 +68,7 @@ frappe.ui.form.on("Purchase Receipt", {
 	toggle_display_account_head: function(frm) {
 		var enabled = erpnext.is_perpetual_inventory_enabled(frm.doc.company)
 		frm.fields_dict["items"].grid.set_column_disp(["cost_center"], enabled);
-	},
+	}
 });
 
 erpnext.stock.PurchaseReceiptController = erpnext.buying.BuyingController.extend({

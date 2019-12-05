@@ -1,10 +1,10 @@
 {
- "append_company_abbr_to_name": "0",
  "creation": "2014-07-11 11:51:00.453717",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "expense_account",
   "description",
   "col_break3",
   "amount"
@@ -29,10 +29,18 @@
    "label": "Amount",
    "options": "Company:company:default_currency",
    "reqd": 1
+  },
+  {
+   "fieldname": "expense_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Expense Account",
+   "options": "Account",
+   "reqd": 1
   }
  ],
  "istable": 1,
- "modified": "2019-11-18 21:40:46.573023",
+ "modified": "2019-09-30 18:28:32.070655",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Landed Cost Taxes and Charges",

@@ -64,7 +64,7 @@ frappe.ui.form.on(cur_frm.doctype, {
 				}
 			})
 		}
-	}	
+	}
 });
 
 frappe.ui.form.on('Sales Invoice Payment', {
@@ -368,9 +368,8 @@ cur_frm.cscript.vat = function(doc, cdt, cdn) {
 				template_name: d.vat || ""
 			},
 		callback: function(r) {
-			console.log(r);
 			frappe.model.set_value(cdt, cdn, "item_tax_rate", r.message || '{}');
-			
 		}
 	})
 }
+
