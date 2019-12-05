@@ -199,21 +199,19 @@ cur_frm.cscript.amount = function(doc, cdt, cdn){
 	calculate_totals(doc, cdt, cdn);
 };
 
-cur_frm.cscript.salary_component = function(doc, cdt, cdn){
-		var child = locals[cdt][cdn];
-							console.log(child);
+// cur_frm.cscript.salary_component = function(doc, cdt, cdn){
+		// var child = locals[cdt][cdn];
+		// if(child.salary_component == "Basic Salary"){
 
-		if(child.salary_component == "Basic Salary"){
+			// frappe.model.set_value(child.doctype,child.name, "depends_on_lwp", 1);
+			// frappe.model.set_value(child.doctype,child.name, "amount_based_on_formula", 1);
+			// frappe.model.set_value(child.doctype,child.name, "formula", "base");
+		// }
+		// else{
+			// frappe.model.set_value(child.doctype,child.name, "depends_on_lwp", 0);
 
-			frappe.model.set_value(child.doctype,child.name, "depends_on_lwp", 1);
-			frappe.model.set_value(child.doctype,child.name, "amount_based_on_formula", 1);
-			frappe.model.set_value(child.doctype,child.name, "formula", "base");
-		}
-		else{
-			frappe.model.set_value(child.doctype,child.name, "depends_on_lwp", 0);
-
-		}
-};
+		// }
+// };
 
 
 

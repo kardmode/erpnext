@@ -27,14 +27,6 @@ form_grid_templates = {
 }
 
 class PurchaseOrder(BuyingController):
-	# def autoname(self):
-		# import datetime
-		# year = (getdate(self.transaction_date)).year
-		# lasttwo= year % 100
-		# month = (getdate(self.transaction_date)).month
-		
-		# self.name = make_autoname('PO-'+ str(year) + '.#####')
-
 	def __init__(self, *args, **kwargs):
 		super(PurchaseOrder, self).__init__(*args, **kwargs)
 		self.status_updater = [{

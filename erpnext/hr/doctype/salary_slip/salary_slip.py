@@ -21,6 +21,7 @@ from erpnext.hr.doctype.additional_salary.additional_salary import get_additiona
 from erpnext.hr.doctype.payroll_period.payroll_period import get_period_factor, get_payroll_period
 from erpnext.hr.doctype.employee_benefit_application.employee_benefit_application import get_benefit_component_amount
 from erpnext.hr.doctype.employee_benefit_claim.employee_benefit_claim import get_benefit_claim_amount, get_last_payroll_period_benefits
+from erpnext.hr.utils import get_holidays_for_employee
 
 class SalarySlip(TransactionBase):
 	def __init__(self, *args, **kwargs):
@@ -205,7 +206,7 @@ class SalarySlip(TransactionBase):
 			self.payment_days = working_days
 			return
 
-		holidays = self.get_holidays_for_employee(self.start_date, self.end_date)
+		holidays = get_holidays_for_employee(self.employee,self.start_date, self.end_date)
 		actual_lwp = self.calculate_lwp(holidays, working_days)
 		
 		# custom by me
@@ -250,25 +251,9 @@ class SalarySlip(TransactionBase):
 		payment_days = date_diff(end_date, start_date) + 1
 
 		if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
-			holidays = self.get_holidays_for_employee(start_date, end_date)
+			holidays = get_holidays_for_employee(self.employee,start_date, end_date)
 			payment_days -= len(holidays)
 		return payment_days
-
-	def get_holidays_for_employee(self, start_date, end_date):
-		holiday_list = get_holiday_list_for_employee(self.employee)
-		holidays = frappe.db.sql_list('''select holiday_date from `tabHoliday`
-			where
-				parent=%(holiday_list)s
-				and holiday_date >= %(start_date)s
-				and holiday_date <= %(end_date)s''', {
-					"holiday_list": holiday_list,
-					"start_date": start_date,
-					"end_date": end_date
-				})
-
-		holidays = [cstr(i) for i in holidays]
-
-		return holidays
 
 	def calculate_lwp(self, holidays, working_days):
 		lwp = 0
@@ -894,8 +879,8 @@ class SalarySlip(TransactionBase):
 			if component_type == 'earnings':
 				# regulations = frappe.db.get_single_value("Regulations", ["salary_hours_calculation","overtime_weekdays_rate", "overtime_fridays_rate","overtime_holidays_rate"], as_dict=True)
 				regulations = frappe.get_doc('Regulations')
-				salaryperday = self.calculate_salary_per_day()
-				hourlyrate = flt(salaryperday)/ flt(regulations.salary_hours_calculation)
+				salaryperday,hourlyrate = self.calculate_salary_per_day(regulations.salary_hours_calculation)
+				
 				self.calculate_leave_and_gratuity(salaryperday)
 				for d in self.get(component_type):
 				
@@ -916,24 +901,24 @@ class SalarySlip(TransactionBase):
 				
 				
 			elif component_type == 'deductions':
-				self.set_salary_component(component_type,'Loan Repayment',self.custom_get_loan_deductions())	
+				self.set_salary_component(component_type,'Loan Repayment',custom_get_loan_deductions(self.start_date,self.end_date,self.employee))	
 				
 		
-	def calculate_salary_per_day(self):
+	def calculate_salary_per_day(self,salary_hours_calculation):
 		salaryperday = 0
 		hourlyrate = 0	
 			
 		for d in self.get("earnings"):
 			if(d.salary_component == "Basic Salary"):
 				salaryperday = 	flt(d.default_amount)/30
-				hourlyrate = flt(salaryperday)/ 9
+				hourlyrate = flt(salaryperday)/ flt(salary_hours_calculation)
 				d.rate = hourlyrate
 				break
 
 		if salaryperday == 0:
 			frappe.throw(_("No salary per day calculation for employee {0}").format(self.employee))
 		
-		return salaryperday
+		return salaryperday,hourlyrate
 		
 		
 	
@@ -983,26 +968,7 @@ class SalarySlip(TransactionBase):
 		
 
 
-	def custom_get_loan_deductions(self):
-		it = self.start_date
-		dt = self.end_date
-		loandata = frappe.db.sql("""
-				select t1.transaction_amount
-				from `tabLoan Transaction` t1,`tabMRP Loan Type` t2
-				where
-				t1.parent = %s
-				and t1.transaction_date >= %s 
-				and t1.transaction_date <= %s
-				and (t2.name = t1.transaction_type and t2.type = 'Deduction' and t2.affect_doctype = 'Salary Slip')
-				""", (self.employee,it,dt), as_dict=True)
-			
 	
-		total_loan_deduction = 0
-		if loandata:
-			for d in loandata:
-				total_loan_deduction += d.transaction_amount
-		
-		return total_loan_deduction
 			
 	def calculate_leaveadvance(self, salaryperday, joining_date):
 		dt = add_days(self.start_date, self.total_working_days+2)
@@ -1238,8 +1204,7 @@ def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contr
 		leavedaysdue = flt(payment_days)/365 * 30
 	leavedaysdue = ceil(leavedaysdue)
 	
-	from erpnext.hr.doctype.leave_application.leave_application \
-		import get_approved_leaves_for_period
+	from erpnext.hr.doctype.leave_application.leave_application import get_approved_leaves_for_period
 	
 	
 	leave_types = frappe.db.sql("""
@@ -1342,6 +1307,27 @@ def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contr
 	gratuity_calculation = joiningtext + "<br>" + workingdaystext + "<br>" + networkingdaytext + "<br><br>" + gratuity_text
 	return gratuity_pay, gratuity_calculation, leave_encashment_amount
 
+def custom_get_loan_deductions(start_date,end_date,employee):
+		it = start_date
+		dt = end_date
+		loandata = frappe.db.sql("""
+				select t1.transaction_amount
+				from `tabLoan Transaction` t1,`tabMRP Loan Type` t2
+				where
+				t1.parent = %s
+				and t1.transaction_date >= %s 
+				and t1.transaction_date <= %s
+				and (t2.name = t1.transaction_type and t2.type = 'Deduction' and t2.affect_doctype = 'Salary Slip')
+				""", (employee,it,dt), as_dict=True)
+			
+	
+		total_loan_deduction = 0
+		if loandata:
+			for d in loandata:
+				total_loan_deduction += d.transaction_amount
+		
+		return total_loan_deduction
+		
 def generate_password_for_pdf(policy_template, employee):
 	employee = frappe.get_doc("Employee", employee)
 	return policy_template.format(**employee.as_dict())

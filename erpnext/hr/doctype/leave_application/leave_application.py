@@ -581,7 +581,8 @@ def get_leave_entries(employee, leave_type, from_date, to_date):
 		select employee, leave_type, from_date, to_date, leaves, transaction_type, is_carry_forward, transaction_name
 		from `tabLeave Ledger Entry`
 		where employee=%(employee)s and leave_type=%(leave_type)s
-			and status in ("Approved","Back From Leave") and docstatus != 2
+			and docstatus=1
+			and leaves<0
 			and (from_date between %(from_date)s and %(to_date)s
 				or to_date between %(from_date)s and %(to_date)s
 				or (from_date < %(from_date)s and to_date > %(to_date)s))

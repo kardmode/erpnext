@@ -65,6 +65,7 @@ class Attendance(Document):
 
 	def validate(self):
 		self.validate_employee()
+		self.validate_employee_data()
 		from erpnext.controllers.status_updater import validate_status
 		validate_status(self.status, ["Present", "Absent", "On Leave", "Half Day"])
 		self.validate_attendance_date()
@@ -94,6 +95,19 @@ class Attendance(Document):
 
 		naming_series = "ATT-"
 		frappe.db.set(self, 'naming_series', naming_series)
+		
+	def validate_employee_data(self):
+		# this is done because sometimes user entered wrong employee name
+		# while uploading employee attendance
+		emp = frappe.db.sql("select employee_name,company,department from `tabEmployee` where name = %s",
+		 	self.employee, as_dict = 1)
+			
+		if emp:
+			self.employee_name = emp[0].employee_name		
+			self.employee_company = emp[0].company			
+			self.department = emp[0].department
+
+		self.naming_series = "ATT-"
 		
 	def get_holidays_for_employee(self, start_date, end_date):
 		holidays = frappe.db.sql("""select t1.holiday_date

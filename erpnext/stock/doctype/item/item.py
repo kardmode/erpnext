@@ -203,13 +203,8 @@ class Item(WebsiteGenerator):
 		
 		if self.item_group in ["Services","Header1","Header2"]:
 			self.is_stock_item = 0
-			self.default_warehouse = ""
 
-		else:
-			
-			if not self.default_warehouse:
-				default_warehouse = self.get_default_warehouse()
-			
+		
 		self.validate_fixed_asset()
 		self.validate_retain_sample()
 		self.validate_uom_conversion_factor()

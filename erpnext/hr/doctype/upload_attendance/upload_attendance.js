@@ -12,8 +12,8 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 		this.frm.set_value("import_settings", "default");
 		this.frm.set_value("only_show_errors", 1);
 		// this.frm.set_value("start_date", frappe.datetime.get_today());
-		// this.frm.doc.start_date = frappe.datetime.get_today();
-		// this.set_start_end_dates();
+		// this.frm.set_value("end_date", frappe.datetime.get_today());
+		this.set_start_end_dates();
 	},
 
 	refresh: function() {
@@ -90,10 +90,9 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 				method:'erpnext.hr.doctype.payroll_entry.payroll_entry.get_start_end_dates',
 				args:{
 					payroll_frequency: "Monthly",
-					start_date: me.frm.doc.start_date || frappe.datetime.get_today()
+					start_date: frappe.datetime.get_today()
 				},
 				callback: function(r){
-					console.log(r);
 					if (r.message){
 						// me.frm.doc.start_date =  r.message.start_date;
 						me.frm.set_value('start_date', r.message.start_date);
@@ -108,95 +107,11 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 	show_upload: function() {
 		var me = this;
 		var $wrapper = $(cur_frm.fields_dict.upload_html.wrapper).empty();
-		
-		
-		// upload
-		frappe.upload.make({
-			parent: $wrapper,
-			get_params: function() {
-				return {
-					import_settings: cur_frm.doc.import_settings
-				}
-			},
-			args: {
-				method: 'erpnext.hr.doctype.upload_attendance.upload_attendance.upload'
-			},
-			no_socketio: true,
-			sample_url: "e.g. http://example.com/somefile.csv",
-			callback: function(attachment, r) {
-				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
-				if(!r.messages) r.messages = [];
-				
-				if(r.exc || r.error || r.message.error) {
-					r.messages = $.map(r.message.messages, function(v) {
-						if(cur_frm.doc.only_show_errors === 1)
-						{
-							if(v.search(/error/i) > -1)
-							{
-								return v;
-							}
-						}
-						else{
-							var msg = v.replace("Inserted", "Valid").replace("Updated","Valid");
-							
-
-							return msg;
-						}
-						
-					});
-				
-				}
-				else{
-					r.messages = r.message.messages;
-					
-				}
-				
-					
-								
-				
-				// replace links if error has occured
-				if(r.exc || r.error || r.message.error) {
-					var $p = $('<p>').html(["<h4 style='color:red'>"+__("Import Failed! Scroll Down To Find Error")+"</h4>"]).appendTo($log_wrapper);
-					$p = $('<p>').html(["<h4 style='color:red'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
-				}
-				else {
-					var $p = $('<p>').html(["<h4 style='color:green'>"+__("Import Details!")+"</h4>"]).appendTo($log_wrapper);
-					$p = $('<p>').html(["<h4 style='color:green'>"+r.message.messages.length+__(" Records")+"</h4>"]).appendTo($log_wrapper);
-				}
-				
-				
-				
-				$.each(r.messages, function(i, v) {
-				var $p = $('<p>').html(v).appendTo($log_wrapper);
-					if(v.substr(0,5)=='Error') {
-						$p.css('color', 'red');
-					} else if(v.substr(0,8)=='Inserted') {
-						$p.css('color', 'green');
-					} else if(v.substr(0,7)=='Updated') {
-						$p.css('color', 'green');
-					} else if(v.substr(0,5)=='Valid') {
-						$p.css('color', '#777');
-					}
-				});
-					
-					
-				
-
-				
-			},
-			is_private: true
-		});
-		
-		// rename button
-		
-		$wrapper.find(".attach-btn").html('Upload and Import');
-
-	show_upload() {
-		var $wrapper = $(cur_frm.fields_dict.upload_html.wrapper).empty();
 		new frappe.ui.FileUploader({
 			wrapper: $wrapper,
-			method: 'erpnext.hr.doctype.upload_attendance.upload_attendance.upload'
+			method: 'erpnext.hr.doctype.upload_attendance.upload_attendance.upload',
 		});
+
 	},
 
 	setup_import_progress() {
@@ -204,21 +119,28 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 
 		frappe.realtime.on('import_attendance', (data) => {
 			if (data.progress) {
-				this.frm.dashboard.show_progress('Import Attendance', data.progress / data.total * 100,
-					__('Importing {0} of {1}', [data.progress, data.total]));
+				
+				// cur_frm.dashboard.show_progress('Import Attendance', data.progress / data.total * 100,
+					// __('Importing {0} of {1}', [data.progress, data.total]));
+					
+				frappe.show_progress('Import Attendance', data.progress,data.total);	
+					
 				if (data.progress === data.total) {
-					this.frm.dashboard.hide_progress('Import Attendance');
+					// cur_frm.dashboard.hide_progress('Import Attendance');
+					frappe.hide_progress('Import Attendance');
 				}
 			} else if (data.error) {
 				this.frm.dashboard.hide();
-				let messages = [`<th>${__('Error in some rows')}</th>`].concat(data.messages
+				frappe.hide_progress('Import Attendance');
+				let messages = [`<th>${__('Error in some rows')} `+ data.messages.length +` Records</th>`].concat(data.messages
 					.filter(message => message.includes('Error'))
 					.map(message => `<tr><td>${message}</td></tr>`))
 					.join('');
 				$log_wrapper.append('<table class="table table-bordered">' + messages);
 			} else if (data.messages) {
 				this.frm.dashboard.hide();
-				let messages = [`<th>${__('Import Successful')}</th>`].concat(data.messages
+				frappe.hide_progress('Import Attendance');
+				let messages = [`<th>${__('Import Successful')} `+ data.messages.length +` Records</th>`].concat(data.messages
 					.map(message => `<tr><td>${message}</td></tr>`))
 					.join('');
 				$log_wrapper.append('<table class="table table-bordered">' + messages);

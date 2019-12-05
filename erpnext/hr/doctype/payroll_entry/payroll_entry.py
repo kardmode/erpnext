@@ -10,6 +10,7 @@ from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdat
 from frappe import _
 from erpnext.accounts.utils import get_fiscal_year
 from erpnext.hr.doctype.employee.employee import get_holiday_list_for_employee
+from erpnext.hr.utils import get_holidays_for_employee
 
 class PayrollEntry(Document):
 	def onload(self):
@@ -48,7 +49,8 @@ class PayrollEntry(Document):
 
 		condition = ''
 		if self.payroll_frequency:
-			condition = """and payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
+			condition = """and ss.payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
+			# condition = """and payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
 
 		# sal_struct = frappe.db.sql("""
 				# select
@@ -63,14 +65,15 @@ class PayrollEntry(Document):
 		
 		sal_struct = frappe.db.sql("""
 				select
-					name from `tabSalary Structure`
+					ss.name from `tabSalary Structure` ss, `tabEmployee` t1
 				where
-					docstatus != 2 and
-					is_active = 'Yes' and
-					company = %(company)s and
-					ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
+					ss.docstatus != 2 and
+					ss.is_active = 'Yes' and
+					t1.company = %(company)s and
+					ifnull(ss.salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 					{condition}""".format(condition=condition),
 				{"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
+		
 		if sal_struct:
 			cond += "and t2.salary_structure IN %(sal_struct)s "
 			cond += "and %(from_date)s >= t2.from_date"
@@ -80,21 +83,25 @@ class PayrollEntry(Document):
 				from
 					`tabEmployee` t1, `tabSalary Structure Assignment` t2
 				where
-					t1.docstatus!=2 and t1.status !='Left' and t1.exclude_from_payroll_entry !=1
-					and t1.name = t2.employee
-			%s """% cond, {"sal_struct": sal_struct}, as_dict=True)
-			
-			working_days = date_diff(self.end_date, self.start_date) + 1
+					t1.name = t2.employee
+					and t2.docstatus = 1
+			%s order by t2.from_date desc
+			""" % cond, {"sal_struct": tuple(sal_struct), "from_date": self.end_date}, as_dict=True)
+			return emp_list
+		
 
 			
+			working_days = date_diff(self.end_date, self.start_date) + 1
 			new_emp_list = []
 			for e in emp_list:
 
 				joining_date, relieving_date = frappe.db.get_value("Employee", e.employee, 
 					["date_of_joining", "relieving_date"])
-			
-				lwp = self.calculate_lwp(e.employee,working_days)
-
+				
+				holidays = get_holidays_for_employee(e.employee,self.start_date, self.end_date)
+				lwp = calculate_lwp(self.start_date, e.employee, holidays, working_days)
+					
+				
 				if cint(self.employees_on_leave):
 					if lwp > 0:
 						new_emp_list.append(e)
@@ -127,26 +134,9 @@ class PayrollEntry(Document):
 		payment_days = date_diff(end_date, start_date) + 1
 		
 		if not cint(frappe.db.get_value("HR Settings", None, "include_holidays_in_total_working_days")):
-			holidays = self.get_holidays_for_employee(employee,start_date, end_date)
+			holidays = get_holidays_for_employee(employee,start_date, end_date)
 			payment_days -= len(holidays)
 		return payment_days
-		
-		
-	def get_holidays_for_employee(self,employee, start_date, end_date):
-		holiday_list = get_holiday_list_for_employee(employee)
-		holidays = frappe.db.sql_list('''select holiday_date from `tabHoliday`
-			where
-				parent=%(holiday_list)s
-				and holiday_date >= %(start_date)s
-				and holiday_date <= %(end_date)s''', {
-					"holiday_list": holiday_list,
-					"start_date": start_date,
-					"end_date": end_date
-				})
-
-		holidays = [cstr(i) for i in holidays]
-
-		return holidays
 		
 	def fill_employee_details(self):
 		self.set('employees', [])
@@ -194,68 +184,29 @@ class PayrollEntry(Document):
 		emp_list = self.get_emp_list()
 		ss_list = []
 		
-		employee_count = len(emp_list)
-		existing_count = 0
-		new_count = 0
 		
+		
+		emp_list = [d.employee for d in self.get_emp_list()]
+		
+		self.created = 1
+		emp_list = [d.employee for d in self.get_emp_list()]
 		if emp_list:
-			for emp in emp_list:
-				if not frappe.db.sql("""select name from `tabSalary Slip`
-					where
-						employee = %s and
-						start_date >= %s and
-						end_date <= %s and
-						company = %s
-						""", (emp['employee'], self.start_date, self.end_date, self.company)):
-					
-					ss = frappe.get_doc({
-						"doctype": "Salary Slip",
-						"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
-						"payroll_frequency": self.payroll_frequency,
-						"start_date": self.start_date,
-						"end_date": self.end_date,
-						"employee": emp['employee'],
-						"employee_name": emp['employee_name'],
-						"company": self.company,
-						"posting_date": self.posting_date
-					})
-					
-					ss.insert()
-					frappe.db.commit()
-					ss_dict = {}
-					ss_dict["Employee Name"] = ss.employee_name
-					ss_dict["Total Pay"] = fmt_money(ss.rounded_total,currency = frappe.defaults.get_global_default("currency"))
-					ss_dict["Salary Slip"] = format_as_links(ss.name)[0]
-					ss_list.append(ss_dict)
-					
-					new_count = new_count + 1
-				else:
-					existing_count = existing_count + 1
-		msg = "Employees: " + str(employee_count) + " - " + "Existing Salary Slips: " + str(existing_count) + " - " + "New Salary Slips Created: " + str(new_count)
-		
-		
-		# self.created = 1
-		# emp_list = [d.employee for d in self.get_emp_list()]
-		# if emp_list:
-			# args = frappe._dict({
-				# "salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
-				# "payroll_frequency": self.payroll_frequency,
-				# "start_date": self.start_date,
-				# "end_date": self.end_date,
-				# "company": self.company,
-				# "posting_date": self.posting_date,
-				# "deduct_tax_for_unclaimed_employee_benefits": self.deduct_tax_for_unclaimed_employee_benefits,
-				# "deduct_tax_for_unsubmitted_tax_exemption_proof": self.deduct_tax_for_unsubmitted_tax_exemption_proof,
-				# "payroll_entry": self.name
-			# })
-			# if len(emp_list) > 30:
-				# frappe.enqueue(create_salary_slips_for_employees, timeout=600, employees=emp_list, args=args)
-			# else:
-				# create_salary_slips_for_employees(emp_list, args, publish_progress=False)
-		
-		
-		return len(ss_list), msg
-		
+			args = frappe._dict({
+				"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
+				"payroll_frequency": self.payroll_frequency,
+				"start_date": self.start_date,
+				"end_date": self.end_date,
+				"company": self.company,
+				"posting_date": self.posting_date,
+				"deduct_tax_for_unclaimed_employee_benefits": self.deduct_tax_for_unclaimed_employee_benefits,
+				"deduct_tax_for_unsubmitted_tax_exemption_proof": self.deduct_tax_for_unsubmitted_tax_exemption_proof,
+				"payroll_entry": self.name
+			})
+			if len(emp_list) > 30:
+				frappe.enqueue(create_salary_slips_for_employees, timeout=600, employees=emp_list, args=args)
+			else:
+				create_salary_slips_for_employees(emp_list, args, publish_progress=False)
+				
 		
 	def update_salary_slips(self):
 		"""
@@ -547,28 +498,6 @@ class PayrollEntry(Document):
 
 
 		return ss_list
-		
-	def calculate_lwp(self, e, working_days):
-		lwp = 0
-
-		for d in range(working_days):
-		
-			dt = add_days(cstr(getdate(self.start_date)), d)
-
-			leave = frappe.db.sql("""
-				select t1.name, t1.half_day, t1.leave_type
-				from `tabLeave Application` t1, `tabLeave Type` t2
-				where t2.name = t1.leave_type
-				and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
-				and t1.docstatus < 2
-				and t1.status in ('Approved','Back From Leave')
-				and t1.employee = %s
-				and %s between from_date and to_date
-			""", (e, dt))
-			if leave:
-				lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
-	
-		return lwp
 
 	def validate_employee_attendance(self):
 		employees_to_mark_attendance = []
@@ -762,6 +691,11 @@ def payroll_entry_has_bank_entries(name):
 def create_salary_slips_for_employees(employees, args, publish_progress=True):
 	salary_slips_exists_for = get_existing_salary_slips(employees, args)
 	count=0
+	
+	employee_count = len(employees)
+	existing_count = 0
+	new_count = 0
+	
 	for emp in employees:
 		if emp not in salary_slips_exists_for:
 			args.update({
@@ -774,9 +708,16 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 			if publish_progress:
 				frappe.publish_progress(count*100/len(set(employees) - set(salary_slips_exists_for)),
 					title = _("Creating Salary Slips..."))
-
+	
+	
+			new_count = new_count + 1
+		else:
+			existing_count = existing_count + 1
+	
+	msg = "Employees: " + str(employee_count) + " - " + "Existing Salary Slips: " + str(existing_count) + " - " + "New Salary Slips Created: " + str(new_count)
 	payroll_entry = frappe.get_doc("Payroll Entry", args.payroll_entry)
 	payroll_entry.db_set("salary_slips_created", 1)
+	payroll_entry.db_set("mrp_activity_log", msg)
 	payroll_entry.notify_update()
 
 def get_existing_salary_slips(employees, args):
@@ -837,3 +778,27 @@ def get_payroll_entries_for_jv(doctype, txt, searchfield, start, page_len, filte
 			'txt': "%%%s%%" % frappe.db.escape(txt),
 			'start': start, 'page_len': page_len
 		})
+
+
+def calculate_lwp(start_date, employee, holidays, working_days):
+	lwp = 0
+	holidays = "','".join(holidays)
+	for d in range(working_days):
+		dt = add_days(cstr(getdate(start_date)), d)
+		leave = frappe.db.sql("""
+			select t1.name, t1.half_day
+			from `tabLeave Application` t1, `tabLeave Type` t2
+			where t2.name = t1.leave_type
+			and (t2.is_lwp = 1 or t2.is_present_during_period = 0)
+			and t1.docstatus < 2
+			and t1.status in ('Approved','Back From Leave')
+			and t1.employee = %(employee)s
+			and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
+			WHEN t2.include_holiday THEN %(dt)s between from_date and to_date and ifnull(t1.salary_slip, '') = ''
+			END
+			""".format(holidays), {"employee": employee, "dt": dt})
+
+		if leave:
+			lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+	
+	return lwp

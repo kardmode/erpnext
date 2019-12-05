@@ -9,7 +9,7 @@ frappe.query_reports["Stock Balance"] = {
 			"fieldtype": "Link",
 			"options": "Company",
 			"reqd": 1,
-			"default": frappe.defaults.get_user_default("Company")
+			"default": frappe.defaults.get_user_default("Company"),
 		},
 		{
 			"fieldname":"from_date",
@@ -112,6 +112,7 @@ frappe.query_reports["Stock Balance"] = {
 			"label": __("Hide Negative Qty"),
 			"fieldtype": "Check",
 			"default":0
+		},
 		{			
 			"fieldname": 'show_stock_ageing_data',
 			"label": __('Show Stock Ageing Data'),

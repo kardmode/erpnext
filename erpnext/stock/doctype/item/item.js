@@ -201,11 +201,7 @@ frappe.ui.form.on("Item", {
 	item_group: function(frm) {
 		if(frm.doc.item_group == "Services" || frm.doc.item_group == "Header1" || frm.doc.item_group == "Header2"){
 			frm.set_value("is_stock_item", 0);
-			frm.set_value("default_warehouse", "");
-		}else {
-			
-			frm.set_value("default_warehouse", "Stores - SLI");
-			
+		}else {			
 		}
 	},
 	
@@ -246,9 +242,9 @@ frappe.ui.form.on("Item", {
 	},
 
 	show_in_website: function(frm) {
-		if (frm.doc.default_warehouse && !frm.doc.website_warehouse){
-			frm.set_value("website_warehouse", frm.doc.default_warehouse);
-		}
+		// if (frm.doc.default_warehouse && !frm.doc.website_warehouse){
+			// frm.set_value("website_warehouse", frm.doc.default_warehouse);
+		// }
 	},
 	
 	add_uom: function(frm) {
@@ -413,7 +409,7 @@ $.extend(erpnext.item, {
 			return { query: "erpnext.controllers.queries.supplier_query" }
 		}
 
-		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
+		/* frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
 			const row = locals[cdt][cdn];
 			return {
 				filters: {
@@ -421,7 +417,7 @@ $.extend(erpnext.item, {
 					"company": row.company
 				}
 			}
-		}
+		} */
 		
 		frm.fields_dict['opening_warehouse'].get_query = function(doc) {
 			return {
@@ -930,6 +926,7 @@ var check_conversion_factor = function(frm,unit,conversion_factor) {
 	
 }
 var convert_units = function(unit,value) {
+	var finalvalue = value;
 	if (unit == "ft")
 		finalvalue = flt(value) * flt(.3048);
 	else if (unit == "cm")

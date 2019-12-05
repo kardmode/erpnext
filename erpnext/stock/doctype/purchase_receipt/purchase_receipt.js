@@ -22,17 +22,7 @@ frappe.ui.form.on("Purchase Receipt", {
 		});
 	},
 	onload: function(frm) {
-		$.each(["warehouse", "rejected_warehouse"], function(i, field) {
-			frm.set_query(field, "items", function() {
-				return {
-					filters: [
-						["Warehouse", "company", "in", ["", cstr(frm.doc.company)]],
-						["Warehouse", "is_group", "=", 0],
-						["Warehouse", "disabled", "=", 0]
-					]
-				}
-			}
-		});
+		
 
 
 		frm.set_query("expense_account", "items", function() {
@@ -43,9 +33,10 @@ frappe.ui.form.on("Purchase Receipt", {
 		});
 
 
-		// erpnext.queries.setup_queries(frm, "Warehouse", function() {
-			// return erpnext.queries.warehouse(frm.doc);
-		// });
+		erpnext.queries.setup_queries(frm, "Warehouse", function() {
+			return erpnext.queries.warehouse(frm.doc);
+		});
+		
 	},
 
 	refresh: function(frm) {
@@ -314,4 +305,4 @@ var calculate_total_qty =  function(frm) {
 	})
 	frm.doc.total_qty = total_qty;
 	frm.doc.fake_total = fake_total;
-}
+};

@@ -137,7 +137,7 @@ frappe.ui.form.on("Salary Slip", {
 				method:'erpnext.hr.doctype.payroll_entry.payroll_entry.get_start_end_dates',
 				args:{
 					payroll_frequency: frm.doc.payroll_frequency,
-					start_date: frm.doc.start_date || frm.doc.posting_date
+					start_date: frm.doc.posting_date
 				},
 				callback: function(r){
 					if (r.message){

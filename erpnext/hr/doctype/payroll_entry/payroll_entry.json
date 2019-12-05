@@ -1,6 +1,7 @@
 {
+ "add_company_abbr_to_name": 1,
  "allow_copy": 1,
- "autoname": "HR-PRUN-.YYYY.-.#####",
+ "autoname": "Payroll-.PDY.#####",
  "creation": "2017-10-23 15:22:29.291323",
  "doctype": "DocType",
  "document_type": "Documents",
@@ -259,7 +260,7 @@
   }
  ],
  "icon": "fa fa-cog",
- "modified": "2019-11-18 22:20:06.946143",
+ "modified": "2019-11-23 14:28:17.646473",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Payroll Entry",

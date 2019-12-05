@@ -110,26 +110,27 @@ frappe.ui.form.on('Payroll Entry', {
 					
 					
 						// frm.events.refresh(frm);
-						if (r.message)
-						{	
+						// if (r.message)
+						// {	
 						
-							if(r.message[0] == 0)
-							{
-								msg = "No Salary Slips Created";
-								frappe.msgprint(__(r.message[1])); 
-							}
-							else
-							{
-								msg = r.message;
-								cur_frm.cscript.display_activity_log(r.message[1],"Created");
-								cur_frm.save();
+							// if(r.message[0] == 0)
+							// {
+								// var msg = "No Salary Slips Created";
+								// frappe.msgprint(__(r.message[1])); 
+							// }
+							// else
+							// {
+								// var msg = r.message;
+								// cur_frm.cscript.display_activity_log(r.message[1],"Created");
+								// cur_frm.save();
 								
-							}
+							// }
 								
 							
 							
-						}
-						
+						// }
+						frm.refresh();
+						frm.toolbar.refresh();
 					},
 					doc: frm.doc,
 					freeze: true,
@@ -173,12 +174,12 @@ frappe.ui.form.on('Payroll Entry', {
 						{
 							if(r.message[0] == 0)
 							{
-								msg = "No Salary Slips Updated";
+								var msg = "No Salary Slips Updated";
 								frappe.msgprint(__(msg)); 
 							}
 							else
 							{
-								msg = r.message[1] + " Entries Updated";
+								var msg = r.message[1] + " Entries Updated";
 								frappe.msgprint(__(msg)); 
 								// cur_frm.cscript.display_activity_log(msg,"Updated");
 								// cur_frm.save();
@@ -217,12 +218,12 @@ frappe.ui.form.on('Payroll Entry', {
 						{
 							if(r.message[0] == 0)
 							{
-								msg = "No Salary Slips Deleted";
+								var msg = "No Salary Slips Deleted";
 								frappe.msgprint(__(msg)); 
 							}
 							else
 							{
-								msg = r.message[1] + " Entries Deleted";
+								var msg = r.message[1] + " Entries Deleted";
 								frappe.msgprint(__(msg)); 
 								// cur_frm.cscript.display_activity_log(msg,"Updated");
 								// cur_frm.save();

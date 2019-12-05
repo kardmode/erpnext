@@ -197,7 +197,6 @@ def get_conditions(filters):
 def get_stock_ledger_entries(filters):
 	conditions = get_conditions(filters)
 	
-	
 	join_table_query = ""
 	if filters.get("item_group"):
 		join_table_query = "inner join `tabItem` item on item.name = sle.item_code"

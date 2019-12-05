@@ -117,11 +117,11 @@ def upload(import_settings = None):
 	rows = read_csv_content(frappe.local.uploaded_file)
 	if not rows:
 		frappe.throw(_("Please select a csv file"))
-	frappe.enqueue(import_attendances, rows=rows, now=True if len(rows) < 200 else False)
+	# frappe.enqueue(import_attendances, rows=rows, now=True if len(rows) < 200 else False)
+	import_attendances(rows)
 
 def import_attendances(rows):
 	from frappe.modules import scrub
-
 	rows = list(filter(lambda x: x and any(x), rows))
 	if not rows:
 		msg = [_("Please select a csv file")]
@@ -163,16 +163,15 @@ def import_attendances(rows):
 
 		except Exception as e:
 			date_error = True
-			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-				len(row)>1 and row[1] or "", cstr(e)))
+			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+			
+			
 		except ValueError as e:
 			date_error = True
-			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-				len(row)>1 and row[1] or "", cstr(e)))
+			ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
 		except:
 			date_error = True
-			ret.append('Error for row (#%d) %s' % (row_idx+1,
-				len(row)>1 and row[1] or ""))
+			ret.append('Error for row (#%d) %s' % (row_idx+1,len(row)>1 and row[1] or ""))
 		
 		if date_error == True:
 			if import_settings != "ignore":
@@ -180,10 +179,24 @@ def import_attendances(rows):
 			continue
 		
 		formatted_attendance_date = getdate(parse_date(d.attendance_date))
-				
+		attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",(d.employee, formatted_attendance_date),as_dict=True)		
+		company = frappe.db.sql("""select company from `tabEmployee` where employee = %s""",(d.employee),as_dict=True)		
+
+		try:
+			d["company"] = company[0].company
+			
+		except Exception as e:
+			error = True
+			ret.append('Error for row (#%d) %s. No Company Set For Employee' % (row_idx+1,len(row)>1 and row[1] or ""))	
+
 		if import_settings == "ignore":
-			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, formatted_attendance_date),as_dict=True)
+		
+			frappe.publish_realtime('import_attendance', dict(
+						progress=i,
+						total=len(rows)
+					))
+					
+
 			if attendance:
 				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
 
@@ -193,17 +206,20 @@ def import_attendances(rows):
 				try:
 					check_record(d)
 					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+					
 				except Exception, e:
 					# error = True
-					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-						len(row)>1 and row[1] or "", cstr(e)))
-					# frappe.errprint(frappe.get_traceback())
+					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+					frappe.errprint(frappe.get_traceback())
 				
 				
 		elif import_settings == "update":
-			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, formatted_attendance_date),as_dict=True)
-			
+		
+			frappe.publish_realtime('import_attendance', dict(
+					progress=i,
+					total=len(rows)
+				))
+				
 			if attendance:
 				d["docstatus"] = attendance[0].docstatus
 				d["name"] = attendance[0].name
@@ -211,29 +227,38 @@ def import_attendances(rows):
 			try:
 				check_record(d)
 				ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+				
+				
+					
+				
 			except Exception, e:
 				error = True
-				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-					len(row)>1 and row[1] or "", cstr(e)))
+				ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
 				# frappe.errprint(frappe.get_traceback())
 		else:
-			attendance = frappe.db.sql("""select name,docstatus,attendance_date from `tabAttendance` where employee = %s and attendance_date = %s""",
-			(d.employee, formatted_attendance_date),as_dict=True)
-			
 			if attendance:
 				error = True
 				link = ['<a href="#Form/Attendance/{0}">{0}</a>'.format(str(attendance[0].name))]
 				ret.append('Error for row (#%d) %s : %s - %s. Attendance Date %s Already Marked or Check Spreadsheet For Duplicates' % (row_idx+1,
 					len(row)>1 and row[1] or "", cstr(d.employee),str(d.attendance_date),link))
 			else:
+			
+				frappe.publish_realtime('import_attendance', dict(
+					progress=i,
+					total=len(rows)
+				))
+				
 				try:
 					check_record(d)
 					ret.append(import_doc(d, "Attendance", 1, row_idx, submit=False))
+					
+					
+					
+					
 				except Exception, e:
 					error = True
-					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,
-						len(row)>1 and row[1] or "", cstr(e)))
-					# frappe.errprint(frappe.get_traceback())
+					ret.append('Error for row (#%d) %s : %s' % (row_idx+1,len(row)>1 and row[1] or "", cstr(e)))
+					frappe.errprint(frappe.get_traceback())
 	
 	if not started:
 		error = True
@@ -244,12 +269,10 @@ def import_attendances(rows):
 	else:
 		frappe.db.commit()
 		
-	# frappe.publish_realtime('import_attendance', dict(
-		# messages=ret,
-		# error=error
-	# ))
-
-	return {"messages": ret, "error": error}
+	frappe.publish_realtime('import_attendance', dict(
+		messages=ret,
+		error=error
+	))
 	
 @frappe.whitelist()
 def update_attendance(start_date,end_date):
