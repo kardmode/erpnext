@@ -236,6 +236,16 @@ def bom(doctype, txt, searchfield, start, page_len, filters):
 def get_project_name(doctype, txt, searchfield, start, page_len, filters):
 	cond = ''
 	if filters.get('customer'):
+		company_list = frappe.get_list("Company")
+		is_company = False
+		for d in company_list:
+			if filters.get("customer") == d.name:
+				is_company = True
+				break
+				
+		if is_company:
+			pass
+			
 		cond = """(`tabProject`.customer = %s or
 			ifnull(`tabProject`.customer,"")="") and""" %(frappe.db.escape(filters.get("customer")))
 
