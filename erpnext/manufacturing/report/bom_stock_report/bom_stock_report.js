@@ -6,30 +6,27 @@ frappe.query_reports["BOM Stock Report"] = {
 			"fieldtype": "Link",
 			"options": "BOM",
 			"reqd": 1
-		}, {
+		},
+		{
+			"fieldname": "qty_to_produce",
+			"label": __("Quantity to Produce"),
+			"fieldtype": "Int",
+			"default": "1"
+		},
+		{
 			"fieldname": "warehouse",
 			"label": __("Warehouse"),
 			"fieldtype": "Link",
 			"options": "Warehouse",
 			"reqd": 0
-		}, {
-			"fieldname": "qty",
-			"label": __("Quantity"),
-			"fieldtype": "Float",
-			"default": "1",
-			"reqd": 1
-		}, {
+		}, 
+		{
 			"fieldname": "show_exploded_view",
 			"label": __("Show exploded view"),
 			"fieldtype": "Check"
-		}, {
-			"fieldname": "qty_to_produce",
-			"label": __("Quantity to Produce"),
-			"fieldtype": "Int",
-			"default": "1"
-		 },
+		}
 	],
-	"formatter": function(value, row, column, data, default_formatter) {
+	/* "formatter": function(value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 		if (column.id == "Item"){
 			if (data["Enough Parts to Build"] > 0){
@@ -39,5 +36,5 @@ frappe.query_reports["BOM Stock Report"] = {
 			}
 		}
 		return value
-	}
+	} */
 }

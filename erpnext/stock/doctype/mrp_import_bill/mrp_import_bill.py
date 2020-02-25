@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe, math
-from frappe.utils import cstr, flt, cint,nowtime, nowdate, add_days, comma_and, getdate
+from frappe.utils import cstr, flt, cint,nowtime, nowdate, add_days, comma_and, getdate,get_time
 from frappe import throw, _
 from frappe.model.document import Document
 
@@ -87,11 +87,14 @@ def get_items_in_bill(import_bill,posting_date=None,posting_time=None):
 	if not posting_time:
 		posting_time = nowtime()
 	
-	stock_details = frappe.db.sql("""select t1.item_code,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type 
+	posting_time = get_time(posting_time)
+
+	
+	stock_details = frappe.db.sql("""select t1.item_code,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type,t2.reference_name 
 									from `tabMRP Import Entry Item` t1, `tabMRP Import Entry` t2 
 									where t1.import_bill = %s and t2.name = t1.parent and t2.docstatus = 1 
 									and (t2.posting_date < %s or (t2.posting_date = %s and t2.posting_time < %s))
-									ORDER BY t2.posting_date""", (import_bill,posting_date,posting_date,posting_time), as_dict=True)
+									ORDER BY t2.posting_date,t2.posting_time""", (import_bill,posting_date,posting_date,posting_time), as_dict=True)
 	
 	item_dict = {}
 	import copy
@@ -99,7 +102,9 @@ def get_items_in_bill(import_bill,posting_date=None,posting_time=None):
 	for item in new_list:
 		item_code = item["item_code"]
 		
-		
+
+		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
+			continue
 		
 		if item_dict.has_key(item_code):
 		
@@ -123,35 +128,34 @@ def get_total_qty_for_item(import_bill,item_code,posting_date=None,posting_time=
 
 	stock_details = []
 	
-	if posting_date and posting_time:
-		
-		stock_details = frappe.db.sql("""
-						select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type
-						from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
-						where t2.import_bill = %s and t2.item_code = %s
-						and t2.stock_qty <> 0 and t1.name = t2.parent and t1.docstatus = 1
-						and (t1.posting_date < %s or (t1.posting_date = %s and t1.posting_time < %s))
-						ORDER BY t2.stock_qty DESC
-						""", (import_bill,item_code,posting_date,posting_date,posting_time), as_dict=True)	
-	else:
-		stock_details = frappe.db.sql("""
-						select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type
-						from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
-						where t2.import_bill = %s and t2.item_code = %s
-						and t2.stock_qty <> 0 and t1.name = t2.parent and t1.docstatus = 1
-						ORDER BY t2.stock_qty DESC
-						""", (import_bill,item_code), as_dict=True)	
+	if not posting_date:
+		posting_date = nowdate()
+	if not posting_time:
+		posting_time = nowtime()
+	
+	posting_time = get_time(posting_time)
+
+	stock_details = frappe.db.sql("""
+					select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type, t1.reference_name
+					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
+					where t2.import_bill = %s and t2.item_code = %s
+					and t2.stock_qty <> 0 and t1.name = t2.parent and t1.docstatus = 1
+					and (t1.posting_date < %s or (t1.posting_date = %s and t1.posting_time < %s))
+					ORDER BY t2.stock_qty DESC
+					""", (import_bill,item_code,posting_date,posting_date,posting_time), as_dict=True)	
 					
 	
-
 	total_qty = 0
-	for d in stock_details:
-
-		if d.transaction_type in ["Purchase Receipt","Addition"]:
-			total_qty = total_qty + flt(d.stock_qty)
+	for item in stock_details:
+		
+		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
+			continue
+		
+		if item.transaction_type in ["Purchase Receipt","Addition"]:
+			total_qty = total_qty + flt(item.stock_qty)
 			
 		else:
-			total_qty = total_qty - flt(d.stock_qty)
+			total_qty = total_qty - flt(item.stock_qty)
 			
 	return total_qty
 	
@@ -166,9 +170,10 @@ def get_bills_and_stock(item_code=None,company = None,posting_date=None,posting_
 	if not posting_time:
 		posting_time = nowtime()
 	
-	
+	posting_time = get_time(posting_time)
+
 	stock_details = frappe.db.sql("""
-					select t1.name, t2.import_bill, t2.item_code,t2.stock_qty,t2.stock_uom, t2.item_name, t1.transaction_type
+					select t1.name, t2.import_bill, t2.item_code,t2.stock_qty,t2.stock_uom, t2.item_name, t1.transaction_type,t1.reference_name
 					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
 					where t1.company = %s 
 					and t1.docstatus = 1
@@ -187,6 +192,9 @@ def get_bills_and_stock(item_code=None,company = None,posting_date=None,posting_
 	new_list = copy.deepcopy(stock_details)
 	for item in new_list:
 		import_bill = item["import_bill"]
+		
+		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
+			continue
 
 		if item_dict.has_key(import_bill):
 		
@@ -252,6 +260,9 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 	if filters and filters.get('posting_date'):
 		posting_date = filters.get('posting_date')
 		
+	if filters and filters.get('posting_time'):
+		posting_time = filters.get('posting_time')
+		
 	if filters and filters.get('filters'):
 		filters = filters.get('filters')
 		
@@ -265,3 +276,59 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 		
 	return best_warehouses
 
+@frappe.whitelist()
+def get_item_rate_in_bill(import_bill,item_code,uom = None, posting_date=None,posting_time=None):
+
+	stock_details = []
+	
+	if not posting_date:
+		posting_date = nowdate()
+	if not posting_time:
+		posting_time = nowtime()
+		
+	posting_time = get_time(posting_time)
+
+	
+	stock_details = frappe.db.sql("""
+					select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type,t1.reference_name, t2.conversion_factor, t2.rate,t2.customs_exit_rate
+					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
+					where t2.import_bill = %s and t2.item_code = %s and t2.stock_qty <> 0 
+					and t1.name = t2.parent and t1.docstatus = 1
+					and t1.transaction_type IN ('Purchase Receipt', 'Addition')
+					and (t1.posting_date < %s or (t1.posting_date = %s and t1.posting_time < %s))
+					ORDER BY t1.posting_date,t1.posting_time
+					""", (import_bill,item_code,posting_date,posting_date,posting_time), as_dict=True)	
+						
+						
+				
+
+	if stock_details:
+		from erpnext.stock.get_item_details import get_conversion_factor
+
+		for item in stock_details:
+			
+			if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
+				continue
+		
+
+			stock_rate = flt(item.customs_exit_rate) * flt(item.conversion_factor)			
+
+			if uom == None:
+				return stock_rate
+			else:
+				conversion_factor = get_conversion_factor(item_code,uom).get("conversion_factor") or 1
+
+				return (flt(stock_rate) / flt(conversion_factor))
+	
+	else:
+		return 0	
+
+def validate_ref_doc(transaction_type,reference_name):
+	if transaction_type in ["Purchase Receipt","Delivery Note","MRP Production Order"]:
+		doc_details = frappe.get_doc(transaction_type,reference_name)
+		if doc_details.docstatus == 1:
+			return True
+		else:
+			return False
+	else:
+		return True

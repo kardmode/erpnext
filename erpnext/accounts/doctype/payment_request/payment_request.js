@@ -5,7 +5,8 @@ cur_frm.add_fetch("payment_gateway_account", "message", "message")
 frappe.ui.form.on("Payment Request", {
 	setup: function(frm) {
 		
-
+		frm.doc.reference_doctype = '';
+		frm.doc.reference_name = ''
 		/* frm.set_query('project', function(doc) {
 			return {
 				query: "erpnext.controllers.queries.get_project_name",

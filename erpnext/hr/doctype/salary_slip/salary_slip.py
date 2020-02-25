@@ -872,8 +872,8 @@ class SalarySlip(TransactionBase):
 		
 	def add_custom_components(self):
 
-		hourlyrate = 0
-		salaryperday = 0
+		hourlyrate = 0.0
+		salaryperday = 0.0
 		
 		for component_type in ('earnings', 'deductions'):
 			if component_type == 'earnings':
@@ -1154,20 +1154,19 @@ class SalarySlip(TransactionBase):
 			
 					
 			self.absent_days = flt(total_absent)
-			
-
 			self.unverified_days = flt(self.total_working_days) - flt(total_present_days)
+			
+			regulations = frappe.get_doc('Regulations')
 
-			self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(frappe.db.get_single_value("Regulations", "overtime_weekdays_rate"))
-			self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(frappe.db.get_single_value("Regulations", "overtime_fridays_rate"))
-			self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(frappe.db.get_single_value("Regulations", "overtime_holidays_rate"))
+			self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(regulations.overtime_weekdays_rate)
+			self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(regulations.overtime_fridays_rate)
+			self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(regulations.overtime_holidays_rate)
 			
 			table_space = '<tr style><td style="line-height:1">{0}</td><td style="line-height:1">{1}</td><td style="line-height:1">{2}</td><td style="line-height:1">{3}</td><td style="line-height:1">{4}</td><td style="line-height:1">{5}</td><td style="line-height:1">{6}</td></tr>'.format(str(''),str(''),str(''),str(''),str(''),str(''),str(''))
 
 			table_total = '<tr style="font-weight:bold;"><td style="line-height:1">{0}</td><td style="line-height:1">{1}</td><td style="line-height:1">{2}</td><td style="line-height:1">{3}</td><td style="line-height:1">{4}</td><td style="line-height:1">{5}</td><td style="line-height:1">{6}</td></tr>'.format(str('Total'),str(round(total_nt,2)),str(''),str(''),str(round(total_ot,2)),str(round(total_otf,2)),str(round(total_oth,2)))
 			table_end = '</tbody></table>'
 
-			# self.attendance_summary = ''
 			self.attendance_summary = table_header + table_body + table_space + table_total + table_end
 
 def unlink_ref_doc_from_salary_slip(ref_no):

@@ -135,6 +135,8 @@ class Project(Document):
 			self.status = "Completed"
 
 		else:
+			if self.status == "Completed":
+				frappe.msgprint(_("Cannot Manually Complete a Project that requires Tasks"))
 			self.status = "Open"
 
 	def update_costing(self):
@@ -433,14 +435,14 @@ class Project(Document):
 		if self.is_group:
 			self.convert_to_ledger()
 		else:
-			if parent_project:
+			if self.parent_project:
 				frappe.throw(_("Can't add group in group"))	
 			else:
 				self.convert_to_group()
 
 	def convert_to_ledger(self):
 		if self.check_if_child_exists():
-			frappe.throw(_("Warehouses with child nodes cannot be converted to ledger"))
+			frappe.throw(_("Projects with child nodes cannot be converted to ledger"))
 		else:
 			self.is_group = 0
 			self.save()
@@ -453,6 +455,8 @@ class Project(Document):
 		self.is_group = 1
 		self.save()
 		return 1
+		
+	
 
 def get_timeline_data(doctype, name):
 	'''Return timeline for attendance'''
@@ -743,8 +747,12 @@ def set_project_status(project, status):
 	project.save()
 
 
-	
-	
+# def get_child_warehouses(project):
+	# lft, rgt = frappe.get_cached_value("Project", project, [lft, rgt])
+
+	# return frappe.db.sql_list("""select name from `tabProject`
+		# where lft >= %s and rgt =< %s""", (lft, rgt))
+
 @frappe.whitelist()
 def add_node():
 	from frappe.desk.treeview import make_tree_args
@@ -765,7 +773,6 @@ def convert_to_group_or_ledger():
 
 @frappe.whitelist()
 def get_children(doctype, parent=None, company=None,status=None, is_root=False):
-	from erpnext.stock.utils import get_stock_value_on
 
 	if is_root:
 		parent = ""
@@ -776,7 +783,7 @@ def get_children(doctype, parent=None, company=None,status=None, is_root=False):
 		where docstatus < 2
 		and ifnull(`parent_project`,'') = %s
 		and (`company` = %s or company is null or company = '')
-		and (`status` = %s or company is null or company = '')
+		and (`status` = %s or status is null or status = '')
 		order by name""", (parent, company,status), as_dict=1)
 
 	return projects

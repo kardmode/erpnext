@@ -149,7 +149,7 @@ class Item(WebsiteGenerator):
 		'''set opening stock and item price'''
 		if self.standard_rate:
 			for default in self.item_defaults or [frappe._dict()]:
-				self.add_price(default.default_price_list)
+				self.add_price(default.default_price_list,self.standard_rate)
 						
 		if self.standard_buying_rate:
 			price_list = (frappe.db.get_single_value('Buying Settings', 'buying_price_list')

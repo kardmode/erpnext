@@ -32,6 +32,7 @@ class Warehouse(NestedSet):
 
 
 	def on_update(self):
+		
 		if self.disabled:
 			self.on_disable()
 
@@ -44,7 +45,7 @@ class Warehouse(NestedSet):
 	
 		if self.check_if_child_exists():
 				throw(_("Child warehouse exists for this warehouse. You can not disable this warehouse."))
-		# delete bin
+
 		bins = frappe.db.sql("select * from `tabBin` where warehouse = %s",
 			self.name, as_dict=1)
 			
@@ -210,3 +211,34 @@ def get_child_warehouses(warehouse):
 
 	return frappe.db.sql_list("""select name from `tabWarehouse`
 		where lft >= %s and rgt =< %s""", (p_warehouse.lft, p_warehouse.rgt))
+		
+		
+@frappe.whitelist()
+def check_all_disabled():
+
+	parent = ""
+
+	fields = ['name','disabled']
+	filters = [
+		['docstatus', '<', '2'],
+		['is_group','=','0'],
+		['disabled', '=', '1']
+	]
+	
+
+	warehouses = frappe.get_list("Warehouse", fields=fields, filters=filters, order_by='name')
+
+	# return warehouses
+	for wh in warehouses:
+		bins = frappe.db.sql("select * from `tabBin` where warehouse = %s",
+			wh.name, as_dict=1)
+			
+		should_correct = False
+
+		for d in bins:
+			if d['actual_qty'] or d['reserved_qty'] or d['ordered_qty'] or \
+					d['indented_qty'] or d['projected_qty'] or d['planned_qty']:
+				should_correct = True
+		if should_correct:
+			frappe.errprint(wh.name)
+		

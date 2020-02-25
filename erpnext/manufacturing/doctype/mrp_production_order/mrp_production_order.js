@@ -188,8 +188,8 @@ frappe.ui.form.on('MRP Production Order', {
 				},
 				freeze: true,
 				callback: function(r) {
-					refresh_field("items");
-					cur_frm.dirty();
+					frm.refresh();
+					frm.dirty();
 				}
 			});
 

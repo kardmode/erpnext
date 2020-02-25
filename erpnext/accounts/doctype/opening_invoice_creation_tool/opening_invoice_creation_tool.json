@@ -3,6 +3,7 @@
  "beta": 1,
  "creation": "2017-08-29 02:22:54.947711",
  "doctype": "DocType",
+ "document_type": "Tools",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -75,7 +76,7 @@
  ],
  "hide_toolbar": 1,
  "issingle": 1,
- "modified": "2019-07-25 14:57:33.187689",
+ "modified": "2019-12-25 19:30:49.472424",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Opening Invoice Creation Tool",

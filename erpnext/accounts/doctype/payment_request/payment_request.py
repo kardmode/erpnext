@@ -17,19 +17,6 @@ from erpnext.erpnext_integrations.stripe_integration import create_stripe_subscr
 from erpnext.accounts.doctype.subscription_plan.subscription_plan import get_plan_rate
 
 class PaymentRequest(Document):
-	# def autoname(self):
-		# import datetime
-		# year = (getdate(self.posting_date)).year
-		# month = (getdate(self.posting_date)).month
-		# date_string = str(year)
-		# naming_series = self.naming_series
-		# # if self.company:
-			# # abbr = 	frappe.db.get_value("Company", self.company, "abbr")
-			# # if abbr:
-				# # naming_series = str(abbr) + "-" + naming_series 
-			
-		# self.name = make_autoname(naming_series + date_string + '.#####')
-			
 	def validate(self):
 		if self.get("__islocal"):
 			self.status = 'Draft'
@@ -91,11 +78,16 @@ class PaymentRequest(Document):
 			return
 
 		# send_mail = self.payment_gateway_validation()
-		ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+		send_mail = False
+		
+		if self.reference_doctype and self.reference_name:
+			# frappe.throw(_("Cannot Submit.".format(self.payment_request_type)))
+		
+			ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
 
-		if (hasattr(ref_doc, "order_type") and getattr(ref_doc, "order_type") == "Shopping Cart") \
-			or self.flags.mute_email:
-			send_mail = False
+			if (hasattr(ref_doc, "order_type") and getattr(ref_doc, "order_type") == "Shopping Cart") \
+				or self.flags.mute_email:
+				send_mail = False
 
 		if send_mail:
 			self.set_payment_request_url()

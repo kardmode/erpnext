@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import flt, cint, getdate, now
-from erpnext.stock.doctype.mrp_import_bill.mrp_import_bill import get_bills_and_stock,get_items_in_bill
+from erpnext.stock.doctype.mrp_import_bill.mrp_import_bill import get_bills_and_stock,get_items_in_bill,get_item_rate_in_bill
 
 def execute(filters=None):
 	if not filters: filters = {}
@@ -30,8 +30,9 @@ def execute(filters=None):
 			items = get_bills_and_stock(d.item_code,company = filters.get("company"))
 			item_group = d.item_group
 			for key in items:
-				item = items[key]					
-				row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group]
+				item = items[key]
+				item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])				
+				row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 				data.append(row)
 	
 	elif filters.get("item_code") and filters.get("import_bill"):
@@ -43,8 +44,8 @@ def execute(filters=None):
 				item = items[key]
 				
 				item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-								
-				row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group]
+				item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])	
+				row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 				data.append(row)
 			
 			
@@ -56,8 +57,8 @@ def execute(filters=None):
 			item = items[key]
 			
 			item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-				
-			row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group]
+			item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])				
+			row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 			data.append(row)
 			
 			
@@ -68,8 +69,8 @@ def execute(filters=None):
 			item = items[key]
 			
 			item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-				
-			row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group]
+			item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])				
+			row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 			data.append(row)
 	
 	
@@ -90,7 +91,8 @@ def get_columns():
 		_("Import Bill")+":Link/MRP Import Bill:200",
 		_("Stock UOM")+":Link/UOM:80",
 		_("Balance Qty")+":Float:150",
-		_("Item Group")+":Link/Item Group:120"
+		_("Item Group")+":Link/Item Group:120",
+		_("Customs Item Rate")+"::140",
 	]
 
 	return columns

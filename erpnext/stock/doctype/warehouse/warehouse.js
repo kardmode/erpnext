@@ -18,6 +18,10 @@ frappe.ui.form.on("Warehouse", {
 		frm.add_custom_button(__("Stock Balance"), function() {
 			frappe.set_route("query-report", "Stock Balance", {"warehouse": frm.doc.name});
 		});
+		
+		frm.add_custom_button(__("Check Disabled"), function() {
+			check_all_disabled(frm);
+		});
 
 		if (cint(frm.doc.is_group) == 1) {
 			frm.add_custom_button(__('Group to Non-Group'),
@@ -79,6 +83,19 @@ function convert_to_group_or_ledger(frm){
 		args: {
 			docname: frm.doc.name,
 			is_group: frm.doc.is_group
+		},
+		callback: function(){
+			frm.refresh();
+		}
+		
+	})
+}
+
+function check_all_disabled(frm){
+	frappe.call({
+		method:"erpnext.stock.doctype.warehouse.warehouse.check_all_disabled",
+		args: {
+			docname: frm.doc.name
 		},
 		callback: function(){
 			frm.refresh();

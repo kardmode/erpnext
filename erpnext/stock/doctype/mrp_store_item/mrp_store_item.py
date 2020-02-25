@@ -15,12 +15,27 @@ class MRPStoreItem(Document):
 		
 	def validate(self):
 	
-		
+		self.validate_duplicates()
 		self._get_item_det()
 		self.calculate_total_qty()
 		self.validate_name()
 		
+	def validate_duplicates(self):
+		from copy import deepcopy
 		
+		item_dict = {}
+		new_list = deepcopy(self.get("items"))
+		for item in new_list:
+			uom = item.uom
+			location = item.location
+			if item_dict.has_key(location):
+				if uom in item_dict[location]:
+					frappe.throw(_("Store Location {0} already exists with same units {1}").format(location, uom))
+				else:
+					item_dict[location].append(uom)
+			else:
+				item_dict[location] = [uom]
+			
 
 	
 	def validate_name(self):
@@ -70,7 +85,7 @@ class MRPStoreItem(Document):
 				d = item_dict[key]
 				display_uom = str(key)
 				display_qty = str(d.qty)
-				qty_txt += str(display_qty) + ' ' + str(display_uom) + '<br>'
+				qty_txt += str(display_qty) + ' ' + str(display_uom) + ' | '
 				total_qty = total_qty + flt(d.qty)
 		else:
 			qty_txt = "0"
@@ -86,7 +101,7 @@ class MRPStoreItem(Document):
 			actual_qty_txt = ""
 			if stock_details:
 				for d in stock_details:
-					actual_qty_txt += str(d.warehouse) + ': ' + str(d.actual_qty) + '<br>'
+					actual_qty_txt += str(d.warehouse) + ': ' + str(d.actual_qty) + ' | '
 			else:
 				actual_qty_txt = "0"
 			from erpnext.stock.utils import get_actual_qty

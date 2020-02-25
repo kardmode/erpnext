@@ -8,7 +8,7 @@ def get_data():
 		'fieldname': 'item_code',
 		'non_standard_fieldnames': {
 			'Stock Entry': 'custom_production_order',
-			# 'Product Bundle': 'new_item_code',
+			# 'MRP Import Entry': 'reference_name',
 			# 'BOM': 'item',
 			# 'Batch': 'item'
 		},

@@ -11,7 +11,7 @@ def execute(filters=None):
 	summ_data = []
 
 	data = get_bom_stock(filters)
-	qty_to_make = filters.get("qty_to_make")
+	qty_to_make = filters.get("qty_to_make", 1)
 
 	for row in data:
 		item_map = get_item_details(row.item_code)
@@ -38,8 +38,6 @@ def get_columns():
 		_("Reqd Qty")+ ":Float:100",
 		_("Diff Qty")+ ":Float:100",
 		_("Last Purchase Price")+ ":Float:100",
-
-
 	]
 
 	return columns

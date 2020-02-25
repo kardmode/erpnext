@@ -49,7 +49,7 @@ frappe.query_reports["Stock Balance By Group 2"] = {
 		},
 		{
 			"fieldname": "hide_disabled",
-			"label": __("Hide Disabled"),
+			"label": __("Hide Disabled Warehouses"),
 			"fieldtype": "Check",
 			"default":1
 		},

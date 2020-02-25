@@ -49,6 +49,7 @@ class MRPProductionOrder(Document):
 	def get_items_from(self,reference_doctype,reference_name):
 		self.items = []
 		dn = frappe.get_doc(reference_doctype, reference_name)
+		self.project = dn.project
 		for item in dn.get("items"):
 			if item.item_code:
 				ch = self.append('items', {})
@@ -521,16 +522,25 @@ class MRPProductionOrder(Document):
 		return success
 
 @frappe.whitelist()					
-def get_item_det(item_code):
+def get_item_det(item_code,uom=None):
 	item = frappe.db.sql("""select name,depth,depthunit,width,widthunit,height,heightunit, item_name, docstatus, description, image,
 		is_sub_contracted_item, stock_uom, default_bom, last_purchase_rate
 		from `tabItem` where name=%s""", item_code, as_dict = 1)
-
+	
 	if not item:
 		frappe.throw(_("Item: {0} does not exist in the system").format(item_code))
 	
+	details = item[0]
+	details.uom = uom or details.stock_uom
+	if uom:
+		details.update(get_conversion_factor(item_code, uom))
 
-	return item[0]
+	# from erpnext.stock.get_item_details import get_item_price
+	
+	# args = frappe._dict({"item_code":item_code,"price_list":"Buying","uom",details.uom})
+
+	# details.price_list_rate = get_item_price(args, item_code)
+	return details
 
 	
 def create_condensed_table(items):
@@ -575,6 +585,7 @@ def create_condensed_table_exploded_items(items,company):
 			</tr></thead><tbody>"""
 				
 	from erpnext.stock.doctype.stock_entry.stock_entry import get_warehouses_and_stock
+	from erpnext.stock.doctype.mrp_import_bill.mrp_import_bill import get_bills_and_stock
 	
 
 	for i, d in enumerate(items):
@@ -587,7 +598,15 @@ def create_condensed_table_exploded_items(items,company):
 			for warehouse_det in warehouses_details:
 				warehouse_summary = warehouse_summary + '<div>' + str(warehouse_det.warehouse) + ': ' + str(warehouse_det.actual_qty) + '</div>'
 				
-		
+		# import_bill_summary = ""
+		# import_bill_details = get_bills_and_stock(d.item_code,company)
+		# if len(import_bill_details) == 0:
+			# import_bill_summary = "0"
+		# else:
+			# for key in import_bill_details:
+				# d = import_bill_details[key]
+				# import_bill_summary = import_bill_summary + '<div>' + str(d.import_bill) + ': ' + str(d.stock_qty) + '</div>'
+				
 		joiningtext += """<tr>
 					<td>""" + str(d.item_code) +"""</td>
 					<td>""" + str(warehouse_summary) +"""</td>
@@ -612,6 +631,7 @@ def create_condensed_table_exploded_items_with_price(items,company):
 			</tr></thead><tbody>"""
 				
 	from erpnext.stock.doctype.stock_entry.stock_entry import get_warehouses_and_stock
+	from erpnext.stock.doctype.mrp_import_bill.mrp_import_bill import get_bills_and_stock
 	
 
 	for i, d in enumerate(items):
@@ -624,6 +644,15 @@ def create_condensed_table_exploded_items_with_price(items,company):
 			for warehouse_det in warehouses_details:
 				warehouse_summary = warehouse_summary + '<div>' + str(warehouse_det.warehouse) + ': ' + str(warehouse_det.actual_qty) + '</div>'
 				
+		# import_bill_summary = ""
+		# import_bill_details = get_bills_and_stock(d.item_code,company)
+		# if len(import_bill_details) == 0:
+			# import_bill_summary = "0"
+		# else:
+			# for key in import_bill_details:
+				# d = import_bill_details[key]
+				# import_bill_summary = import_bill_summary + '<div>' + str(d.import_bill) + ': ' + str(d.stock_qty) + '</div>'
+		
 		
 		joiningtext += """<tr>
 					<td>""" + str(d.item_code) +"""</td>

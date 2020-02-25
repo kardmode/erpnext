@@ -3,8 +3,20 @@
 
 // render
 frappe.listview_settings['Sales Invoice'] = {
+
+	
 	add_fields: ["customer", "customer_name", "base_grand_total", "outstanding_amount", "due_date", "company",
 		"currency", "is_return"],
+		
+		
+	onload: function(listview) {
+		if (!frappe.route_options){ //remove this condition if not required
+			frappe.route_options = {
+				"status": ["!=", "2"]
+			};
+		}
+	},
+	filters:[["status","!=","2"]], 
 	get_indicator: function(doc) {
 		var status_color = {
 			"Draft": "grey",
@@ -19,5 +31,6 @@ frappe.listview_settings['Sales Invoice'] = {
 		};
 		return [__(doc.status), status_color[doc.status], "status,=,"+doc.status];
 	},
-	right_column: "grand_total"
+	right_column: "grand_total",
 };
+		// console.log(frappe.listview_settings['Sales Invoice']);

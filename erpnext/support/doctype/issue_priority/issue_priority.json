@@ -2,6 +2,7 @@
  "autoname": "Prompt",
  "creation": "2019-05-20 15:14:21.604447",
  "doctype": "DocType",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "description"
@@ -13,7 +14,7 @@
    "label": "Description"
   }
  ],
- "modified": "2019-05-20 17:06:38.095647",
+ "modified": "2019-12-14 02:25:12.169502",
  "modified_by": "Administrator",
  "module": "Support",
  "name": "Issue Priority",

@@ -2,6 +2,7 @@
  "autoname": "format:SLA-{service_level}-{####}",
  "creation": "2018-12-26 21:08:15.448812",
  "doctype": "DocType",
+ "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -158,7 +159,7 @@
    "label": "Enable"
   }
  ],
- "modified": "2019-07-09 17:22:16.402939",
+ "modified": "2019-12-14 02:25:01.572313",
  "modified_by": "Administrator",
  "module": "Support",
  "name": "Service Level Agreement",

@@ -2,6 +2,7 @@
  "autoname": "format:MAIL-CAMP-{YYYY}-{#####}",
  "creation": "2019-06-30 16:05:30.015615",
  "doctype": "DocType",
+ "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -70,7 +71,7 @@
    "options": "User"
   }
  ],
- "modified": "2019-11-11 17:18:47.342839",
+ "modified": "2019-12-14 02:11:59.405601",
  "modified_by": "Administrator",
  "module": "CRM",
  "name": "Email Campaign",

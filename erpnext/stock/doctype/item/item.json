@@ -6,7 +6,7 @@
  "creation": "2013-05-03 10:45:46",
  "description": "A Product or a Service that is bought, sold or kept in stock.",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -1049,7 +1049,7 @@
  "idx": 2,
  "image_field": "image",
  "max_attachments": 1,
- "modified": "2019-10-09 17:05:59.576119",
+ "modified": "2019-12-19 23:45:07.377535",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item",

@@ -278,149 +278,9 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 	refresh: function() {
 		erpnext.toggle_naming_series();
 		erpnext.hide_company();
-
+		this.mrp_setup_custom_buttons();
 		
 		this.set_dynamic_labels();
-		
-		if (this.frm.doc.docstatus==0) {
-			cur_frm.add_custom_button(__('CSV'),
-			function() {
-				var me = this;
-
-				var dialog = new frappe.ui.Dialog({
-					title: "Add items from CSV",
-					fields: [
-						{"fieldtype": "HTML", "label": __(""), "fieldname": "import_html",
-							"reqd": 1 },
-						{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log",
-							"reqd": 1 },
-						{"fieldtype": "Check", "label": __("Keep Previous Entries"), "fieldname": "keep_previous"},
-						{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
-					]
-				});
-
-				var $wrapper = $(dialog.fields_dict.import_html.wrapper).empty();
-
-				// upload
-				frappe.upload.make({
-					parent: $wrapper,
-					args: {
-						method: 'erpnext.controllers.queries.get_items_from_csv',
-					},
-					btn: $(dialog.fields_dict.update.wrapper),
-					callback: function(attachment, r) {
-						var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
-						var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
-						
-						var items = r.message.items;
-						var messages = r.message.messages;
-						var error = r.message.error;
-						if(!r.messages) r.messages = [];
-
-						r.messages = $.map(messages, function(v) {
-							return v;
-						});
-						
-						if (error){
-							r.messages = ["<h4 style='color:red'>"+__("Import Failed")+"</h4>"]
-								.concat(r.messages)
-
-						} else {
-							r.messages = ["<h4 style='color:green'>"+__("Import Succeeded")+"</h4>"]
-								.concat(r.messages)
-							
-							if(!$keep_previous.is(":checked")){	
-								 cur_frm.doc.items = [];
-							}
-							$.each(items, function(i, item) {
-								var d = frappe.model.add_child(cur_frm.doc, cur_frm.doctype + " Item", "items");
-									d.item_code = item.item_code;
-									d.qty = item.qty;
-									d.page_break = item.page_break;
-									console.log(d);
-									cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
-									
-								});
-						
-							cur_frm.refresh_field('items');
-							me.calculate_taxes_and_totals();
-
-						}
-						
-						$.each(r.messages, function(i, v) {
-							var $p = $('<p>').html(v).appendTo($log_wrapper);
-							if(v.substr(0,5)=='Error') {
-								$p.css('color', 'red');
-							}else if(v.substr(0,6)=='Header') {
-								$p.css('color', 'green');
-							} else if(v.substr(0,7)=='Updated') {
-								$p.css('color', 'green');
-							}
-						});
-					},
-					is_private: false
-				});
-
-				
-				dialog.show();
-
-				
-				
-			}, __("Get items from"), "btn-default");
-	
-			
-			cur_frm.add_custom_button(__('Document'),
-				function() {
-					/* erpnext.utils.map_current_doc({
-						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
-						source_doctype: "Product Bundle",
-						get_query_filters: {
-						}
-					}) */
-					cur_frm.trigger('get_items_from');
-					
-				}, __("Copy Items From"), "btn-default");
-			
-			cur_frm.add_custom_button(__('Room Quantity'),
-				function() {
-					/* erpnext.utils.map_current_doc({
-						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
-						source_doctype: "Product Bundle",
-						get_query_filters: {
-						}
-					}) */
-					cur_frm.trigger('multiply_room');
-					
-				}, __("Modify"), "btn-default");
-				
-			cur_frm.add_custom_button(__('Items Quantity'),
-				function() {
-					/* erpnext.utils.map_current_doc({
-						method: "erpnext.selling.doctype.quotation.quotation.make_quotation",
-						source_doctype: "Product Bundle",
-						get_query_filters: {
-						}
-					}) */
-					cur_frm.trigger('multiply_items');
-					
-				}, __("Modify"), "btn-default");
-			cur_frm.add_custom_button(__('Items Rate'),
-				function() {
-
-					cur_frm.trigger('multiply_rate');
-					
-				}, __("Modify"), "btn-default");
-			
-			cur_frm.add_custom_button(__('Pro Bata'),
-				function() {
-
-					cur_frm.trigger('pro_rata');
-					
-				}, __("Modify"), "btn-default");
-			
-		}
-		
-		
 		// this.setup_sms();
 		this.setup_quality_inspection();
 		let scan_barcode_field = this.frm.get_field('scan_barcode');
@@ -448,7 +308,42 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			}
 		}
 	},
-
+	mrp_setup_custom_buttons:function(){
+		if (this.frm.doc.docstatus==0) {
+			// cur_frm.add_custom_button(__('CSV'),
+				// function() {
+					// cur_frm.trigger('get_items_from_csv');				
+				// }, __("Get items from"), "btn-default");
+	
+			
+			cur_frm.add_custom_button(__('Any Document'),
+				function() {
+					cur_frm.trigger('get_items_from');
+					
+				}, __("Get items from"), "btn-default");
+			
+			cur_frm.add_custom_button(__('Room Quantity'),
+				function() {
+					cur_frm.trigger('multiply_room');
+					
+				}, __("Modify"), "btn-default");
+				
+			cur_frm.add_custom_button(__('Items Quantity'),
+				function() {
+					cur_frm.trigger('multiply_items');
+				}, __("Modify"), "btn-default");
+			cur_frm.add_custom_button(__('Items Rate'),
+				function() {
+					cur_frm.trigger('multiply_rate');
+				}, __("Modify"), "btn-default");
+			
+			cur_frm.add_custom_button(__('Pro Rata'),
+				function() {
+					cur_frm.trigger('pro_rata');
+				}, __("Modify"), "btn-default");
+			
+		}
+	},
 	scan_barcode: function() {
 		let scan_barcode_field = this.frm.fields_dict["scan_barcode"];
 
@@ -1974,6 +1869,87 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			return;
 		}
 	},
+	get_items_from_csv:function (frm) {
+		var me = this;
+
+		var dialog = new frappe.ui.Dialog({
+			title: "Add items from CSV",
+			fields: [
+				{"fieldtype": "HTML", "label": __(""), "fieldname": "import_html",
+					"reqd": 1 },
+				{"fieldtype": "HTML", "label": __(""), "fieldname": "import_log",
+					"reqd": 1 },
+				{"fieldtype": "Check", "label": __("Keep Previous Entries"), "fieldname": "keep_previous"},
+				{"fieldtype": "Button", "label": __("Update"), "fieldname": "update"},
+			]
+		});
+
+		var $wrapper = $(dialog.fields_dict.import_html.wrapper).empty();
+
+		// upload
+		frappe.upload.make({
+			parent: $wrapper,
+			args: {
+				method: 'erpnext.controllers.queries.get_items_from_csv',
+			},
+			btn: $(dialog.fields_dict.update.wrapper),
+			callback: function(attachment, r) {
+				var $log_wrapper = $(dialog.fields_dict.import_log.wrapper).empty();
+				var $keep_previous = $(dialog.fields_dict.keep_previous.wrapper).find('input[type="checkbox"]');
+				
+				var items = r.message.items;
+				var messages = r.message.messages;
+				var error = r.message.error;
+				if(!r.messages) r.messages = [];
+
+				r.messages = $.map(messages, function(v) {
+					return v;
+				});
+				
+				if (error){
+					r.messages = ["<h4 style='color:red'>"+__("Import Failed")+"</h4>"]
+						.concat(r.messages)
+
+				} else {
+					r.messages = ["<h4 style='color:green'>"+__("Import Succeeded")+"</h4>"]
+						.concat(r.messages)
+					
+					if(!$keep_previous.is(":checked")){	
+						 cur_frm.doc.items = [];
+					}
+					$.each(items, function(i, item) {
+						var d = frappe.model.add_child(cur_frm.doc, cur_frm.doctype + " Item", "items");
+							d.item_code = item.item_code;
+							d.qty = item.qty;
+							d.page_break = item.page_break;
+							console.log(d);
+							cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+							
+						});
+				
+					cur_frm.refresh_field('items');
+					me.calculate_taxes_and_totals();
+
+				}
+				
+				$.each(r.messages, function(i, v) {
+					var $p = $('<p>').html(v).appendTo($log_wrapper);
+					if(v.substr(0,5)=='Error') {
+						$p.css('color', 'red');
+					}else if(v.substr(0,6)=='Header') {
+						$p.css('color', 'green');
+					} else if(v.substr(0,7)=='Updated') {
+						$p.css('color', 'green');
+					}
+				});
+			},
+			is_private: false
+		});
+
+		
+		dialog.show();
+		
+	},
 	get_items_from:function (frm) {
 		var me=this;
 		
@@ -2024,26 +2000,17 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					cur_frm.set_value("items",[]);
 				
 				var row_info = {};
-				var row_count = cur_frm.doc.items.length;
+				var row_start = cur_frm.doc.items.length;
 				
 				
 				for (var i=0; i< r.message.length; i++) {
 					var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.items.df.options, cur_frm.fields_dict.items.df.fieldname);
 					row.item_code = r.message[i].item_code
-					
-					
-					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
-					var row_index = row_count + i;
+					var row_index = row_start + i;
 					row_info[row_index] = r.message[i];
 					
-					/* for (var key in r.message[i]) {
-						var has_margin_field = frappe.meta.has_field(row.doctype, key);
-						if(has_margin_field)
-						{
-							row[key] = r.message[i][key];
-						}
+					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
 					
-					} */
 				}
 				
 				dialog.hide();
@@ -2064,7 +2031,6 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 							}
 					
 						}
-						
 					}
 					
 					cur_frm.refresh_field('items');
@@ -2210,7 +2176,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				//{fieldname:'qty', fieldtype:'Float', label: __('Percent'),default:'100'},
 			]
 		});
-		dialog.set_primary_action(__("Bata"), function() {
+		dialog.set_primary_action(__("Rata"), function() {
 		
 			var filters = dialog.get_values();
 			

@@ -22,7 +22,7 @@ def print_settings_for_item_table(doc):
 	if doc.flags.compact_item_print:
 
 		doc.print_templates["item_name"] = "templates/print_formats/includes/custom_item_table_description.html"
-		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount","total_weight","net_weight"]
+		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount","total_weight","net_weight","remarks"]
 		
 		
 		doc.flags.format_columns = format_columns
