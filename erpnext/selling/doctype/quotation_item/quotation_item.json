@@ -1,6 +1,8 @@
 {
+ "actions": [],
  "creation": "2013-03-07 11:42:57",
  "doctype": "DocType",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -162,6 +164,7 @@
    "oldfieldname": "stock_uom",
    "oldfieldtype": "Data",
    "options": "UOM",
+   "print_hide": 1,
    "print_width": "100px",
    "read_only": 1,
    "width": "100px"
@@ -175,7 +178,6 @@
    "fieldtype": "Link",
    "label": "UOM",
    "options": "UOM",
-   "print_hide": 1,
    "reqd": 1
   },
   {
@@ -575,7 +577,8 @@
  ],
  "idx": 1,
  "istable": 1,
- "modified": "2019-12-30 15:23:34.122742",
+ "links": [],
+ "modified": "2020-03-05 14:18:58.783751",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Quotation Item",

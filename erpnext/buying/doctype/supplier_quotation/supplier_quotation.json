@@ -1,9 +1,10 @@
 {
+ "actions": [],
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-21 16:16:45",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "supplier_section",
@@ -447,7 +448,7 @@
   },
   {
    "fieldname": "other_charges_calculation",
-   "fieldtype": "Text",
+   "fieldtype": "Long Text",
    "label": "Taxes and Charges Calculation",
    "no_copy": 1,
    "oldfieldtype": "HTML",
@@ -795,7 +796,8 @@
  "icon": "fa fa-shopping-cart",
  "idx": 29,
  "is_submittable": 1,
- "modified": "2019-11-18 21:43:52.689425",
+ "links": [],
+ "modified": "2019-12-30 19:17:28.208693",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Supplier Quotation",

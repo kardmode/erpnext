@@ -1,5 +1,5 @@
 {
- "add_company_abbr_to_name": 1,
+ "actions": [],
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-24 19:29:08",
@@ -537,7 +537,7 @@
   },
   {
    "fieldname": "other_charges_calculation",
-   "fieldtype": "Text",
+   "fieldtype": "Long Text",
    "label": "Taxes and Charges Calculation",
    "no_copy": 1,
    "oldfieldtype": "HTML",
@@ -887,7 +887,7 @@
    "no_copy": 1,
    "oldfieldname": "status",
    "oldfieldtype": "Select",
-   "options": "Draft\nOpen\nReplied\nOrdered\nLost\nCancelled",
+   "options": "Draft\nOpen\nReplied\nOrdered\nLost\nCancelled\nExpired",
    "print_hide": 1,
    "read_only": 1,
    "reqd": 1
@@ -928,8 +928,9 @@
  "icon": "fa fa-shopping-cart",
  "idx": 82,
  "is_submittable": 1,
+ "links": [],
  "max_attachments": 1,
- "modified": "2020-03-09 00:26:53.363790",
+ "modified": "2019-12-30 19:14:56.630270",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Quotation",

@@ -1,7 +1,6 @@
 {
  "creation": "2019-03-07 12:07:09.416101",
  "doctype": "DocType",
- "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -19,7 +18,8 @@
    "in_list_view": 1,
    "label": "Invoice",
    "options": "Sales Invoice",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fetch_from": "sales_invoice.customer",
@@ -61,7 +61,7 @@
   }
  ],
  "istable": 1,
- "modified": "2019-11-18 21:33:50.976481",
+ "modified": "2020-02-20 16:16:20.724620",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Discounted Invoice",

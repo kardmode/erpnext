@@ -1,9 +1,7 @@
 {
- "add_company_abbr_to_name": 1,
  "autoname": "naming_series:",
  "creation": "2018-05-24 07:18:08.256060",
  "doctype": "DocType",
- "document_type": "Tools",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -91,7 +89,8 @@
    "fieldtype": "Link",
    "label": "Company",
    "options": "Company",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "section_break_12",
@@ -131,7 +130,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2020-04-18 20:47:22.581775",
+ "modified": "2019-11-18 19:37:37.151686",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Blanket Order",

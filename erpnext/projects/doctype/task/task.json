@@ -1,9 +1,10 @@
 {
+ "actions": [],
  "allow_import": 1,
  "autoname": "TASK-.YYYY.-.#####",
  "creation": "2013-01-29 19:25:50",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "subject",
@@ -200,6 +201,7 @@
   {
    "fieldname": "description",
    "fieldtype": "Text Editor",
+   "in_preview": 1,
    "label": "Task Description",
    "oldfieldname": "description",
    "oldfieldtype": "Text Editor",
@@ -360,11 +362,14 @@
  ],
  "icon": "fa fa-check",
  "idx": 1,
+ "is_tree": 1,
+ "links": [],
  "max_attachments": 5,
- "modified": "2019-11-18 21:36:30.480557",
+ "modified": "2020-03-18 18:26:04.788061",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Task",
+ "nsm_parent_field": "parent_task",
  "owner": "Administrator",
  "permissions": [
   {

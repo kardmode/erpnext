@@ -1,10 +1,11 @@
 {
+ "actions": [],
  "allow_copy": 1,
  "allow_import": 1,
  "creation": "2013-01-30 12:49:46",
  "description": "Heads (or groups) against which Accounting Entries are made and balances are maintained.",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "properties",
@@ -196,10 +197,13 @@
  ],
  "icon": "fa fa-money",
  "idx": 1,
- "modified": "2019-11-18 21:30:50.439607",
+ "is_tree": 1,
+ "links": [],
+ "modified": "2020-03-18 18:26:03.992861",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Account",
+ "nsm_parent_field": "parent_account",
  "owner": "Administrator",
  "permissions": [
   {

@@ -1,10 +1,10 @@
 {
- "add_company_abbr_to_name": 1,
+ "actions": [],
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-21 16:16:39",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -47,6 +47,7 @@
   "is_subcontracted",
   "supplier_warehouse",
   "items_section",
+  "scan_barcode",
   "items",
   "pricing_rule_details",
   "pricing_rules",
@@ -306,6 +307,7 @@
    "fieldname": "contact_email",
    "fieldtype": "Small Text",
    "label": "Contact Email",
+   "options": "Email",
    "print_hide": 1,
    "read_only": 1
   },
@@ -615,7 +617,7 @@
   },
   {
    "fieldname": "other_charges_calculation",
-   "fieldtype": "Text",
+   "fieldtype": "Long Text",
    "label": "Taxes and Charges Calculation",
    "no_copy": 1,
    "oldfieldtype": "HTML",
@@ -1052,12 +1054,18 @@
    "oldfieldtype": "Date",
    "print_width": "100px",
    "width": "100px"
+  },
+  {
+   "fieldname": "scan_barcode",
+   "fieldtype": "Data",
+   "label": "Scan Barcode"
   }
  ],
  "icon": "fa fa-truck",
  "idx": 261,
  "is_submittable": 1,
- "modified": "2019-11-19 13:54:10.871215",
+ "links": [],
+ "modified": "2020-04-06 16:31:37.444891",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Purchase Receipt",

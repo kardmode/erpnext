@@ -1,15 +1,15 @@
 {
+ "actions": [],
  "allow_import": 1,
  "creation": "2013-05-02 16:29:48",
  "description": "Multiple Item prices.",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "item_code",
   "uom",
   "packing_unit",
-  "min_qty",
   "column_break_17",
   "item_name",
   "brand",
@@ -40,6 +40,7 @@
    "fieldtype": "Link",
    "in_filter": 1,
    "in_global_search": 1,
+   "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Item Code",
    "oldfieldname": "price_list_name",
@@ -62,19 +63,13 @@
    "label": "Packing Unit"
   },
   {
-   "default": "1",
-   "fieldname": "min_qty",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "Minimum Qty "
-  },
-  {
    "fieldname": "column_break_17",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "item_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Item Name",
    "read_only": 1
   },
@@ -212,7 +207,8 @@
  ],
  "icon": "fa fa-flag",
  "idx": 1,
- "modified": "2019-11-18 21:42:19.413574",
+ "links": [],
+ "modified": "2020-02-28 14:21:25.580331",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item Price",
@@ -247,7 +243,8 @@
   }
  ],
  "quick_entry": 1,
+ "sort_field": "modified",
  "sort_order": "ASC",
- "title_field": "item_code",
+ "title_field": "item_name",
  "track_changes": 1
 }

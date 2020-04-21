@@ -1,5 +1,5 @@
 {
- "add_company_abbr_to_name": 1,
+ "actions": [],
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2017-10-09 14:26:29.612365",
@@ -20,6 +20,7 @@
   "paid_amount",
   "due_advance_amount",
   "claimed_amount",
+  "return_amount",
   "section_break_7",
   "status",
   "company",
@@ -161,10 +162,18 @@
    "fieldtype": "Link",
    "label": "Mode of Payment",
    "options": "Mode of Payment"
+  },
+  {
+   "fieldname": "return_amount",
+   "fieldtype": "Currency",
+   "label": "Returned Amount",
+   "options": "Company:company:default_currency",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
- "modified": "2019-11-18 22:04:30.323619",
+ "links": [],
+ "modified": "2019-12-15 19:04:07.044505",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Advance",

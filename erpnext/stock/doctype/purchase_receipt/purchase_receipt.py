@@ -48,8 +48,8 @@ class PurchaseReceipt(BuyingController):
 			'target_field': 'received_qty',
 			'target_parent_dt': 'Material Request',
 			'target_parent_field': 'per_received',
-			'target_ref_field': 'qty',
-			'source_field': 'qty',
+			'target_ref_field': 'stock_qty',
+			'source_field': 'stock_qty',
 			'percent_join_field': 'material_request'
 		}]
 		if cint(self.is_return):
@@ -100,25 +100,15 @@ class PurchaseReceipt(BuyingController):
 
 		if getdate(self.posting_date) > getdate(nowdate()):
 			throw(_("Posting Date cannot be future date"))
-			
-	def validate_supplier_with_dn(self):
-		if self.supplier_delivery_note:
-			duplicate_pr = None
-			if cint(self.get("__islocal")):
-				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where supplier = %s and supplier_delivery_note = %s and docstatus = 1 limit 1""", (self.supplier,self.supplier_delivery_note),as_dict=True)
-			else:
-				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where name <> %s and supplier = %s and supplier_delivery_note = %s limit 1""", (self.name,self.supplier,self.supplier_delivery_note),as_dict=True)
 
-			if duplicate_pr:
-				frappe.throw(_("Supplier Delivery Note Identical to {0}").format(duplicate_pr[0].name))
-	
 	def validate_cwip_accounts(self):
 		for item in self.get('items'):
 			if item.is_fixed_asset and is_cwip_accounting_enabled(item.asset_category):
 				# check cwip accounts before making auto assets
 				# Improves UX by not giving messages of "Assets Created" before throwing error of not finding arbnb account
 				arbnb_account = self.get_company_default("asset_received_but_not_billed")
-				cwip_account = get_asset_account("capital_work_in_progress_account", company = self.company)
+				cwip_account = get_asset_account("capital_work_in_progress_account", asset_category = item.asset_category, \
+					company = self.company)
 				break
 
 	def validate_with_previous_doc(self):
@@ -217,6 +207,7 @@ class PurchaseReceipt(BuyingController):
 		# because updating ordered qty in bin depends upon updated ordered qty in PO
 		self.update_stock_ledger()
 		self.make_gl_entries_on_cancel()
+		self.delete_auto_created_batches()
 
 	def get_current_stock(self):
 		for d in self.get('supplied_items'):
@@ -267,7 +258,7 @@ class PurchaseReceipt(BuyingController):
 					negative_expense_to_be_booked += flt(d.item_tax_amount)
 
 					# Amount added through landed-cost-voucher
-					if landed_cost_entries:
+					if d.landed_cost_voucher_amount and landed_cost_entries:
 						for account, amount in iteritems(landed_cost_entries[(d.item_code, d.name)]):
 							gl_entries.append(self.get_gl_dict({
 								"account": account,
@@ -384,11 +375,12 @@ class PurchaseReceipt(BuyingController):
 					# valuation rate is total of net rate, raw mat supp cost, tax amount, lcv amount per item
 					self.update_assets(item, item.valuation_rate)
 		return gl_entries
-	
+
 	def add_asset_gl_entries(self, item, gl_entries):
 		arbnb_account = self.get_company_default("asset_received_but_not_billed")
-		# This returns company's default cwip account
-		cwip_account = get_asset_account("capital_work_in_progress_account", company = self.company)
+		# This returns category's cwip account if not then fallback to company's default cwip account
+		cwip_account = get_asset_account("capital_work_in_progress_account", asset_category = item.asset_category, \
+			company = self.company)
 
 		asset_amount = flt(item.net_amount) + flt(item.item_tax_amount/self.conversion_rate)
 		base_asset_amount = flt(item.base_net_amount + item.item_tax_amount)
@@ -416,7 +408,7 @@ class PurchaseReceipt(BuyingController):
 			"credit_in_account_currency": (base_asset_amount
 				if asset_rbnb_currency == self.company_currency else asset_amount)
 		}, item=item))
-	
+
 	def add_lcv_gl_entries(self, item, gl_entries):
 		expenses_included_in_asset_valuation = self.get_company_default("expenses_included_in_asset_valuation")
 		if not is_cwip_accounting_enabled(item.asset_category):
@@ -425,7 +417,7 @@ class PurchaseReceipt(BuyingController):
 		else:
 			# This returns company's default cwip account
 			asset_account = get_asset_account("capital_work_in_progress_account", company=self.company)
-		
+
 		gl_entries.append(self.get_gl_dict({
 			"account": expenses_included_in_asset_valuation,
 			"against": asset_account,
@@ -445,7 +437,7 @@ class PurchaseReceipt(BuyingController):
 		}, item=item))
 
 	def update_assets(self, item, valuation_rate):
-		assets = frappe.db.get_all('Asset', 
+		assets = frappe.db.get_all('Asset',
 			filters={ 'purchase_receipt': self.name, 'item_code': item.item_code }
 		)
 
@@ -469,6 +461,17 @@ class PurchaseReceipt(BuyingController):
 			pr_doc.update_billing_percentage(update_modified=update_modified)
 
 		self.load_from_db()
+		
+	def validate_supplier_with_dn(self):
+		if self.supplier_delivery_note:
+			duplicate_pr = None
+			if cint(self.get("__islocal")):
+				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where supplier = %s and supplier_delivery_note = %s and docstatus = 1 limit 1""", (self.supplier,self.supplier_delivery_note),as_dict=True)
+			else:
+				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where name <> %s and supplier = %s and supplier_delivery_note = %s limit 1""", (self.name,self.supplier,self.supplier_delivery_note),as_dict=True)
+
+			if duplicate_pr:
+				frappe.throw(_("Supplier Delivery Note Identical to {0}").format(duplicate_pr[0].name))
 
 def update_billed_amount_based_on_po(po_detail, update_modified=True):
 	# Billed against Sales Order directly
@@ -667,28 +670,29 @@ def make_delivery_note(source_name, target_doc=None):
 	return doclist
 
 def get_item_account_wise_additional_cost(purchase_document):
-	landed_cost_voucher = frappe.get_value("Landed Cost Purchase Receipt",
-		{"receipt_document": purchase_document}, "parent")
+	landed_cost_vouchers = frappe.get_all("Landed Cost Purchase Receipt", fields=["parent"],
+		filters = {"receipt_document": purchase_document, "docstatus": 1})
 
-	if not landed_cost_voucher:
+	if not landed_cost_vouchers:
 		return
 
-	total_item_cost = 0
 	item_account_wise_cost = {}
-	landed_cost_voucher_doc = frappe.get_doc("Landed Cost Voucher", landed_cost_voucher)
-	based_on_field = frappe.scrub(landed_cost_voucher_doc.distribute_charges_based_on)
 
-	for item in landed_cost_voucher_doc.items:
-		if item.receipt_document == purchase_document:
+	for lcv in landed_cost_vouchers:
+		landed_cost_voucher_doc = frappe.get_doc("Landed Cost Voucher", lcv.parent)
+		based_on_field = frappe.scrub(landed_cost_voucher_doc.distribute_charges_based_on)
+		total_item_cost = 0
+
+		for item in landed_cost_voucher_doc.items:
 			total_item_cost += item.get(based_on_field)
 
-	for item in landed_cost_voucher_doc.items:
-		if item.receipt_document == purchase_document:
-			for account in landed_cost_voucher_doc.taxes:
-				item_account_wise_cost.setdefault((item.item_code, item.purchase_receipt_item), {})
-				item_account_wise_cost[(item.item_code, item.purchase_receipt_item)].setdefault(account.expense_account, 0.0)
-				item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][account.expense_account] += \
-					account.amount * item.get(based_on_field) / total_item_cost
+		for item in landed_cost_voucher_doc.items:
+			if item.receipt_document == purchase_document:
+				for account in landed_cost_voucher_doc.taxes:
+					item_account_wise_cost.setdefault((item.item_code, item.purchase_receipt_item), {})
+					item_account_wise_cost[(item.item_code, item.purchase_receipt_item)].setdefault(account.expense_account, 0.0)
+					item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][account.expense_account] += \
+						account.amount * item.get(based_on_field) / total_item_cost
 
 	return item_account_wise_cost
 

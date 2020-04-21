@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe
 
 import unittest, copy, time
-from frappe.utils import nowdate, flt, getdate, cint
+from frappe.utils import nowdate, flt, getdate, cint, add_days
 from frappe.model.dynamic_links import get_dynamic_link_map
 from erpnext.stock.doctype.stock_entry.test_stock_entry import make_stock_entry, get_qty_after_transaction
 from erpnext.accounts.doctype.purchase_invoice.test_purchase_invoice import unlink_payment_on_cancel_of_invoice
@@ -728,7 +728,7 @@ class TestSalesInvoice(unittest.TestCase):
 	def test_make_pos_invoice(self):
 		from erpnext.accounts.doctype.sales_invoice.pos import make_invoice
 
-		make_pos_profile()
+		pos_profile = make_pos_profile()
 		pr = make_purchase_receipt(company= "_Test Company with perpetual inventory",supplier_warehouse= "Work In Progress - TCP1", item_code= "_Test FG Item",warehouse= "Stores - TCP1",cost_center= "Main - TCP1")
 		pos = create_sales_invoice(company= "_Test Company with perpetual inventory", debit_to="Debtors - TCP1", item_code= "_Test FG Item", warehouse="Stores - TCP1", income_account = "Sales - TCP1", expense_account = "Cost of Goods Sold - TCP1", cost_center = "Main - TCP1", do_not_save=True)
 
@@ -744,7 +744,7 @@ class TestSalesInvoice(unittest.TestCase):
 			pos.append("taxes", tax)
 
 		invoice_data = [{'09052016142': pos}]
-		si = make_invoice(invoice_data).get('invoice')
+		si = make_invoice(pos_profile, invoice_data).get('invoice')
 		self.assertEqual(si[0], '09052016142')
 
 		sales_invoice = frappe.get_all('Sales Invoice', fields =["*"], filters = {'offline_pos_name': '09052016142', 'docstatus': 1})
@@ -762,7 +762,7 @@ class TestSalesInvoice(unittest.TestCase):
 		if allow_negative_stock:
 			frappe.db.set_value('Stock Settings', None, 'allow_negative_stock', 0)
 
-		make_pos_profile()
+		pos_profile = make_pos_profile()
 		timestamp = cint(time.time())
 
 		item = make_item("_Test POS Item")
@@ -776,7 +776,7 @@ class TestSalesInvoice(unittest.TestCase):
 							{'mode_of_payment': 'Cash', 'account': 'Cash - _TC', 'amount': 330}]
 
 		invoice_data = [{timestamp: pos}]
-		si = make_invoice(invoice_data).get('invoice')
+		si = make_invoice(pos_profile, invoice_data).get('invoice')
 		self.assertEqual(si[0], timestamp)
 
 		sales_invoice = frappe.get_all('Sales Invoice', fields =["*"], filters = {'offline_pos_name': timestamp})
@@ -785,7 +785,7 @@ class TestSalesInvoice(unittest.TestCase):
 		timestamp = cint(time.time())
 		pos["offline_pos_name"] = timestamp
 		invoice_data = [{timestamp: pos}]
-		si1 = make_invoice(invoice_data).get('invoice')
+		si1 = make_invoice(pos_profile, invoice_data).get('invoice')
 		self.assertEqual(si1[0], timestamp)
 
 		sales_invoice1 = frappe.get_all('Sales Invoice', fields =["*"], filters = {'offline_pos_name': timestamp})
@@ -1847,6 +1847,26 @@ class TestSalesInvoice(unittest.TestCase):
 		self.assertEqual(data['billLists'][0]['vehicleNo'], 'KA12KA1234')
 		self.assertEqual(data['billLists'][0]['itemList'][0]['taxableAmount'], 60000)
 
+	def test_item_tax_validity(self):
+		item = frappe.get_doc("Item", "_Test Item 2")
+
+		if item.taxes:
+			item.taxes = []
+			item.save()
+
+		item.append("taxes", {
+			"item_tax_template": "_Test Item Tax Template 1",
+			"valid_from": add_days(nowdate(), 1)
+		})
+
+		item.save()
+
+		sales_invoice = create_sales_invoice(item = "_Test Item 2", do_not_save=1)
+		sales_invoice.items[0].item_tax_template = "_Test Item Tax Template 1"
+		self.assertRaises(frappe.ValidationError, sales_invoice.save)
+
+		item.taxes = []
+		item.save()
 
 def create_sales_invoice(**args):
 	si = frappe.new_doc("Sales Invoice")
@@ -1870,7 +1890,7 @@ def create_sales_invoice(**args):
 		"gst_hsn_code": "999800",
 		"warehouse": args.warehouse or "_Test Warehouse - _TC",
 		"qty": args.qty or 1,
-		"rate": args.rate or 100,
+		"rate": args.rate if args.get("rate") is not None else 100,
 		"income_account": args.income_account or "Sales - _TC",
 		"expense_account": args.expense_account or "Cost of Goods Sold - _TC",
 		"cost_center": args.cost_center or "_Test Cost Center - _TC",

@@ -65,6 +65,7 @@ class BOM(WebsiteGenerator):
 		context.parents = [{'name': 'boms', 'title': _('All BOMs') }]
 
 	def on_update(self):
+		frappe.cache().hdel('bom_children', self.name)
 		self.check_recursion()
 		self.update_stock_qty()
 		self.update_exploded_items()
@@ -97,6 +98,7 @@ class BOM(WebsiteGenerator):
 
 	def get_routing(self):
 		if self.routing:
+			self.set("operations", [])
 			for d in frappe.get_all("BOM Operation", fields = ["*"],
 				filters = {'parenttype': 'Routing', 'parent': self.routing}):
 				child = self.append('operations', d)
@@ -321,7 +323,7 @@ class BOM(WebsiteGenerator):
 		if not valuation_rate:
 			valuation_rate = frappe.db.get_value("Item", args['item_code'], "valuation_rate")
 
-		return valuation_rate
+		return flt(valuation_rate)
 
 	def manage_default_bom(self):
 		""" Uncheck others if current one is selected as default or
@@ -432,15 +434,9 @@ class BOM(WebsiteGenerator):
 	def validate_materials(self):
 		""" Validate raw material entries """
 
-		def get_duplicates(lst):
-			seen = set()
-			seen_add = seen.add
-			for item in lst:
-				if item.item_code in seen or seen_add(item.item_code):
-					yield item
-
 		if not self.get('items'):
 			frappe.throw(_("Raw Materials cannot be blank."))
+
 		check_list = []
 		for m in self.get('items'):
 			if m.bom_no:
@@ -448,16 +444,6 @@ class BOM(WebsiteGenerator):
 			if flt(m.qty) <= 0:
 				frappe.throw(_("Quantity required for Item {0} in row {1}").format(m.item_code, m.idx))
 			check_list.append(m)
-
-		if not self.allow_same_item_multiple_times:
-			duplicate_items = list(get_duplicates(check_list))
-			if duplicate_items:
-				li = []
-				for i in duplicate_items:
-					li.append("{0} on row {1}".format(i.item_code, i.idx))
-				duplicate_list = '<br>' + '<br>'.join(li)
-
-				frappe.throw(_("Same item has been entered multiple times. {0}").format(duplicate_list))
 
 	def check_recursion(self, bom_list=[]):
 		""" Check whether recursion occurs in any bom"""
@@ -620,6 +606,14 @@ class BOM(WebsiteGenerator):
 		self.scrap_material_cost = total_sm_cost
 		self.base_scrap_material_cost = base_total_sm_cost
 
+	def update_new_bom(self, old_bom, new_bom, rate):
+		for d in self.get("items"):
+			if d.bom_no != old_bom: continue
+
+			d.bom_no = new_bom
+			d.rate = rate
+			d.amount = (d.stock_qty or d.qty) * rate
+
 	def update_exploded_items(self,should_save=True):
 		""" Update Flat BOM, following will be correct data"""
 		self.get_exploded_items()
@@ -741,7 +735,7 @@ class BOM(WebsiteGenerator):
 			for d in self.operations:
 				if not d.description:
 					d.description = frappe.db.get_value('Operation', d.operation, 'description')
-				if not d.batch_size > 0:
+				if not d.batch_size or d.batch_size <= 0:
 					d.batch_size = 1
 		self.update_operation_summary()
 		
@@ -1772,28 +1766,64 @@ def get_valuation_rate(args):
 
 def add_additional_cost(stock_entry, work_order):
 	# Add non stock items cost in the additional cost
-	bom = frappe.get_doc('BOM', work_order.bom_no)
-	table = 'exploded_items' if work_order.get('use_multi_level_bom') else 'items'
+	stock_entry.additional_costs = []
 	expenses_included_in_valuation = frappe.get_cached_value("Company", work_order.company,
 		"expenses_included_in_valuation")
 
+	add_non_stock_items_cost(stock_entry, work_order, expenses_included_in_valuation)
+	add_operations_cost(stock_entry, work_order, expenses_included_in_valuation)
+
+def add_non_stock_items_cost(stock_entry, work_order, expense_account):
+	bom = frappe.get_doc('BOM', work_order.bom_no)
+	table = 'exploded_items' if work_order.get('use_multi_level_bom') else 'items'
+
 	items = {}
 	for d in bom.get(table):
-		items.setdefault(d.item_code, d.rate)
+		items.setdefault(d.item_code, d.amount)
 
 	non_stock_items = frappe.get_all('Item',
 		fields="name", filters={'name': ('in', list(items.keys())), 'ifnull(is_stock_item, 0)': 0}, as_list=1)
 
+	non_stock_items_cost = 0.0
 	for name in non_stock_items:
+		non_stock_items_cost += flt(items.get(name[0])) * flt(stock_entry.fg_completed_qty) / flt(bom.quantity)
+
+	if non_stock_items_cost:
 		stock_entry.append('additional_costs', {
-			'expense_account': expenses_included_in_valuation,
-			'description': name[0],
-			'amount': items.get(name[0])
+			'expense_account': expense_account,
+			'description': _("Non stock items"),
+			'amount': non_stock_items_cost
 		})
+
+def add_operations_cost(stock_entry, work_order=None, expense_account=None):
+	from erpnext.stock.doctype.stock_entry.stock_entry import get_operating_cost_per_unit
+	operating_cost_per_unit = get_operating_cost_per_unit(work_order, stock_entry.bom_no)
+
+	if operating_cost_per_unit:
+		stock_entry.append('additional_costs', {
+			"expense_account": expense_account,
+			"description": _("Operating Cost as per Work Order / BOM"),
+			"amount": operating_cost_per_unit * flt(stock_entry.fg_completed_qty)
+		})
+
+	if work_order and work_order.additional_operating_cost and work_order.qty:
+		additional_operating_cost_per_unit = \
+			flt(work_order.additional_operating_cost) / flt(work_order.qty)
+
+		if additional_operating_cost_per_unit:
+			stock_entry.append('additional_costs', {
+				"expense_account": expense_account,
+				"description": "Additional Operating Cost",
+				"amount": additional_operating_cost_per_unit * flt(stock_entry.fg_completed_qty)
+			})
 
 @frappe.whitelist()
 def get_bom_diff(bom1, bom2):
 	from frappe.model import table_fields
+
+	if bom1 == bom2:
+		frappe.throw(_("BOM 1 {0} and BOM 2 {1} should not be same")
+			.format(frappe.bold(bom1), frappe.bold(bom2)))
 
 	doc1 = frappe.get_doc('BOM', bom1)
 	doc2 = frappe.get_doc('BOM', bom2)

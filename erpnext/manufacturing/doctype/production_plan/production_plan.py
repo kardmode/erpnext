@@ -144,7 +144,7 @@ class ProductionPlan(Document):
 			item_condition = " and mr_item.item_code ={0}".format(frappe.db.escape(self.item_code))
 
 		items = frappe.db.sql("""select distinct parent, name, item_code, warehouse, description,
-			(qty - ordered_qty) as pending_qty
+			(qty - ordered_qty) * conversion_factor as pending_qty
 			from `tabMaterial Request Item` mr_item
 			where parent in (%s) and docstatus = 1 and qty > ordered_qty
 			and exists (select name from `tabBOM` bom where bom.item=mr_item.item_code
@@ -529,7 +529,6 @@ def get_material_request_items(row, sales_order,
 		required_qty = ceil(required_qty)
 
 	if required_qty > 0:
-		print(row)
 		return {
 			'item_code': row.item_code,
 			'item_name': row.item_name,
@@ -626,7 +625,6 @@ def get_items_for_material_requests(doc, ignore_existing_ordered_qty=None):
 	for data in po_items:
 		planned_qty = data.get('required_qty') or data.get('planned_qty')
 		ignore_existing_ordered_qty = data.get('ignore_existing_ordered_qty') or ignore_existing_ordered_qty
-		warehouse = data.get("warehouse") or warehouse
 
 		item_details = {}
 		if data.get("bom") or data.get("bom_no"):
@@ -730,6 +728,6 @@ def get_sub_assembly_items(bom_no, bom_data):
 				})
 
 			bom_item = bom_data.get(key)
-			bom_item["stock_qty"] += d.stock_qty
+			bom_item["stock_qty"] += d.stock_qty / d.parent_bom_qty
 
 			get_sub_assembly_items(bom_item.get("bom_no"), bom_data)

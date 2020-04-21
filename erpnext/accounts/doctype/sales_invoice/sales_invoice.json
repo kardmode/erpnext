@@ -1,10 +1,8 @@
 {
- "add_company_abbr_to_name": 1,
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-24 19:29:05",
  "doctype": "DocType",
- "document_type": "Documents",
  "engine": "InnoDB",
  "field_order": [
   "customer_section",
@@ -19,7 +17,6 @@
   "is_return",
   "column_break1",
   "company",
-  "project",
   "posting_date",
   "posting_time",
   "set_posting_time",
@@ -30,6 +27,7 @@
   "column_break_21",
   "update_billed_amount_in_sales_order",
   "accounting_dimensions_section",
+  "project",
   "dimension_col_break",
   "cost_center",
   "customer_po_details",
@@ -374,7 +372,8 @@
    "no_copy": 1,
    "options": "Sales Invoice",
    "print_hide": 1,
-   "read_only": 1
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "column_break_21",
@@ -776,7 +775,7 @@
   },
   {
    "fieldname": "other_charges_calculation",
-   "fieldtype": "Text",
+   "fieldtype": "Long Text",
    "label": "Taxes and Charges Calculation",
    "no_copy": 1,
    "oldfieldtype": "HTML",
@@ -1569,7 +1568,7 @@
  "icon": "fa fa-file-text",
  "idx": 181,
  "is_submittable": 1,
- "modified": "2019-11-23 10:20:42.574837",
+ "modified": "2020-02-10 04:57:11.221180",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",

@@ -1,16 +1,15 @@
 {
- "add_company_abbr_to_name": 1,
- "append_company_abbr_to_name": "0",
+ "actions": [],
  "creation": "2013-05-23 16:55:51",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "item_code",
-  "description",
   "qty",
-  "uom",
-  "rate"
+  "description",
+  "rate",
+  "uom"
  ],
  "fields": [
   {
@@ -54,6 +53,7 @@
   {
    "fieldname": "uom",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "UOM",
    "oldfieldname": "uom",
    "oldfieldtype": "Link",
@@ -63,11 +63,14 @@
  ],
  "idx": 1,
  "istable": 1,
- "modified": "2020-03-11 21:57:33.566661",
+ "links": [],
+ "modified": "2020-02-28 14:06:05.725655",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Product Bundle Item",
  "owner": "Administrator",
  "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
  "track_changes": 1
 }

@@ -2,7 +2,6 @@
  "autoname": "naming_series:",
  "creation": "2017-12-25 16:50:53.878430",
  "doctype": "DocType",
- "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -26,7 +25,8 @@
   {
    "fieldname": "title",
    "fieldtype": "Data",
-   "label": "Title"
+   "label": "Title",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_2",
@@ -111,7 +111,7 @@
    "read_only": 1
   }
  ],
- "modified": "2019-12-25 19:33:22.796102",
+ "modified": "2019-11-17 23:24:11.395882",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Shareholder",

@@ -6,7 +6,12 @@ frappe.provide("erpnext.bom");
 frappe.ui.form.on("BOM", {
 	setup: function(frm) {
 
-		/* frm.set_query("bom_no", "items", function() {
+		// frm.custom_make_buttons = {
+			// 'Work Order': 'Work Order',
+			// 'Quality Inspection': 'Quality Inspection'
+		// };
+
+		frm.set_query("bom_no", "items", function() {
 			return {
 				filters: {
 					'currency': frm.doc.currency,
@@ -114,11 +119,18 @@ frappe.ui.form.on("BOM", {
 			
 
 		if(frm.doc.docstatus!=0) {
-			frm.add_custom_button(__("Duplicate"), function() {
-				frm.copy_doc();
-			});
-			
-			
+
+			// frm.add_custom_button(__("Work Order"), function() {
+				// frm.trigger("make_work_order");
+			// }, __("Create"));
+
+			// if (frm.doc.inspection_required) {
+				// frm.add_custom_button(__("Quality Inspection"), function() {
+					// frm.trigger("make_quality_inspection");
+				// }, __("Create"));
+			// }
+
+			frm.page.set_inner_btn_group_as_primary(__('Create'));
 		}
 
 		if(frm.doc.items && frm.doc.allow_alternative_item) {
@@ -181,6 +193,42 @@ frappe.ui.form.on("BOM", {
 		
 		});
 		dialog.show();
+	},
+
+	make_work_order: function(frm) {
+		const fields = [{
+			fieldtype: 'Float',
+			label: __('Qty To Manufacture'),
+			fieldname: 'qty',
+			reqd: 1,
+			default: 1
+		}];
+
+		frappe.prompt(fields, data => {
+			frappe.call({
+				method: "erpnext.manufacturing.doctype.work_order.work_order.make_work_order",
+				args: {
+					bom_no: frm.doc.name,
+					item: frm.doc.item,
+					qty: data.qty || 0.0,
+					project: frm.doc.project
+				},
+				freeze: true,
+				callback: function(r) {
+					if(r.message) {
+						var doc = frappe.model.sync(r.message)[0];
+						frappe.set_route("Form", doc.doctype, doc.name);
+					}
+				}
+			});
+		}, __("Enter Value"), __("Create"));
+	},
+
+	make_quality_inspection: function(frm) {
+		frappe.model.open_mapped_doc({
+			method: "erpnext.stock.doctype.quality_inspection.quality_inspection.make_quality_inspection",
+			frm: frm
+		})
 	},
 
 	update_cost: function(frm) {

@@ -1,10 +1,9 @@
 {
- "add_company_abbr_to_name": 1,
  "autoname": "naming_series:",
  "creation": "2013-03-28 10:35:31",
  "description": "This tool helps you to update or fix the quantity and valuation of stock in the system. It is typically used to synchronise the system values and what actually exists in your warehouses.",
  "doctype": "DocType",
- "document_type": "Tools",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
@@ -46,11 +45,11 @@
    "reqd": 1
   },
   {
-   "default": "Stock Reconciliation",
    "fieldname": "purpose",
    "fieldtype": "Select",
    "label": "Purpose",
-   "options": "Opening Stock\nStock Reconciliation"
+   "options": "\nOpening Stock\nStock Reconciliation",
+   "reqd": 1
   },
   {
    "fieldname": "col1",
@@ -155,7 +154,7 @@
  "idx": 1,
  "is_submittable": 1,
  "max_attachments": 1,
- "modified": "2020-01-27 01:58:07.736011",
+ "modified": "2020-04-08 17:02:47.196206",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock Reconciliation",

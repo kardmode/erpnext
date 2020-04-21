@@ -1,12 +1,13 @@
 {
+ "actions": [],
  "creation": "2013-02-22 01:28:01",
  "doctype": "DocType",
- "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "item_tax_template",
-  "tax_category"
+  "tax_category",
+  "valid_from"
  ],
  "fields": [
   {
@@ -27,11 +28,18 @@
    "oldfieldname": "tax_rate",
    "oldfieldtype": "Currency",
    "options": "Tax Category"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Valid From"
   }
  ],
  "idx": 1,
  "istable": 1,
- "modified": "2019-11-18 21:41:49.651339",
+ "links": [],
+ "modified": "2019-12-28 21:54:40.807849",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item Tax",

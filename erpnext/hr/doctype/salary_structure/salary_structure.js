@@ -47,7 +47,6 @@ frappe.ui.form.on('Salary Structure', {
 		frm.fields_dict['earnings'].grid.set_column_disp("default_amount", false);
 		frm.fields_dict['deductions'].grid.set_column_disp("default_amount", false);
 
-		
 		if(frm.doc.docstatus === 1) {
 			frm.add_custom_button(__("Preview Salary Slip"), function() {
 				frm.trigger('preview_salary_slip');
@@ -76,6 +75,7 @@ frappe.ui.form.on('Salary Structure', {
 			title: __("Assign to Employees"),
 			fields: [
 				{fieldname: "sec_break", fieldtype: "Section Break", label: __("Filter Employees By (Optional)")},
+				{fieldname: "company", fieldtype: "Link", options: "Company", label: __("Company"), default: frm.doc.company, read_only:1},
 				{fieldname: "grade", fieldtype: "Link", options: "Employee Grade", label: __("Employee Grade")},
 				{fieldname:'department', fieldtype:'Link', options: 'Department', label: __('Department')},
 				{fieldname:'designation', fieldtype:'Link', options: 'Designation', label: __('Designation')},
@@ -88,7 +88,6 @@ frappe.ui.form.on('Salary Structure', {
 			],
 			primary_action: function() {
 				var data = d.get_values();
-
 				frappe.call({
 					doc: frm.doc,
 					method: "assign_salary_structure",

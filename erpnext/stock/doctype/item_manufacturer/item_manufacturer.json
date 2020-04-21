@@ -1,8 +1,8 @@
 {
+ "actions": [],
  "allow_import": 1,
  "creation": "2019-06-02 04:41:37.332911",
  "doctype": "DocType",
- "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -11,7 +11,8 @@
   "manufacturer_part_no",
   "column_break_3",
   "item_name",
-  "description"
+  "description",
+  "is_default"
  ],
  "fields": [
   {
@@ -53,9 +54,17 @@
    "fieldtype": "Small Text",
    "label": "Description",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Default"
   }
  ],
- "modified": "2019-11-18 21:43:02.630171",
+ "links": [],
+ "modified": "2020-04-07 20:25:55.507905",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item Manufacturer",

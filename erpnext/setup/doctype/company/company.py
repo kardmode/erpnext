@@ -14,6 +14,9 @@ from frappe.model.document import Document
 from frappe.contacts.address_and_contact import load_address_and_contact
 from frappe.utils.nestedset import NestedSet
 
+from past.builtins import cmp
+import functools
+
 class Company(NestedSet):
 	nsm_parent_field = 'parent_company'
 
@@ -413,8 +416,13 @@ def install_country_fixtures(company):
 	company_doc = frappe.get_doc("Company", company)
 	path = frappe.get_app_path('erpnext', 'regional', frappe.scrub(company_doc.country))
 	if os.path.exists(path.encode("utf-8")):
-		frappe.get_attr("erpnext.regional.{0}.setup.setup"
-			.format(frappe.scrub(company_doc.country)))(company_doc, False)
+		try:
+			module_name = "erpnext.regional.{0}.setup.setup".format(frappe.scrub(company_doc.country))
+			frappe.get_attr(module_name)(company_doc, False)
+		except Exception as e:
+			frappe.log_error(title=str(e), message=frappe.get_traceback())
+			frappe.throw(_("Failed to setup defaults for country {0}. Please contact support@erpnext.com").format(frappe.bold(company_doc.country)))
+
 
 def update_company_current_month_sales(company):
 	current_month_year = formatdate(today(), "MM-yyyy")
@@ -560,3 +568,26 @@ def get_timeline_data(doctype, name):
 		return json.loads(history) if history and '{' in history else {}
 
 	return date_to_value_dict
+
+@frappe.whitelist()
+def get_default_company_address(name, sort_key='is_primary_address', existing_address=None):
+	if sort_key not in ['is_shipping_address', 'is_primary_address']:
+		return None
+
+	out = frappe.db.sql(""" SELECT
+			addr.name, addr.%s
+		FROM
+			`tabAddress` addr, `tabDynamic Link` dl
+		WHERE
+			dl.parent = addr.name and dl.link_doctype = 'Company' and
+			dl.link_name = %s and ifnull(addr.disabled, 0) = 0
+		""" %(sort_key, '%s'), (name)) #nosec
+
+	if existing_address:
+		if existing_address in [d[0] for d in out]:
+			return existing_address
+
+	if out:
+		return sorted(out, key = functools.cmp_to_key(lambda x,y: cmp(y[1], x[1])))[0][0]
+	else:
+		return None

@@ -1,4 +1,5 @@
 {
+ "actions": [],
  "allow_guest_to_view": 1,
  "allow_import": 1,
  "allow_rename": 1,
@@ -6,7 +7,7 @@
  "creation": "2013-05-03 10:45:46",
  "description": "A Product or a Service that is bought, sold or kept in stock.",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -113,6 +114,8 @@
   "is_sub_contracted_item",
   "column_break_74",
   "customer_code",
+  "default_item_manufacturer",
+  "default_manufacturer_part_no",
   "website_section",
   "show_in_website",
   "show_variant_in_website",
@@ -135,8 +138,7 @@
   "publish_in_hub",
   "hub_category_to_publish",
   "hub_warehouse",
-  "synced_with_hub",
-  "manufacturers"
+  "synced_with_hub"
  ],
  "fields": [
   {
@@ -343,7 +345,8 @@
   {
    "fieldname": "shelf_life_in_days",
    "fieldtype": "Int",
-   "label": "Shelf Life In Days"
+   "label": "Shelf Life In Days",
+   "mandatory_depends_on": "eval:doc.has_batch_no && doc.has_expiry_date"
   },
   {
    "default": "2099-12-31",
@@ -570,6 +573,7 @@
   {
    "default": "0.00",
    "depends_on": "is_stock_item",
+   "description": "Minimum quantity should be as per Stock UOM",
    "fieldname": "min_order_qty",
    "fieldtype": "Float",
    "label": "Minimum Order Qty",
@@ -1017,12 +1021,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "manufacturers",
-   "fieldtype": "Table",
-   "label": "Manufacturers",
-   "options": "Item Manufacturer"
-  },
-  {
    "depends_on": "eval:!doc.__islocal",
    "fieldname": "over_delivery_receipt_allowance",
    "fieldtype": "Float",
@@ -1042,14 +1040,27 @@
    "fieldname": "auto_create_assets",
    "fieldtype": "Check",
    "label": "Auto Create Assets on Purchase"
+  },
+  {
+   "fieldname": "default_item_manufacturer",
+   "fieldtype": "Data",
+   "label": "Default Item Manufacturer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "default_manufacturer_part_no",
+   "fieldtype": "Data",
+   "label": "Default Manufacturer Part No",
+   "read_only": 1
   }
  ],
  "has_web_view": 1,
  "icon": "fa fa-tag",
  "idx": 2,
  "image_field": "image",
+ "links": [],
  "max_attachments": 1,
- "modified": "2019-12-19 23:45:07.377535",
+ "modified": "2020-04-07 15:56:06.195722",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item",

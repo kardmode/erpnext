@@ -1,10 +1,10 @@
 {
- "add_company_abbr_to_name": 1,
+ "actions": [],
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-21 16:16:39",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "title",
@@ -418,6 +418,7 @@
    "fieldname": "contact_email",
    "fieldtype": "Small Text",
    "label": "Contact Email",
+   "options": "Email",
    "print_hide": 1,
    "read_only": 1
   },
@@ -706,7 +707,7 @@
   },
   {
    "fieldname": "other_charges_calculation",
-   "fieldtype": "Text",
+   "fieldtype": "Long Text",
    "label": "Taxes and Charges Calculation",
    "no_copy": 1,
    "oldfieldtype": "HTML",
@@ -1288,7 +1289,8 @@
  "icon": "fa fa-file-text",
  "idx": 204,
  "is_submittable": 1,
- "modified": "2019-11-23 10:22:13.614477",
+ "links": [],
+ "modified": "2019-12-30 19:13:49.610538",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Purchase Invoice",

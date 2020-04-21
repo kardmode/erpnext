@@ -4,7 +4,7 @@
  "autoname": "field:project_name",
  "creation": "2013-03-07 11:55:07",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "project_name",
@@ -14,7 +14,6 @@
   "percent_complete_method",
   "percent_complete",
   "column_break_5",
-  "company",
   "project_template",
   "expected_start_date",
   "expected_end_date",
@@ -39,6 +38,7 @@
   "total_costing_amount",
   "total_expense_claim",
   "total_purchase_cost",
+  "company",
   "column_break_28",
   "total_sales_amount",
   "total_billable_amount",
@@ -435,7 +435,7 @@
   },
   {
    "depends_on": "collect_progress",
-   "description": "Message will sent to users to get their status on the project",
+   "description": "Message will be sent to the users to get their status on the Project",
    "fieldname": "message",
    "fieldtype": "Text",
    "label": "Message"
@@ -444,7 +444,7 @@
  "icon": "fa fa-puzzle-piece",
  "idx": 29,
  "max_attachments": 4,
- "modified": "2019-11-19 20:04:50.410073",
+ "modified": "2020-04-09 14:17:15.524529",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Project",
@@ -480,9 +480,11 @@
    "write": 1
   }
  ],
+ "quick_entry": 1,
  "search_fields": "customer, status, priority, is_active",
  "show_name_in_global_search": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "timeline_field": "customer"
+ "timeline_field": "customer",
+ "track_seen": 1
 }

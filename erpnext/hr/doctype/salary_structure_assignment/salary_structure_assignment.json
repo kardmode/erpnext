@@ -1,9 +1,9 @@
 {
+ "actions": [],
  "allow_import": 1,
  "autoname": "HR-SSA-.YY.-.MM.-.#####",
  "creation": "2018-04-13 16:38:41.769237",
  "doctype": "DocType",
- "document_type": "Documents",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -92,7 +92,8 @@
   {
    "fieldname": "base",
    "fieldtype": "Currency",
-   "label": "Base"
+   "label": "Base",
+   "options": "Company:company:default_currency"
   },
   {
    "fieldname": "column_break_9",
@@ -101,7 +102,8 @@
   {
    "fieldname": "variable",
    "fieldtype": "Currency",
-   "label": "Variable"
+   "label": "Variable",
+   "options": "Company:company:default_currency"
   },
   {
    "fieldname": "amended_from",
@@ -114,7 +116,8 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2019-11-23 14:35:42.532690",
+ "links": [],
+ "modified": "2019-12-31 17:05:28.637510",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Salary Structure Assignment",

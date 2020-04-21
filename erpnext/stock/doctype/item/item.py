@@ -185,6 +185,7 @@ class Item(WebsiteGenerator):
 		self.add_default_uom_in_conversion_factor_table()
 		self.validate_conversion_factor()
 		self.validate_item_type()
+		self.validate_naming_series()
 		self.check_for_active_boms()
 		self.fill_customer_code()
 		self.check_item_tax()
@@ -214,7 +215,6 @@ class Item(WebsiteGenerator):
 		self.validate_auto_reorder_enabled_in_stock_settings()
 		self.cant_change()
 		self.update_show_in_website()
-		self.validate_manufacturer()
 
 		if not self.get("__islocal"):
 			self.old_item_group = frappe.db.get_value(self.doctype, self.name, "item_group")
@@ -234,16 +234,6 @@ class Item(WebsiteGenerator):
 		'''Clean HTML description if set'''
 		if cint(frappe.db.get_single_value('Stock Settings', 'clean_description_html')):
 			self.description = clean_html(self.description)
-			
-		if self.description:
-			self.description = self.description.strip()
-			
-	def validate_manufacturer(self):
-		list_man = [(x.manufacturer, x.manufacturer_part_no) for x in self.get('manufacturers')]
-		set_man = set(list_man)
-
-		if len(list_man) != len(set_man):
-			frappe.throw(_("Duplicate entry in Manufacturers table"))
 
 	def validate_customer_provided_part(self):
 		if self.is_customer_provided_item:
@@ -286,13 +276,19 @@ class Item(WebsiteGenerator):
 		# default warehouse, or Stores
 		for default in self.item_defaults or [frappe._dict({'company': frappe.defaults.get_defaults().company})]:
 			default_warehouse = (default.default_warehouse
-					or frappe.db.get_single_value('Stock Settings', 'default_warehouse')
-					or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
+					or frappe.db.get_single_value('Stock Settings', 'default_warehouse'))
+			if default_warehouse:
+				warehouse_company = frappe.db.get_value("Warehouse", default_warehouse, "company")
+
+			if not default_warehouse or warehouse_company != default.company:
+				default_warehouse = frappe.db.get_value('Warehouse',
+					{'warehouse_name': _('Stores'), 'company': default.company})
 
 
 			if default_warehouse:
 				stock_entry = make_stock_entry(item_code=self.name, target=default_warehouse, qty=self.opening_stock,
-												rate=self.valuation_rate, company=default.company)
+					rate=self.valuation_rate, company=default.company)
+
 				stock_entry.add_comment("Comment", _("Opening Stock"))
 
 	def get_default_warehouse(self):
@@ -626,6 +622,13 @@ class Item(WebsiteGenerator):
 		if self.has_serial_no == 0 and self.serial_no_series:
 			self.serial_no_series = None
 
+	def validate_naming_series(self):
+		for field in ["serial_no_series", "batch_number_series"]:
+			series = self.get(field)
+			if series and "#" in series and "." not in series:
+				frappe.throw(_("Invalid naming series (. missing) for {0}")
+					.format(frappe.bold(self.meta.get_field(field).label)))
+
 	def check_for_active_boms(self):
 		if self.default_bom:
 			bom_item = frappe.db.get_value("BOM", self.default_bom, "item")
@@ -660,7 +663,7 @@ class Item(WebsiteGenerator):
 						"""select parent from `tabItem Barcode` where barcode = %s and parent != %s""", (item_barcode.barcode, self.name))
 					if duplicate:
 						frappe.throw(_("Barcode {0} already used in Item {1}").format(
-							item_barcode.barcode, duplicate[0][0]), frappe.DuplicateEntryError)
+							item_barcode.barcode, duplicate[0][0]))
 
 					item_barcode.barcode_type = "" if item_barcode.barcode_type not in options else item_barcode.barcode_type
 					if item_barcode.barcode_type and item_barcode.barcode_type.upper() in ('EAN', 'UPC-A', 'EAN-13', 'EAN-8'):
@@ -848,14 +851,12 @@ class Item(WebsiteGenerator):
 				defaults = frappe.defaults.get_defaults() or {}
 
 				# To check default warehouse is belong to the default company
-				if defaults.get("default_warehouse") and frappe.db.exists("Warehouse",
+				if defaults.get("default_warehouse") and defaults.company and frappe.db.exists("Warehouse",
 					{'name': defaults.default_warehouse, 'company': defaults.company}):
-					warehouse = defaults.default_warehouse
-
-				self.append("item_defaults", {
-					"company": defaults.get("company"),
-					"default_warehouse": warehouse
-				})
+						self.append("item_defaults", {
+							"company": defaults.get("company"),
+							"default_warehouse": defaults.default_warehouse
+						})
 
 	def update_variants(self):
 		if self.flags.dont_update_variants or \

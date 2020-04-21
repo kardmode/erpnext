@@ -117,7 +117,6 @@ class DeliveryNote(SellingController):
 		self.so_required()
 		self.validate_proj_cust()
 		self.check_sales_order_on_hold_or_close("against_sales_order")
-		self.validate_for_items()
 		self.validate_warehouse()
 		self.validate_uom_is_integer("stock_uom", "stock_qty")
 		self.validate_uom_is_integer("uom", "qty")
@@ -173,12 +172,6 @@ class DeliveryNote(SellingController):
 			if not res:
 				frappe.throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
-
-	def validate_for_items(self):
-		for d in self.get('items'):
-			#Customer Provided parts will have zero valuation rate
-			if frappe.db.get_value('Item', d.item_code, 'is_customer_provided_item'):
-				d.allow_zero_valuation_rate = 1
 
 	def validate_warehouse(self):
 		super(DeliveryNote, self).validate_warehouse()
@@ -548,11 +541,7 @@ def make_sales_invoice(source_name, target_doc=None):
 	def set_missing_values(source, target):
 		if source.project:
 			target.project = source.project
-		if source.room_qty:
-			target.room_qty = source.room_qty
-		if source.sub_project:
-			target.sub_project = source.sub_project
-		target.is_pos = 0
+
 		target.ignore_pricing_rule = 1
 		target.run_method("set_missing_values")
 		target.run_method("set_po_nos")
@@ -563,7 +552,12 @@ def make_sales_invoice(source_name, target_doc=None):
 		target.run_method("calculate_taxes_and_totals")
 
 		# set company address
-		target.update(get_company_address(target.company))
+		if source.company_address:
+			target.update({'company_address': source.company_address})
+		else:
+			# set company address
+			target.update(get_company_address(target.company))
+
 		if target.company_address:
 			target.update(get_fetch_values("Sales Invoice", 'company_address', target.company_address))
 

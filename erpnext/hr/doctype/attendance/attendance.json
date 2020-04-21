@@ -1,10 +1,9 @@
 {
- "add_company_abbr_to_name": 1,
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-01-10 16:34:13",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
   "attendance_details",
@@ -58,11 +57,12 @@
   {
    "fetch_from": "employee.employee_name",
    "fieldname": "employee_name",
-   "fieldtype": "Read Only",
+   "fieldtype": "Data",
    "in_global_search": 1,
    "label": "Employee Name",
    "oldfieldname": "employee_name",
-   "oldfieldtype": "Data"
+   "oldfieldtype": "Data",
+   "read_only": 1
   },
   {
    "default": "Present",
@@ -173,13 +173,15 @@
  ],
  "icon": "fa fa-ok",
  "idx": 1,
- "modified": "2019-11-18 21:58:28.877801",
+ "is_submittable": 1,
+ "modified": "2020-02-19 14:25:32.945842",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Attendance",
  "owner": "ashwini@webnotestech.com",
  "permissions": [
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -188,9 +190,11 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -201,9 +205,11 @@
    "report": 1,
    "role": "HR User",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -212,6 +218,7 @@
    "report": 1,
    "role": "HR Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   }
  ],
