@@ -1,9 +1,10 @@
 {
+ "add_company_abbr_to_name": 1,
  "allow_import": 1,
  "autoname": "naming_series:",
  "creation": "2013-05-24 19:29:08",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -928,7 +929,7 @@
  "idx": 82,
  "is_submittable": 1,
  "max_attachments": 1,
- "modified": "2019-11-18 21:29:20.293864",
+ "modified": "2020-03-09 00:26:53.363790",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Quotation",

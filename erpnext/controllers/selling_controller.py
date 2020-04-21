@@ -36,7 +36,6 @@ class SellingController(StockController):
 				item.update(get_bin_details(item.item_code, item.warehouse))
 
 	def validate(self):
-		# self.calculate_headers()
 		super(SellingController, self).validate()
 		self.validate_items()
 		self.validate_max_discount()
@@ -245,8 +244,11 @@ class SellingController(StockController):
 		return il
 
 	def has_product_bundle(self, item_code):
-		return frappe.db.sql("""select name from `tabProduct Bundle`
-			where new_item_code=%s and docstatus != 2""", item_code)
+		from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle
+		product_bundle = has_product_bundle(item_code,self.get("project"))
+	
+		# return frappe.db.sql("""select name from `tabProduct Bundle`
+			# where new_item_code=%s and docstatus != 2""", item_code)
 
 	def get_already_delivered_qty(self, current_docname, so, so_detail):
 		delivered_via_dn = frappe.db.sql("""select sum(qty) from `tabDelivery Note Item`
@@ -280,65 +282,6 @@ class SellingController(StockController):
 				if status in ("Closed", "On Hold"):
 					frappe.throw(_("Sales Order {0} is {1}").format(d.get(ref_fieldname), status))
 					
-	
-	def calculate_headers(self):
-		headers =  ["header1","header2"]
-		items = self.get("items")
-		has_header = 0
-		has_headers = 0
-		for i, d in enumerate(items):
-		
-		
-			if str(d.item_group).lower() in headers:
-				sum = 0
-				if i == 0:
-					has_header = 1
-				else:
-					has_headers = 1
-					
-				for j in range(i+1,len(items)): 
-					testitem = items[j]
-
-					if str(testitem.item_group).lower() in headers:
-						break
-					else:
-						sum = sum + testitem.amount
-				# d.qty = 0
-				d.rate = sum
-				d.amount = 0
-				d.page_break = 1
-				
-				if i == 0:
-					d.page_break = 0
-				
-				if str(d.item_group).lower() == "header2":
-					d.page_break = 0
-
-						
-		if not has_header and has_headers:
-				frappe.msgprint(_("First section doesn't have a header."))
-
-	def refresh_items(self):
-		items = self.get("items")
-		
-		for i, d in enumerate(self.items):
-			from erpnext.stock.get_item_details import get_item_details
-			frappe.errprint(d)
-			details = get_item_details({
-				"item_code": d.item_code,
-				"company": self.get("company"),
-				"price_list": self.get("selling_price_list"),
-				"currency": self.get("currency"),
-				"doctype": self.get("doctype"),
-				"conversion_rate": 1,
-				"price_list_currency": self.get("price_list_currency"),
-				"plc_conversion_rate": 1,
-				"order_type": "Sales",
-				"customer":  self.get("customer")
-			})
-			
-			d.price_list_rate = details["price_list_rate"]
-
 	def update_reserved_qty(self):
 		so_map = {}
 		for d in self.get("items"):

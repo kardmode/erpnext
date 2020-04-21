@@ -3,7 +3,7 @@
  "autoname": "naming_series:",
  "creation": "2018-05-24 07:18:08.256060",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Tools",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -131,7 +131,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2019-11-19 13:59:48.501616",
+ "modified": "2020-04-18 20:47:22.581775",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Blanket Order",

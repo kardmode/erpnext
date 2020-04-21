@@ -21,25 +21,9 @@ frappe.ui.form.on("Item Price", {
 		if(!frm.doc.uom)
 			frm.set_value("uom",frm.doc.stock_uom);
 		
-		if(frm.doc.buying){
-			frm.set_value("reference_doctype","Supplier");
 
-		}
-		else if(frm.doc.selling){
-			
-			frm.set_value("reference_doctype","Customer");
-
-		}
 	},
 	price_list: function(frm){
-		if(frm.doc.buying){
-			frm.set_value("reference_doctype","Supplier");
 
-		}
-		else if(frm.doc.selling){
-			
-			frm.set_value("reference_doctype","Customer");
-
-		}
 	}
 });

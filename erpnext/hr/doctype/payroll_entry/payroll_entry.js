@@ -252,49 +252,54 @@ frappe.ui.form.on('Payroll Entry', {
 		check_saved(frm);
 		if(frm.doc.company && frm.doc.start_date && frm.doc.end_date)
 		{
-			frappe.confirm(__('This will print Salary Slips. Do you want to proceed?'),
-				function() {
-					
-					frappe.call({
-						doc: frm.doc,
-						method: "print_salary_slips",
-						args: {
-						},
-						callback: function(r){
-							if (r.message)
-							{
-								var docname = [];
+			var dialog = new frappe.ui.Dialog({
+				title: "Print Salaries",
+				fields: [
+					{"fieldtype": "Check", "label": __("Don't Include Zero Value Salaries"), "fieldname": "hide_zero_salaries","default":1},
+				]
+			});
+			
+			dialog.set_primary_action(__("Print"), function() {
+		
+				var filters = dialog.get_values();
+				frappe.call({
+					doc: frm.doc,
+					method: "print_salary_slips",
+					args: {
+						'hide_zero_salaries': filters.hide_zero_salaries
+					},
+					callback: function(r){
+						if (r.message)
+						{
+							var docname = [];
 
-								r.message.forEach(function (element, index) {
-									docname.push(element[0]);
-								});
-								
-								if(docname.length >= 1){
-									var json_string = JSON.stringify(docname);								
-									var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
-										+"doctype="+encodeURIComponent("Salary Slip")
-										+"&name="+encodeURIComponent(json_string)
-										+"&format="+encodeURIComponent(format)
-										+"&orientation="+encodeURIComponent("Portrait")
-										+"&no_letterhead="+"0");
-									if(!w) {
-										frappe.msgprint(__("Please enable pop-ups")); return;
-									}
+							r.message.forEach(function (element, index) {
+								docname.push(element[0]);
+							});
+							
+							if(docname.length >= 1){
+								var json_string = JSON.stringify(docname);								
+								var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
+									+"doctype="+encodeURIComponent("Salary Slip")
+									+"&name="+encodeURIComponent(json_string)
+									+"&format="+encodeURIComponent(format)
+									+"&orientation="+encodeURIComponent("Portrait")
+									+"&no_letterhead="+"0");
+								if(!w) {
+									frappe.msgprint(__("Please enable pop-ups")); return;
 								}
 							}
-						},
-						freeze: true,
-						freeze_message: 'Printing Salary Slips...'
-					});
-				},
-				function() {
-					if(frappe.dom.freeze_count) {
-						frappe.dom.unfreeze();
-						frm.events.refresh(frm);
-					}
-				}
-			);
+						}
+						dialog.hide();
+					},
+					freeze: true,
+					freeze_message: 'Printing Salary Slips...'
+				});
+				
+			});
 			
+			dialog.show();
+
 		} else {
 		  frappe.msgprint(__("Company and dates are mandatory"));
 		}

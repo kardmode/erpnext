@@ -15,7 +15,8 @@
   "overtime_holidays_rate",
   "standard_days",
   "working_hours",
-  "salary_hours_calculation"
+  "salary_hours_calculation",
+  "saif_zone_logo"
  ],
  "fields": [
   {
@@ -66,10 +67,15 @@
    "fieldtype": "Float",
    "label": "Salary Hours Calculation",
    "reqd": 1
+  },
+  {
+   "fieldname": "saif_zone_logo",
+   "fieldtype": "Attach Image",
+   "label": "SAIF Zone Logo"
   }
  ],
  "issingle": 1,
- "modified": "2019-11-19 23:39:59.580939",
+ "modified": "2020-04-15 22:13:29.409470",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Regulations",

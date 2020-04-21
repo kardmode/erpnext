@@ -246,8 +246,12 @@ def get_project_name(doctype, txt, searchfield, start, page_len, filters):
 		if is_company:
 			pass
 			
-		cond = """(`tabProject`.customer = %s or
+		cond += """(`tabProject`.customer = %s or
 			ifnull(`tabProject`.customer,"")="") and""" %(frappe.db.escape(filters.get("customer")))
+			
+	if filters.get('company'):
+		cond += """(`tabProject`.company = %s or
+			ifnull(`tabProject`.company,"")="") and""" %(frappe.db.escape(filters.get("company")))
 
 	return frappe.db.sql("""select `tabProject`.name from `tabProject`
 		where `tabProject`.status not in ("Completed", "Cancelled")
@@ -523,19 +527,15 @@ def get_items_from(doc_type,doc_name):
 
 	conditions = "t1.item_code"
 	if doc_type == "Purchase Receipt":
-		conditions += ", t1.item_name, t1.received_qty as qty, t1.uom, t1.stock_uom"
-	elif doc_type == "Product Collection":
-		conditions += ", t1.qty"
-	else:
-		conditions += ", t1.item_name, t1.qty, t1.uom,t1.stock_qty, t1.stock_uom"
+		conditions += ", t1.received_qty as qty"
 	
 	doctypeitem_name = str(doc_type) + ' Item'
 	doctype_name = str(doc_type)
 	
-	if frappe.get_meta(doctypeitem_name).has_field('rate'):
-		conditions += ", t1.rate"
-	if frappe.get_meta(doctype_name).has_field('amount'):
-		conditions += ", t1.amount"
+	for field in ["rate","amount","description","item_name","uom","qty","stock_uom","stock_qty"]:
+		if frappe.get_meta(doctypeitem_name).has_field(field):
+			conditions += ", t1." + str(field)
+
 	
 	query = "select " + conditions + " from `tab" +  doctypeitem_name + "` t1,`tab" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
 	new_dict = frappe.db.sql(query, (doc_name), as_dict=1)

@@ -96,7 +96,9 @@ def execute(filters=None):
 			
 			total_salary = total_salary + basic_pay + variable_pay	
 			
-			data.append(row)
+			
+			if not(basic_pay == 0  and variable_pay == 0):
+				data.append(row)
 		
 		
 			
@@ -147,7 +149,9 @@ def execute(filters=None):
 			row += [basic_pay,variable_pay]
 			row +=	[ss.leave_without_pay]
 			
-			data.append(row)
+			if not(basic_pay == 0  and variable_pay == 0):
+				data.append(row)
+		
 	
 	row = []
 	row += ["SCR"]

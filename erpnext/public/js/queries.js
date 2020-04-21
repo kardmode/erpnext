@@ -65,7 +65,6 @@ $.extend(erpnext.queries, {
 				frappe.throw(__("Please set {0}",
 					[__(frappe.meta.get_label(doc.doctype, frappe.dynamic_link.fieldname, doc.name))]));
 			}
-			console.log(frappe.dynamic_link)
 			return {
 				query: 'frappe.contacts.doctype.address.address.address_query',
 				filters: {
@@ -120,8 +119,8 @@ $.extend(erpnext.queries, {
 	
 	project:function(doc) {
 		var filters = {
-			'status': ["in",["Open"]],
-			// "company": doc.company
+			'status': ["in",["Open"]]
+			// 'company': doc.company
 		};
 
 		return {
@@ -189,10 +188,38 @@ erpnext.queries.setup_project_query = function(frm){
 			{
 				filters["filters"]["customer"]  = frm.doc.customer;
 			}
+			/* 
+			if (frm.fields_dict["company"] && frm.doc.company) 
+			{
+				filters["filters"]["company"]  = frm.doc.company;
+			} */
+			
 			return filters;
 		})
 			
 	}
 	
+	
+}
+
+
+erpnext.queries.setup_product_bundle_query = function(frm){
+	
+	if(frm.fields_dict["items"].grid.get_field('product_bundle')) {
+		frm.set_query('product_bundle', 'items', function(doc, cdt, cdn) {
+			var d  = locals[cdt][cdn];
+			var filters = {
+				filters: {
+				// 'status': ["in",["Open"]],
+				"new_item_code": d.item_code,
+				// "company": frm.doc.company,
+				// "project": frm.doc.project,
+				}
+			};
+
+			return filters;
+		});
+	}
+
 	
 }

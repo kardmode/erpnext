@@ -4,7 +4,7 @@
  "autoname": "naming_series:",
  "creation": "2013-01-10 16:34:16",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Tools",
  "engine": "InnoDB",
  "field_order": [
   "item",
@@ -469,7 +469,7 @@
  "idx": 1,
  "image_field": "image",
  "is_submittable": 1,
- "modified": "2019-11-19 13:59:38.944525",
+ "modified": "2020-04-18 20:47:56.415997",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Work Order",

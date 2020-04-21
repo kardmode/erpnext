@@ -943,20 +943,6 @@ var check_conversion_factor = function(frm,unit,conversion_factor) {
 	}
 	
 }
-var convert_units = function(unit,value) {
-	var finalvalue = value;
-	if (unit == "ft")
-		finalvalue = flt(value) * flt(.3048);
-	else if (unit == "cm")
-		finalvalue = flt(value) * flt(.01);
-	else if (unit == "mm")
-		finalvalue = flt(value) * flt(0.001);
-	else if (unit == "in")
-		finalvalue = flt(value) * flt(.0254);
-	else
-		finalvalue = flt(value);
-	return finalvalue;
-}
 
 var process_string = function(code){
 	
@@ -999,9 +985,9 @@ var process_string = function(code){
 
 var get_dimensions = function(frm) {
 	
-	var length = convert_units(frm.doc.depthunit,frm.doc.depth);
-	var width = convert_units(frm.doc.widthunit,frm.doc.width);
-	var height = convert_units(frm.doc.heightunit,frm.doc.height);
+	var length = frappe.mrp.convert_units(frm.doc.depthunit,frm.doc.depth);
+	var width = frappe.mrp.convert_units(frm.doc.widthunit,frm.doc.width);
+	var height = frappe.mrp.convert_units(frm.doc.heightunit,frm.doc.height);
 	
 	var perimeter = 2*flt(length)+2*flt(width);
 	var farea = flt(length) * flt(width);

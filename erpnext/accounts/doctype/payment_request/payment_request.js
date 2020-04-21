@@ -5,40 +5,63 @@ cur_frm.add_fetch("payment_gateway_account", "message", "message")
 frappe.ui.form.on("Payment Request", {
 	setup: function(frm) {
 		
-		frm.doc.reference_doctype = '';
-		frm.doc.reference_name = ''
-		/* frm.set_query('project', function(doc) {
+		frm.set_query("party_type", function() {
+			return {
+				query: "erpnext.setup.doctype.party_type.party_type.get_party_type",
+			};
+		});
+	
+		frm.set_query('project', function(doc) {
+			var filters = {"company":doc.company};
+			if(doc.party_type == "Customer")
+			{
+				filters["customer"] = frm.doc.party;
+			}
 			return {
 				query: "erpnext.controllers.queries.get_project_name",
-				filters: {
-					'customer': doc.customer
-				}
+				filters:filters
 			}
-		}) */
-		if (frm.doc.reference_doctype == "Project"){
-			frm.set_query('reference_name', function(doc) {
-				return {
-					filters: { 'docstatus': 0, 'customer':doc.customer,'company':doc.company}
-				}
-			});
-		}else{
-			frm.set_query('reference_name', function(doc) {
-				return {
-					filters: { 'docstatus': 0 , 'customer':doc.customer,'company':doc.company}
-				}
-			});
-			
-		}
-		
-		if (!frm.doc.company)
-			frm.set_value("company",frappe.defaults.get_default('company') ? frappe.defaults.get_default('company'): "");
-		
+		})
+	
 	},
 	refresh: function(frm) {
-		frm.add_custom_button(__("Get Invoices"), function() {
-				frm.events.get_invoice(frm);
-			});
-       frm.trigger("calculate_total_payment_requests");
+		if(!frm.doc.mode_of_payment)
+		{
+			frm.set_value("mode_of_payment", "Wire Transfer");
+		}
+		if (!frm.doc.posting_date) {
+			frm.set_value("posting_date", get_today());
+			frm.set_value("transaction_date", get_today());
+		}
+		if (!frm.doc.transaction_date) {
+			frm.set_value("transaction_date", frm.doc.posting_date);
+		}
+		
+		if(frm.doc.customer)
+		{
+			if (!frm.doc.party_type) {
+				frm.set_value("party_type", "Customer");
+			}
+			if (!frm.doc.party) {
+				frm.set_value("party", frm.doc.customer);
+			}
+		}
+		
+		
+		
+		if(!frm.doc.__islocal && frm.doc.docstatus < 2)
+		{
+			if (frm.doc.party_type == "Customer" && frm.doc.party)
+			{
+				frm.add_custom_button(__("Get Invoices"), function() {
+					frm.events.get_invoices_from_project(frm);
+				});
+			}
+			frm.trigger("calculate_total_payment_requests");
+		}	
+		
+		
+		
     },
 
 	calculate_total_payment_requests: function(frm) {
@@ -61,40 +84,19 @@ frappe.ui.form.on("Payment Request", {
 		grand_total_requested = frm.doc.advance_required + frm.doc.vat - frm.doc.additional_discount_amount;
 		frm.set_value("grand_total_requested",grand_total_requested);
     },
-	reference_doctype: function(frm) {
-		if (frm.doc.reference_name){
-			frm.set_value("reference_name","");
-		}
-		
-		if (frm.doc.reference_doctype == "Project"){
-			frm.set_query('reference_name', function(doc) {
-				return {
-					filters: { 'docstatus': 0, 'customer':doc.customer,'company':doc.company}
-				}
-			});
-		}else{
-			frm.set_query('reference_name', function(doc) {
-				return {
-					filters: { 'docstatus': 0, 'customer':doc.customer,'company':doc.company}
-				}
-			});
-			
-		}
-		
-	},
-	get_invoice: function(frm) {
+	get_invoices_from_project: function(frm) {
 		
 		var me=this;
 		var dialog = new frappe.ui.Dialog({
 			title: __("Get Invoices From Project"),
 			fields: [
-				{fieldname:'project', fieldtype:'Link', options: 'Project', label: __('Project'),
-				get_query: function() {
-					return {
-						filters: [["Project", 'company', '=', cur_frm.doc.company],
-						["Project", 'customer', '=', cur_frm.doc.customer]]
-					};
-				},
+				{fieldname:'project', fieldtype:'Link', options: 'Project',reqd:1, label: __('Project'),
+					get_query: function() {
+						return {
+							filters: [["Project", 'company', '=', cur_frm.doc.company],
+							["Project", 'customer', '=', cur_frm.doc.party]]
+						};
+					},
 				},
 				{fieldname:'clear_invoices', fieldtype:'Check', label: __('Clear Previous Invoices')},
 				// {fieldname:'base_variable', fieldtype:'Section Break'},
@@ -128,57 +130,52 @@ frappe.ui.form.on("Payment Request", {
 		
 	},
 	
-	get_invoices: function(frm) {
-		if (frm.doc.reference_name){
-			frappe.call({
-				doc: frm.doc,
-				args: {"doctype": frm.doc.reference_doctype,"docname": frm.doc.reference_name},
-				method: "get_doc_info",
-				callback:function(r){
-					frm.refresh();
-					cur_frm.dirty();
+	party_type: function(frm) {
+		update_queries(frm);	
+	
+	},
+	party: function(frm) {
+		frappe.call({
+			method: 'erpnext.accounts.party.get_party_details',
+			args: {
+				party: frm.doc.party,
+				party_type: frm.doc.party_type,
+			},
+			callback: function(r) {
+				if(!r.exc) {
+					frm.set_value("customer_address",r.message.customer_address || r.message.supplier_address)
+					frm.set_value("contact_person",r.message.contact_person)
 				}
-			});
-		}
+			}
+		});
+		
+		
+		
+	},
+	customer_address: function(frm) {
+		erpnext.utils.get_address_display(me.frm, "customer_address","address_display");
 	},
 	
-	// company: function(frm) {
-		// var company = locals[':Company'][frm.doc.company];
-		// if(!frm.doc.letter_head && company.default_letter_head) {
-			// frm.set_value('letter_head', company.default_letter_head);
-		// }
-	// },
-	customer: function() {
-		erpnext.utils.get_party_details(me.frm, null, null, function(){});
+	contact_person: function(frm) {
+		erpnext.utils.get_contact_details(frm);
 	},
-	customer_address: function() {
-		erpnext.utils.get_address_display(me.frm, "customer_address");
-	},
-
-	shipping_address_name: function() {
-		erpnext.utils.get_address_display(me.frm, "shipping_address_name", "shipping_address");
-	},
-	
-	contact_person: function() {
-		erpnext.utils.get_contact_details(me.frm);
-		},
 		
-	tc_name: function() {
-			cur_frm.trigger('get_terms');
-		},
+	tc_name: function(frm) {
+		frm.trigger('get_terms');
+	},
 		
-	get_terms: function() {
+	get_terms: function(frm) {
 		var me = this;
-		if(cur_frm.doc.tc_name) {
+		if(frm.doc.tc_name) {
 			return frappe.call({
 				method: 'erpnext.setup.doctype.terms_and_conditions.terms_and_conditions.get_terms_and_conditions',
 				args: {
-					template_name: cur_frm.doc.tc_name,
-					doc: cur_frm.doc
+					template_name: frm.doc.tc_name,
+					doc: frm.doc
 				},
 				callback: function(r) {
 					if(!r.exc) {
-						cur_frm.set_value("terms", r.message);
+						frm.set_value("terms", r.message);
 					}
 				}
 			});
@@ -186,27 +183,25 @@ frappe.ui.form.on("Payment Request", {
 	},
 	
 	vat: function(frm) {
-				frm.trigger("calculate_grand_total_payment_requests");
-
-		},
+		frm.trigger("calculate_grand_total_payment_requests");
+	},
 		
 	additional_discount_amount: function(frm) {
-					frm.trigger("calculate_grand_total_payment_requests");
+		frm.trigger("calculate_grand_total_payment_requests");
 
-		},
+	},
 		
 	enable_vat: function(frm) {
 		var vat = 0;
-			if(frm.doc.enable_vat === 1)
-				vat = frm.doc.advance_required * 0.05;
-			else
-				vat = 0;
-			frm.set_value("vat",vat);
-					frm.trigger("calculate_grand_total_payment_requests");
+		if(frm.doc.enable_vat === 1)
+			vat = frm.doc.advance_required * 0.05;
+		else
+			vat = 0;
+		frm.set_value("vat",vat);
+				frm.trigger("calculate_grand_total_payment_requests");
 
-		},
+	},
 		
-
 });
 
 
@@ -220,20 +215,7 @@ frappe.ui.form.on("Payment Request", "onload", function(frm, dt, dn){
 			}
 		})
 	}
-	
-	
-	if (!frm.doc.posting_date) {
-				frm.set_value("posting_date", get_today());
-			}
-	$.each([["customer_address", "customer_filter"],
-			["shipping_address_name", "customer_filter"],
-			["contact_person", "customer_filter"],
-			["customer", "customer"]],
-			function(i, opts) {
-				if(me.frm.fields_dict[opts[0]])
-					me.frm.set_query(opts[0], erpnext.queries[opts[1]]);
-			});
-	
+	update_queries(frm);
 })
 
 frappe.ui.form.on("Payment Request", "refresh", function(frm) {
@@ -271,6 +253,32 @@ frappe.ui.form.on("Payment Request", "refresh", function(frm) {
 		}).addClass("btn-primary");
 	}
 });
+
+
+
+frappe.ui.form.on("Payment Request", "is_a_subscription", function(frm) {
+	frm.toggle_reqd("payment_gateway_account", frm.doc.is_a_subscription);
+	frm.toggle_reqd("subscription_plans", frm.doc.is_a_subscription);
+
+	if (frm.doc.is_a_subscription && frm.doc.reference_doctype && frm.doc.reference_name) {
+		frappe.call({
+			method: "erpnext.accounts.doctype.payment_request.payment_request.get_subscription_details",
+			args: {"reference_doctype": frm.doc.reference_doctype, "reference_name": frm.doc.reference_name},
+			freeze: true,
+			callback: function(data){
+				if(!data.exc) {
+					$.each(data.message || [], function(i, v){
+						var d = frappe.model.add_child(frm.doc, "Subscription Plan Detail", "subscription_plans");
+						d.qty = v.qty;
+						d.plan = v.plan;
+					});
+					frm.refresh_field("subscription_plans");
+				}
+			}
+		});
+	}
+});
+
 
 frappe.ui.form.on("PR Invoice", {
 	sales_invoice: function(frm, cdt, cdn) {
@@ -387,25 +395,14 @@ var calculate_totals = function(frm, cdt, cdn) {
 	cur_frm.dirty();
 }
 
-frappe.ui.form.on("Payment Request", "is_a_subscription", function(frm) {
-	frm.toggle_reqd("payment_gateway_account", frm.doc.is_a_subscription);
-	frm.toggle_reqd("subscription_plans", frm.doc.is_a_subscription);
-
-	if (frm.doc.is_a_subscription && frm.doc.reference_doctype && frm.doc.reference_name) {
-		frappe.call({
-			method: "erpnext.accounts.doctype.payment_request.payment_request.get_subscription_details",
-			args: {"reference_doctype": frm.doc.reference_doctype, "reference_name": frm.doc.reference_name},
-			freeze: true,
-			callback: function(data){
-				if(!data.exc) {
-					$.each(data.message || [], function(i, v){
-						var d = frappe.model.add_child(frm.doc, "Subscription Plan Detail", "subscription_plans");
-						d.qty = v.qty;
-						d.plan = v.plan;
-					});
-					frm.refresh_field("subscription_plans");
-				}
-			}
-		});
-	}
-});
+var update_queries = function(frm)
+{
+	/* var filter_type = frm.doc.party_type.toLowerCase() + "_filter";
+	
+	$.each([["customer_address", filter_type],
+			["contact_person", filter_type]],
+			function(i, opts) {
+				if(me.frm.fields_dict[opts[0]])
+					me.frm.set_query(opts[0], erpnext.queries[opts[1]]);
+	});	 */
+}

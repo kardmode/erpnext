@@ -12,6 +12,8 @@ from erpnext.manufacturing.doctype.bom.bom import validate_bom_no, get_default_b
 from erpnext.manufacturing.doctype.bom.bom import calculate_builder_items_dimensions, build_bom_ext
 from erpnext.manufacturing.doctype.bom.bom import convert_units
 
+from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
+	DuplicateEntryForWorkOrderError, OperationsNotCompleteError, get_best_warehouse
 from erpnext.stock.get_item_details import get_conversion_factor_between_two_units,get_conversion_factor
 from operator import itemgetter
 
@@ -284,10 +286,9 @@ class MRPProductionOrder(Document):
 			
 		self.set('exploded_items', [])
 
-		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
 		from erpnext.stock.stock_ledger import get_previous_sle
-		posting_date = nowdate()
-		posting_time = nowtime()
+		posting_date = self.posting_date
+		posting_time = self.posting_time or nowtime()
 		
 		
 		for d in sorted(self.cur_exploded_items, key=itemgetter(0)):
@@ -319,8 +320,7 @@ class MRPProductionOrder(Document):
 	def make_stock_entries(self):
 	
 		from erpnext.stock.stock_ledger import NegativeStockError
-		from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
-			DuplicateEntryForProductionOrderError, OperationsNotCompleteError, get_best_warehouse
+
 		
 		
 		stock_entry_list = []	
@@ -361,8 +361,8 @@ class MRPProductionOrder(Document):
 				stock_entry.manufactured_item = fg_item.item_code
 				stock_entry.remarks = self.remarks
 				
-				stock_entry.posting_date = nowdate()
-				stock_entry.posting_time = nowtime()
+				stock_entry.posting_date = self.posting_date
+				stock_entry.posting_time = self.posting_time or nowtime()
 				
 				conversion_factor = get_conversion_factor(fg_item.item_code,fg_item.uom).get("conversion_factor")
 				if not conversion_factor:
@@ -460,7 +460,7 @@ class MRPProductionOrder(Document):
 				stock_entry_list.append(link)
 			
 		
-			except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
+			except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForWorkOrderError,
 				OperationsNotCompleteError,OperationsNotCompleteError):
 				frappe.db.rollback()
 			except Exception as error:

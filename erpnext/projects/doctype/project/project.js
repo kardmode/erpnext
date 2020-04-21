@@ -105,63 +105,11 @@ frappe.ui.form.on("Project", {
 			frm.web_link && frm.web_link.remove();
 		} else {
 			frm.add_web_link("/projects?project=" + encodeURIComponent(frm.doc.name));
-
-			// if(frappe.model.can_read("Task")) {
-				// frm.add_custom_button(__("Gantt Chart"), function() {
-					// frappe.route_options = {"project": frm.doc.name};
-					// frappe.set_route("List", "Task", "Gantt");
-				// });
-			// }
 			
 			cur_frm.add_custom_button(__("Project Summary"), function() {
 					window.location.href = 'desk#query-report/Project%20Summary';
 				}, __("Reports"), "btn-default");
 			
-			/* cur_frm.add_custom_button(__("Quotation"), function() {
-				calculate_sales("Quotation");
-				
-				
-			}, __("Get Summary"), true);
-			
-			cur_frm.add_custom_button(__("Sales Order"), function() {
-				calculate_sales("Sales Order");
-				
-				
-			}, __("Get Summary"), true);
-			cur_frm.add_custom_button(__("Sales Invoice"), function() {
-				calculate_sales("Sales Invoice");
-				
-				
-			}, __("Get Summary"), true);
-			cur_frm.add_custom_button(__("Delivery Note"), function() {
-				calculate_sales("Delivery Note");
-				
-				
-			}, __("Get Summary"), true); */
-
-		
-		if(frappe.model.can_read("Quotation")) {
-			cur_frm.add_custom_button(__("Quotation"), function() {
-				print_summary("Quotation");
-				
-				
-			}, __("Print"), true);
-			cur_frm.add_custom_button(__("Sales Order"), function() {
-				print_summary("Sales Order");
-				
-				
-			}, __("Print"), true);
-			cur_frm.add_custom_button(__("Sales Invoice"), function() {
-				print_summary("Sales Invoice");
-				
-				
-			}, __("Print"), true);
-			cur_frm.add_custom_button(__("Delivery Note"), function() {
-				print_summary("Delivery Note");
-				
-				
-			}, __("Print"), true);
-		}
 
 			frm.trigger('show_dashboard');
 		}
@@ -270,102 +218,20 @@ frappe.ui.form.on("Project", {
 });
 
 
-var calculate_sales = function(doctype){
-	var doc = cur_frm.doc;
-	
-	return $c_obj(doc, 'calculate_sales', {"doctype": doctype}, function(r, rt) {
-
-			cur_frm.refresh();
-	});
+var calculate_sales = function(frm,doctype){
+	frappe.call({
+		doc: doc,
+		method:"calculate_sales",
+		args: {
+			doctype: doctype,
+		},
+		callback: function(){
+			frm.refresh();
+		}
+		
+	})
 }
 
-
-var print_summary = function(doctype){
-		var doc = cur_frm.doc;
-		
-		var dialog = new frappe.ui.Dialog({
-			title: "Print Documents",
-			fields: [
-				{"fieldtype": "Select", "label": __("Print Format"), "fieldname": "print_sel"},
-				{"fieldtype": "Select", "label": __("Orientation"), "options":"Landscape\nPortrait","default": "Portrait", "fieldname": "orientation"},
-				{"fieldtype": "Select", "label": __("Letterhead"), "fieldname": "letterhead_sel"},
-			]
-		});
-		
-		dialog.set_primary_action(__("Print"), function() {
-			args = dialog.get_values();
-			if(!args) return;
-			var with_letterhead = 1;
-			var print_format = args.print_sel;
-			var orientation = args.orientation;
-			
-			var letterhead = args.project_print_sel;
-
-			
-			return $c_obj(doc, 'print_summary', {"doctype": doctype}, function(r, rt) {
-				if (r.message)
-				{
-					var docname = [];
-					names = r.message[0];
-					doctype = r.message[1];
-
-					names.forEach(function (element, index) {
-						docname.push(element[0]);
-					});
-					if(docname.length >= 1){
-						var json_string = JSON.stringify(docname);								
-						var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
-							+"doctype="+encodeURIComponent(doctype)
-							+"&name="+encodeURIComponent(json_string)
-							+"&format="+encodeURIComponent(print_format)
-							// +"&cover_doctype="+encodeURIComponent(cur_frm.doctype)
-							// +"&cover_name="+encodeURIComponent(cur_frm.docname)
-							// +"&cover_format="+encodeURIComponent(cover_format)
-							+"&no_letterhead="+(with_letterhead ? "0" : "1"))
-							+"&letterhead="+encodeURIComponent(letterhead)
-							+"&orientation="+encodeURIComponent(orientation);
-						if(!w) {
-							msgprint(__("Please enable pop-ups")); return;
-						}
-					}
-
-				}
-								dialog.hide();
-
-			});
-		});
-		
-		frappe.call({
-				doc: doc,
-				method: "get_print_formats",
-				args: {
-				"doctype" : doctype
-				},
-				callback: function(r) {
-					
-					var print_formats = [];
-					var letterheads = [];
-
-					var default_letter_head = locals[":Company"] ? locals[":Company"][frappe.defaults.get_default('company')]["default_letter_head"] : '';
-					
-					
-					r.message[0].forEach(function (element, index) {
-						print_formats.push(element.name);
-					});
-					
-					if(print_formats)
-					{
-						dialog.fields_dict.print_sel.$input.empty().add_options(print_formats);
-						dialog.fields_dict.letterhead_sel.$input.empty().add_options(["Default"]);
-						dialog.fields_dict.letterhead_sel.$input.add_options($.map(frappe.boot.letter_heads, function(i,d){ return d }));
-
-		
-						dialog.show();
-					}
-				}
-			});
-
-}
 
 function convert_to_group_or_ledger(frm){
 	frappe.call({

@@ -9,7 +9,10 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "operating_cost"
+  "operating_cost",
+  "default_cost",
+  "default_percent",
+  "sort_order"
  ],
  "fields": [
   {
@@ -19,10 +22,28 @@
    "label": "Operating Cost",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "default_percent",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Default Percent"
+  },
+  {
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sort Order"
+  },
+  {
+   "default": "0",
+   "fieldname": "default_cost",
+   "fieldtype": "Check",
+   "label": "Default Cost"
   }
  ],
  "icon": "fa fa-wrench",
- "modified": "2019-11-19 14:01:51.602555",
+ "modified": "2020-04-17 00:01:28.723630",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Operating Cost Type",

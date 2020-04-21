@@ -162,6 +162,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		}
 		
 		erpnext.queries.setup_project_query(this.frm);
+		erpnext.queries.setup_product_bundle_query(this.frm);
 
 
 		if(frappe.meta.get_docfield(this.frm.doc.doctype, "pricing_rules")) {
@@ -322,16 +323,12 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					
 				}, __("Get items from"), "btn-default");
 			
-			cur_frm.add_custom_button(__('Room Quantity'),
-				function() {
-					cur_frm.trigger('multiply_room');
-					
-				}, __("Modify"), "btn-default");
 				
 			cur_frm.add_custom_button(__('Items Quantity'),
 				function() {
 					cur_frm.trigger('multiply_items');
 				}, __("Modify"), "btn-default");
+				
 			cur_frm.add_custom_button(__('Items Rate'),
 				function() {
 					cur_frm.trigger('multiply_rate');
@@ -1652,10 +1649,15 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				}
 			});
 		}
-		else{
-			me.frm.set_value("taxes", []);
+/* 		else{
+			var taxes_field = frappe.meta.get_docfield(me.frm.doc.doctype, "taxes",me.frm.doc.name);
+			if(taxes_field)
+			{
+				
+			}
+				me.frm.set_value("taxes", []);
 			me.calculate_taxes_and_totals();
-		}
+		} */
 	},
 
 	is_recurring: function() {
@@ -1961,9 +1963,9 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			fields: [
 				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items')},
 				{fieldname:'sec_1', fieldtype:'Section Break'},
-				{fieldname:'doc_type', fieldtype:'Select', options: doc_options, label: __('Type')},
+				{fieldname:'doc_type', fieldtype:'Select', options: doc_options, label: __('Type'),"reqd": 1 },
 				{fieldname:'col_1', fieldtype:'Column Break'},
-				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name')},
+				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name'),"reqd": 1 },
 				// {fieldname:'qty', fieldtype:'float', label: __('Quantity'),default:1},
 			]
 		});
@@ -1991,20 +1993,20 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				doc_type: filters.doc_type,
 				doc_name: filters.doc_name
 			},
-			// freeze: true,
-			// freeze_message: __("Getting Items..."),
+			freeze: true,
+			freeze_message: __("Getting Items..."),
 			callback:function (r) {
 			
 
 				if(filters.clear_items === 1)
-					cur_frm.set_value("items",[]);
+					frm.doc.items = [];
 				
 				var row_info = {};
-				var row_start = cur_frm.doc.items.length;
+				var row_start = frm.doc.items.length;
 				
 				
 				for (var i=0; i< r.message.length; i++) {
-					var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.items.df.options, cur_frm.fields_dict.items.df.fieldname);
+					var row = frm.add_child("items");					
 					row.item_code = r.message[i].item_code
 					var row_index = row_start + i;
 					row_info[row_index] = r.message[i];
@@ -2024,8 +2026,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 						var data = row_info[row_index];
 
 						for (var key in data) {
-							var has_margin_field = frappe.meta.has_field(row.doctype, key);
-							if(has_margin_field)
+							if(frappe.meta.has_field(row.doctype, key))
 							{
 								row[key] = data[key];
 							}

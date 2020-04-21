@@ -46,22 +46,23 @@ class PayrollEntry(Document):
 		"""
 		cond = self.get_filter_condition()
 		cond += self.get_joining_relieving_condition()
-
+		
 		condition = ''
+
 		if self.payroll_frequency:
 			condition = """and ss.payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
 			# condition = """and payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
 
-		# sal_struct = frappe.db.sql("""
+		# sal_struct = frappe.db.sql_list("""
 				# select
 					# name from `tabSalary Structure`
 				# where
-					# docstatus != 2 and
+					# docstatus = 1 and
 					# is_active = 'Yes'
 					# and company = %(company)s and
 					# ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 					# {condition}""".format(condition=condition),
-				# {"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})	
+				# {"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
 		
 		sal_struct = frappe.db.sql("""
 				select
@@ -87,31 +88,27 @@ class PayrollEntry(Document):
 					and t2.docstatus = 1
 			%s order by t2.from_date desc
 			""" % cond, {"sal_struct": tuple(sal_struct), "from_date": self.end_date}, as_dict=True)
-			return emp_list
-		
-
+			
 			
 			working_days = date_diff(self.end_date, self.start_date) + 1
 			new_emp_list = []
 			for e in emp_list:
-
-				joining_date, relieving_date = frappe.db.get_value("Employee", e.employee, 
-					["date_of_joining", "relieving_date"])
-				
+			
 				holidays = get_holidays_for_employee(e.employee,self.start_date, self.end_date)
 				lwp = calculate_lwp(self.start_date, e.employee, holidays, working_days)
 					
-				
 				if cint(self.employees_on_leave):
 					if lwp > 0:
 						new_emp_list.append(e)
 				else:
+				
+					joining_date, relieving_date = frappe.db.get_value("Employee", e.employee, 
+						["date_of_joining", "relieving_date"])
+				
 					payment_days = 0
 					payment_days = flt(self.get_payment_days(e.employee,joining_date, relieving_date))-flt(lwp)
 					if payment_days > 0:
 						new_emp_list.append(e)
-
-
 
 			return new_emp_list
 
@@ -180,16 +177,9 @@ class PayrollEntry(Document):
 			Creates salary slip for selected employees if already not created
 		"""
 		self.check_permission('write')
-		self.created = 1;
-		emp_list = self.get_emp_list()
-		ss_list = []
-		
-		
-		
-		emp_list = [d.employee for d in self.get_emp_list()]
-		
 		self.created = 1
 		emp_list = [d.employee for d in self.get_emp_list()]
+		
 		if emp_list:
 			args = frappe._dict({
 				"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
@@ -490,13 +480,19 @@ class PayrollEntry(Document):
 		self.update(get_start_end_dates(self.payroll_frequency,
 			self.start_date or self.posting_date, self.company))
 			
-	def print_salary_slips(self):
+	def print_salary_slips(self,hide_zero_salaries):
 		"""
 			Print all salary slips based on selected criteria
 		"""
 		ss_list = self.get_sal_slip_list(ss_status=0)
-
-
+		
+		if hide_zero_salaries:
+			new_ss_list = []
+			for ss in ss_list:
+				ss_obj = frappe.get_doc("Salary Slip",ss[0])
+				if ss_obj.rounded_total > 0:
+					new_ss_list.append(ss)
+			return new_ss_list
 		return ss_list
 
 	def validate_employee_attendance(self):

@@ -5,6 +5,7 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.utils import cint,flt
 from frappe.model.document import Document
 from frappe.model.rename_doc import rename_doc

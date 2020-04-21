@@ -38,25 +38,12 @@ cur_frm.cscript.refresh = function(doc) {
 	cur_frm.disable_save();
 }
  */
- 
-var convert_units = function(unit,value) {
-	if (unit == "ft")
-		finalvalue = flt(value) * flt(.3048);
-	else if (unit == "cm")
-		finalvalue = flt(value) * flt(.01);
-	else if (unit == "mm")
-		finalvalue = flt(value) * flt(0.001);
-	else if (unit == "in")
-		finalvalue = flt(value) * flt(.0254);
-	else
-		finalvalue = flt(value);
-	return finalvalue;
-}
+
 var get_dimensions = function(frm) {
 	
-	var length = convert_units(frm.doc.sheet_length_units,frm.doc.sheet_length);
-	var width = convert_units(frm.doc.sheet_width_units,frm.doc.sheet_width);
-	var height = convert_units(frm.doc.sheet_height_units,frm.doc.sheet_height);
+	var length = frappe.mrp.convert_units(frm.doc.sheet_length_units,frm.doc.sheet_length);
+	var width = frappe.mrp.convert_units(frm.doc.sheet_width_units,frm.doc.sheet_width);
+	var height = frappe.mrp.convert_units(frm.doc.sheet_height_units,frm.doc.sheet_height);
 
 	
 	var perimeter = 2*flt(length)+2*flt(width);
@@ -76,9 +63,9 @@ var get_dimensions = function(frm) {
 	
 	
 	
-	var depthPanel = convert_units(frm.doc.panel_length_units,frm.doc.panel_length);
-	var widthPanel = convert_units(frm.doc.panel_width_units,frm.doc.panel_width);
-	var heightPanel = convert_units(frm.doc.panel_height_units,frm.doc.panel_height);
+	var depthPanel = frappe.mrp.convert_units(frm.doc.panel_length_units,frm.doc.panel_length);
+	var widthPanel = frappe.mrp.convert_units(frm.doc.panel_width_units,frm.doc.panel_width);
+	var heightPanel = frappe.mrp.convert_units(frm.doc.panel_height_units,frm.doc.panel_height);
 	
 	
 	
@@ -127,7 +114,7 @@ var get_dimensions = function(frm) {
 	frm.set_value("cft_conversion_factor", cft_conversion_factor);
 	frm.set_value("cubic_m_conversion_factor", cubic_m_conversion_factor);
 	
-	var radiusCircle = convert_units(frm.doc.circle_radius_units,frm.doc.circle_radius);
+	var radiusCircle = frappe.mrp.convert_units(frm.doc.circle_radius_units,frm.doc.circle_radius);
 	var circlearea = flt(radiusCircle) * flt(radiusCircle) * 3.14;
 	var circleperimeter = flt(radiusCircle) * 3.14 * 2;
 

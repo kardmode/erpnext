@@ -266,9 +266,11 @@ frappe.ui.form.on('Stock Entry', {
 		frm.trigger('validate_purpose_consumption');
 		frm.fields_dict.items.grid.refresh();
 		frm.cscript.toggle_related_fields(frm.doc);
+		
 		var doc = frm.doc
-		//frm.set_value("items", []);
+		// frm.set_value("items", []);
 		frm.set_value("bom_no", "");
+
 		if(doc.docstatus == 0) {
 			if (doc.purpose === 'Manufacture'){
 				frm.set_value("from_bom", 1);
@@ -280,8 +282,8 @@ frappe.ui.form.on('Stock Entry', {
 					},
 					callback: function(r) {
 						if(!r.exc) {
-							// cur_frm.set_value("from_warehouse", r.message.source_warehouse);
-							// cur_frm.set_value("to_warehouse", r.message.fg_warehouse);
+							cur_frm.set_value("from_warehouse", r.message.source_warehouse);
+							cur_frm.set_value("to_warehouse", r.message.fg_warehouse);
 							
 							frm.trigger("get_items");
 						}
@@ -823,7 +825,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 	get_items: function() {
 		var me = this;
 		if(!this.frm.doc.fg_completed_qty || !this.frm.doc.bom_no){
-			//frappe.throw(__("BOM and Manufacturing Quantity are required"));
+			// frappe.throw(__("BOM and Manufacturing Quantity are required"));
 			return;
 		}
 			

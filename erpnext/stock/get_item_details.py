@@ -528,6 +528,8 @@ def get_price_list_rate(args, item_doc, out):
 			from erpnext.stock.doctype.item.item import get_last_purchase_details
 			out.update(get_last_purchase_details(item_doc.name,
 				args.name, args.conversion_rate))
+				
+
 
 def insert_item_price(args):
 	"""Insert Item Price if Price List and Price List Rate are specified and currency is the same"""
@@ -605,6 +607,18 @@ def get_price_list_rate_for(args, item_code):
 		:param qty: Desired Qty
 		:param transaction_date: Date of the price
 	"""
+	
+	
+	if args.get('transaction_type') =="selling":
+		from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle,get_product_bundle_details
+		product_bundle = has_product_bundle(item_code,args.get('project'))
+		
+		if product_bundle:
+			product_bundle_details = get_product_bundle_details(product_bundle[0][0])			
+			if product_bundle_details.use_total_to_cost:
+				return product_bundle_details.total
+			
+	
 	item_price_args = {
 			"item_code": item_code,
 			"price_list": args.get('price_list'),
@@ -629,7 +643,11 @@ def get_price_list_rate_for(args, item_code):
 		if not general_price_list_rate and args.get("uom") != args.get("stock_uom"):
 			item_price_args["uom"] = args.get("stock_uom")
 			general_price_list_rate = get_item_price(item_price_args, item_code, ignore_party=args.get("ignore_party"))
-
+		
+		if not general_price_list_rate:
+			item_price_args["uom"] = args.get("stock_uom")
+			general_price_list_rate = get_item_price(item_price_args, item_code, ignore_party=args.get("ignore_party"))
+		
 		if general_price_list_rate:
 			item_price_data = general_price_list_rate
 

@@ -3,7 +3,7 @@
  "beta": 1,
  "creation": "2017-04-26 23:12:03.672091",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -85,13 +85,13 @@
   },
   {
    "fieldname": "sheet_width_units",
-   "fieldtype": "Data",
+   "fieldtype": "Select",
    "label": "Sheet Width Units",
    "options": "m\nft\ncm\nmm\nin"
   },
   {
    "fieldname": "sheet_height_units",
-   "fieldtype": "Data",
+   "fieldtype": "Select",
    "label": "Sheet Height Units",
    "options": "m\nft\ncm\nmm\nin"
   },
@@ -191,6 +191,7 @@
    "label": "Round Top Calculation"
   },
   {
+   "description": "Radius = Diameter/2",
    "fieldname": "circle_radius",
    "fieldtype": "Float",
    "label": "Circle Radius"
@@ -225,7 +226,7 @@
   }
  ],
  "issingle": 1,
- "modified": "2019-11-19 13:59:50.840088",
+ "modified": "2020-04-14 23:55:18.201666",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Sheet Calculator",

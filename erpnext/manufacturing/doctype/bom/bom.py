@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, erpnext
-from frappe.utils import cint, cstr, flt
+from frappe.utils import cint, cstr, flt, ceil
 from frappe import _
 from erpnext.setup.utils import get_exchange_rate
 from erpnext.stock.get_item_details import get_conversion_factor
@@ -53,7 +53,6 @@ class BOM(WebsiteGenerator):
 		self.route = frappe.scrub(self.name).replace('_', '-')
 		self.clear_operations()
 		self.validate_main_item()
-
 		self.validate_currency()
 		self.set_conversion_rate()
 		self.validate_uom_is_interger()
@@ -80,7 +79,8 @@ class BOM(WebsiteGenerator):
 		# check if used in any other bom
 		self.validate_bom_links()
 		self.manage_default_bom()
-
+	
+	
 	def on_update_after_submit(self):
 		self.validate_bom_links()
 		self.manage_default_bom()
@@ -344,9 +344,11 @@ class BOM(WebsiteGenerator):
 				frappe.db.set_value('Item', self.item, 'default_bom', None)
 
 	def clear_operations(self):
+		if not cint(self.with_operations):
+			self.with_operations = 0
 		if not self.with_operations:
 			self.set('operations', [])
-
+	
 	def validate_main_item(self):
 		""" Validate main FG item"""
 		item = self.get_item_det(self.item)
@@ -382,30 +384,16 @@ class BOM(WebsiteGenerator):
 			frappe.throw(_("Quantity should be greater than 0"))
 			
 	def get_main_item_dimensions(self):
-		""" Validate main FG item"""
-		item = self.get_item_det(self.item)
-		if not item:
-			frappe.throw(_("Item {0} does not exist in the system or has expired").format(self.item))
-		else:
-			ret = frappe.db.get_value("Item", self.item, ["description", "stock_uom", "item_name",
-			"depth","width","height","depthunit","widthunit","heightunit"])
+		ret = frappe.db.get_value("Item", self.item, ["description", "stock_uom", "item_name",
+			"depth","width","height","depthunit","widthunit","heightunit"],as_dict=True)
 		
-			depth = flt(ret[3]) or 0.0
-			width = flt(ret[4]) or 0.0
-			height = flt(ret[5]) or 0.0
-			self.depth = depth
-			self.depthunit = ret[6]
-			self.width = width
-			self.widthunit = ret[7]
-			self.height= height
-			self.heightunit= ret[8]
+		self.depth = flt(ret.get("depth")) or 0.0
+		self.depthunit = ret.get("depthunit")
+		self.width = flt(ret.get("width")) or 0.0
+		self.widthunit = ret.get("widthunit")
+		self.height= flt(ret.get("height")) or 0.0
+		self.heightunit= ret.get("heightunit")
 
-	
-	
-			
-		
-			
-		
 		
 	def update_builder_items(self):
 		builder_items = calculate_builder_items_dimensions(self.get("bomitems"),self.depth,self.depthunit,self.width,self.widthunit,self.height,self.heightunit)
@@ -531,29 +519,49 @@ class BOM(WebsiteGenerator):
 		self.calculate_sm_cost()
 		self.total_cost = self.operating_cost + self.raw_material_cost - self.scrap_material_cost
 		self.base_total_cost = self.base_operating_cost + self.base_raw_material_cost - self.base_scrap_material_cost
-		
+		self.calculate_duty()
 
-	def calculate_total_duty(self):
+
+	def calculate_duty(self):
 		dutible = 0.0
 		non_dutible = 0.0
+		mrp_total_production_overhead = 0.0
 		for d in self.get('exploded_items'):
 			if d.dutible == 1:
 				dutible = dutible + flt(d.amount)
 			else:
 				non_dutible = non_dutible + flt(d.amount)
+		
+			# operating_costs = frappe.get_list('Operating Cost Type',
+				# fields=['name','default_percent'],
+				# filters=[['default_cost', '=', '1'],['docstatus','=','0']],
+				# order_by='sort_order')
+			
+			# self.set('mrp_operating_costs', [])
 
-	
-		customs_price = 0.0
-		duty_percent = 0.0
-		if dutible > 0.0:
-			duty_percent = self.duty
-			customs_price = (flt(duty_percent)/100 * flt(dutible + non_dutible + self.operating_cost)) + self.operating_cost + dutible
-		else:
-			duty_percent = self.non_duty_percent
-			customs_price = flt(duty_percent)/100 * flt(dutible + non_dutible + self.operating_cost)
+			# for oc in operating_costs:
+				# ch = self.append('mrp_operating_costs', {})
+				# ch.type = oc.name
+				# ch.percent = oc.default_percent
+				# ch.amount = self.raw_material_cost*(ch.percent/100)
+		
+		for d in self.get('mrp_operating_costs'):
+			d.amount = self.raw_material_cost * d.percent/100
+			mrp_total_production_overhead += flt(d.amount)
+		
+		self.mrp_total_production_overhead = mrp_total_production_overhead
+		self.mrp_base_total_production_overhead = flt(mrp_total_production_overhead) * flt(self.conversion_rate)
+		self.mrp_factory_price = flt(dutible + non_dutible + self.mrp_total_production_overhead)
+		self.mrp_base_factory_price = flt(self.mrp_factory_price) * flt(self.conversion_rate)
+		
+		
 
-		self.total_duty = customs_price
-		self.base_total_duty = flt(customs_price) * flt(self.conversion_rate)
+		self.total_duty = flt(self.non_duty_percent)/100 * self.mrp_factory_price + dutible;
+		self.base_total_duty = flt(self.total_duty) * flt(self.conversion_rate)
+		
+		self.total_duty = ceil(self.total_duty)
+		self.base_total_duty = ceil(self.base_total_duty)
+		
 		self.dutible = dutible
 		self.non_dutible = non_dutible
 		
@@ -616,7 +624,6 @@ class BOM(WebsiteGenerator):
 		""" Update Flat BOM, following will be correct data"""
 		self.get_exploded_items()
 		self.add_exploded_items(should_save)
-		self.calculate_total_duty()
 
 	def get_exploded_items(self):
 		""" Get all raw materials including items from child bom"""
@@ -726,7 +733,7 @@ class BOM(WebsiteGenerator):
 			if act_pbom and act_pbom[0][0]:
 				frappe.throw(_("Cannot deactivate or cancel BOM as it is linked with other BOMs"))
 
-	def validate_operations(self):
+	def validate_operations(self):	
 		if self.with_operations and not self.get('operations'):
 			frappe.throw(_("Operations cannot be left blank"))
 
@@ -736,77 +743,39 @@ class BOM(WebsiteGenerator):
 					d.description = frappe.db.get_value('Operation', d.operation, 'description')
 				if not d.batch_size > 0:
 					d.batch_size = 1
-		self.operation_summary = self.update_operation_summary()
-	def update_operation_summary(self):
+		self.update_operation_summary()
 		
-						
-		dicts = []
+	def update_operation_summary(self):		
+		import json
 		for d in self.get('operations'):
 			doc_a = frappe.get_doc("Workstation",d.workstation)
+			
+			mrp_data = []
+			
 			for t in doc_a.get("operating_costs"):
-				dicts.append({
+				mrp_data.append({
 								'type':t.type,
 								'percent':t.percent
 							})
-			
-		
-			
-		from collections import defaultdict
-		dd = defaultdict(int)
-		for d in dicts:
-			dd[d['type']] += d['percent']
+							
+			d.mrp_data = json.dumps(mrp_data)
 
-		list = [{'type': k, 'percent': v} for k, v in dd.iteritems()]
-		
-		
-		summary = ""
-		joiningtext = """<table class="table table-bordered table-condensed">
-						<tr>
-						<th>Sr</th>
-						<th width="50%">Description</th>
-						<th>Percent</th>
-						<th>Operating Cost</th>
-						</tr>"""
-		
-		for i, d in enumerate(list):
-			operating_cost = flt(d['percent'])/100 * flt(self.raw_material_cost)
-				
-			joiningtext += """<tr>
-						<td>""" + str(i+1) +"""</td>
-						<td>""" + str(d['type']) +"""</td>
-						<td>""" + str(d['percent']) +"""</td>
-						<td>""" + str(round(flt(operating_cost),2)) +"""</td>
-						</tr>"""
-		joiningtext += """</table><br>"""
-		summary = summary + joiningtext
-		return(summary)
-
-		
 
 	def build_bom(self):
 	
 		bomitems = self.get("bomitems")
 		if not (bomitems):
-			frappe.throw(_("No items provided"))
+			frappe.throw(_("BOM Builder Items Table Is Empty"))
 		
 		depthOriginal = convert_units(self.depthunit,self.depth)
 		widthOriginal = convert_units(self.widthunit,self.width)
 		heightOriginal = convert_units(self.heightunit,self.height)
-		
 		qtyOriginal = self.quantity or 1
-		
-		
+
 		merged,summary,final = build_bom_ext(bomitems,qtyOriginal,depthOriginal,widthOriginal,heightOriginal)
-	
 		
 		self.update_bom_builder(merged)
 		self.set('summary',summary)
-		
-		# self.check_recursion()
-		# self.update_stock_qty()
-		# self.update_exploded_items()
-		
-		
 		
 		return merged,summary
 		
@@ -984,7 +953,7 @@ def get_bom_items_as_dict(bom, company, qty=1, fetch_exploded=1, fetch_scrap_ite
 				and bom.name = %(bom)s
 				and item.is_stock_item in (1, {is_stock_item})
 				{where_conditions}
-				group by item_code, stock_uom {groupby_columns}
+				group by item_code, stock_uom
 				order by idx"""
 
 	is_stock_item = 0 if include_non_stock_items else 1
@@ -994,7 +963,7 @@ def get_bom_items_as_dict(bom, company, qty=1, fetch_exploded=1, fetch_scrap_ite
 			is_stock_item=is_stock_item,
 			qty_field="stock_qty",
 			select_columns = """, bom_item.source_warehouse, bom_item.operation,
-				bom_item.include_item_in_manufacturing, bom_item.description,
+				bom_item.include_item_in_manufacturing, bom_item.description, bom_item.rate,
 				(Select idx from `tabBOM Item` where item_code = bom_item.item_code and parent = %(parent)s limit 1) as idx""")
 
 		items = frappe.db.sql(query, { "parent": bom, "qty": qty, "bom": bom, "company": company }, as_dict=True)
@@ -1008,18 +977,14 @@ def get_bom_items_as_dict(bom, company, qty=1, fetch_exploded=1, fetch_scrap_ite
 			qty_field="stock_qty" if fetch_qty_in_stock_uom else "qty",
 			select_columns = """, bom_item.uom, bom_item.conversion_factor, bom_item.source_warehouse,
 				bom_item.idx, bom_item.operation, bom_item.include_item_in_manufacturing,
-				bom_item.description """)
+				bom_item.description, bom_item.base_rate as rate """)
 		items = frappe.db.sql(query, { "qty": qty, "bom": bom, "company": company }, as_dict=True)
 
 	for item in items:
-		key = (item.item_code)
-		if item.operation:
-			key = (item.item_code, item.operation)
-
-		if key in item_dict:
-			item_dict[key]["qty"] += flt(item.qty)
+		if item.item_code in item_dict:
+			item_dict[item.item_code]["qty"] += flt(item.qty)
 		else:
-			item_dict[key] = item
+			item_dict[item.item_code] = item
 
 	for item, item_details in item_dict.items():
 		for d in [["Account", "expense_account", "stock_adjustment_account"],
@@ -1029,46 +994,9 @@ def get_bom_items_as_dict(bom, company, qty=1, fetch_exploded=1, fetch_scrap_ite
 					item_dict[item][d[1]] = frappe.get_cached_value('Company',  company,  d[2]) if d[2] else None
 
 	return item_dict
-	
-
-@frappe.whitelist()	
-def convert_units(unit,value):
-	if unit == "ft":
-		finalvalue = flt(value) * flt(.3048)
-	elif unit == "cm":
-		finalvalue = flt(value) * flt(.01)
-	elif unit == "mm":
-		finalvalue = flt(value) * flt(0.001)
-	elif unit == "in":
-		finalvalue = flt(value) * flt(.0254)
-	else:
-		finalvalue = flt(value)
-	return finalvalue	
-	
-@frappe.whitelist()		
-def merge_bom_items(dicts):
 
 	
-	item_dict = {}
-	import copy
-	new_list = copy.deepcopy(dicts)
-	for item in new_list:
-		item_code = item["item_code"]
-		if item_dict.has_key(item_code):
-			item_dict[item_code]["qty"] += flt(item["qty"])
-			item_dict[item_code]["stock_qty"] += flt(item["stock_qty"])
-			item_dict[item_code]["required_qty"] = flt(item_dict[item_code]["qty"]) * flt(item_dict[item_code]["conversion_factor"])
 
-		else:
-			item_dict[item_code] = item
-			
-
-	return item_dict
-
-def sbv0(adict,reverse=False):
-    ''' proposed at Digital Sanitation Engineering
-    http://blog.modp.com/2007/11/sorting-python-dict-by-value.html '''
-    return sorted(adict.iteritems(), key=lambda (k,v): (v,k), reverse=reverse)
 
 @frappe.whitelist()
 def get_bom_items(bom, company, qty=1, fetch_exploded=1):
@@ -1136,6 +1064,39 @@ def get_children(doctype, parent=None, is_root=False, **filters):
 
 		return bom_items
 
+@frappe.whitelist()	
+def convert_units(unit,value):
+	if unit == "ft":
+		finalvalue = flt(value) * flt(.3048)
+	elif unit == "cm":
+		finalvalue = flt(value) * flt(.01)
+	elif unit == "mm":
+		finalvalue = flt(value) * flt(0.001)
+	elif unit == "in":
+		finalvalue = flt(value) * flt(.0254)
+	else:
+		finalvalue = flt(value)
+	return finalvalue	
+	
+@frappe.whitelist()		
+def merge_bom_items(dicts):
+
+	
+	item_dict = {}
+	import copy
+	new_list = copy.deepcopy(dicts)
+	for item in new_list:
+		item_code = item["item_code"]
+		if item_dict.has_key(item_code):
+			item_dict[item_code]["qty"] += flt(item["qty"])
+			item_dict[item_code]["stock_qty"] += flt(item["stock_qty"])
+			item_dict[item_code]["required_qty"] = flt(item_dict[item_code]["qty"]) * flt(item_dict[item_code]["conversion_factor"])
+
+		else:
+			item_dict[item_code] = item
+			
+
+	return item_dict
 
 @frappe.whitelist()
 def get_product_bundle_items(item_code):
@@ -1293,6 +1254,7 @@ def process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,
 			# frappe.msgprint(_("Glue Item Not Set"))
 	else:
 		return None
+		
 def create_condensed_table(dict):
 	summary = ""
 	
@@ -1792,7 +1754,7 @@ def get_valuation_rate(args):
 			total_value += flt(d.stock_value)
 
 	if total_qty:
-		valuation_rate =  total_value / total_qty
+		valuation_rate = total_value / total_qty
 
 	if valuation_rate <= 0:
 		last_valuation_rate = frappe.db.sql("""select valuation_rate
@@ -1877,3 +1839,9 @@ def get_bom_diff(bom1, bom2):
 					out.removed.append([df.fieldname, d.as_dict()])
 
 	return out
+
+
+def sbv0(adict,reverse=False):
+    ''' proposed at Digital Sanitation Engineering
+    http://blog.modp.com/2007/11/sorting-python-dict-by-value.html '''
+    return sorted(adict.iteritems(), key=lambda (k,v): (v,k), reverse=reverse)

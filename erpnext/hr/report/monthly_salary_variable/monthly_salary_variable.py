@@ -64,10 +64,11 @@ def execute(filters=None):
 		if variable_pay < 0:
 			basic_pay = basic_pay + variable_pay
 			variable_pay = 0
-			
+		
 		row += [basic_pay,variable_pay]
 		
-		data.append(row)
+		if not(basic_pay == 0  and variable_pay == 0):
+			data.append(row)
 	
 	return columns, data
 	

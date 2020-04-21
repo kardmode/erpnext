@@ -1,0 +1,23 @@
+{
+ "align_labels_right": 0,
+ "creation": "2017-04-15 05:24:47.803672",
+ "custom_format": 0,
+ "disabled": 0,
+ "doc_type": "Quotation",
+ "docstatus": 0,
+ "doctype": "Print Format",
+ "font": "Default",
+ "format_data": "[{\"fieldname\": \"print_heading_template\", \"fieldtype\": \"Custom HTML\", \"options\": \"<div class=\\\"print-heading\\\">\\t\\t\\t\\t<h2><small>{{ doc.get_formatted(\\\"project\\\", doc)|replace(\\\"AMLS - \\\", \\\"\\\")}} - {{doc.title}}</small>\\t\\t\\t\\t</h2></div>\"}, {\"page_break\": \"0\", \"fieldtype\": \"Section Break\", \"label\": \"\"}, {\"fieldtype\": \"Column Break\"}, {\"visible_columns\": [{\"print_hide\": 0, \"print_width\": \"\", \"print_label\": \"\", \"fieldname\": \"item_name\", \"print_parent\": \"\", \"print_align\": \"newline\"}, {\"print_hide\": 0, \"print_width\": \"\", \"print_label\": \"\", \"fieldname\": \"item_code\", \"print_parent\": \"\", \"print_align\": \"newline\"}, {\"print_hide\": 0, \"print_width\": \"\", \"print_label\": \"\", \"fieldname\": \"qty\", \"print_parent\": \"\", \"print_align\": \"newline\"}, {\"print_hide\": 0, \"print_width\": \"100px\", \"print_label\": \"\", \"fieldname\": \"stock_uom\", \"print_parent\": \"\", \"print_align\": \"newline\"}], \"print_hide\": 0, \"hide_sr\": \"0\", \"fieldname\": \"items\", \"label\": \"Items\"}, {\"page_break\": \"0\", \"fieldtype\": \"Section Break\", \"label\": \"Terms\"}, {\"fieldtype\": \"Column Break\"}, {\"print_hide\": 0, \"fieldname\": \"terms\", \"label\": \"Term Details\"}]",
+ "idx": 0,
+ "line_breaks": 0,
+ "modified": "2020-03-19 20:33:02.684144",
+ "modified_by": "Administrator",
+ "module": "Selling",
+ "name": "BOQ Items",
+ "owner": "Administrator",
+ "print_format_builder": 1,
+ "print_format_type": "Jinja",
+ "raw_printing": 0,
+ "show_section_headings": 0,
+ "standard": "Yes"
+}

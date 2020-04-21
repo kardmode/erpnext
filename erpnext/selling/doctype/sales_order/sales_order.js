@@ -59,7 +59,8 @@ frappe.ui.form.on("Sales Order", {
 			return {
 				query: "erpnext.controllers.queries.get_project_name",
 				filters: {
-					'customer': doc.customer
+					'customer': doc.customer,
+					'company':doc.company
 				}
 			}
 		});

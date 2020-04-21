@@ -1,0 +1,124 @@
+{
+ "beta": 1,
+ "creation": "2020-04-15 01:44:33.554500",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "column_break_2",
+  "item_name",
+  "section_break_4",
+  "bom",
+  "force_use_default_production_overhead",
+  "dutible",
+  "non_dutible",
+  "non_duty_percent",
+  "mfg_cost",
+  "ex_factory_price",
+  "customs_price",
+  "data"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bom",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "BOM",
+   "options": "BOM"
+  },
+  {
+   "columns": 2,
+   "fetch_from": "item_code.item_name",
+   "fetch_if_empty": 1,
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "ex_factory_price",
+   "fieldtype": "Currency",
+   "label": "Ex Factory Price",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "customs_price",
+   "fieldtype": "Currency",
+   "label": "Customs Price",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "dutible",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Dutible",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "non_dutible",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Non Dutible",
+   "read_only": 1
+  },
+  {
+   "fieldname": "data",
+   "fieldtype": "Code",
+   "label": "Data",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "force_use_default_production_overhead",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Force Use Default Production Overhead"
+  },
+  {
+   "columns": 1,
+   "fieldname": "non_duty_percent",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Non Duty Percent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mfg_cost",
+   "fieldtype": "Currency",
+   "label": "MFG Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_4",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "istable": 1,
+ "modified": "2020-04-17 20:16:15.124371",
+ "modified_by": "Administrator",
+ "module": "Manufacturing",
+ "name": "MRP CA Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}
