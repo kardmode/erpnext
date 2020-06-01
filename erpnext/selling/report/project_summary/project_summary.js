@@ -10,16 +10,18 @@ frappe.query_reports["Project Summary"] = {
 			"options": "Project",
 		},
 		{
-			fieldname: "format",
-			label: __("Format"),
-			fieldtype: "Select",
-			options: [
+			"fieldname":"format",
+			"label": __("Format"),
+			"fieldtype": "Select",
+			"options": [
 				{ "value": "BOQ", "label": __("BOQ") },
 				{ "value": "Delivery Note", "label": __("Delivery Note") },
 				{ "value": "Prices", "label": __("Prices") },
 				{ "value": "Summary", "label": __("Summary") }
 			],
 			default: "Summary"
+
+			
 		},
 		{
 			fieldname: "doctype",

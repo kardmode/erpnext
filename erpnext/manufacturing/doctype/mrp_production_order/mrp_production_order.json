@@ -31,7 +31,7 @@
    "fieldname": "reference_doctype",
    "fieldtype": "Select",
    "label": "Reference Doctype",
-   "options": "\nDelivery Note\nMRP Job Order"
+   "options": "\nDelivery Note\nMRP Job Order\nSales Order"
   },
   {
    "fieldname": "reference_name",
@@ -59,7 +59,8 @@
    "fieldname": "company",
    "fieldtype": "Link",
    "label": "Company",
-   "options": "Company"
+   "options": "Company",
+   "reqd": 1
   },
   {
    "fieldname": "project",
@@ -125,12 +126,13 @@
   {
    "fieldname": "posting_time",
    "fieldtype": "Time",
-   "label": "Posting Time"
+   "label": "Posting Time",
+   "reqd": 1
   }
  ],
  "icon": "fa fa-cogs",
  "is_submittable": 1,
- "modified": "2020-04-18 23:46:05.441425",
+ "modified": "2020-05-21 22:21:40.333191",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "MRP Production Order",

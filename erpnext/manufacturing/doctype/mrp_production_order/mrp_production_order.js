@@ -10,8 +10,8 @@ cur_frm.add_fetch("reference_name", "title", "reference_title");
 frappe.ui.form.on('MRP Production Order', {
 	onload: function(frm) {
 		if (frm.doc.__islocal) {
-				/* 	frm.set_value("posting_date", frappe.datetime.nowdate());
-					frm.set_value("posting_time", frappe.datetime.now_time()); */
+				frm.set_value("posting_date", frappe.datetime.nowdate());
+				frm.set_value("posting_time", frappe.datetime.now_time());
 		}
 		else
 		{
@@ -42,36 +42,14 @@ frappe.ui.form.on('MRP Production Order', {
 			});
 			
 		}
-		
-		
-		
-		
-
 	},
 	refresh: function(frm) {
 		// frm.get_field("get_assembly_summary").$input.addClass("btn-primary");
 		
 		if(!frm.doc.__islocal)
 		{
-			
-			/* frm.set_query('source_warehouse', 'exploded_items', function(doc, cdt, cdn) {
-			
-				var item = locals[cdt][cdn];
-				if(!item.item_code) {
-					
-				} else {
-					return {
-						query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
-						filters: {"item_code":item.item_code,"company":doc.company}
-					}
-				}
-			}); */
-			
-			frm.trigger("make_dashboard");
-			// var df = frappe.meta.get_docfield("BOM Explosion Item", "source_warehouse", cur_frm.doc.name);
-			// df.read_only = 0;
-			//refresh_field("exploded_items");
-			
+			// frm.trigger("make_dashboard");
+
 			/* frm.add_custom_button(__("Manufacture"), function() {
 				frm.trigger("make_entries");
 			});
@@ -87,21 +65,30 @@ frappe.ui.form.on('MRP Production Order', {
 			
 			if(frm.doc.docstatus < 1)
 			{
-				frm.add_custom_button(__("Get Items From Reference"), function() {
-					frm.trigger("get_items");
-				},null,"primary");
+				frm.add_custom_button(__('Any Document'),
+				function() {
+					frm.trigger('get_items_from');
+					
+				}, __("Get items from"), "btn-default");
+				
+					frm.add_custom_button(__('Current Reference'),
+				function() {
+					frm.trigger('get_items_from_reference');
+					
+				}, __("Get items from"), "btn-default");
+				
 				
 				frm.add_custom_button(__("Get Assembly Summary"), function() {
 					frm.trigger("get_assembly_summary");
-				},null,"primary");
+				});
 			}
 			
 			
 		}
 		else
 		{
-			frm.set_value("posting_date", frappe.datetime.nowdate());
-			frm.set_value("posting_time", frappe.datetime.now_time());
+			// frm.set_value("posting_date", frappe.datetime.nowdate());
+			// frm.set_value("posting_time", frappe.datetime.now_time());
 		}
 		
 	},
@@ -118,9 +105,7 @@ frappe.ui.form.on('MRP Production Order', {
 				method: "get_stock_entries",
 				freeze: false,
 				callback: function(r) {
-					frm.dashboard.add_section(
-						r.message
-					);
+					frm.dashboard.add_section(r.message);
 					frm.dashboard.show();
 				}
 			});
@@ -151,7 +136,7 @@ frappe.ui.form.on('MRP Production Order', {
 	reference_name: function(frm) {
 		if (frm.doc.reference_name)
 		{
-			frm.trigger("get_items");
+			frm.trigger("get_items_from_reference");
 
 		}
 		else{
@@ -163,15 +148,15 @@ frappe.ui.form.on('MRP Production Order', {
 	},
 	
 	
-	get_items:function(frm) {
+	get_items_from_reference:function(frm) {
 		if (frm.doc.reference_name)
 		{
 			frappe.call({
-				doc: cur_frm.doc,
+				doc: frm.doc,
 				method: "get_items_from",
 				args:{
-					reference_doctype:cur_frm.doc.reference_doctype,
-					reference_name:cur_frm.doc.reference_name
+					reference_doctype:frm.doc.reference_doctype,
+					reference_name:frm.doc.reference_name
 				},
 				freeze: true,
 				callback: function(r) {
@@ -180,11 +165,8 @@ frappe.ui.form.on('MRP Production Order', {
 				}
 			});
 
-		}
-		
-		
+		}		
 	},
-	
 	get_assembly_summary:function(frm) {
 		if(frm.doc.__islocal)
 		{
@@ -271,29 +253,27 @@ frappe.ui.form.on('MRP Production Order', {
 			__('This will submit all stock entries. Finish production of items?'),
 			function() {
 				frappe.call({
-			doc: cur_frm.doc,
-			method: "submit_entries",
-			freeze: true,
-			freeze_message: "Please wait ..",
-			callback: function(r) {
-				
-				if(r.message)
-				{
-					cur_frm.save();
-				}
-				else 
-				{
-					frappe.msgprint(__("Stock Entrie Not Submitted"));
-				}
-					
+					doc: cur_frm.doc,
+					method: "submit_entries",
+					freeze: true,
+					freeze_message: "Please wait ..",
+					callback: function(r) {
+						
+						if(r.message)
+						{
+							cur_frm.save();
+						}
+						else 
+						{
+							frappe.msgprint(__("Stock Entrie Not Submitted"));
+						}
+							
 
-				
-			}
-		});
+						
+					}
+				});
 			}
 		);
-		
-		
 		
 	},
 	
@@ -347,6 +327,109 @@ frappe.ui.form.on('MRP Production Order', {
 		});
 		dialog.show();
 	},
+	get_items_from:function (frm) {
+		var me=this;
+		
+		var doc_options = ['Delivery Note','Purchase Order','Purchase Receipt','Product Collection','Sales Order',
+		'Sales Invoice','Quotation'];
+		
+		var dialog = new frappe.ui.Dialog({
+			title: __("Get Items From Document"),
+			fields: [
+				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items'),default:1},
+				{fieldname:'include_bundled_items', fieldtype:'Check', label: __('Include Bundled Items'),default:0},
+				{fieldname:'sec_1', fieldtype:'Section Break'},
+				{fieldname:'doc_type', fieldtype:'Link', options:"DocType", label: __('Type'),"reqd": 1 },
+				{fieldname:'col_1', fieldtype:'Column Break'},
+				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name'),"reqd": 1 },
+				// {fieldname:'qty', fieldtype:'float', label: __('Quantity'),default:1},
+			]
+		});
+		
+		
+		dialog.fields_dict["doc_name"].get_query = function(){
+			return {
+				filters: [
+						['docstatus', '<', '2'],
+						// ['status', '!=', 'Closed'],
+						// ['company', '=', frm.doc.company],
+					]
+					
+				
+			};
+		};
+		
+		dialog.set_primary_action(__("Get Items"), function() {
+		
+		var filters = dialog.get_values();
+
+		frappe.call({
+			method:'erpnext.controllers.queries.get_items_from',
+			args:{
+				doc_type: filters.doc_type,
+				doc_name: filters.doc_name,
+				include_bundled_items: filters.include_bundled_items
+			},
+			// freeze: true,
+			// freeze_message: __("Getting Items..."),
+			callback:function (r) {
+			
+
+				if(filters.clear_items === 1)
+					frm.doc.items = [];
+				
+				var row_info = {};
+				var row_start = frm.doc.items.length;
+				
+				
+				for (var i=0; i< r.message.length; i++) {
+					var row = frm.add_child("items");
+					row.item_code = r.message[i].item_code;
+					var row_index = row_start + i;
+					row_info[row_index] = r.message[i];
+					row.qty = r.message[i].qty;
+					row.description = r.message[i].description;
+					row.uom = r.message[i].uom;
+					row.rate = r.message[i].rate;
+					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
+					
+				}
+				
+				dialog.hide();
+				frappe.show_progress(__("Getting Items.."),0);
+
+				//code before the pause
+				setTimeout(function(){
+					for(var row_index in row_info)
+					{
+						var row = cur_frm.doc.items[row_index];
+						var data = row_info[row_index];
+
+						for (var key in data) {
+							if(frappe.meta.has_field(row.doctype, key))
+							{
+								row[key] = data[key];
+							}
+					
+						}
+					}
+					
+					cur_frm.refresh_field('items');
+					// calculate_totals(frm);
+					cur_frm.dirty();
+					frappe.show_progress(__("Getting Items.."),100);
+					frappe.hide_progress(__("Getting Items.."));
+					
+				}, 1000);
+
+				
+				
+				
+			}
+		})
+		});
+		dialog.show();
+	},
 });
 
 frappe.ui.form.on("MRP Production Plan Item",{
@@ -378,51 +461,6 @@ frappe.ui.form.on("MRP Production Plan Item",{
 	},
 });
 
-
-		
-/* frappe.ui.form.on('BOM Explosion Item', {
-	
-	source_warehouse:function(frm, cdt, cdn) {
-	},
-	required_uom:function(frm, cdt, cdn) {
-		var d = locals[cdt][cdn];
-		
-		if(d.required_uom)
-		{
-			if(d.required_uom !== d.stock_uom)
-			{
-				frappe.call({
-					method:'erpnext.stock.get_item_details.get_conversion_factor',
-					args:{
-						uom: d.required_uom,
-						item_code:d.item_code,
-					},
-					callback:function (r) {
-						
-						var conversion_factor = 1;
-						
-						conversion_factor = r.message.conversion_factor || 1;
-						
-						var required_qty = d.stock_qty / conversion_factor;
-						frappe.model.set_value(d.doctype, d.name, "required_qty", required_qty);
-						
-							
-
-					}
-				})
-			}
-			else
-			{
-				frappe.model.set_value(d.doctype, d.name, "required_qty", d.stock_qty);
-
-			}
-			
-		}
-		
-		
-	},	
-	
-}); */
 
 cur_frm.fields_dict['items'].grid.get_field('bom').get_query = function(doc, cdt, cdn) {
 	var d = locals[cdt][cdn];

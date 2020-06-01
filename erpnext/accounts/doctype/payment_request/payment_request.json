@@ -2,6 +2,7 @@
  "autoname": "naming_series:",
  "creation": "2015-12-15 22:23:24.745065",
  "doctype": "DocType",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "payment_request_type",
@@ -348,7 +349,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2020-03-28 16:07:31.960798",
+ "modified": "2020-04-23 05:55:57.385392",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Request",

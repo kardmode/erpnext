@@ -213,8 +213,8 @@ erpnext.queries.setup_product_bundle_query = function(frm){
 				filters: {
 				// 'status': ["in",["Open"]],
 				"new_item_code": d.item_code,
-				// "company": frm.doc.company,
-				// "project": frm.doc.project,
+				"company": frm.doc.company,
+				"project": frm.doc.project,
 				}
 			};
 

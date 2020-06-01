@@ -5,51 +5,51 @@ frappe.query_reports["Item Summary By Document"] = {
 	
 	"filters": [
 		{
-			"fieldname":"name",
-			"label": __("Document"),
+			"fieldname":"company",
+			"label": __("Company"),
 			"fieldtype": "Link",
-			"options": function() {
-				var format = frappe.query_report_filters_by_name.format.get_value();
-				return format;
-			},
-			"get_query": function() {
-				var format = frappe.query_report_filters_by_name.format.get_value();
-				return{
-					filters: [[format, "docstatus", "<", 2]],
-					}
-					
-				
-			},
-			"on_change":function(me) {
-				var format = frappe.query_report_filters_by_name.format.get_value();
-				var docname = frappe.query_report_filters_by_name.name.get_value();
-
-				
-				/* frappe.call({
-					method: "erpnext.selling.report.item_summary_by_document.item_summary_by_document.get_title",
-					args: { "docname": docname,"doctype":format },
-					callback: function(r) {
-						if(r.message) {
-							
-							var title_filter = frappe.query_report_filters_by_name.title;
-							title_filter.set_input(r.message);
-				
-						}
-					}
-				}) */
-				me.trigger_refresh();
-			},
+			"options": "Company",
+			"default": frappe.defaults.get_default('company'),
+			"on_change": function(query_report) {
+				frappe.query_report.set_filter_value('name', "");
+			}	
 		},
 		{
-			fieldname: "format",
-			label: __("Format"),
-			fieldtype: "Select",
-			options: [
+			"fieldname":"format",
+			"label": __("Format"),
+			"fieldtype": "Select",
+			"options": [
 				{ "value": "Quotation", "label": __("Quotation") },
 				{ "value": "Sales Order", "label": __("Sales Order") },
-				{ "value": "Delivery Note", "label": __("Delivery Note") }
+				{ "value": "Delivery Note", "label": __("Delivery Note") },
+				{ "value": "Product Bundle", "label": __("Product Bundle") }
 			],
-			default: "Quotation"
+			'default': "Quotation",
+			"on_change": function(query_report) {
+				frappe.query_report.set_filter_value('name', "");
+			}			
+		},
+		{
+			"fieldname":"name",
+			"label": __("Document"),
+			"fieldtype": "Dynamic Link",
+			"get_options": function() {
+				var format = frappe.query_report.get_filter_value('format');
+				if(!format) {
+					frappe.throw(__("Please select Format first"));
+				}
+				return format;
+			},
+			
+			
+			"get_query": function() {
+				var format = frappe.query_report.get_filter_value('format');
+				var company = frappe.query_report.get_filter_value('company');
+
+				return {
+					filters: [[format, "docstatus", "<", 2],[format,"Company","=",company]],
+				}				
+			}
 		},
 		{
 			fieldname: "bom_only",
@@ -61,11 +61,7 @@ frappe.query_reports["Item Summary By Document"] = {
 				{ "value": "With BOM", "label": __("With BOM") },
 				{ "value": "Consolidate BOM", "label": __("Consolidate BOM") }
 			],
-			default: "Consolidate BOM"
+			default: "With BOM"
 		}
 	]
 }
-
-frappe.ui.form.on("Item Summary By Document", "quotation", function(frm, cdt, cdn) {
-	console.log("Hello");
-})

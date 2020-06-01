@@ -38,25 +38,25 @@ erpnext.hr.AttendanceControlPanel = frappe.ui.form.Controller.extend({
 	update_attendance: function() {
 		var me = this;
 		frappe.call({
-				method: "erpnext.hr.doctype.upload_attendance.upload_attendance.update_attendance",
-				args: {
-					start_date: me.frm.doc.start_date,
-					end_date: me.frm.doc.end_date
-				},
-				freeze: true,
-				freeze_message: "Please wait ..",
-				callback: function(r) {
-					var msg = "";
-					if(r.message)
-						msg = r.message;
-					else
-						msg = "0 Attendance Records Updated";
-					
-					
-					cur_frm.set_value("update_log",msg);
-					frappe.hide_msgprint();
-				}
-			});
+			method: "erpnext.hr.doctype.upload_attendance.upload_attendance.update_attendance",
+			args: {
+				start_date: me.frm.doc.start_date,
+				end_date: me.frm.doc.end_date
+			},
+			freeze: true,
+			freeze_message: "Please wait ..",
+			callback: function(r) {
+				var msg = "";
+				if(r.message)
+					msg = r.message;
+				else
+					msg = "0 Attendance Records Updated";
+				
+				
+				cur_frm.set_value("update_log",msg);
+				frappe.hide_msgprint();
+			}
+		});
 		
 		
 	},

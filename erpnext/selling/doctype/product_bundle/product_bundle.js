@@ -4,7 +4,18 @@
 
 frappe.ui.form.on("Product Bundle", {
 	setup: function(frm) {
-		
+		frm.set_query("bom_no", "items", function(doc, cdt, cdn) {
+			var d = locals[cdt][cdn];
+			return {
+				filters: {
+					'currency': doc.currency,
+					'company': doc.company,
+					'item': d.item_code,
+					'is_active': 1,
+					'docstatus': 1
+				}
+			};
+		});
 	},
 	refresh: function(frm) {
 					frm.add_custom_button(__('Any Document'),
@@ -14,9 +25,9 @@ frappe.ui.form.on("Product Bundle", {
 				}, __("Get items from"), "btn-default");
 	},
 	onload: function(frm) {
-		if (!frm.doc.posting_date){
-			frm.set_value('posting_date', frappe.datetime.get_today())
-		}
+		// if (!frm.doc.posting_date){
+			// frm.set_value('posting_date', frappe.datetime.get_today())
+		// }
 		frm.set_query('project', function(doc, cdt, cdn) {
 			return {
 				// query: "erpnext.controllers.queries.get_project_name",
@@ -28,27 +39,7 @@ frappe.ui.form.on("Product Bundle", {
 			}
 		});
 	},
-	
-	is_default:function (frm) {
-		if(frm.doc.is_default===1)
-		{
-			// frm.toggle_reqd("project", false);
-			frm.set_value('project','');
-			// frm.toggle_enable("project", false);
 
-		}
-		else
-		{
-			// frm.toggle_reqd("project", true);
-			frm.set_value('project','');
-			// frm.toggle_enable("project", true);
-			
-		}
-		
-	
-
-
-	},
 	get_items_from:function (frm) {
 		var me=this;
 		
@@ -58,9 +49,9 @@ frappe.ui.form.on("Product Bundle", {
 		var dialog = new frappe.ui.Dialog({
 			title: __("Get Items From Document"),
 			fields: [
-				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items')},
+				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items'),default:1},
 				{fieldname:'sec_1', fieldtype:'Section Break'},
-				{fieldname:'doc_type', fieldtype:'Select', options: doc_options, label: __('Type'),"reqd": 1 },
+				{fieldname:'doc_type', fieldtype:'Link', options:"DocType", label: __('Type'),"reqd": 1 },
 				{fieldname:'col_1', fieldtype:'Column Break'},
 				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name'),"reqd": 1 },
 				// {fieldname:'qty', fieldtype:'float', label: __('Quantity'),default:1},
@@ -223,7 +214,8 @@ frappe.ui.form.on("Product Bundle Item", {
 				'plc_conversion_rate': me.frm.doc.plc_conversion_rate,
 				'company': me.frm.doc.company,
 				'order_type': 'selling',
-				'transaction_date': me.frm.doc.transaction_date || me.frm.doc.posting_date,
+				// 'transaction_date': me.frm.doc.transaction_date || me.frm.doc.posting_date,
+				'transaction_date': '',
 				'ignore_pricing_rule': 1,
 				'doctype': 'Sales Order',
 				'project': item.project || me.frm.doc.project,

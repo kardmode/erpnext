@@ -552,24 +552,54 @@ def get_tax_template(doctype, txt, searchfield, start, page_len, filters):
 		return [(d,) for d in set(taxes)]
 
 @frappe.whitelist()
-def get_items_from(doc_type,doc_name):
-
+def get_items_from(doc_type,doc_name,include_bundled_items=False):
+	from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle
+	from erpnext.stock.doctype.packed_item.packed_item import get_product_bundle_items
+	
 	conditions = "t1.item_code"
 	if doc_type == "Purchase Receipt":
 		conditions += ", t1.received_qty as qty"
 	
 	doctypeitem_name = str(doc_type) + ' Item'
 	doctype_name = str(doc_type)
+	meta_doctypeitem_name = frappe.get_meta(doctype_name)
+	meta_doctype_name = frappe.get_meta(doctypeitem_name)
+	
+	for field in ["project"]:
+		if meta_doctype_name.has_field(field):
+			conditions += ", t2." + str(field)
 	
 	for field in ["rate","amount","description","item_name","uom","qty","stock_uom","stock_qty"]:
-		if frappe.get_meta(doctypeitem_name).has_field(field):
+		if meta_doctypeitem_name.has_field(field):
 			conditions += ", t1." + str(field)
 
 	
-	query = "select " + conditions + " from `tab" +  doctypeitem_name + "` t1,`tab" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
-	new_dict = frappe.db.sql(query, (doc_name), as_dict=1)
+	query = "select t1.name, t1.parent, " + conditions + " from `tab" +  doctypeitem_name + "` t1,`tab" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
+	original_item_list = frappe.db.sql(query, (doc_name), as_dict=1)
+	
+	item_list = []
+	if include_bundled_items:
+		if len(original_item_list) > 0:
+			doc_info = frappe.get_doc(doc_type, original_item_list[0].parent)
 
-	return new_dict
+	
+		for item in original_item_list:
+			product_bundle = has_product_bundle(item.item_code,item.get("project"))
+			if product_bundle:
+				if doc_info.get("packed_items"):
+					for p in doc_info.get("packed_items"):
+						if p.parent_detail_docname == item.name and p.parent_item == item.item_code:
+							item_list.append(p)
+				else:
+					for i in get_product_bundle_items(item.item_code, item.get("project")):
+						i.qty = i.qty * item.qty
+						item_list.append(i)
+			else:
+				item_list.append(item)
+	else:
+		item_list = original_item_list
+	
+	return item_list
 	
 @frappe.whitelist()
 def get_items_from_csv():

@@ -506,18 +506,11 @@ class StockEntry(StockController):
 					if raw_material_cost:
 						d.basic_rate = flt((raw_material_cost - scrap_material_cost) / flt(d.transfer_qty), d.precision("basic_rate"))
 						d.basic_amount = flt((raw_material_cost - scrap_material_cost), d.precision("basic_amount"))
-
+	
 	def distribute_additional_costs(self):
 		if self.purpose == "Material Issue":
 			self.additional_costs = []
-			
-		if self.purpose == "Manufacture":
-		
-			if not self.get("additional_costs"):
-				additional_costs = get_additional_costs(bom_no=self.bom_no, fg_qty=self.fg_completed_qty,company=self.company)
-				self.set("additional_costs", additional_costs)
-		
-		
+
 		self.total_additional_costs = sum([flt(t.amount) for t in self.get("additional_costs")])
 		total_basic_amount = sum([flt(t.basic_amount) for t in self.get("items") if t.t_warehouse])
 

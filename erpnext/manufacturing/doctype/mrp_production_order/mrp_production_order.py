@@ -3,14 +3,14 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, erpnext
 from frappe.utils import cstr, flt, cint,nowtime, nowdate, add_days, comma_and, getdate
 from frappe import msgprint, _
-
 from frappe.model.document import Document
-from erpnext.manufacturing.doctype.bom.bom import validate_bom_no, get_default_bom,get_material_list
-from erpnext.manufacturing.doctype.bom.bom import calculate_builder_items_dimensions, build_bom_ext
-from erpnext.manufacturing.doctype.bom.bom import convert_units
+from erpnext.manufacturing.doctype.bom.bom import validate_bom_no, get_default_bom, get_material_list, \
+	calculate_builder_items_dimensions, build_bom_ext, convert_units
+from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle
+from erpnext.stock.doctype.packed_item.packed_item import get_product_bundle_items
 
 from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
 	DuplicateEntryForWorkOrderError, OperationsNotCompleteError, get_best_warehouse
@@ -21,11 +21,6 @@ from frappe.desk import query_report
 
 class MRPProductionOrder(Document):
 	def validate(self):
-		
-
-		if not self.per_item_summary:
-			self.per_item_summary = "No per item summary"
-		# self.get_stock_entries()
 		self.get_summary()
 		
 	def on_submit(self):
@@ -41,7 +36,6 @@ class MRPProductionOrder(Document):
 			self.make_stock_entries()
 		elif self.workflow_state == "Completed":
 			pass
-			# self.submit_entries()
 		elif self.workflow_state in ["Cancelled","Draft"]:
 			self.delete_entries(True,True)
 		
@@ -51,8 +45,26 @@ class MRPProductionOrder(Document):
 	def get_items_from(self,reference_doctype,reference_name):
 		self.items = []
 		dn = frappe.get_doc(reference_doctype, reference_name)
-		self.project = dn.project
+		
+		self.project = dn.get("project")
+			
+		item_list = []
 		for item in dn.get("items"):
+			product_bundle = has_product_bundle(item.item_code,self.project)
+			if product_bundle:
+				if dn.has_key("packed_items"):
+					for p in dn.get("packed_items"):
+						if p.parent_detail_docname == item.name and p.parent_item == item.item_code:
+							item_list.append(p)
+				else:
+					for i in get_product_bundle_items(item.item_code,self.project):
+						i.qty = i.qty * item.qty
+						item_list.append(i)
+			else:
+				item_list.append(item)
+
+		
+		for item in item_list:
 			if item.item_code:
 				ch = self.append('items', {})
 				ch.item_code = item.item_code
@@ -66,13 +78,12 @@ class MRPProductionOrder(Document):
 				ch.widthunit = item_dict.widthunit
 				ch.height = item_dict.height
 				ch.heightunit = item_dict.heightunit
-				
-				ch.bom = get_default_bom(item.item_code)
+
+				ch.bom = item.get('bom_no') or get_default_bom(item.item_code, self.project) or None
 				
 	def get_stock_entries(self):
 		stock_entries = frappe.db.sql("""select name,docstatus,posting_date,title from `tabStock Entry` where custom_production_order=%s""", self.name, as_dict = 1)
 		summary = 'No stock entries for this production order' 
-		
 		
 		if not stock_entries:
 			return summary
@@ -167,7 +178,11 @@ class MRPProductionOrder(Document):
 		
 		final_merged_items,raw_material_cost = self.update_bom_builder(merge_bom_items(final_unmerged_items))
 		self.combined_summary = create_condensed_table_exploded_items(final_merged_items,self.company)
-		self.per_item_summary = final_per_item_summary
+		
+		if final_per_item_summary == "":
+			self.per_item_summary = "No per item summary"
+		else:
+			self.per_item_summary = final_per_item_summary
 		
 		if should_save:
 			self.save()
@@ -185,13 +200,9 @@ class MRPProductionOrder(Document):
 		for item in sorted(merged):
 			
 			d = merged[item]
+			
 			# bom_no = get_default_bom(d["item_code"])
 			ret_item = get_item_det(d["item_code"])
-			
-			
-			
-			d["stock_qty"] = d["qty"]
-			# d["qty"] = flt(d["required_qty"])
 			d["bom_no"] = ret_item.default_bom
 			
 			rate = 0.0
@@ -206,19 +217,16 @@ class MRPProductionOrder(Document):
 						from erpnext.manufacturing.doctype.bom.bom import get_valuation_rate
 						rate = get_valuation_rate({"item_code": d["item_code"], "bom_no": d["bom_no"]})
 					
-
+			# d["stock_uom"] = d.stock_uom
+			# d["uom"] = d.uom
 			d["rate"] = rate
 			d["base_rate"] = rate
-			
-			d["stock_uom"] = ret_item.stock_uom
 			d["amount"] = flt(d["rate"])*flt(d["stock_qty"])
-			d["uom"] = d["required_uom"]
 			d["source_warehouse"] = ''
 			# d["conversion_factor"] = ret_item["conversion_factor"]
 			
 			d["item_name"] = ret_item.item_name
 			d["description"] = ret_item.description
-			d["image"] = ret_item.image
 			
 			raw_material_cost = raw_material_cost + flt(d["rate"])
 
@@ -227,112 +235,17 @@ class MRPProductionOrder(Document):
 		
 		return items, raw_material_cost
 	
-		
-	def get_exploded_items(self,items):
-		""" Get all raw materials including items from child bom"""
-		self.cur_exploded_items = {}
-		for d in items:
-			if d.bom_no:
-				self.get_child_exploded_items(d.bom_no, d.stock_qty)
-			else:
-				self.add_to_cur_exploded_items(frappe._dict({
-					'item_code'		: d.item_code,
-					'item_name'		: d.item_name,
-					'source_warehouse': d.source_warehouse,
-					'description'	: d.description,
-					'image'			: d.image,
-					'stock_uom'		: d.stock_uom,
-					'stock_qty'		: flt(d.stock_qty),
-					'rate'			: d.base_rate,
-					'required_uom'		: d.required_uom,
-					'required_qty'		: flt(d.required_qty),
-				}))
-		
-				
-	def add_to_cur_exploded_items(self, args):
-		if self.cur_exploded_items.get(args.item_code):
-			self.cur_exploded_items[args.item_code]["stock_qty"] += args.stock_qty
-			self.cur_exploded_items[args.item_code]["required_qty"] += args.required_qty
-		else:
-			self.cur_exploded_items[args.item_code] = args
-
-	def get_child_exploded_items(self, bom_no, stock_qty):
-		""" Add all items from Flat BOM of child BOM"""
-		# Did not use qty_consumed_per_unit in the query, as it leads to rounding loss
-		child_fb_items = frappe.db.sql("""select bom_item.item_code, bom_item.item_name,
-			bom_item.description, bom_item.source_warehouse,
-			bom_item.stock_uom, bom_item.stock_qty, bom_item.rate,
-			bom_item.stock_qty / ifnull(bom.quantity, 1) as qty_consumed_per_unit
-			from `tabBOM Explosion Item` bom_item, tabBOM bom
-			where bom_item.parent = bom.name and bom.name = %s and bom.docstatus = 1""", bom_no, as_dict = 1)
-
-		for d in child_fb_items:
-			self.add_to_cur_exploded_items(frappe._dict({
-				'item_code'				: d['item_code'],
-				'item_name'				: d['item_name'],
-				'source_warehouse'		: d['source_warehouse'],
-				'description'			: d['description'],
-				'stock_uom'				: d['stock_uom'],
-				'stock_qty'				: d['qty_consumed_per_unit'] * stock_qty,
-				'rate'					: flt(d['rate']),
-				'required_uom'		: d['stock_uom'],
-				'required_qty'		: d['qty_consumed_per_unit'] * stock_qty,
-			}))
-
-	def add_exploded_items(self):
-		exploded_items = {}
-		for d in self.get('exploded_items'):
-			exploded_items[d.item_code] = d
-			
-		self.set('exploded_items', [])
-
-		from erpnext.stock.stock_ledger import get_previous_sle
-		posting_date = self.posting_date
-		posting_time = self.posting_time or nowtime()
-		
-		
-		for d in sorted(self.cur_exploded_items, key=itemgetter(0)):
-			
-			ch = self.append('exploded_items', {})
-			for i in self.cur_exploded_items[d].keys():
-				ch.set(i, self.cur_exploded_items[d][i])
-			
-			best_warehouse,enough_stock = get_best_warehouse(ch.item_code,ch.stock_qty,company = self.company)
-			if best_warehouse:
-				ch.actual_qty = get_previous_sle({
-									"item_code": ch.item_code,
-									"warehouse": best_warehouse,
-									"posting_date": posting_date,
-									"posting_time": posting_time
-								}).get("qty_after_transaction") or 0
-				
-				
-			else:
-				ch.actual_qty = 0
-			
-			ch.source_warehouse = best_warehouse
-			ch.amount = flt(ch.stock_qty) * flt(ch.rate)
-			ch.qty_consumed_per_unit = flt(ch.stock_qty)
-			if exploded_items.get(ch.item_code):
-				ch.dutible = exploded_items[ch.item_code].dutible
-		
 				
 	def make_stock_entries(self):
-	
 		from erpnext.stock.stock_ledger import NegativeStockError
-
-		
-		
 		stock_entry_list = []	
-		items = self.get("items")
-		if not items:
-			return False
-		
-		for fg_item in items:
+
+		for fg_item in self.get("items"):
 		
 			prev_stock_entry = frappe.db.sql("""select name,docstatus from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 2""", (self.name,fg_item.item_code), as_dict = 1)
 			if prev_stock_entry:
-				break
+				frappe.throw(_("Previous Stock Entry {0} Exists.").format(prev_stock_entry.name))
+
 			
 			if not fg_item.depth or not fg_item.width or not fg_item.height:
 				frappe.throw(_("Item {0} needs all dimensions").format(fg_item.item_code))
@@ -347,7 +260,7 @@ class MRPProductionOrder(Document):
 		
 			try:	
 				stock_entry = frappe.new_doc("Stock Entry")
-				stock_entry.purpose = "Manufacture"
+				stock_entry.stock_entry_type = "Manufacture"
 				# stock_entry.sales_order = sales_order_no
 				
 				if self.reference_doctype == "Delivery Note":
@@ -436,18 +349,6 @@ class MRPProductionOrder(Document):
 						"basic_rate" : raw_material_cost
 					}
 				})
-				
-
-				# additional_costs = []
-				# if purpose=="Manufacture" and add_operating_costs:
-					
-					# additional_costs.append({
-						# "description": "Operating Cost as per Production Order / BOM",
-						# "amount": self.operating_cost * flt(qty)
-					# })
-					
-					# stock_entry.set("additional_costs", additional_costs)	
-			
 
 				stock_entry.get_stock_and_rate()
 				# stock_entry.get_items()
@@ -464,20 +365,20 @@ class MRPProductionOrder(Document):
 				OperationsNotCompleteError,OperationsNotCompleteError):
 				frappe.db.rollback()
 			except Exception as error:
+				frappe.msgprint(error)
 				frappe.db.rollback()
 				
 		if len(stock_entry_list) > 0:
 			return True
 		else:
+			frappe.msgprint("No Entries Created")
 			return False
 			
 	def submit_entries(self):
 	
-		items = self.get("items")
-		if not items:
-			return False
+		success = False
 		
-		for fg_item in items:
+		for fg_item in self.get("items"):
 			stock_entries = frappe.db.sql("""select name from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 1""",  (self.name,fg_item.item_code), as_dict = 1)
 			success = False
 			

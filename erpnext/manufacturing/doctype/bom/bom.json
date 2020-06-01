@@ -1,8 +1,9 @@
 {
  "allow_import": 1,
+ "allow_rename": 1,
  "creation": "2013-01-22 15:11:38",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "item",
@@ -390,6 +391,7 @@
    "label": "Materials Required (Exploded)"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "exploded_items",
    "fieldtype": "Table",
    "label": "Exploded Items",
@@ -397,8 +399,7 @@
    "oldfieldname": "flat_bom_details",
    "oldfieldtype": "Table",
    "options": "BOM Explosion Item",
-   "print_hide": 1,
-   "read_only": 1
+   "print_hide": 1
   },
   {
    "collapsible": 1,
@@ -483,7 +484,7 @@
  "idx": 1,
  "image_field": "image",
  "is_submittable": 1,
- "modified": "2019-11-22 14:35:12.142150",
+ "modified": "2020-04-24 17:34:37.661985",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",

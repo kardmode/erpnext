@@ -4,7 +4,7 @@
  "autoname": "field:project_name",
  "creation": "2013-03-07 11:55:07",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "project_name",
@@ -444,7 +444,7 @@
  "icon": "fa fa-puzzle-piece",
  "idx": 29,
  "max_attachments": 4,
- "modified": "2020-04-09 14:17:15.524529",
+ "modified": "2020-04-23 05:47:42.883255",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Project",

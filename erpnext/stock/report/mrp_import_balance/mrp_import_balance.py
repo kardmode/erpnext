@@ -31,10 +31,18 @@ def execute(filters=None):
 			item_group = d.item_group
 			for key in items:
 				item = items[key]
-				item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])				
-				row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+				
+				row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 				data.append(row)
-	
+				
+				for key in item.item_alts:
+					item_alt = item.item_alts[key]
+					item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
+					
+					row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+					data.append(row)
+		
 	elif filters.get("item_code") and filters.get("import_bill"):
 
 		items = get_items_in_bill(filters.get("import_bill"))
@@ -44,9 +52,17 @@ def execute(filters=None):
 				item = items[key]
 				
 				item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-				item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])	
-				row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+				
+				row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 				data.append(row)
+				
+				for key in item.item_alts:
+					item_alt = item.item_alts[key]
+					item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
+
+					row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+					data.append(row)
 			
 			
 	elif filters.get("item_code") and not filters.get("import_bill"):
@@ -57,22 +73,38 @@ def execute(filters=None):
 			item = items[key]
 			
 			item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-			item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])				
-			row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+			item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+			row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 			data.append(row)
+			
+			for key in item.item_alts:
+				item_alt = item.item_alts[key]
+				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])	
+
+				row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+				data.append(row)
+			
 			
 			
 	elif not filters.get("item_code") and filters.get("import_bill"):
 		items = get_items_in_bill(filters.get("import_bill"))
-		
+
 		for key in items:
 			item = items[key]
 			
 			item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-			item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])				
-			row = [item["item_code"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+			item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+			
+			row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
 			data.append(row)
+			
+			for key in item.item_alts:
+				item_alt = item.item_alts[key]
+				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
 	
+				row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+				data.append(row)
+
 	
 	elif not filters.get("item_code") and not filters.get("import_bill"):
 		return columns, data
@@ -84,15 +116,13 @@ def get_columns():
 	"""return columns"""
 
 	columns = [
-		_("Item")+":Link/Item:250",
-		# _("Item Name")+"::150",
-		# _("Brand")+"::90",
-		# _("Description")+"::140",
+		_("Item Code")+":Link/Item:200",
+		_("Item Entry Name")+"::200",
 		_("Import Bill")+":Link/MRP Import Bill:200",
 		_("Stock UOM")+":Link/UOM:80",
 		_("Balance Qty")+":Float:150",
 		_("Item Group")+":Link/Item Group:120",
-		_("Customs Item Rate")+"::140",
+		_("Entry Info")+"::140",
 	]
 
 	return columns

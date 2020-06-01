@@ -10,7 +10,23 @@ from frappe.model.document import Document
 
 class ProductBundle(Document):
 	# def autoname(self):
-		# self.name = self.new_item_code
+		# names = frappe.db.sql_list("""select name from `tabBOM` where item=%s""", self.new_item_code)
+
+		# if names:
+			# # split by item
+			# names = [name.split(self.item, 1) for name in names]
+			# names = [d[-1][1:] for d in filter(lambda x: len(x) > 1 and x[-1], names)]
+
+			# # split by (-) if cancelled
+			# if names:
+				# names = [cint(name.split('-')[-1]) for name in names]
+				# idx = max(names) + 1
+			# else:
+				# idx = 1
+		# else:
+			# idx = 1
+
+		# self.name = 'PB-' + self.new_item_code + ('-%.3i' % idx)
 
 	def validate(self):
 		self.validate_main_item()
@@ -23,13 +39,6 @@ class ProductBundle(Document):
 		if frappe.db.get_value("Item", self.new_item_code, "is_stock_item"):
 			frappe.throw(_("Parent Item {0} must not be a Stock Item").format(self.new_item_code))
 			
-		if self.is_default:
-			if frappe.db.sql("""select name from `tabProduct Bundle`
-				where new_item_code = %s and name <> %s and is_default = 1""", (self.new_item_code,self.name)):
-				frappe.throw(_("There is already a default product bundle for this item.").format(self.new_item_code,self.name))
-		elif not self.project:
-			frappe.throw(_("Project is required if not a default bundle.").format(self.new_item_code))
-		
 		if self.project:
 			if frappe.db.sql("""select name from `tabProduct Bundle`
 				where new_item_code = %s and name <> %s and project = %s""", (self.new_item_code,self.name,self.project)):
@@ -63,20 +72,16 @@ def get_new_item_code(doctype, txt, searchfield, start, page_len, filters):
 		get_match_cond(doctype),"%s", "%s"),
 		("%%%s%%" % txt, start, page_len))
 
-def has_product_bundle(item_code,project=None):
-	
-	if project:
-	
-		with_project = frappe.db.sql("""select name from `tabProduct Bundle` 
-			where new_item_code=%s and project=%s and docstatus != 2""", (item_code,project))
+def has_product_bundle(item_code,project=None, item_row=None):
+	if item_row and item_row.get("product_bundle"):
+		return frappe.db.sql("""select name from `tabProduct Bundle`
+			where name=%s and docstatus != 2""", item_row.product_bundle)
+	elif project:	
+		with_project = frappe.db.sql("""select name from `tabProduct Bundle` where new_item_code=%s and project=%s and docstatus != 2""", (item_code,project))
 		if with_project:
 			return with_project
 		
-		return frappe.db.sql("""select name from `tabProduct Bundle`
-			where new_item_code=%s and is_default = 1 and docstatus != 2""", item_code)
-	else:
-		return frappe.db.sql("""select name from `tabProduct Bundle`
-			where new_item_code=%s and is_default = 1 and docstatus != 2""", item_code)
+	return frappe.db.sql("""select name from `tabProduct Bundle` where new_item_code=%s and project IS NULL and docstatus != 2""", item_code)
 
 def get_product_bundle_details(name):
 	return frappe.db.get_value("Product Bundle",name, ["use_total_to_cost", "total"], as_dict=1)

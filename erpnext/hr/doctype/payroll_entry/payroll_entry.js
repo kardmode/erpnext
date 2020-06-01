@@ -259,18 +259,28 @@ frappe.ui.form.on('Payroll Entry', {
 			var dialog = new frappe.ui.Dialog({
 				title: "Print Salaries",
 				fields: [
-					{"fieldtype": "Check", "label": __("Don't Include Zero Value Salaries"), "fieldname": "hide_zero_salaries","default":1},
+					{	
+						"fieldtype": "Check", 
+						"label": __("Don't Include Zero Value Salaries"), 
+						"fieldname": "hide_zero_salaries",
+						"default":1
+					},
+					{
+						'fieldtype': 'Check',
+						'label': __('With Letterhead'),
+						'fieldname': 'with_letterhead',
+						"default":1
+					}
 				]
 			});
 			
-			dialog.set_primary_action(__("Print"), function() {
+			dialog.set_primary_action(__('Print'), args => {
 		
-				var filters = dialog.get_values();
 				frappe.call({
 					doc: frm.doc,
 					method: "print_salary_slips",
 					args: {
-						'hide_zero_salaries': filters.hide_zero_salaries
+						'hide_zero_salaries': args.hide_zero_salaries
 					},
 					callback: function(r){
 						if (r.message)
@@ -282,13 +292,14 @@ frappe.ui.form.on('Payroll Entry', {
 							});
 							
 							if(docname.length >= 1){
-								var json_string = JSON.stringify(docname);								
+								var json_string = JSON.stringify(docname);
+								const with_letterhead = args.with_letterhead ? 1 : 0;
+								
 								var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
 									+"doctype="+encodeURIComponent("Salary Slip")
 									+"&name="+encodeURIComponent(json_string)
 									+"&format="+encodeURIComponent(format)
-									+"&orientation="+encodeURIComponent("Portrait")
-									+"&no_letterhead="+"0");
+									+'&no_letterhead=' + (with_letterhead ? '0' : '1'));
 								if(!w) {
 									frappe.msgprint(__("Please enable pop-ups")); return;
 								}

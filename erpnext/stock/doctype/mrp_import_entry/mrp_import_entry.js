@@ -47,6 +47,7 @@ frappe.ui.form.on('MRP Import Entry', {
 					query: "erpnext.stock.doctype.mrp_import_bill.mrp_import_bill.import_bill_query",
 					filters: {
 						"item_code":row.item_code,
+						"item_alt":row.item_alt,
 						"company":cur_frm.doc.company,
 						"posting_date":cur_frm.doc.posting_date,
 						"posting_time":cur_frm.doc.posting_time
@@ -66,6 +67,17 @@ frappe.ui.form.on('MRP Import Entry', {
 			
 		});
 		
+		
+		frm.set_query("item_alt", "items", function(doc, cdt, cdn) {
+			var row  = locals[cdt][cdn];
+			
+			return {
+				filters: {
+					"item_code":row.item_code,
+				}
+			};
+			
+		});
 		
 	},
 	refresh: function(frm) {
@@ -485,7 +497,7 @@ frappe.ui.form.on('MRP Import Entry', {
 });
 
 frappe.ui.form.on("MRP Import Entry Item",{
-	item_code: (frm, cdt, cdn) => {
+	item_code:function(frm, cdt, cdn) {
 		let row = frappe.get_doc(cdt, cdn);
 		if (row.item_code) {
 			get_item_details(row.item_code).then(data => {
@@ -501,7 +513,40 @@ frappe.ui.form.on("MRP Import Entry Item",{
 			});
 		}
 	},
-	uom: (frm, cdt, cdn) => {
+	item_alt:function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		
+		if(d.item_code && d.import_bill) {
+			return frappe.call({
+				
+				method:'erpnext.stock.doctype.mrp_import_bill.mrp_import_bill.get_total_qty_for_item',
+				args: {
+					import_bill: d.import_bill,
+					item_code: d.item_code,
+					item_alt:d.item_alt,
+					posting_date:cur_frm.doc.posting_date,
+					posting_time:cur_frm.doc.posting_time
+				},
+				callback: function(r) {
+
+					frappe.model.set_value(d.doctype, d.name, "available_qty", r.message);
+					
+					if(cur_frm.doc.transaction_type == "Purchase Receipt" || cur_frm.doc.transaction_type == "Addition")
+					{
+						frappe.model.set_value(d.doctype, d.name, "balance_qty", d.available_qty + d.stock_qty);
+					}
+					else
+					{
+						frappe.model.set_value(d.doctype, d.name, "balance_qty", d.available_qty - d.stock_qty);
+					}
+					
+
+				}
+			});
+		}
+
+	},
+	uom:function(frm, cdt, cdn) {
 		let row = frappe.get_doc(cdt, cdn);
 		if (row.uom) {
 			get_item_details(row.item_code, row.uom).then(data => {
@@ -510,11 +555,11 @@ frappe.ui.form.on("MRP Import Entry Item",{
 			});
 		}
 	},
-	qty: (frm, cdt, cdn) => {
+	qty:function(frm, cdt, cdn) {
 		let row = frappe.get_doc(cdt, cdn);
 		frappe.model.set_value(cdt, cdn, 'stock_qty', row.qty * row.conversion_factor);
 	},
-	conversion_factor: (frm, cdt, cdn) => {
+	conversion_factor:function(frm, cdt, cdn) {
 		let row = frappe.get_doc(cdt, cdn);
 		frappe.model.set_value(cdt, cdn, 'stock_qty', row.qty * row.conversion_factor);
 	},
@@ -528,6 +573,7 @@ frappe.ui.form.on("MRP Import Entry Item",{
 				args: {
 					import_bill: d.import_bill,
 					item_code: d.item_code,
+					item_alt:d.item_alt,
 					posting_date:cur_frm.doc.posting_date,
 					posting_time:cur_frm.doc.posting_time
 				},
@@ -537,13 +583,11 @@ frappe.ui.form.on("MRP Import Entry Item",{
 					
 					if(cur_frm.doc.transaction_type == "Purchase Receipt" || cur_frm.doc.transaction_type == "Addition")
 					{
-						// var balance_qty = d.available_qty + d.stock_qty;
-						// frappe.model.set_value(d.doctype, d.name, "balance_qty", balance_qty);
+						frappe.model.set_value(d.doctype, d.name, "balance_qty", d.available_qty + d.stock_qty);
 					}
 					else
 					{
-						// var balance_qty = d.available_qty - d.stock_qty;
-						// frappe.model.set_value(d.doctype, d.name, "balance_qty", balance_qty);
+						frappe.model.set_value(d.doctype, d.name, "balance_qty", d.available_qty - d.stock_qty);
 					}
 					
 

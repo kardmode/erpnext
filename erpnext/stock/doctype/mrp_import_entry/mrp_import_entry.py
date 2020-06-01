@@ -66,27 +66,29 @@ class MRPImportEntry(Document):
 		
 		for d in self.get("items"):
 			item = deepcopy(d.as_dict())
-
+			item_alt = item["item_alt"]
 			item_code = item["item_code"]
+			
 			import_bill = item["import_bill"]
 			
-			if item_code in item_dict:
+			if (item_code,item_alt) in item_dict:
 				if import_bill in item_dict[item_code]:
-					item_dict[item_code][import_bill]["stock_qty"] += flt(item["stock_qty"])
+					item_dict[item_code,item_alt][import_bill]["stock_qty"] += flt(item["stock_qty"])
 				else:
-					item_dict[item_code][import_bill] = item
+					item_dict[item_code,item_alt][import_bill] = item
 				
 			else:
-				item_dict[item_code] = {}
-				item_dict[item_code][import_bill] = item
+				item_dict[item_code,item_alt] = {}
+				item_dict[item_code,item_alt][import_bill] = item
 		
 		for item_code_key in item_dict:
 			item_code_dict = item_dict[item_code_key]
 
 			for import_bill_key in item_code_dict:
+				
 				d = item_code_dict[import_bill_key]
-				available_qty = get_total_qty_for_item(import_bill_key,item_code_key,self.posting_date,self.posting_time)
-			
+				# frappe.errprint(d)
+				available_qty = get_total_qty_for_item(import_bill_key,d.item_code,d.item_alt,self.posting_date,self.posting_time)
 				if self.transaction_type in ["Purchase Receipt","Addition"]:
 					balance_qty = flt(available_qty) + flt(d.stock_qty)
 				else:
@@ -135,7 +137,7 @@ class MRPImportEntry(Document):
 				d.item_name = item_dict.item_name
 				
 			if d.import_bill:
-				d.available_qty = get_total_qty_for_item(d.import_bill,d.item_code,self.posting_date,self.posting_time)
+				d.available_qty = get_total_qty_for_item(d.import_bill,d.item_code,d.item_alt,self.posting_date,self.posting_time)
 			else:
 				frappe.throw(_("Item {1} does not have an import bill.").format(d.item_code))
 
@@ -188,7 +190,7 @@ class MRPImportEntry(Document):
 				self.customs_exchange_rate = exchange_factor
 				d.customs_exit_rate =  d.rate * exchange_factor
 				d.import_bill = data["import_bill"]
-				d.available_qty = get_total_qty_for_item(d.import_bill,d.item_code,self.posting_date,self.posting_time)
+				d.available_qty = get_total_qty_for_item(d.import_bill,d.item_code,d.item_alt,self.posting_date,self.posting_time)
 				d.balance_qty = flt(d.available_qty) + flt(d.stock_qty)
 					
 	def get_items_from(self,document,purpose,data=None):
@@ -312,7 +314,7 @@ class MRPImportEntry(Document):
 					newd.conversion_factor = d.conversion_factor
 
 				
-				import_bill,highest_qty,enough_stock = get_best_bill(d.item_code,company=self.company,posting_date=self.posting_date,posting_time=self.posting_time)
+				import_bill,highest_qty,enough_stock = get_best_bill(d.item_code,d.item_alt,company=self.company,posting_date=self.posting_date,posting_time=self.posting_time)
 				if import_bill:
 					newd.import_bill = import_bill
 					newd.available_qty = highest_qty
@@ -336,7 +338,7 @@ class MRPImportEntry(Document):
 				newd.customs_exit_rate =  d.rate * exchange_factor
 				newd.conversion_factor = d.conversion_factor
 				newd.import_bill = data["import_bill"]
-				newd.available_qty = get_total_qty_for_item(newd.import_bill,newd.item_code,self.posting_date,self.posting_time)
+				newd.available_qty = get_total_qty_for_item(newd.import_bill,newd.item_code,d.item_alt,self.posting_date,self.posting_time)
 				newd.balance_qty = flt(newd.available_qty) + flt(newd.stock_qty)
 				
 	def set_import_bill_for(self,purpose,data=None):
@@ -349,18 +351,16 @@ class MRPImportEntry(Document):
 		for d in self.get("items"):
 			if purpose == "Purchase Receipt":
 				d.import_bill = data
-				d.available_qty = get_total_qty_for_item(d.import_bill,d.item_code,self.posting_date,self.posting_time)
+				d.available_qty = get_total_qty_for_item(d.import_bill,d.item_code,d.item_alt,self.posting_date,self.posting_time)
 				d.balance_qty = flt(d.available_qty) + flt(d.stock_qty)
 			else:
-				import_bill,highest_qty,enough_stock = get_best_bill(d.item_code,company=self.company,posting_date=self.posting_date,posting_time=self.posting_time)
+				import_bill,highest_qty,enough_stock = get_best_bill(d.item_code,d.item_alt,company=self.company,posting_date=self.posting_date,posting_time=self.posting_time)
 				if import_bill:
 					newd.import_bill = import_bill
 					newd.available_qty = highest_qty
 					newd.balance_qty = newd.available_qty - newd.stock_qty
 				
 def merge_items(dicts):
-
-	
 	item_dict = {}
 	
 	from copy import deepcopy
@@ -416,7 +416,6 @@ def get_item_det(item_code,uom=None):
 	details.uom = uom or details.stock_uom
 	if uom:
 		from erpnext.stock.get_item_details import get_conversion_factor
-
 		details.update(get_conversion_factor(item_code, uom))
 
 	# from erpnext.stock.get_item_details import get_item_price

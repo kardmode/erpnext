@@ -2055,18 +2055,15 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 	get_items_from:function (frm) {
 		var me=this;
 		
-		var doc_options = ['Delivery Note','Purchase Order','Purchase Receipt','Product Collection','Sales Order',
-		'Sales Invoice','Quotation'];
-		
 		var dialog = new frappe.ui.Dialog({
 			title: __("Get Items From Document"),
 			fields: [
-				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items')},
+				{fieldname:'clear_items', fieldtype:'Check', label: __('Clear Previous Items'),default:1},
+				{fieldname:'include_bundled_items', fieldtype:'Check', label: __('Include Bundled Items'),default:0},
 				{fieldname:'sec_1', fieldtype:'Section Break'},
-				{fieldname:'doc_type', fieldtype:'Select', options: doc_options, label: __('Type'),"reqd": 1 },
+				{fieldname:'doc_type', fieldtype:'Link', options:"DocType", label: __('Type'),"reqd": 1 },
 				{fieldname:'col_1', fieldtype:'Column Break'},
 				{fieldname:'doc_name', fieldtype:'Dynamic Link', options: 'doc_type', label: __('Name'),"reqd": 1 },
-				// {fieldname:'qty', fieldtype:'float', label: __('Quantity'),default:1},
 			]
 		});
 		
@@ -2091,10 +2088,11 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			method:'erpnext.controllers.queries.get_items_from',
 			args:{
 				doc_type: filters.doc_type,
-				doc_name: filters.doc_name
+				doc_name: filters.doc_name,
+				include_bundled_items: filters.include_bundled_items
 			},
-			freeze: true,
-			freeze_message: __("Getting Items..."),
+			// freeze: true,
+			// freeze_message: __("Getting Items..."),
 			callback:function (r) {
 			
 

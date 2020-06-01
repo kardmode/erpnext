@@ -22,13 +22,13 @@ frappe.query_reports["Item Summary By Project"] = {
 		},
 		{
 			fieldname: "consolidate",
-			label: __("Consolidate"),
+			label: __("Combine"),
 			fieldtype: "Select",
 			options: [
-				{ "value": "Consolidate By Document", "label": __("Consolidate By Document") },
-				{ "value": "Consolidate By Project", "label": __("Consolidate By Project") }
+				{ "value": "Separate by Document", "label": __("Separate by Document") },
+				{ "value": "Combine", "label": __("Combine") }
 			],
-			default: "Consolidate By Project"
+			default: "Separate by Document"
 		},
 		{
 			fieldname: "bom_only",
@@ -37,10 +37,10 @@ frappe.query_reports["Item Summary By Project"] = {
 			options: [
 				{ "value": "Without BOM", "label": __("Without BOM") },
 				{ "value": "Only BOM", "label": __("Only BOM") },
-				{ "value": "Combined", "label": __("Combined") },
+				{ "value": "With BOM", "label": __("With BOM") },
 				{ "value": "Consolidate BOM", "label": __("Consolidate BOM") }
 			],
-			default: "Consolidate BOM"
+			default: "With BOM"
 		}
 	]
 }

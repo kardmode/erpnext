@@ -2,6 +2,7 @@
  "autoname": "naming_series:",
  "creation": "2018-07-20 16:43:08.505978",
  "doctype": "DocType",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -107,7 +108,7 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2020-04-06 18:00:56.022642",
+ "modified": "2020-04-23 05:55:51.196514",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Order",

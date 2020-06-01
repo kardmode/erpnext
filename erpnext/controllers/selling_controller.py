@@ -237,9 +237,9 @@ class SellingController(StockController):
 		return il
 
 	def has_product_bundle(self, item_code):
-		from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle
-		product_bundle = has_product_bundle(item_code,self.get("project"))
-	
+		from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle as _has_product_bundle
+		return _has_product_bundle(item_code,self.get("project"))
+		
 		# return frappe.db.sql("""select name from `tabProduct Bundle`
 			# where new_item_code=%s and docstatus != 2""", item_code)
 

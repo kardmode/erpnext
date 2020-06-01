@@ -90,41 +90,73 @@ def get_items_in_bill(import_bill,posting_date=None,posting_time=None):
 	posting_time = get_time(posting_time)
 
 	
-	stock_details = frappe.db.sql("""select t1.item_code,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type,t2.reference_name 
+	stock_details = frappe.db.sql("""select t2.name,t1.item_code,t1.item_name,t1.item_alt,t1.import_bill,t1.stock_qty,t1.stock_uom,t2.transaction_type,t2.reference_name 
 									from `tabMRP Import Entry Item` t1, `tabMRP Import Entry` t2 
 									where t1.import_bill = %s and t2.name = t1.parent and t2.docstatus = 1 
 									and (t2.posting_date < %s or (t2.posting_date = %s and t2.posting_time < %s))
 									ORDER BY t2.posting_date,t2.posting_time""", (import_bill,posting_date,posting_date,posting_time), as_dict=True)
-	
+		
 	item_dict = {}
 	import copy
 	new_list = copy.deepcopy(stock_details)
 	for item in new_list:
 		item_code = item["item_code"]
+		item_alt = item["item_alt"]
 		
 
 		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
 			continue
 		
+
 		if item_dict.has_key(item_code):
-		
-			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
-				item_dict[item_code]["stock_qty"] += flt(item["stock_qty"])
-			else:
-				item_dict[item_code]["stock_qty"] -= flt(item["stock_qty"])
+
+			if item_alt:
+
+				if item_dict[item_code]["item_alts"].has_key(item_alt):
+
+					if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+						item_dict[item_code]["item_alts"][item_alt]["stock_qty"] += flt(item["stock_qty"])
+					else:
+						item_dict[item_code]["item_alts"][item_alt]["stock_qty"] -= flt(item["stock_qty"])
+						
+				else:
+					item_dict[item_code]["item_alts"] = {item_alt:{"item_code":item_alt,"stock_qty":0}}
+					
+					if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+						item_dict[item_code]["item_alts"][item_alt]["stock_qty"] = flt(item["stock_qty"])
+					else:
+						item_dict[item_code]["item_alts"][item_alt]["stock_qty"] = -1 * flt(item["stock_qty"])
+					
+
+			else:			
+				if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+					item_dict[item_code]["stock_qty"] += flt(item["stock_qty"])
+				else:
+					item_dict[item_code]["stock_qty"] -= flt(item["stock_qty"])
 			
 		else:
+			item["item_alts"] = {}
 			item_dict[item_code] = item
-			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
-				item_dict[item_code]["stock_qty"] = flt(item["stock_qty"])
-			else:
-				item_dict[item_code]["stock_qty"] = -1 * flt(item["stock_qty"])
 			
+			if item_alt:
+				item_dict[item_code]["item_alts"] = {item_alt:{"item_code":item_alt,"stock_qty":0}}
+
+				if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+					item_dict[item_code]["item_alts"][item_alt]["stock_qty"] = flt(item["stock_qty"])
+				else:
+					item_dict[item_code]["item_alts"][item_alt]["stock_qty"] = -1 * flt(item["stock_qty"])
+			
+				item_dict[item_code]["stock_qty"] = 0
+			else:
+				if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+					item_dict[item_code]["stock_qty"] = flt(item["stock_qty"])
+				else:
+					item_dict[item_code]["stock_qty"] = -1 * flt(item["stock_qty"])
 
 	return item_dict
 
 @frappe.whitelist()
-def get_total_qty_for_item(import_bill,item_code,posting_date=None,posting_time=None):
+def get_total_qty_for_item(import_bill,item_code,item_alt = None, posting_date=None,posting_time=None):
 
 	stock_details = []
 	
@@ -136,7 +168,7 @@ def get_total_qty_for_item(import_bill,item_code,posting_date=None,posting_time=
 	posting_time = get_time(posting_time)
 
 	stock_details = frappe.db.sql("""
-					select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type, t1.reference_name
+					select t1.name,t2.item_alt, t2.stock_qty, t2.stock_uom, t1.transaction_type, t1.reference_name
 					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
 					where t2.import_bill = %s and t2.item_code = %s
 					and t2.stock_qty <> 0 and t1.name = t2.parent and t1.docstatus = 1
@@ -146,17 +178,19 @@ def get_total_qty_for_item(import_bill,item_code,posting_date=None,posting_time=
 					
 	
 	total_qty = 0
+	
 	for item in stock_details:
 		
 		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
 			continue
-		
-		if item.transaction_type in ["Purchase Receipt","Addition"]:
-			total_qty = total_qty + flt(item.stock_qty)
-			
-		else:
-			total_qty = total_qty - flt(item.stock_qty)
-			
+
+		if item_alt == item.item_alt:
+
+			if item.transaction_type in ["Purchase Receipt","Addition"]:
+				total_qty += flt(item.stock_qty)
+			else:
+				total_qty -= flt(item.stock_qty)
+	
 	return total_qty
 	
 @frappe.whitelist()
@@ -173,7 +207,7 @@ def get_bills_and_stock(item_code=None,company = None,posting_date=None,posting_
 	posting_time = get_time(posting_time)
 
 	stock_details = frappe.db.sql("""
-					select t1.name, t2.import_bill, t2.item_code,t2.stock_qty,t2.stock_uom, t2.item_name, t1.transaction_type,t1.reference_name
+					select t1.name, t2.import_bill, t2.item_code,t2.stock_qty,t2.stock_uom, t2.item_name,t2.item_alt, t1.transaction_type,t1.reference_name
 					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
 					where t1.company = %s 
 					and t1.docstatus = 1
@@ -184,59 +218,103 @@ def get_bills_and_stock(item_code=None,company = None,posting_date=None,posting_
 					ORDER BY t2.stock_qty DESC
 					""", (company,item_code,posting_date,posting_date,posting_time), as_dict=True)		
 	
-	
-	best_warehouses = []
-	
+
 	item_dict = {}
 	import copy
 	new_list = copy.deepcopy(stock_details)
 	for item in new_list:
 		import_bill = item["import_bill"]
+		item_alt = item["item_alt"]
+		
 		
 		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
 			continue
 
 		if item_dict.has_key(import_bill):
-		
-			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
-				item_dict[import_bill]["stock_qty"] += flt(item["stock_qty"])
-			else:
-				item_dict[import_bill]["stock_qty"] -= flt(item["stock_qty"])
-		else:
-			item_dict[import_bill] = item
-			if item["transaction_type"] in ["Purchase Receipt","Addition"]:
-				item_dict[import_bill]["stock_qty"] = flt(item["stock_qty"])
-			else:
-				item_dict[import_bill]["stock_qty"] = -1 * flt(item["stock_qty"])
+			if item_alt:
+
+				if item_dict[import_bill]["item_alts"].has_key(item_alt):
+
+					if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+						item_dict[import_bill]["item_alts"][item_alt]["stock_qty"] += flt(item["stock_qty"])
+					else:
+						item_dict[import_bill]["item_alts"][item_alt]["stock_qty"] -= flt(item["stock_qty"])
+						
+				else:
+					item_dict[import_bill]["item_alts"] = {item_alt:{"item_code":item_alt,"stock_qty":0}}
+					
+					if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+						item_dict[import_bill]["item_alts"][item_alt]["stock_qty"] = flt(item["stock_qty"])
+					else:
+						item_dict[import_bill]["item_alts"][item_alt]["stock_qty"] = -1 * flt(item["stock_qty"])
+					
+
+			else:			
+				if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+					item_dict[import_bill]["stock_qty"] += flt(item["stock_qty"])
+				else:
+					item_dict[import_bill]["stock_qty"] -= flt(item["stock_qty"])
 			
-		
+		else:
+			item["item_alts"] = {}
+			item_dict[import_bill] = item
+			
+			if item_alt:
+				item_dict[import_bill]["item_alts"] = {item_alt:{"item_code":item_alt,"stock_qty":0}}
+
+				if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+					item_dict[import_bill]["item_alts"][item_alt]["stock_qty"] = flt(item["stock_qty"])
+				else:
+					item_dict[import_bill]["item_alts"][item_alt]["stock_qty"] = -1 * flt(item["stock_qty"])
+			
+				item_dict[import_bill]["stock_qty"] = 0
+			else:
+				if item["transaction_type"] in ["Purchase Receipt","Addition"]:
+					item_dict[import_bill]["stock_qty"] = flt(item["stock_qty"])
+				else:
+					item_dict[import_bill]["stock_qty"] = -1 * flt(item["stock_qty"])
 
 	return item_dict
 	
 @frappe.whitelist()
-def get_best_bill(item_code=None,item_qty = 0, order_by_least = False,company = None,posting_date=None,posting_time=None):
+def get_best_bill(item_code=None,item_alt=None, item_qty = 0, order_by_least = False,company = None,posting_date=None,posting_time=None):
 	
 	enough_stock = False
 	
-	best_warehouse = None
+	best_import_doc = None
 
 	if not item_code or not company:
-		return best_warehouse,enough_stock
+		return best_import_doc,enough_stock
 	
 	item_dict = get_bills_and_stock(item_code,company=company,posting_date = posting_date,posting_time = posting_time)
 	
+	for key in item.item_alts:
+		item_alt = item.item_alts[key]
+
 	highest_qty = 0
-	best_warehouse = None
+	best_import_doc = None
 	
 	for key in item_dict:
-		warehouse_info =item_dict[key]
-		if warehouse_info.stock_qty > highest_qty:
-			highest_qty = warehouse_info.stock_qty
-			best_warehouse = warehouse_info.import_bill
-			if flt(highest_qty) >= flt(item_qty):
-				enough_stock = True
+		item = item_dict[key]
+		
+		if item_alt:
+			for key in item.item_alts:
+				stored_item_alt = item.item_alts[key]
+				if stored_item_alt.item_code == item_alt:
+					if stored_item_alt.stock_qty > highest_qty:
+						highest_qty = stored_item_alt.stock_qty
+						best_import_doc = item.import_bill
+						if flt(highest_qty) >= flt(item_qty):
+							enough_stock = True
+		else:
+			if item.stock_qty > highest_qty:
+				highest_qty = item.stock_qty
+				best_import_doc = item.import_bill
+				if flt(highest_qty) >= flt(item_qty):
+					enough_stock = True
 				
-	return best_warehouse,highest_qty,enough_stock
+		
+	return best_import_doc,highest_qty,enough_stock
 	
 		
 
@@ -254,7 +332,11 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 		company = filters.get('company')
 	else:
 		return best_warehouses
-		
+	
+	item_alt = None
+	if filters and filters.get('item_alt'):
+		item_alt = filters.get('item_alt')
+	
 	posting_date = None
 	posting_time = None
 	if filters and filters.get('posting_date'):
@@ -266,19 +348,28 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 	if filters and filters.get('filters'):
 		filters = filters.get('filters')
 		
-	stock_details = get_bills_and_stock(item_code,company = company,posting_date = posting_date,posting_time = posting_time)
+	item_dict = get_bills_and_stock(item_code,company = company,posting_date = posting_date,posting_time = posting_time)
 	
-	for key in stock_details:
-		warehouse_info =stock_details[key]
-		qty = warehouse_info.stock_qty
-		best_warehouse = warehouse_info.import_bill
-		best_warehouses.append((best_warehouse,))
+	for key in item_dict:
+		item = item_dict[key]
+		
+		if item_alt:
+			for key in item.item_alts:
+				stored_item_alt = item.item_alts[key]
+				if stored_item_alt.item_code == item_alt:
+					if stored_item_alt.stock_qty > 0:
+						best_warehouse = item.import_bill
+						best_warehouses.append((best_warehouse,))
+		else:
+			if item.stock_qty > 0:
+				best_warehouse = item.import_bill
+				best_warehouses.append((best_warehouse,))
 		
 	return best_warehouses
 
 @frappe.whitelist()
-def get_item_rate_in_bill(import_bill,item_code,uom = None, posting_date=None,posting_time=None):
-
+def get_item_rate_in_bill(import_bill,item_code,item_alt=None,uom = None, posting_date=None,posting_time=None):
+	rates = []
 	stock_details = []
 	
 	if not posting_date:
@@ -290,7 +381,11 @@ def get_item_rate_in_bill(import_bill,item_code,uom = None, posting_date=None,po
 
 	
 	stock_details = frappe.db.sql("""
-					select t1.name, t2.stock_qty, t2.stock_uom, t1.transaction_type,t1.reference_name, t2.conversion_factor, t2.rate,t2.customs_exit_rate
+					select t1.name, t1.transaction_type, t1.reference_name,
+					t1.reference_number, t1.reference_date,
+					t2.item_alt, t2.stock_qty, t2.stock_uom,
+					t2.conversion_factor, t2.rate,
+					t2.customs_exit_rate
 					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
 					where t2.import_bill = %s and t2.item_code = %s and t2.stock_qty <> 0 
 					and t1.name = t2.parent and t1.docstatus = 1
@@ -299,9 +394,6 @@ def get_item_rate_in_bill(import_bill,item_code,uom = None, posting_date=None,po
 					ORDER BY t1.posting_date,t1.posting_time
 					""", (import_bill,item_code,posting_date,posting_date,posting_time), as_dict=True)	
 						
-						
-				
-
 	if stock_details:
 		from erpnext.stock.get_item_details import get_conversion_factor
 
@@ -310,18 +402,34 @@ def get_item_rate_in_bill(import_bill,item_code,uom = None, posting_date=None,po
 			if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
 				continue
 		
-
+			if item_alt:
+				if not item_alt == item.item_alt:
+					continue			
+			
+			rate_dict = {}
+			
 			stock_rate = flt(item.customs_exit_rate) * flt(item.conversion_factor)			
 
 			if uom == None:
-				return stock_rate
+				rate_dict["rate"] = stock_rate
 			else:
 				conversion_factor = get_conversion_factor(item_code,uom).get("conversion_factor") or 1
-
-				return (flt(stock_rate) / flt(conversion_factor))
+				rate_dict["rate"] = (flt(stock_rate) / flt(conversion_factor))
+				
+			rates.append(rate_dict)
 	
 	else:
-		return 0	
+		rates.append({'rate':0})
+	
+	rate_summary = ''
+	for r in rates:
+		rate_text = str(r['rate'])
+		if rate_summary == '':
+			rate_summary = rate_text
+		else:
+			rate_summary = rate_summary + ', ' + rate_text
+		
+	return rates,rate_summary
 
 def validate_ref_doc(transaction_type,reference_name):
 	if transaction_type in ["Purchase Receipt","Delivery Note","MRP Production Order"]:

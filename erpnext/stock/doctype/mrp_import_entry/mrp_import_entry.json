@@ -17,6 +17,8 @@
   "posting_date",
   "posting_time",
   "reference_name",
+  "reference_number",
+  "reference_date",
   "section_break_9",
   "customs_entry_total",
   "column_break_11",
@@ -181,10 +183,20 @@
    "fieldtype": "Link",
    "label": "Target Bill",
    "options": "MRP Import Bill"
+  },
+  {
+   "fieldname": "reference_number",
+   "fieldtype": "Data",
+   "label": "Reference Number"
+  },
+  {
+   "fieldname": "reference_date",
+   "fieldtype": "Date",
+   "label": "Reference Date"
   }
  ],
  "is_submittable": 1,
- "modified": "2020-02-12 01:27:57.126172",
+ "modified": "2020-05-09 15:47:39.543971",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Entry",

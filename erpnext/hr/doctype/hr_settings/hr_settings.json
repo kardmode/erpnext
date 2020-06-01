@@ -1,8 +1,7 @@
 {
- "actions": [],
  "creation": "2013-08-02 13:45:23",
  "doctype": "DocType",
- "document_type": "Other",
+ "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -174,8 +173,7 @@
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
- "links": [],
- "modified": "2019-12-31 14:28:32.004121",
+ "modified": "2020-04-23 06:06:41.303148",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

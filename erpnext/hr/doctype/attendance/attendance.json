@@ -3,7 +3,7 @@
  "autoname": "naming_series:",
  "creation": "2013-01-10 16:34:13",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "attendance_details",
@@ -173,15 +173,13 @@
  ],
  "icon": "fa fa-ok",
  "idx": 1,
- "is_submittable": 1,
- "modified": "2020-02-19 14:25:32.945842",
+ "modified": "2020-04-23 05:19:30.195592",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Attendance",
  "owner": "ashwini@webnotestech.com",
  "permissions": [
   {
-   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -190,11 +188,9 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   },
   {
-   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -205,11 +201,9 @@
    "report": 1,
    "role": "HR User",
    "share": 1,
-   "submit": 1,
    "write": 1
   },
   {
-   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -218,7 +212,6 @@
    "report": 1,
    "role": "HR Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   }
  ],

@@ -5,7 +5,7 @@
  "autoname": "naming_series:",
  "creation": "2013-03-07 09:04:18",
  "doctype": "DocType",
- "document_type": "Setup",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -782,7 +782,7 @@
  "icon": "fa fa-user",
  "idx": 24,
  "image_field": "image",
- "modified": "2020-01-09 04:23:55.611366",
+ "modified": "2020-04-23 06:06:22.626977",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee",

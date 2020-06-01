@@ -1,8 +1,8 @@
 {
- "actions": [],
  "allow_import": 1,
  "creation": "2019-06-02 04:41:37.332911",
  "doctype": "DocType",
+ "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -63,8 +63,7 @@
    "label": "Is Default"
   }
  ],
- "links": [],
- "modified": "2020-04-07 20:25:55.507905",
+ "modified": "2020-04-23 05:26:06.815557",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item Manufacturer",

@@ -882,23 +882,6 @@ def get_conversion_factor(item_code, uom):
 		
 		conversion_factor = get_uom_conv_factor(uom, stock_uom)
 
-		# conversion_factor = convert_SI(1,stock_uom,uom)
-		# if conversion_factor:
-			# return {"conversion_factor": conversion_factor}
-		# else:
-			
-			# filters["uom"] = ("in",get_SI_units().keys())
-			# conversion_factor,test_uom = frappe.db.get_value("UOM Conversion Detail", filters, ["conversion_factor","uom"])
-			# if conversion_factor:
-				# SI_Conversion = convert_SI(conversion_factor,uom,test_uom)
-				# if SI_Conversion:
-					# return {"conversion_factor": SI_Conversion}
-				# else:
-					# return {"conversion_factor": None}
-			# else:
-				# return {"conversion_factor": None}
-				
-
 	return {"conversion_factor": conversion_factor or 1.0}
 	
 @frappe.whitelist()
