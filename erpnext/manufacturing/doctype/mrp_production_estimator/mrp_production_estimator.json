@@ -1,0 +1,159 @@
+{
+ "beta": 1,
+ "creation": "2020-05-21 22:20:12.206052",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_doctype",
+  "reference_name",
+  "reference_title",
+  "column_break_9",
+  "posting_date",
+  "posting_time",
+  "company",
+  "project",
+  "remarks",
+  "section_break_18",
+  "section_break_10",
+  "items",
+  "section_break_13",
+  "combined_summary",
+  "section_break_19",
+  "per_item_summary"
+ ],
+ "fields": [
+  {
+   "default": "Delivery Note",
+   "fieldname": "reference_doctype",
+   "fieldtype": "Select",
+   "label": "Reference Doctype",
+   "options": "\nDelivery Note\nMRP Job Order\nSales Order"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "reference_title",
+   "fieldtype": "Data",
+   "label": "Reference Title"
+  },
+  {
+   "fieldname": "column_break_9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "posting_time",
+   "fieldtype": "Time",
+   "label": "Posting Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Data",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "section_break_18",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_10",
+   "fieldtype": "Section Break",
+   "label": "Items to Manufacture"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "MRP Production Plan Item"
+  },
+  {
+   "fieldname": "section_break_13",
+   "fieldtype": "Section Break",
+   "label": "Raw Materials"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "combined_summary",
+   "fieldtype": "Long Text",
+   "label": "Combined Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_19",
+   "fieldtype": "Section Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "No per item summary",
+   "fieldname": "per_item_summary",
+   "fieldtype": "Long Text",
+   "label": "Per Item Summary",
+   "read_only": 1
+  }
+ ],
+ "icon": "fa fa-cogs",
+ "issingle": 1,
+ "modified": "2020-05-22 00:21:45.254218",
+ "modified_by": "Administrator",
+ "module": "Manufacturing",
+ "name": "MRP Production Estimator",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Manufacturing Helper",
+   "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "ASC"
+}
