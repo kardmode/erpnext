@@ -60,9 +60,9 @@
   "base_total",
   "base_net_total",
   "column_break_33",
+  "total_net_weight",
   "total",
   "net_total",
-  "total_net_weight",
   "taxes_section",
   "tax_category",
   "column_break_38",
@@ -281,6 +281,7 @@
    "width": "100px"
   },
   {
+   "fetch_from": "customer.tax_id",
    "fieldname": "tax_id",
    "fieldtype": "Data",
    "label": "Tax Id",
@@ -1138,6 +1139,7 @@
   },
   {
    "allow_on_submit": 1,
+   "collapsible": 1,
    "fieldname": "subscription_section",
    "fieldtype": "Section Break",
    "label": "Auto Repeat Section",
@@ -1194,7 +1196,11 @@
  "icon": "fa fa-file-text",
  "idx": 105,
  "is_submittable": 1,
+<<<<<<< HEAD
  "modified": "2020-05-11 20:44:04.303188",
+=======
+ "modified": "2020-07-01 12:39:57.698621",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Sales Order",

@@ -161,7 +161,8 @@ erpnext.stock.move_item = function(item, source, target, actual_qty, rate, callb
 				fieldtype: 'Float', description: __('Available {0}', [actual_qty]) },
 			{fieldname: 'rate', label: __('Rate'), fieldtype: 'Currency', hidden: 1 },
 		],
-	})
+	});
+	var submitted = false;
 	dialog.show();
 	//dialog.get_field('item_code').set_input(item);
 dialog.get_field('item_code').set_input(cur_frm.doc.item_code);
@@ -274,6 +275,7 @@ erpnext.stock.discard_item = function(item, source, target, actual_qty, rate, ca
 	}
 
 	dialog.set_primary_action(__('Submit'), function() {
+		if(submitted) return;
 		var values = dialog.get_values();
 		if(!values) {
 			return;
@@ -286,6 +288,7 @@ erpnext.stock.discard_item = function(item, source, target, actual_qty, rate, ca
 			frappe.msgprint(__('Source and target warehouse must be different'));
 		}
 
+		submitted = true;
 		frappe.call({
 			method: 'erpnext.stock.doctype.stock_entry.stock_entry_utils.make_stock_entry',
 			args: values,

@@ -1,7 +1,11 @@
 {
  "creation": "2015-05-18 05:21:07.270859",
  "doctype": "DocType",
+<<<<<<< HEAD
  "document_type": "Setup",
+=======
+ "document_type": "System",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "engine": "InnoDB",
  "field_order": [
   "status_html",
@@ -134,7 +138,7 @@
    "label": "Customer Settings"
   },
   {
-   "description": "If Shopify not contains a customer in Order, then while syncing Orders, the system will consider default customer for order",
+   "description": "If Shopify does not have a customer in the order, then while syncing the orders, the system will consider the default customer for the order",
    "fieldname": "default_customer",
    "fieldtype": "Link",
    "label": "Default Customer",
@@ -259,7 +263,11 @@
   }
  ],
  "issingle": 1,
+<<<<<<< HEAD
  "modified": "2019-11-18 21:35:47.727753",
+=======
+ "modified": "2021-03-02 18:06:00.868688",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "Shopify Settings",
@@ -277,5 +285,6 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "track_changes": 1
 }

@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
  "add_company_abbr_to_name": 1,
+=======
+ "actions": [],
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "autoname": "naming_series:",
  "creation": "2019-07-11 16:03:13.681045",
  "doctype": "DocType",
@@ -46,7 +50,7 @@
    "options": "Warehouse"
   },
   {
-   "depends_on": "eval:doc.purpose==='Delivery against Sales Order'",
+   "depends_on": "eval:doc.purpose==='Delivery'",
    "fieldname": "customer",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -61,6 +65,7 @@
    "options": "Work Order"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "locations",
    "fieldtype": "Table",
    "label": "Item Locations",
@@ -88,7 +93,7 @@
    "fieldname": "purpose",
    "fieldtype": "Select",
    "label": "Purpose",
-   "options": "Material Transfer for Manufacture\nMaterial Transfer\nDelivery against Sales Order"
+   "options": "Material Transfer for Manufacture\nMaterial Transfer\nDelivery"
   },
   {
    "depends_on": "eval:['Material Transfer', 'Material Issue'].includes(doc.purpose)",
@@ -113,7 +118,12 @@
   }
  ],
  "is_submittable": 1,
+<<<<<<< HEAD
  "modified": "2019-11-19 13:54:06.723067",
+=======
+ "links": [],
+ "modified": "2020-03-17 11:38:41.932875",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Pick List",

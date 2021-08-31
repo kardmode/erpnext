@@ -1,8 +1,15 @@
 {
+<<<<<<< HEAD
  "autoname": "ACC-PCV-.YYYY.-.#####",
  "creation": "2013-01-10 16:34:07",
  "doctype": "DocType",
  "document_type": "Documents",
+=======
+ "actions": [],
+ "autoname": "ACC-PCV-.YYYY.-.#####",
+ "creation": "2013-01-10 16:34:07",
+ "doctype": "DocType",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "engine": "InnoDB",
  "field_order": [
   "transaction_date",
@@ -10,6 +17,10 @@
   "fiscal_year",
   "amended_from",
   "company",
+<<<<<<< HEAD
+=======
+  "cost_center_wise_pnl",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   "column_break1",
   "closing_account_head",
   "remarks"
@@ -83,6 +94,7 @@
    "oldfieldname": "remarks",
    "oldfieldtype": "Small Text",
    "reqd": 1
+<<<<<<< HEAD
   }
  ],
  "icon": "fa fa-file-text",
@@ -93,6 +105,32 @@
  "module": "Accounts",
  "name": "Period Closing Voucher",
  "owner": "jai@webnotestech.com",
+=======
+  },
+  {
+   "default": "0",
+   "fieldname": "cost_center_wise_pnl",
+   "fieldtype": "Check",
+   "label": "Book Cost Center-Wise Profit/Loss"
+  }
+ ], 
+ "has_web_view": 0, 
+ "hide_heading": 0, 
+ "hide_toolbar": 0, 
+ "icon": "fa fa-file-text", 
+ "idx": 1, 
+ "image_view": 0, 
+ "in_create": 0, 
+ "is_submittable": 1, 
+ "issingle": 0, 
+ "istable": 0, 
+ "max_attachments": 0, 
+ "modified": "2021-05-20 15:27:37.210458", 
+ "modified_by": "Administrator", 
+ "module": "Accounts", 
+ "name": "Period Closing Voucher", 
+ "owner": "jai@webnotestech.com", 
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "permissions": [
   {
    "amend": 1,

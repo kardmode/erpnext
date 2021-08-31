@@ -278,6 +278,13 @@ erpnext.buying.BuyingController = erpnext.TransactionController.extend({
 		}
 	},
 
+	rejected_warehouse: function(doc, cdt) {
+		// trigger autofill_warehouse only if parent rejected_warehouse field is triggered
+		if (["Purchase Invoice", "Purchase Receipt"].includes(cdt)) {
+			this.autofill_warehouse(doc.items, "rejected_warehouse", doc.rejected_warehouse);
+		}
+	},
+
 	category: function(doc, cdt, cdn) {
 		// should be the category field of tax table
 		if(cdt != doc.doctype) {
@@ -527,7 +534,7 @@ erpnext.buying.get_items_from_product_bundle = function(frm) {
 						var d = frm.add_child("items");
 						var item = r.message[i];
 						for ( var key in  item) {
-							if ( !is_null(item[key]) ) {
+							if ( !is_null(item[key]) && key !== "doctype" ) {
 								d[key] = item[key];
 							}
 						}

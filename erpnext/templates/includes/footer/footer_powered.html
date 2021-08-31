@@ -10,7 +10,13 @@
 	'Agriculture': '/agriculture',
 	'Hospitality': ''
 } %}
+
 {% set link = '' %}
 {% if domains %}
-	{% set link = links[domains[0].domain] %}
+    {% set label = domains[0].domain %}
+	{% set link = links[label] %}
+{% endif %}
+
+{% if label == "Services" %}
+	{% set label = "Service" %}
 {% endif %}

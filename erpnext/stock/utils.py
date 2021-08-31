@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe, erpnext
 from frappe import _
 import json
-from frappe.utils import flt, cstr, nowdate, nowtime
+from frappe.utils import flt, cstr, nowdate, nowtime, get_link_to_form
 
 from six import string_types
 
@@ -96,11 +96,7 @@ def get_stock_balance(item_code, warehouse, posting_date=None, posting_time=None
 
 	if with_valuation_rate:
 		if with_serial_no:
-			serial_nos = last_entry.get("serial_no")
-
-			if (serial_nos and
-				len(get_serial_nos_data(serial_nos)) < last_entry.qty_after_transaction):
-				serial_nos = get_serial_nos_data_after_transactions(args)
+			serial_nos = get_serial_nos_data_after_transactions(args)
 
 			return ((last_entry.qty_after_transaction, last_entry.valuation_rate, serial_nos)
 				if last_entry else (0.0, 0.0, 0.0))
@@ -119,10 +115,17 @@ def get_serial_nos_data_after_transactions(args):
 			order by posting_date, posting_time asc """, args, as_dict=1)
 
 	for d in data:
-		if d.actual_qty > 0:
-			serial_nos.extend(get_serial_nos_data(d.serial_no))
-		else:
-			serial_nos = list(set(serial_nos) - set(get_serial_nos_data(d.serial_no)))
+		for sn in get_serial_nos_data(d.serial_no):
+			if d.actual_qty > 0:
+				if sn not in serial_nos:
+					serial_nos.append(sn)
+				else:
+					serial_nos.remove(sn)
+			elif d.actual_qty < 0:
+				if sn in serial_nos:
+					serial_nos.remove(sn)
+				else:
+					serial_nos.append(sn)
 
 	return '\n'.join(serial_nos)
 
@@ -268,12 +271,12 @@ def get_valuation_method(item_code):
 
 def get_fifo_rate(previous_stock_queue, qty):
 	"""get FIFO (average) Rate from Queue"""
-	if qty >= 0:
+	if flt(qty) >= 0:
 		total = sum(f[0] for f in previous_stock_queue)
 		return sum(flt(f[0]) * flt(f[1]) for f in previous_stock_queue) / flt(total) if total else 0.0
 	else:
 		available_qty_for_outgoing, outgoing_cost = 0, 0
-		qty_to_pop = abs(qty)
+		qty_to_pop = abs(flt(qty))
 		while qty_to_pop and previous_stock_queue:
 			batch = previous_stock_queue[0]
 			if 0 < batch[0] <= qty_to_pop:
@@ -335,13 +338,15 @@ def get_default_warehouse(company = None):
 		fg_warehouse = (frappe.db.get_value('Company', get_default_company(), 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
 		scrap_warehouse = (frappe.db.get_value('Company', get_default_company(), 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))
 	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse,"scrap_warehouse": scrap_warehouse}
+def validate_disabled_warehouse(warehouse):
+	if frappe.db.get_value("Warehouse", warehouse, "disabled"):
+		frappe.throw(_("Disabled Warehouse {0} cannot be used for this transaction.").format(get_link_to_form('Warehouse', warehouse)))
 
 def update_included_uom_in_report(columns, result, include_uom, conversion_factors):
 	if not include_uom or not conversion_factors:
 		return
 
 	convertible_cols = {}
-
 	is_dict_obj = False
 	if isinstance(result[0], dict):
 		is_dict_obj = True
@@ -363,8 +368,11 @@ def update_included_uom_in_report(columns, result, include_uom, conversion_facto
 	for row_idx, row in enumerate(result):
 		data = row.items() if is_dict_obj else enumerate(row)
 		for key, value in data:
-			if not key in convertible_columns or not conversion_factors[row_idx]:
+			if key not in convertible_columns:
 				continue
+			# If no conversion factor for the UOM, defaults to 1
+			if not conversion_factors[row_idx]:
+				conversion_factors[row_idx] = 1
 
 			if convertible_columns.get(key) == 'rate':
 				new_value = flt(value) * conversion_factors[row_idx]
@@ -418,7 +426,7 @@ def add_additional_uom_columns(columns, result, include_uom, conversion_factors)
 				row[data.converted_col] = flt(value_before_conversion) / conversion_factor
 
 		result[row_idx] = row
-
+# I made this - validate uoms
 def validate_item_uoms(doc):
 	from erpnext.stock.get_item_details import get_conversion_factor, get_conversion_factor_between_two_units
 	
@@ -439,4 +447,3 @@ def validate_item_uoms(doc):
 				d.conversion_factor = 1/conversion_factor_details.get("conversion_factor")
 				d.stock_qty = flt(d.qty) * flt(d.conversion_factor)
 
-			

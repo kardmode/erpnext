@@ -55,16 +55,18 @@ class ItemPrice(Document):
 
 	def check_duplicates(self):
 		conditions = "where item_code=%(item_code)s and price_list=%(price_list)s and name != %(name)s"
+		condition_data_dict = dict(item_code=self.item_code, price_list=self.price_list, name=self.name)
 
 		for field in ['uom', 'valid_from',
 			'valid_upto', 'packing_unit', 'customer', 'supplier']:
 			if self.get(field):
 				conditions += " and {0} = %({1})s".format(field, field)
+				condition_data_dict[field] = self.get(field)
 
 		price_list_rate = frappe.db.sql("""
 			SELECT price_list_rate
 			FROM `tabItem Price`
-			  {conditions} """.format(conditions=conditions), self.as_dict())
+			  {conditions} """.format(conditions=conditions), condition_data_dict)
 
 		if price_list_rate :
 			frappe.throw(_("Item Price appears multiple times based on Price List, Supplier/Customer, Currency, Item, UOM, Qty and Dates."), ItemPriceDuplicateItem)
@@ -74,8 +76,14 @@ class ItemPrice(Document):
 			self.reference = self.customer
 		if self.buying:
 			self.reference = self.supplier
-			
-			
+		
+		if self.selling and not self.buying:
+			# if only selling then remove supplier
+			self.supplier = None
+		if self.buying and not self.selling:
+			# if only buying then remove customer
+			self.customer = None
+
 @frappe.whitelist()
 def add_to_another_pl(item_price_docname, new_price_list):
 	new_price_list_currency = frappe.db.get_value("Price List",
@@ -125,5 +133,4 @@ def copy_all_to_another_pl(original_price_list, new_price_list):
 		add_to_another_pl(d.name, new_price_list)
 	
 	
-	return	
-		
+	return

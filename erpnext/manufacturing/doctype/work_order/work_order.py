@@ -366,7 +366,7 @@ class WorkOrder(Document):
 		bom_qty = frappe.db.get_value("BOM", self.bom_no, "quantity")
 
 		for d in self.get("operations"):
-			d.time_in_mins = flt(d.time_in_mins) / flt(bom_qty) * math.ceil(flt(self.qty) / flt(d.batch_size))
+			d.time_in_mins = flt(d.time_in_mins) / flt(bom_qty) * (flt(self.qty) / flt(d.batch_size))
 
 		self.calculate_operating_cost()
 
@@ -384,12 +384,17 @@ class WorkOrder(Document):
 		return holidays[holiday_list]
 
 	def update_operation_status(self):
+		allowance_percentage = flt(frappe.db.get_single_value("Manufacturing Settings", "overproduction_percentage_for_work_order"))
+		max_allowed_qty_for_wo = flt(self.qty) + (allowance_percentage/100 * flt(self.qty))
+
 		for d in self.get("operations"):
 			if not d.completed_qty:
 				d.status = "Pending"
 			elif flt(d.completed_qty) < flt(self.qty):
 				d.status = "Work in Progress"
 			elif flt(d.completed_qty) == flt(self.qty):
+				d.status = "Completed"
+			elif flt(d.completed_qty) <= max_allowed_qty_for_wo:
 				d.status = "Completed"
 			else:
 				frappe.throw(_("Completed Qty can not be greater than 'Qty to Manufacture'"))
@@ -526,7 +531,7 @@ class WorkOrder(Document):
 					and (entry.purpose = "Material Consumption for Manufacture"
 					or entry.purpose = "Manufacture")
 					and entry.docstatus = 1
-					and detail.parent = entry.name
+					and detail.parent = entry.name and IFNULL(t_warehouse, "") = ""
 					and (detail.item_code = %(item)s or detail.original_item = %(item)s)''', {
 						'name': self.name,
 						'item': d.item_code
@@ -559,6 +564,8 @@ class WorkOrder(Document):
 		bom.set_bom_material_details()
 		return bom
 
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
 def get_bom_operations(doctype, txt, searchfield, start, page_len, filters):
 	if txt:
 		filters['operation'] = ('like', '%%%s%%' % txt)

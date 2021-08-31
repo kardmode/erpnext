@@ -37,6 +37,7 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 			me.frm.script_manager.trigger("is_pos");
 			me.frm.refresh_fields();
 		}
+		erpnext.queries.setup_warehouse_query(this.frm);
 	},
 
 	refresh: function(doc, dt, dn) {
@@ -605,7 +606,9 @@ frappe.ui.form.on('Sales Invoice', {
 		frm.set_query("account_for_change_amount", function() {
 			return {
 				filters: {
-					account_type: ['in', ["Cash", "Bank"]]
+					account_type: ['in', ["Cash", "Bank"]],
+					company: frm.doc.company,
+					is_group: 0
 				}
 			};
 		});
@@ -686,7 +689,8 @@ frappe.ui.form.on('Sales Invoice', {
 		frm.fields_dict["loyalty_redemption_account"].get_query = function() {
 			return {
 				filters:{
-					"company": frm.doc.company
+					"company": frm.doc.company,
+					"is_group": 0
 				}
 			}
 		};
@@ -695,7 +699,8 @@ frappe.ui.form.on('Sales Invoice', {
 		frm.fields_dict["loyalty_redemption_cost_center"].get_query = function() {
 			return {
 				filters:{
-					"company": frm.doc.company
+					"company": frm.doc.company,
+					"is_group": 0
 				}
 			}
 		};

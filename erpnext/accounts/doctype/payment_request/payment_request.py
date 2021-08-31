@@ -79,13 +79,14 @@ class PaymentRequest(Document):
 		elif self.payment_request_type == 'Inward':
 			self.db_set('status', 'Requested')
 
-		# send_mail = self.payment_gateway_validation()
+		# send_mail = self.payment_gateway_validation() if self.payment_gateway else None
 		send_mail = False
 		
 		if self.reference_doctype and self.reference_name:
 			# frappe.throw(_("Cannot Submit.".format(self.payment_request_type)))
 		
 			ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+
 
 			if (hasattr(ref_doc, "order_type") and getattr(ref_doc, "order_type") == "Shopping Cart") \
 				or self.flags.mute_email:
@@ -155,9 +156,6 @@ class PaymentRequest(Document):
 		})
 
 	def set_as_paid(self):
-		if frappe.session.user == "Guest":
-			frappe.set_user("Administrator")
-
 		payment_entry = self.create_payment_entry()
 		self.make_invoice()
 
@@ -269,7 +267,7 @@ class PaymentRequest(Document):
 
 		if status in ["Authorized", "Completed"]:
 			redirect_to = None
-			self.run_method("set_as_paid")
+			self.set_as_paid()
 
 			# if shopping cart enabled and in session
 			if (shopping_cart_settings.enabled and hasattr(frappe.local, "session")
@@ -404,7 +402,7 @@ def make_payment_request(**args):
 			"reference_doctype": args.dt,
 			"reference_name": args.dn,
 			"party_type": args.get("party_type") or "Customer",
-			"party": args.get("party") or ref_doc.customer,
+			"party": args.get("party") or ref_doc.get("customer"),
 			"bank_account": bank_account
 		})
 
@@ -556,7 +554,7 @@ def make_payment_entry(docname):
 
 def update_payment_req_status(doc, method):
 	from erpnext.accounts.doctype.payment_entry.payment_entry import get_reference_details
-	
+
 	for ref in doc.references:
 		payment_request_name = frappe.db.get_value("Payment Request",
 			{"reference_doctype": ref.reference_doctype, "reference_name": ref.reference_name,
@@ -566,7 +564,7 @@ def update_payment_req_status(doc, method):
 			ref_details = get_reference_details(ref.reference_doctype, ref.reference_name, doc.party_account_currency)
 			pay_req_doc = frappe.get_doc('Payment Request', payment_request_name)
 			status = pay_req_doc.status
-			
+
 			if status != "Paid" and not ref_details.outstanding_amount:
 				status = 'Paid'
 			elif status != "Partially Paid" and ref_details.outstanding_amount != ref_details.total_amount:

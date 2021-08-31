@@ -89,7 +89,7 @@ class Account(NestedSet):
 				throw(_("Root cannot be edited."), RootNotEditable)
 
 		if not self.parent_account and not self.is_group:
-			frappe.throw(_("Root Account must be a group"))
+			frappe.throw(_("The root account {0} must be a group").format(frappe.bold(self.name)))
 
 	def validate_root_company_and_sync_account_to_children(self):
 		# ignore validation while creating new compnay or while syncing to child companies
@@ -245,6 +245,8 @@ class Account(NestedSet):
 
 		super(Account, self).on_trash(True)
 
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
 def get_parent_account(doctype, txt, searchfield, start, page_len, filters):
 	return frappe.db.sql("""select name from tabAccount
 		where is_group = 1 and docstatus != 2 and company = %s

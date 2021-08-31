@@ -105,6 +105,8 @@
   },
   {
    "depends_on": "eval:doc.production_item",
+   "fetch_from": "production_item.item_name",
+   "fetch_if_empty": 1,
    "fieldname": "item_name",
    "fieldtype": "Data",
    "label": "Item Name",
@@ -467,7 +469,12 @@
  "idx": 1,
  "image_field": "image",
  "is_submittable": 1,
+<<<<<<< HEAD
  "modified": "2020-04-23 05:24:47.182948",
+=======
+ "links": [],
+ "modified": "2021-08-16 11:20:04.695123",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Work Order",

@@ -2,7 +2,11 @@
  "creation": "2013-06-25 11:04:03",
  "description": "Settings for Buying Module",
  "doctype": "DocType",
+<<<<<<< HEAD
  "document_type": "Setup",
+=======
+ "document_type": "Other",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "engine": "InnoDB",
  "field_order": [
   "supp_master_name",
@@ -93,7 +97,11 @@
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
+<<<<<<< HEAD
  "modified": "2019-11-18 21:39:46.905180",
+=======
+ "modified": "2021-03-02 18:16:03.947813",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Buying Settings",
@@ -110,5 +118,10 @@
   }
  ],
  "sort_field": "modified",
+<<<<<<< HEAD
  "sort_order": "DESC"
+=======
+ "sort_order": "DESC",
+ "track_changes": 1
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 }

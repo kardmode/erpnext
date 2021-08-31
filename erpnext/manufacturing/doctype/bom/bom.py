@@ -34,15 +34,21 @@ class BOM(WebsiteGenerator):
 
 	def validate(self):
 		self.route = frappe.scrub(self.name).replace('_', '-')
+
+		if not self.company:
+			frappe.throw(_("Please select a Company first."), title=_("Mandatory"))
+
 		self.clear_operations()
 		self.validate_main_item()
 		self.validate_currency()
 		self.set_conversion_rate()
+		self.set_plc_conversion_rate()
 		self.validate_uom_is_interger()
 		self.set_bom_material_details()
 		self.validate_materials()
 		self.validate_operations()
 		self.calculate_cost()
+		self.update_cost(update_parent=False, from_child_bom=True, save=False)
 
 	def get_context(self, context):
 		context.parents = [{'name': 'boms', 'title': _('All BOMs') }]
@@ -85,8 +91,16 @@ class BOM(WebsiteGenerator):
 		if self.routing:
 			self.set("operations", [])
 			for d in frappe.get_all("BOM Operation", fields = ["*"],
-				filters = {'parenttype': 'Routing', 'parent': self.routing}):
-				child = self.append('operations', d)
+				filters = {'parenttype': 'Routing', 'parent': self.routing}, order_by="idx"):
+				child = self.append('operations', {
+					"operation": d.operation,
+					"workstation": d.workstation,
+					"description": d.description,
+					"time_in_mins": d.time_in_mins,
+					"batch_size": d.batch_size,
+					"operating_cost": d.operating_cost,
+					"idx": d.idx
+				})
 				child.hour_rate = flt(d.hour_rate / self.conversion_rate, 2)
 
 	def validate_rm_item(self, item):
@@ -98,6 +112,7 @@ class BOM(WebsiteGenerator):
 			self.validate_bom_currecny(item)
 
 			ret = self.get_bom_material_detail({
+				"company": self.company,
 				"item_code": item.item_code,
 				"item_name": item.item_name,
 				"bom_no": item.bom_no,
@@ -221,7 +236,7 @@ class BOM(WebsiteGenerator):
 			plc_conversion_rate = get_exchange_rate(price_list_currency,self.company_currency(), args="for_buying")
 
 
-		return flt(rate) * flt(plc_conversion_rate or 1) / (self.conversion_rate or 1)
+		return flt(rate) * flt(self.plc_conversion_rate or 1) / (self.conversion_rate or 1)
 
 	
 	def update_cost(self, update_parent=True, from_child_bom=False, update_child = True, save=True,verbose=False):
@@ -249,6 +264,7 @@ class BOM(WebsiteGenerator):
 					d.qty = d.stock_qty
 				
 			rate = self.get_rm_rate({
+				"company": self.company,
 				"item_code": d.item_code,
 				"bom_no": d.bom_no,
 				"qty": d.qty,
@@ -256,13 +272,17 @@ class BOM(WebsiteGenerator):
 				"stock_uom": d.stock_uom,
 				"conversion_factor": d.conversion_factor
 			})
+
 			if rate:
 				d.rate = rate
-				d.base_rate = flt(d.rate) * flt(self.conversion_rate)
 
-				
 			d.amount = flt(d.rate) * flt(d.qty)
-			
+			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
+			d.base_amount = flt(d.amount) * flt(self.conversion_rate)
+
+			if save:
+				d.db_update()
+
 			d.stock_rate = flt(d.rate)/flt(d.conversion_factor)
 			d.base_stock_rate = flt(d.stock_rate) * flt(self.conversion_rate)
 			
@@ -273,11 +293,12 @@ class BOM(WebsiteGenerator):
 			self.calculate_cost()
 			
 		if save:
-			self.save()
+			self.db_update()
 		self.update_exploded_items(save)
 
 		if verbose:
 			frappe.msgprint(_("{0}'s Cost Updated").format(self.item))
+
 
 		# update parent BOMs
 		if self.total_cost != existing_bom_cost and update_parent:
@@ -287,8 +308,6 @@ class BOM(WebsiteGenerator):
 			for bom in parent_boms:
 				frappe.get_doc("BOM", bom).update_cost(from_child_bom=True)
 
-		# if not from_child_bom:
-			# frappe.msgprint(_("Cost Updated"))
 
 	def update_parent_cost(self):
 		if self.total_cost:
@@ -307,10 +326,20 @@ class BOM(WebsiteGenerator):
 		""" Get weighted average of valuation rate from all warehouses """
 
 		total_qty, total_value, valuation_rate = 0.0, 0.0, 0.0
-		for d in frappe.db.sql("""select actual_qty, stock_value from `tabBin`
-			where item_code=%s""", args['item_code'], as_dict=1):
-				total_qty += flt(d.actual_qty)
-				total_value += flt(d.stock_value)
+		item_bins = frappe.db.sql("""
+			select
+				bin.actual_qty, bin.stock_value
+			from
+				`tabBin` bin, `tabWarehouse` warehouse
+			where
+				bin.item_code=%(item)s
+				and bin.warehouse = warehouse.name
+				and warehouse.company=%(company)s""",
+			{"item": args['item_code'], "company": args['company']}, as_dict=1)
+
+		for d in item_bins:
+			total_qty += flt(d.actual_qty)
+			total_value += flt(d.stock_value)
 
 		if total_qty:
 			valuation_rate =  total_value / total_qty
@@ -460,6 +489,12 @@ class BOM(WebsiteGenerator):
 		elif self.conversion_rate == 1 or flt(self.conversion_rate) <= 0:
 			self.conversion_rate = get_exchange_rate(self.currency, self.company_currency(), args="for_buying")
 
+	def set_plc_conversion_rate(self):
+		if self.rm_cost_as_per in ["Valuation Rate", "Last Purchase Rate"]:
+			self.plc_conversion_rate = 1
+		elif not self.plc_conversion_rate and self.price_list_currency:
+			self.plc_conversion_rate = get_exchange_rate(self.price_list_currency,
+				self.company_currency(), args="for_buying")
 
 	def validate_materials(self, submit = False):
 		""" Validate raw material entries """
@@ -655,6 +690,7 @@ class BOM(WebsiteGenerator):
 					'rate'			: d.base_rate,
 					'required_uom'		: d.uom,
 					'required_qty'		: flt(d.qty),
+					# 'rate'			: flt(d.base_rate) / (flt(d.conversion_factor) or 1.0),
 					'include_item_in_manufacturing': d.include_item_in_manufacturing
 				}))
 

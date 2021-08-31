@@ -1,8 +1,16 @@
 {
+<<<<<<< HEAD
  "autoname": "field:stage_name",
  "creation": "2018-10-01 09:28:16.399518",
  "doctype": "DocType",
  "document_type": "Setup",
+=======
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:stage_name",
+ "creation": "2018-10-01 09:28:16.399518",
+ "doctype": "DocType",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -16,7 +24,12 @@
    "unique": 1
   }
  ],
+<<<<<<< HEAD
  "modified": "2019-12-14 02:11:34.794154",
+=======
+ "links": [],
+ "modified": "2020-05-20 12:37:17.431879",
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "CRM",
  "name": "Sales Stage",
@@ -39,4 +52,8 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "track_changes": 1
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c

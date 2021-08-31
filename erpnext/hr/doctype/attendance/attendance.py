@@ -50,9 +50,7 @@ class Attendance(Document):
 
 		if self.status not in ('On Leave', 'Half Day') and get_datetime(self.attendance_date) > get_datetime(nowdate()) + timedelta(days=30):
 			frappe.throw(_("Attendance can not be marked for future dates for employee {0}, date {1}").format(self.employee,self.attendance_date))
-
-		# leaves can be marked for future dates
-		# if self.status not in ('On Leave', 'Half Day') and getdate(self.attendance_date) > getdate(nowdate()):
+		# if self.status != 'On Leave' and not self.leave_application and getdate(self.attendance_date) > getdate(nowdate()):
 			# frappe.throw(_("Attendance can not be marked for future dates"))
 		elif date_of_joining and getdate(self.attendance_date) < getdate(date_of_joining):
 			frappe.throw(_("Attendance date can not be less than employee's joining date"))
@@ -259,7 +257,8 @@ def add_attendance(events, start, end, conditions=None):
 		e = {
 			"name": d.name,
 			"doctype": "Attendance",
-			"date": d.attendance_date,
+			"start": d.attendance_date,
+			"end": d.attendance_date,
 			"title": cstr(d.status),
 			"docstatus": d.docstatus
 		}
