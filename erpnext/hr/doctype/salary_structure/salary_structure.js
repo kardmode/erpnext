@@ -270,12 +270,12 @@ frappe.ui.form.on('Salary Detail', {
 						var result = data.message;
 						frappe.model.set_value(cdt, cdn, 'condition', result.condition);
 						frappe.model.set_value(cdt, cdn, 'amount_based_on_formula', result.amount_based_on_formula);
-						if(result.amount_based_on_formula == 1){
+						// if(result.amount_based_on_formula == 1){
 							frappe.model.set_value(cdt, cdn, 'formula', result.formula);
-						}
-						else{
+						// }
+						// else{
 							frappe.model.set_value(cdt, cdn, 'amount', result.amount);
-						}
+						// }
 						frappe.model.set_value(cdt, cdn, 'statistical_component', result.statistical_component);
 						frappe.model.set_value(cdt, cdn, 'depends_on_payment_days', result.depends_on_payment_days);
 						frappe.model.set_value(cdt, cdn, 'do_not_include_in_total', result.do_not_include_in_total);
@@ -292,11 +292,21 @@ frappe.ui.form.on('Salary Detail', {
 
 	amount_based_on_formula: function(frm, cdt, cdn) {
 		var child = locals[cdt][cdn];
+		var editable = false;
+		
 		if(child.amount_based_on_formula == 1){
-			frappe.model.set_value(cdt, cdn, 'amount', null);
+			// frappe.model.set_value(cdt, cdn, 'amount', null);
+			editable=false;
 		}
 		else{
-			frappe.model.set_value(cdt, cdn, 'formula', null);
+			// frappe.model.set_value(cdt, cdn, 'formula', null);
+			editable=true;
 		}
+		
+		
+		// var grid_row = cur_frm.get_field(child.parentfield).grid.get_row(child.name);
+		// grid_row.toggle_editable("amount", editable);
+
+		
 	}
 })

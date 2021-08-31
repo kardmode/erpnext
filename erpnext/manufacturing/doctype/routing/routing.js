@@ -29,7 +29,7 @@ frappe.ui.form.on('BOM Operation', {
 					frappe.model.set_value(d.doctype, d.name, "workstation", data.message.workstation);
 				}
 
-				frm.events.calculate_operating_cost(frm, d);
+				//frm.events.calculate_operating_cost(frm, d);
 			}
 		});
 	},
@@ -46,13 +46,13 @@ frappe.ui.form.on('BOM Operation', {
 			callback: function (data) {
 				frappe.model.set_value(d.doctype, d.name, "base_hour_rate", data.message.hour_rate);
 				frappe.model.set_value(d.doctype, d.name, "hour_rate", data.message.hour_rate);
-				frm.events.calculate_operating_cost(frm, d);
+				//frm.events.calculate_operating_cost(frm, d);
 			}
 		});
 	},
 
 	time_in_mins: function(frm, cdt, cdn) {
 		const d = locals[cdt][cdn];
-		frm.events.calculate_operating_cost(frm, d);
+		//frm.events.calculate_operating_cost(frm, d);
 	}
 });

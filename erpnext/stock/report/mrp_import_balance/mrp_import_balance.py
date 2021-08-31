@@ -12,6 +12,9 @@ def execute(filters=None):
 	columns, data = [], []
 	
 	columns = get_columns()
+	posting_date = filters.get("posting_date") or None
+	posting_time = filters.get("posting_time") or None
+	
 	if filters.get("item_group") and not filters.get("item_code") and not filters.get("import_bill"):
 		conditions = ""
 		ig_details = frappe.db.get_value("Item Group", filters.get("item_group"), 
@@ -27,7 +30,7 @@ def execute(filters=None):
 		items_in_group = frappe.db.sql("""select item.item_code, item.item_group from `tabItem` item where %s""" % (conditions), as_dict=1)
 		
 		for d in items_in_group:
-			items = get_bills_and_stock(d.item_code,company = filters.get("company"))
+			items = get_bills_and_stock(d.item_code,company = filters.get("company"),posting_date=posting_date,posting_time=posting_time)
 			item_group = d.item_group
 			for key in items:
 				item = items[key]
@@ -45,7 +48,7 @@ def execute(filters=None):
 		
 	elif filters.get("item_code") and filters.get("import_bill"):
 
-		items = get_items_in_bill(filters.get("import_bill"))
+		items = get_items_in_bill(filters.get("import_bill"),posting_date=posting_date,posting_time=posting_time)
 		
 		for key in items:
 			if filters.get("item_code") == key:
@@ -67,7 +70,7 @@ def execute(filters=None):
 			
 	elif filters.get("item_code") and not filters.get("import_bill"):
 
-		items = get_bills_and_stock(filters.get("item_code"),company = filters.get("company"))
+		items = get_bills_and_stock(filters.get("item_code"),company = filters.get("company"),posting_date=posting_date,posting_time=posting_time)
 
 		for key in items:
 			item = items[key]
@@ -87,7 +90,7 @@ def execute(filters=None):
 			
 			
 	elif not filters.get("item_code") and filters.get("import_bill"):
-		items = get_items_in_bill(filters.get("import_bill"))
+		items = get_items_in_bill(filters.get("import_bill"),posting_date=posting_date,posting_time=posting_time)
 
 		for key in items:
 			item = items[key]

@@ -57,6 +57,12 @@ frappe.ui.form.on("Purchase Order", {
 				})
 			});
 		}
+		
+		
+		frm.add_custom_button(__('Make OLD PR'), () => {
+				frm.trigger("auto_make_purchase_receipts");
+			});
+		
 	},
 
 	onload: function(frm) {
@@ -68,7 +74,59 @@ frappe.ui.form.on("Purchase Order", {
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
 			return erpnext.queries.warehouse(frm.doc);
 		});
-	}
+	},
+
+	
+	auto_make_purchase_receipts: function(){
+		var me = this;
+		var d = new frappe.ui.Dialog({
+			title: __('Auto Make Purchase Receipts For Old POs'),
+			fields: [
+				{
+					fieldname: "year",
+					fieldtype: "Int",
+					label:"Year",
+					reqd: 1,
+					default:2017
+				},
+				{
+					fieldname: "limit",
+					fieldtype: "Int",
+					label:"Limit",
+					reqd: 1,
+					default:1
+				},
+				{
+					fieldname: "submit",
+					fieldtype: "Check",
+					label:"Submit"
+				}
+			],
+		});
+		
+		d.set_primary_action(__('Create'), function() {
+			var data = d.get_values();
+			if(!data) return;
+			frappe.call({
+				method: "erpnext.buying.doctype.purchase_order.purchase_order.auto_make_purchase_receipts",
+				args: {
+					year: data.year,
+					limit: data.limit,
+					submit: cint(data.submit)
+				},
+				callback: function(r) {
+					if(!r.exc) {
+					}
+					console.log(r)
+					d.hide();
+					// frappe.msgprint(r.message.join("<br>"));
+				}
+			});
+		})
+		
+		d.show();
+	},
+	
 });
 
 frappe.ui.form.on("Purchase Order Item", {
@@ -170,7 +228,7 @@ erpnext.buying.PurchaseOrderController = erpnext.buying.BuyingController.extend(
 						function() { me.make_payment_request() }, __('Create'));
 				}
 				if(flt(doc.per_billed)==0 && doc.status != "Delivered") {
-					cur_frm.add_custom_button(__('Payment'), cur_frm.cscript.make_payment_entry, __('Create'));
+					// cur_frm.add_custom_button(__('Payment'), cur_frm.cscript.make_payment_entry, __('Create'));
 				}
 				cur_frm.page.set_inner_btn_group_as_primary(__('Create'));
 			}

@@ -18,6 +18,7 @@ def execute(filters=None):
 		return columns, data
 	
 	salary_slips = get_salary_slips(filters)
+
 	
 	if not salary_slips:
 		return columns, data
@@ -38,15 +39,15 @@ def execute(filters=None):
 		if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
 			continue
 		
-		vars = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
+		vars = frappe.db.sql("""select work_permit_id, emirates_id, mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
 		
-		
+		row += [ss.employee, ss.employee_name]
+
 		if vars:
 			for d in vars:
-				row += [d.mol_id,d.payroll_agent_code,d.payroll_agent_id]
+				row += [d.work_permit_id, d.mol_id,d.emirates_id,d.payroll_agent_code,d.payroll_agent_id]
 		
-		row += [ss.employee_name]
-
+		row += [ss.leave_without_pay]
 		basic_pay = 0
 		variable_pay = 0
 
@@ -65,7 +66,8 @@ def execute(filters=None):
 			basic_pay = basic_pay + variable_pay
 			variable_pay = 0
 		
-		row += [basic_pay,variable_pay]
+		total_pay = basic_pay + variable_pay
+		row += [basic_pay,variable_pay,total_pay]
 		
 		if not(basic_pay == 0  and variable_pay == 0):
 			data.append(row)
@@ -74,10 +76,10 @@ def execute(filters=None):
 	
 def get_columns(salary_slips):
 	columns = [
-		_("MOL ID") + "::180",_("Agent Code") + "::150",_("Agent ID") + "::180"
+		_("Employee") + ":Link/Employee:100", _("Employee Name") + "::180", 
+		_("Work Permit ID") + "::100", _("MOL ID") + "::100", _("Emirates ID") + "::150", 
+		_("Agent") + ":Link/Payroll Agent:150", _("Agent Reference ID") + "::150"
 	]
-
-	columns = columns +	["Employee Name::160"]
 	
 	salary_components = {_("Earning"): [], _("Deduction"): []}
 
@@ -87,8 +89,9 @@ def get_columns(salary_slips):
 		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1):
 		salary_components[component.type].append(component.salary_component)
 	
-	
-	columns = columns +	["Basic Pay:Currency:120", "Variable Pay:Currency:120"]
+	columns = columns +	["Leave Without Pay::120"]
+
+	columns = columns +	["Basic Pay:Currency:120", "Variable Pay:Currency:120", "Total Pay:Currency:120"]
 
 	
 	
@@ -130,7 +133,6 @@ def get_conditions(filters):
 	
 	from erpnext.hr.doctype.payroll_entry.payroll_entry import get_month_details
 	month_details = get_month_details(year, filters.month)
-	frappe.errprint(month_details)
 	filters["from_date"] = month_details.month_start_date
 	filters["to_date"] = month_details.month_end_date
 

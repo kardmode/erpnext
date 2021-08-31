@@ -39,8 +39,8 @@ class PackingSlip(Document):
 	def validate_delivery_note(self):
 	
 		if self.delivery_note:	
-			if frappe.db.get_value("Delivery Note", self.delivery_note, "company") != self.company:
-				frappe.throw(_("Delivery Note {0} is not for this company").format(self.delivery_note))
+			# if frappe.db.get_value("Delivery Note", self.delivery_note, "company") != self.company:
+				# frappe.throw(_("Delivery Note {0} is not for this company").format(self.delivery_note))
 		
 			"""
 				Validates if delivery note has status as draft
@@ -191,7 +191,6 @@ class PackingSlip(Document):
 		self.update_item_details()
 
 def item_details(doctype, txt, searchfield, start, page_len, filters):
-	frappe.errprint(filters)
 	from erpnext.controllers.queries import get_match_cond
 	return frappe.db.sql("""select name, item_name, description from `tabItem`
 				where name in ( select item_code FROM `tabDelivery Note Item`

@@ -23,14 +23,6 @@ frappe.ui.form.on('MRP Gratuity', {
 
 		}
 		
-		// frm.set_value("gratuity",0);
-		// frm.set_value("summary","");
-		// frm.set_value("joining_date","");
-		// frm.set_value("leave_encashment_amount",0);
-		// frm.set_value("company","");
-		// frm.set_value("employee","");
-		// frm.set_value("employee_name","");
-		// frm.set_value("salary_per_day","");
 	},
 	employee: function(frm) {
 		if (!frm.doc.employee)

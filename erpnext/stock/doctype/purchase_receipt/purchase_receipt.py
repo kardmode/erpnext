@@ -446,6 +446,18 @@ class PurchaseReceipt(BuyingController):
 			frappe.db.set_value("Asset", asset.name, "purchase_receipt_amount", flt(valuation_rate))
 
 	def update_status(self, status):
+		if status == "Closed":
+			doc_details = frappe.db.sql("""
+						select name
+						from `tabMRP Import Entry`where
+						transaction_type = "Purchase Receipt"
+						and reference_name = %s
+						""", (self.name), as_dict=True)
+			
+			if not doc_details:
+				frappe.msgprint(_("Import Entry for purchase receipt {0} does not exist.").format(self.name))
+	
+	
 		self.set_status(update=True, status = status)
 		self.notify_update()
 		clear_doctype_notifications(self)

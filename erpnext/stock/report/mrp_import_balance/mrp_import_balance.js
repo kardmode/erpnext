@@ -45,7 +45,22 @@ frappe.query_reports["MRP Import Balance"] = {
 				
 			},
 		},
-		
+		{
+			"fieldname":"posing_date",
+			"label": __("To Date"),
+			"fieldtype": "Date",
+			"width": "80",
+			"reqd": 1,
+			"default": frappe.datetime.get_today()
+		}/* ,
+		{
+			"fieldname":"posting_time",
+			"label": __("To Time"),
+			"fieldtype": "Time",
+			"width": "80",
+			"reqd": 1,
+			"default": frappe.datetime.get_time()
+		} */
 	]
 }
 

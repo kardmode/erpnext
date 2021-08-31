@@ -1,5 +1,4 @@
 {
- "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
  "autoname": "Prompt",
@@ -144,6 +143,7 @@
    "width": "50%"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "earnings",
    "fieldtype": "Table",
    "label": "Earnings",
@@ -160,6 +160,7 @@
    "width": "50%"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "deductions",
    "fieldtype": "Table",
    "label": "Deductions",
@@ -239,8 +240,7 @@
  "icon": "fa fa-file-text",
  "idx": 1,
  "is_submittable": 1,
- "links": [],
- "modified": "2019-12-31 17:05:14.118507",
+ "modified": "2021-07-31 22:25:09.745346",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Salary Structure",

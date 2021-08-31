@@ -108,6 +108,16 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 				}
 			}
 		});
+		
+		if(this.frm.fields_dict["items"].grid.get_field('uom')) {
+			this.frm.set_query("uom", "items", function(doc, cdt, cdn) {
+				const row = locals[cdt][cdn];
+				return {
+					query: "erpnext.controllers.queries.uom_query",
+					filters: {'item_code': row.item_code}
+				}
+			});
+		}
 
 		var me = this;
 		if(this.frm.fields_dict["items"].grid.get_field('batch_no')) {
@@ -1971,7 +1981,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			return;
 		}
 	},
-	get_items_from_csv:function (frm) {
+	get_items_from_csv:function () {
 		var me = this;
 
 		var dialog = new frappe.ui.Dialog({
@@ -2021,13 +2031,12 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					}
 					$.each(items, function(i, item) {
 						var d = frappe.model.add_child(cur_frm.doc, cur_frm.doctype + " Item", "items");
-							d.item_code = item.item_code;
-							d.qty = item.qty;
-							d.page_break = item.page_break;
-							console.log(d);
-							cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
+						d.item_code = item.item_code;
+						d.qty = item.qty;
+						d.page_break = item.page_break;
+						cur_frm.script_manager.trigger("item_code", d.doctype, d.name);
 							
-						});
+					});
 				
 					cur_frm.refresh_field('items');
 					me.calculate_taxes_and_totals();
@@ -2052,7 +2061,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 		dialog.show();
 		
 	},
-	get_items_from:function (frm) {
+	get_items_from:function () {
 		var me=this;
 		
 		var dialog = new frappe.ui.Dialog({
@@ -2097,27 +2106,27 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			
 
 				if(filters.clear_items === 1)
-					frm.doc.items = [];
+					cur_frm.doc.items = [];
 				
 				var row_info = {};
-				var row_start = frm.doc.items.length;
-				
-				
+				var row_start = cur_frm.doc.items.length;
+
 				for (var i=0; i< r.message.length; i++) {
-					var row = frm.add_child("items");					
+					var row = cur_frm.add_child("items");					
 					row.item_code = r.message[i].item_code
 					var row_index = row_start + i;
 					row_info[row_index] = r.message[i];
 					
 					cur_frm.script_manager.trigger("item_code", row.doctype, row.name);
-					
 				}
-				
 				dialog.hide();
 				frappe.show_progress(__("Getting Items.."),0);
 
 				//code before the pause
 				setTimeout(function(){
+					
+					// var length = cur_frm.doc.items.length;
+					
 					for(var row_index in row_info)
 					{
 						var row = cur_frm.doc.items[row_index];
@@ -2130,6 +2139,10 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 							}
 					
 						}
+						
+						// frappe.show_progress(__("Getting Items.."),row_index/length * 100);
+
+						
 					}
 					
 					cur_frm.refresh_field('items');
@@ -2137,7 +2150,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 					cur_frm.dirty();
 					frappe.show_progress(__("Getting Items.."),100);
 
-				}, 1000);
+				}, 1500);
 
 				
 				

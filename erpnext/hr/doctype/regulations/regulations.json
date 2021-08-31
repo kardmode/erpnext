@@ -10,6 +10,8 @@
  "field_order": [
   "gratuity_rules",
   "leave_rules",
+  "column_break_3",
+  "reduce_overtime_hours",
   "overtime_weekdays_rate",
   "overtime_fridays_rate",
   "overtime_holidays_rate",
@@ -72,10 +74,20 @@
    "fieldname": "saif_zone_logo",
    "fieldtype": "Attach Image",
    "label": "SAIF Zone Logo"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "reduce_overtime_hours",
+   "fieldtype": "Check",
+   "label": "Reduce Overtime Hours"
   }
  ],
  "issingle": 1,
- "modified": "2020-04-15 22:13:29.409470",
+ "modified": "2020-11-16 17:35:52.939968",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Regulations",

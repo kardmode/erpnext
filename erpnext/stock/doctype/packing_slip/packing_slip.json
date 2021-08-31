@@ -5,11 +5,12 @@
  "creation": "2013-04-11 15:32:24",
  "description": "Generate packing slips for packages to be delivered. Used to notify package number, package contents and its weight.",
  "doctype": "DocType",
- "document_type": "Documents",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "packing_slip_details",
   "column_break0",
+  "title",
   "delivery_note",
   "column_break1",
   "naming_series",
@@ -129,8 +130,7 @@
    "fieldtype": "Link",
    "label": "Net Weight UOM",
    "no_copy": 1,
-   "options": "UOM",
-   "read_only": 1
+   "options": "UOM"
   },
   {
    "fieldname": "column_break4",
@@ -176,12 +176,17 @@
    "options": "Packing Slip",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
   }
  ],
  "icon": "fa fa-suitcase",
  "idx": 1,
  "is_submittable": 1,
- "modified": "2019-11-19 13:56:23.194475",
+ "modified": "2021-03-25 09:20:20.939725",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Packing Slip",
@@ -261,5 +266,6 @@
  "search_fields": "delivery_note",
  "show_name_in_global_search": 1,
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "title_field": "title"
 }

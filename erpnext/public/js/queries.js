@@ -189,11 +189,11 @@ erpnext.queries.setup_project_query = function(frm){
 			{
 				filters["filters"]["customer"]  = frm.doc.customer;
 			}
-			/* 
+			
 			if (frm.fields_dict["company"] && frm.doc.company) 
 			{
 				filters["filters"]["company"]  = frm.doc.company;
-			} */
+			}
 			
 			return filters;
 		})

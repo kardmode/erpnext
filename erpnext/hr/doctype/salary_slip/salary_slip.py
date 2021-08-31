@@ -895,7 +895,7 @@ class SalarySlip(TransactionBase):
 		
 	def add_custom_components(self):
 		regulations = frappe.get_doc('Regulations')
-		salaryperday,hourlyrate = self.calculate_salary_per_day(regulations.salary_hours_calculation)
+		salaryperday,hourlyrate = self.calculate_salary_per_day(regulations.salary_hours_calculation,regulations.standard_days)
 				
 		for component_type in ('earnings', 'deductions'):
 			if component_type == 'earnings':
@@ -921,13 +921,13 @@ class SalarySlip(TransactionBase):
 		self.set_salary_component('earnings','Leave Encashment',leave_encashment_amount)		
 
 		
-	def calculate_salary_per_day(self,salary_hours_calculation):
+	def calculate_salary_per_day(self,salary_hours_calculation,salary_standard_days):
 		salaryperday = 0.0
 		hourlyrate = 0.0
 			
 		for d in self.get("earnings"):
 			if(d.salary_component == "Basic Salary"):
-				salaryperday = 	flt(d.default_amount)/30
+				salaryperday = 	flt(d.default_amount)/salary_standard_days
 				hourlyrate = flt(salaryperday)/ flt(salary_hours_calculation)
 				d.rate = hourlyrate
 				break
@@ -1060,10 +1060,11 @@ class SalarySlip(TransactionBase):
 			self.unverified_days = flt(self.total_working_days) - flt(total_present_days)
 			
 			regulations = frappe.get_doc('Regulations')
-
-			self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(regulations.overtime_weekdays_rate)
-			self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(regulations.overtime_fridays_rate)
-			self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(regulations.overtime_holidays_rate)
+			
+			if cint(regulations.reduce_overtime_hours):
+				self.overtime_hours_weekdays = flt(self.overtime_hours_weekdays)/ flt(regulations.overtime_weekdays_rate)
+				self.overtime_hours_fridays = flt(self.overtime_hours_fridays) / flt(regulations.overtime_fridays_rate)
+				self.overtime_hours_holidays = flt(self.overtime_hours_holidays) / flt(regulations.overtime_holidays_rate)
 			
 			table_space = '<tr style><td style="line-height:1">{0}</td><td style="line-height:1">{1}</td><td style="line-height:1">{2}</td><td style="line-height:1">{3}</td><td style="line-height:1">{4}</td><td style="line-height:1">{5}</td><td style="line-height:1">{6}</td></tr>'.format(str(''),str(''),str(''),str(''),str(''),str(''),str(''))
 
@@ -1175,129 +1176,7 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 	
 	return leaveadvance,leave_calculation, encash_leave
 
-@frappe.whitelist()			
-def calculate_gratuity(employee, salaryperday, joining_date,relieving_date,contract_type = "Limited",reason_for_termination = "Resignation"):
 
-	gratuity_pay = 0
-	gratuity_calculation = ''
-	leave_encashment_amount = 0
-	
-	if not relieving_date or not joining_date or not employee or salaryperday == 0:
-		return gratuity_pay, gratuity_calculation, leave_encashment_amount
-		
-	# Relieving date is the last day of work
-	payment_days = date_diff(relieving_date, joining_date)+1
-		
-	payment_years = flt(payment_days)/365
-	payment_years = rounded(payment_years, 3)
-	
-	from frappe.utils import formatdate
-	joiningtext = "Joining Date: " + formatdate(joining_date) + " - Relieving Date: " + formatdate(relieving_date) + " - Total Working Days: " + str(payment_days) + " - Total Working Years: " + str(payment_years)
-
-	leavedaysdue = 0
-	if(payment_years >= 1):
-		leavedaysdue = flt(payment_days)/365 * 30
-	leavedaysdue = ceil(leavedaysdue)
-	
-	from erpnext.hr.doctype.leave_application.leave_application import get_approved_leaves_for_period
-	
-	
-	leave_types = frappe.db.sql("""
-			select t2.name
-			from `tabLeave Type` t2
-			where
-			t2.is_paid_in_advance = 1""", as_dict=True)
-	
-	leavedaystaken = 0
-	
-	for leave_type in leave_types:
-		leavedaystaken += get_approved_leaves_for_period(employee, leave_type.name, joining_date, relieving_date)
-	leavesbalance = leavedaysdue - leavedaystaken
-	
-	
-	if leavesbalance < 0:
-		payment_days += leavesbalance
-	else:
-		leave_encashment_amount = flt(leavesbalance) * flt(salaryperday)
-
-	leave_encashment_amount = rounded(leave_encashment_amount,2)
-		
-	payment_years = flt(payment_days)/365
-	payment_years = rounded(payment_years,3)
-	
-	gratuity_text = "Law as of 2018 - Max 2 Years Salary<br>"
-	appended_gratuity_text = ""
-	
-	LR_one = "Less than 1 year, no leave or gratuity<br>"
-	LR_less_five = "Between 1 and 5 years: No. of years worked * Basic Salary per day * 21<br>"
-	LR_greater_five = "More than 5 years: (5 * Basic Salary per day * 21) + (No. of years worked - 5) * (Basic Salary per day * 30)<br>"
-	LT_greater_one = "More than 1 year: No. of years worked * Basic Salary per day * 21<br>"
-	UR_less_three = "Between 1 and 3 years: No. of years worked * Basic Salary per day * 21 * 1/3<br>"
-	UR_less_five = "Between 3 and 5 years: No. of years worked * Basic Salary per day * 21 * 2/3<br>"
-	UR_greater_five = "More than 5 years: (5 * Basic Salary per day * 21) + (No. of years worked - 5) * (Basic Salary per day * 30)<br>"
-	UT_less_three = "Between 1 and 3 years: No. of years worked * Basic Salary per day * 21<br>"
-	UT_less_five = "Between 3 and 5 years: No. of years worked * Basic Salary per day * 21<br>"
-	UT_greater_five = "More than 5 years: (5 * Basic Salary per day * 21) + (No. of years worked - 5) * (Basic Salary per day * 30)<br>"
-
-	
-	if contract_type == "Limited":
-		if reason_for_termination == "Resignation":
-			if(payment_years < 1):
-				appended_gratuity_text = LR_one
-				gratuity_pay = 0
-			elif(payment_years <= 5):
-				appended_gratuity_text = LR_less_five
-				gratuity_pay = flt(payment_years) * 21 * flt(salaryperday)
-			else:
-				appended_gratuity_text = LR_greater_five
-				gratuity_pay = (5*21*flt(salaryperday)) + (payment_years - 5)*(30*flt(salaryperday))
-		elif reason_for_termination == "Termination":
-			if(payment_years < 1):
-				appended_gratuity_text = LR_one
-				gratuity_pay = 0
-			else:
-				appended_gratuity_text = LT_greater_one
-				gratuity_pay = flt(payment_years) * 21 * flt(salaryperday)
-	elif contract_type == "Unlimited":
-		if reason_for_termination == "Resignation":
-			if(payment_years < 1):
-				appended_gratuity_text = LR_one
-				gratuity_pay = 0
-			elif(payment_years <= 3):
-				appended_gratuity_text = UR_less_three
-				gratuity_pay = flt(payment_years) * 21 * flt(salaryperday) * flt(1/3)
-			elif(payment_years <= 5):
-				appended_gratuity_text = UR_less_five
-				gratuity_pay = flt(payment_years) * 21 * flt(salaryperday) * flt(2/3)
-			else:
-				appended_gratuity_text = UR_greater_five
-				gratuity_pay = (5*21*flt(salaryperday)) + (payment_years - 5)*(30*flt(salaryperday))
-		elif reason_for_termination == "Termination":
-			if(payment_years < 1):
-				appended_gratuity_text = LR_one
-				gratuity_pay = 0
-			elif(payment_years <= 3):
-				appended_gratuity_text = UT_less_three
-				gratuity_pay = flt(payment_years) * 21 * flt(salaryperday)
-			elif(payment_years <= 5):
-				appended_gratuity_text = UT_less_five
-				gratuity_pay = flt(payment_years) * 21 * flt(salaryperday)
-			else:
-				appended_gratuity_text = UT_greater_five
-				gratuity_pay = (5*21*flt(salaryperday)) + (payment_years - 5)*(30*flt(salaryperday))
-				
-	
-	max_gratuity= 2*12*30*flt(salaryperday)
-	if gratuity_pay > max_gratuity:
-		gratuity_pay = max_gratuity
-	
-	gratuity_text += appended_gratuity_text
-	
-	gratuity_pay = rounded(gratuity_pay,3)
-	workingdaystext =  "Total Leave Due: " + str(leavedaysdue) + " - Total Leave Taken: " + str(leavedaystaken) + " - Leave Balance: " + str(leavesbalance)
-	networkingdaytext = "Net Working Days: " + str(payment_days) + " - Net Working Years: " + str(payment_years)
-	gratuity_calculation = joiningtext + "<br>" + workingdaystext + "<br>" + networkingdaytext + "<br><br>" + gratuity_text
-	return gratuity_pay, gratuity_calculation, leave_encashment_amount
 
 def custom_get_loan_deductions(start_date,end_date,employee):
 		it = start_date

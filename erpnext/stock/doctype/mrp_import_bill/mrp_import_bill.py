@@ -18,68 +18,60 @@ class MRPImportBill(Document):
 			self.name = self.document_name
 			
 	def get_summary(self):
-		items = get_items_in_bill(self.name)
-		summary = self.create_condensed_table(items)
-		
+		self.summary = create_condensed_table(get_items_in_bill(self.name))
 	
 	def on_update(self):
 		if self.disabled:
 			self.on_disable()
 			
 	def on_disable(self):
-	
-		bins = frappe.db.sql("select * from `tabMRP Import Entry` where import_bill = %s",
-			self.name, as_dict=1)
-		
-		final_qty = 0
-		for d in bins:
-			final_qty = final_qty + flt(d['stock_qty'])
-		
-		if final_qty != 0:
-			throw(_("Import Bill {0} can not be disabled as quantity exists for Item {1}").format(self.name, d['item_code']))
-	
+		items = get_items_in_bill(self.name)
 
-
-	def on_trash(self):
-		# delete bin
-		
-		if self.check_if_sle_exists():
-			throw(_("Warehouse can not be deleted as MRP Import Entry exists for this bill."))
+		for key in items:
+			item = items[key]
 			
-		
+			if item["stock_qty"] > 0:
+				throw(_("Import Bill can not be disabled as there are items on this this bill."))
 
-
-	def check_if_sle_exists(self):
-		return frappe.db.sql("""select name from `tabMRP Import Entry`
-			where import_bill = %s limit 1""", self.name)
-
+			
+			for key in item.item_alts:
+				item_alt = item.item_alts[key]
+				if item_alt["stock_qty"] > 0:
+					throw(_("Import Bill can not be disabled as there are items on this this bill."))
 	
 					
-					
-def create_condensed_table(items):
-	summary = ""
-	
+def create_condensed_table(items):	
 	joiningtext = """<table class="table table-bordered table-condensed">"""
 	joiningtext += """<thead>
 			<tr style>
-				<th>Entry Name</th>
 				<th>Item Code</th>
+				<th>Entered As</th>
 				<th>Total Qty</th>
 				<th>Stock UOM</th>
 				<th></th>
 			</tr></thead><tbody>"""
-				
-	for key, value in items.iteritems():
+			
+	for key in items:
+		item = items[key]
 		
 		joiningtext += """<tr>
-					<td>""" + str(key) +"""</td>
-					<td>""" + str(value["item_code"]) +"""</td>
-					<td>""" + str(value["stock_qty"]) +"""</td>
-					<td>""" + str(value["stock_uom"]) +"""</td>
-					</tr>"""
+				<td>""" + str(item["item_code"]) +"""</td>
+				<td>""" + str(item["item_code"]) +"""</td>
+				<td>""" + str(item["stock_qty"]) +"""</td>
+				<td>""" + str(item["stock_uom"]) +"""</td>
+				</tr>"""
+				
+		for key in item.item_alts:
+			item_alt = item.item_alts[key]
+			joiningtext += """<tr>
+				<td>""" + str(item["item_code"]) +"""</td>
+				<td>""" + str(item_alt["item_code"]) +"""</td>
+				<td>""" + str(item_alt["stock_qty"]) +"""</td>
+				<td>""" + str(item_alt["stock_uom"]) +"""</td>
+				</tr>"""
+		
 	joiningtext += """</tbody></table>"""
-	summary += joiningtext
-	return summary
+	return joiningtext
 
 def get_items_in_bill(import_bill,posting_date=None,posting_time=None):
 	if not posting_date:
@@ -176,21 +168,27 @@ def get_total_qty_for_item(import_bill,item_code,item_alt = None, posting_date=N
 					ORDER BY t2.stock_qty DESC
 					""", (import_bill,item_code,posting_date,posting_date,posting_time), as_dict=True)	
 					
-	
 	total_qty = 0
 	
 	for item in stock_details:
-		
+
 		if not validate_ref_doc(item["transaction_type"],item["reference_name"]):
 			continue
-
-		if item_alt == item.item_alt:
+		
+		if (item_alt == None or item_alt == "") and (item.item_alt == None or item.item_alt == ""):
+			if item.transaction_type in ["Purchase Receipt","Addition"]:
+				total_qty += flt(item.stock_qty)
+			else:
+				total_qty -= flt(item.stock_qty)
+		
+		elif item_alt == item.item_alt:
 
 			if item.transaction_type in ["Purchase Receipt","Addition"]:
 				total_qty += flt(item.stock_qty)
 			else:
 				total_qty -= flt(item.stock_qty)
-	
+				
+
 	return total_qty
 	
 @frappe.whitelist()
@@ -218,7 +216,6 @@ def get_bills_and_stock(item_code=None,company = None,posting_date=None,posting_
 					ORDER BY t2.stock_qty DESC
 					""", (company,item_code,posting_date,posting_date,posting_time), as_dict=True)		
 	
-
 	item_dict = {}
 	import copy
 	new_list = copy.deepcopy(stock_details)
@@ -287,9 +284,6 @@ def get_best_bill(item_code=None,item_alt=None, item_qty = 0, order_by_least = F
 		return best_import_doc,enough_stock
 	
 	item_dict = get_bills_and_stock(item_code,company=company,posting_date = posting_date,posting_time = posting_time)
-	
-	for key in item.item_alts:
-		item_alt = item.item_alts[key]
 
 	highest_qty = 0
 	best_import_doc = None
@@ -299,7 +293,7 @@ def get_best_bill(item_code=None,item_alt=None, item_qty = 0, order_by_least = F
 		
 		if item_alt:
 			for key in item.item_alts:
-				stored_item_alt = item.item_alts[key]
+				stored_item_alt = frappe._dict(item.item_alts[key])
 				if stored_item_alt.item_code == item_alt:
 					if stored_item_alt.stock_qty > highest_qty:
 						highest_qty = stored_item_alt.stock_qty
@@ -350,20 +344,20 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 		
 	item_dict = get_bills_and_stock(item_code,company = company,posting_date = posting_date,posting_time = posting_time)
 	
+
 	for key in item_dict:
 		item = item_dict[key]
-		
+
 		if item_alt:
 			for key in item.item_alts:
-				stored_item_alt = item.item_alts[key]
+				stored_item_alt = frappe._dict(item.item_alts[key])
 				if stored_item_alt.item_code == item_alt:
 					if stored_item_alt.stock_qty > 0:
 						best_warehouse = item.import_bill
 						best_warehouses.append((best_warehouse,))
-		else:
-			if item.stock_qty > 0:
-				best_warehouse = item.import_bill
-				best_warehouses.append((best_warehouse,))
+		elif item.stock_qty > 0:
+			best_warehouse = item.import_bill
+			best_warehouses.append((best_warehouse,))
 		
 	return best_warehouses
 

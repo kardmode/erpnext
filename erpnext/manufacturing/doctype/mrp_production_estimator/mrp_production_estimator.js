@@ -19,6 +19,34 @@ frappe.ui.form.on('MRP Production Estimator', {
 		}
 	},
 	setup: function(frm) {
+		frm.set_query("item_code", "items", function() {
+			return {
+				query: "erpnext.controllers.queries.item_query"
+			};
+		});
+		
+		if(frm.fields_dict["items"].grid.get_field('uom')) {
+			frm.set_query("uom", "items", function(doc, cdt, cdn) {
+				const row = locals[cdt][cdn];
+				return {
+					query: "erpnext.controllers.queries.uom_query",
+					filters: {'item_code': row.item_code}
+				}
+			});
+		}
+		
+		frm.set_query("bom", "items", function(doc, cdt, cdn) {
+			var d = locals[cdt][cdn];
+			return {
+				filters:[
+					// ['BOM', 'item', '=', d.item_code],
+					['BOM', 'company', '=', cur_frm.doc.company],
+					['BOM', 'is_active', '=', 1],
+					['BOM', 'docstatus', '<', 2]
+				]
+			};
+		});
+		
 		if(frm.doc.reference_name == "Delivery Note")
 		{
 			frm.set_query('reference_name', function(doc) {
@@ -175,131 +203,7 @@ frappe.ui.form.on('MRP Production Estimator', {
 			});
 	},
 	
-	
-	make_entries:function(frm) {
-		if(frm.doc.__islocal)
-		{
-			frappe.msgprint(__("Production Order Must Be Saved"));
-			return;
-			
-		}
-		
-		frappe.confirm(
-			__('This will create draft stock entries. Start production of items?'),
-			function() {
-				frappe.call({
-					doc: cur_frm.doc,
-					method: "make_stock_entries",
-					freeze: true,
-					freeze_message: "Please wait ..",
-					callback: function(r) {
-						
-						if(r.message)
-						{
-							cur_frm.save();
-						}
-						else 
-						{
-							frappe.msgprint(__("Stock Entry Not Created"));
-						}
-							
 
-						
-					}
-				});
-			}
-		);
-		
-		
-		
-	},
-	
-	submit_entries:function(frm) {
-		if(frm.doc.__islocal)
-		{
-			frappe.msgprint(__("Production Order Must Be Saved"));
-			return;
-			
-		}
-		
-		frappe.confirm(
-			__('This will submit all stock entries. Finish production of items?'),
-			function() {
-				frappe.call({
-					doc: cur_frm.doc,
-					method: "submit_entries",
-					freeze: true,
-					freeze_message: "Please wait ..",
-					callback: function(r) {
-						
-						if(r.message)
-						{
-							cur_frm.save();
-						}
-						else 
-						{
-							frappe.msgprint(__("Stock Entrie Not Submitted"));
-						}
-							
-
-						
-					}
-				});
-			}
-		);
-		
-	},
-	
-	delete_entries:function(frm) {
-		if(frm.doc.__islocal)
-		{
-			frappe.msgprint(__("Production Order Must Be Saved"));
-			return;
-			
-		}
-		
-		var me=this;
-		var dialog = new frappe.ui.Dialog({
-			title: __("Delete Stock Entris for Production Order"),
-			fields: [
-							{fieldname:'delete_draft', fieldtype:'Check', label: __('Delete Drafts'),default:0},
-
-				{fieldname:'column', fieldtype:'Column Break'},
-								{fieldname:'delete_submitted', fieldtype:'Check', label: __('Delete Submitted'),default:0},
-
-			]
-		});
-		dialog.set_primary_action(__("Delete"), function() {
-		
-			var filters = dialog.get_values();
-			
-			frappe.call({
-				doc: cur_frm.doc,
-				method: "delete_entries",
-				freeze: true,
-				freeze_message: "Please wait ..",
-				args:{
-					delete_submitted:filters.delete_submitted,
-					delete_draft: filters.delete_draft
-				},
-				callback: function(r) {
-					if(r.message)
-					{
-												
-
-						cur_frm.save();
-					}
-					else 
-					{
-						frappe.msgprint(__("Stock Entries Not Deleted"));
-					}
-				}
-			});
-			dialog.hide();
-		
-		});
-		dialog.show();
-	},
 	get_items_from:function (frm) {
 		var me=this;
 		
@@ -433,16 +337,4 @@ frappe.ui.form.on("MRP Production Plan Item",{
 		
 	},
 });
-
-
-cur_frm.fields_dict['items'].grid.get_field('bom').get_query = function(doc, cdt, cdn) {
-	var d = locals[cdt][cdn];
-	if (d.item_code) {
-		return{
-		filters:[
-			['BOM', 'docstatus', '<', 2],['BOM', 'is_active', '=', 1],
-		]
-	}
-	} else frappe.msgprint(__("Please enter Item first"));
-}
 

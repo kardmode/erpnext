@@ -14,7 +14,7 @@ app_logo_url = '/assets/erpnext/images/erp-icon.svg'
 
 
 develop_version = '12.x.x-develop'
-error_report_email = "notify@maarifagroup.com"
+error_report_email = "admin@maarifagroup.com"
 
 app_include_js = "assets/js/erpnext.min.js"
 app_include_css = "assets/css/erpnext.css"

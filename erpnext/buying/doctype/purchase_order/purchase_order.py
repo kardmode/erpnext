@@ -198,6 +198,9 @@ class PurchaseOrder(BuyingController):
 				raise_exception=True)
 
 	def update_status(self, status):
+		if status == "Closed":
+			self.pr_required()
+	
 		self.check_modified_date()
 		self.set_status(update=True, status=status)
 		self.update_requested_qty()
@@ -207,6 +210,13 @@ class PurchaseOrder(BuyingController):
 
 		self.notify_update()
 		clear_doctype_notifications(self)
+		
+	def pr_required(self):
+		stock_items = self.get_stock_items()
+		if frappe.db.get_value("Buying Settings", None, "pr_required") == 'Yes':
+			for d in self.get('items'):
+				if d.item_code in stock_items and d.received_qty < d.qty:
+					throw(_("""No Purchase Receipt For for this Purchase Order"""))
 
 	def on_submit(self):
 		super(PurchaseOrder, self).on_submit()
@@ -543,3 +553,64 @@ def update_status(status, name):
 def make_inter_company_sales_order(source_name, target_doc=None):
 	from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_inter_company_transaction
 	return make_inter_company_transaction("Purchase Order", source_name, target_doc)
+	
+@frappe.whitelist()
+def auto_make_purchase_receipts(year = None,limit=500,submit=False):
+	if not year:
+		return None
+		
+	purchase_order_details = frappe.db.sql("""SELECT
+		t1.name,
+		t1.supplier,
+		t1.transaction_date,
+		t1.status
+	FROM
+		`tabPurchase Order` t1
+	WHERE
+		YEAR(t1.transaction_date) = %s AND
+		t1.docstatus = 1 AND
+		not exists(SELECT pr.name 
+			FROM `tabPurchase Receipt Item` pri, `tabPurchase Receipt` pr
+			WHERE
+				t1.name = pri.purchase_order AND
+				pri.parent = pr.name AND 
+				pr.docstatus = 1 
+			LIMIT 1)
+	ORDER BY
+		t1.transaction_date DESC
+	LIMIT
+		%s""", (year,cint(limit)), as_dict=True)
+			
+	prs_created = []
+	error_list = []
+	submit = cint(submit)
+	
+	for po_detail in purchase_order_details:
+		try:
+			if submit == 1:
+				po = frappe.get_doc("Purchase Order", po_detail.name)
+				po.update_status("Submitted")				
+				pr = make_purchase_receipt(po_detail.name)
+				pr.posting_date = po_detail.transaction_date
+				pr.insert()
+				pr.set_posting_time = 1
+				pr.posting_date = po_detail.transaction_date
+				pr.save()
+				pr.submit()
+				pr.update_status("Closed")	
+				po.update_status("Closed")
+				prs_created.append(po_detail.name)
+			else:
+				prs_created.append(_("PO {0} {1} {2}.").format(po_detail.name, po_detail.status, po_detail.transaction_date))
+
+		except Exception as error:
+			error_list.append(error)
+			break
+	
+	if len(error_list) > 0:
+		frappe.db.rollback()
+		return error_list
+	else:
+		frappe.db.commit()
+	
+	return prs_created

@@ -75,57 +75,8 @@ class Item(WebsiteGenerator):
 		if "payment" in str(code).lower():
 			frappe.throw(_("You cannot make payment items because I told you not to."))
 
-		
-	def processString(self, word):
-
-		import re
-		rx = re.compile('\W+')
-		code = rx.sub(' ', word).strip()
-		code = code.strip()
-		code = frappe.db.escape(word)
-		# code = str(code).replace(" x ", "x")
-		# code = str(code).replace(" X ", "x")
-		# code = str(code).replace('"', 'in')
-		# code = str(code).replace('" ', 'in ')
-		# code = str(code).replace(' " ', ' in ')
-		# code = str(code).replace("'",'ft')
-		# code = str(code).replace("' ",'ft ')
-		# code = str(code).replace(" ' ",' ft ')
-	
-		# words = code.split()
-		# newword = ""
-		# for s in words:
-			# if str(s).lower() in ["x"]:
-				# s = str(s).lower()
-				
-				# if newword == "":
-					# newword = s
-				# else:
-					# newword = newword + ' ' + s
-			# elif str(s).lower() in ["mm","ft","in","cm","m"]:
-				# s = str(s).lower()
-				
-				# if newword == "":
-					# newword = s
-				# else:
-					# newword = newword + s
-			# else:
-				# s = str(s).capitalize()
-				# if newword == "":
-					# newword = s
-				# else:
-					# newword = newword + ' ' + s
-					
-
-		code = code.strip()
-		
-		
-		
-		return code
-	
 
 	def before_insert(self):
-		# self.item_code = self.processString(self.item_code)
 		self.mrp_validate_item_code(self.item_code)
 		
 		if not self.item_name:
@@ -133,13 +84,8 @@ class Item(WebsiteGenerator):
 		else:
 			self.item_name = self.item_name.strip()
 		
-		# import string
-		# if not self.description:
-			# self.description = self.item_name
-		# else:
-			# self.description = string.capwords(self.description)
-			# self.description = self.description.strip()
-		
+		if not self.description:
+			self.description = self.item_name
 
 		# if self.is_sales_item and not self.get('is_item_from_hub'):
 		# 	self.publish_in_hub = 1
@@ -166,19 +112,12 @@ class Item(WebsiteGenerator):
 		
 		if not self.item_name:
 			self.item_name = self.item_code
-		else:
-			self.item_name = self.item_name
 		
-		# import string
-		# if not self.description:
-			# self.description = self.item_name
-		# else:
-			# self.description = string.capwords(self.description)
-			# self.description = self.description.strip()
+		if not self.description:
+			self.description = self.item_name
 			
 		if not self.parent_item_group:
 			self.parent_item_group = frappe.db.get_value("item_group", self.item_group, "parent_item_group")
-
 
 		self.validate_uom()
 		self.validate_description()
@@ -217,6 +156,9 @@ class Item(WebsiteGenerator):
 		self.update_show_in_website()
 
 		if not self.get("__islocal"):
+			if not self.item_code == self.name:
+				self.item_code = self.name
+		
 			self.old_item_group = frappe.db.get_value(self.doctype, self.name, "item_group")
 			self.old_website_item_groups = frappe.db.sql_list("""select item_group
 					from `tabWebsite Item Group`
@@ -576,9 +518,9 @@ class Item(WebsiteGenerator):
 			ch.conversion_factor = 1
 
 		to_remove = []
-		# for d in self.get("uoms"):
-			# if d.conversion_factor == 1 and d.uom != self.stock_uom:
-				# to_remove.append(d)
+		for d in self.get("uoms"):
+			if d.conversion_factor == 0 and d.uom != self.stock_uom:
+				to_remove.append(d)
 
 		[self.remove(d) for d in to_remove]
 
@@ -712,10 +654,12 @@ class Item(WebsiteGenerator):
 
 	def before_rename(self, old_name, new_name, merge=False):
 		# self.mrp_validate_item_code(new_name)
-		if self.item_name==old_name:
-
-			frappe.db.set_value("Item", old_name, "item_name", new_name)
-
+		# if self.item_name==old_name:
+			# frappe.db.set_value("Item", old_name, "item_name", new_name)
+		
+		# if not self.item_code == new_name:
+			# frappe.throw(_("Item Code {0} and Name have to be the same. Name is not the same as item name").format(self.item_code,new_name))
+				
 		if merge:
 			# Validate properties before merging
 			if not frappe.db.exists("Item", new_name):
@@ -1134,13 +1078,11 @@ def invalidate_item_variants_cache_for_website(doc):
 
 
 def check_stock_uom_with_bin(item, stock_uom):
-	current_stock_uom = frappe.db.get_value("Item", item, "stock_uom")
-	if stock_uom == current_stock_uom:
+	if stock_uom == frappe.db.get_value("Item", item, "stock_uom"):
 		return
 
 	matched = True
-	ref_uom = frappe.db.get_value("Stock Ledger Entry",
-							   {"item_code": item}, "stock_uom")
+	ref_uom = frappe.db.get_value("Stock Ledger Entry",{"item_code": item}, "stock_uom")
 
 	if ref_uom:
 		if cstr(ref_uom) != cstr(stock_uom):
@@ -1159,7 +1101,10 @@ def check_stock_uom_with_bin(item, stock_uom):
 	if not matched:
 		frappe.throw(
 			_("Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You will need to create a new Item to use a different Default UOM.").format(item))
-
+	else:
+		self.set("uoms", [])
+		
+		
 def get_item_defaults(item_code, company):
 	item = frappe.get_cached_doc('Item', item_code)
 
@@ -1231,3 +1176,61 @@ def update_variants(variants, template, publish_progress=True):
 def on_doctype_update():
 	# since route is a Text column, it needs a length for indexing
 	frappe.db.add_index("Item", ["route(500)"])
+
+@frappe.whitelist()
+def force_update_uom_transactions():
+	# get items in item_group
+	# find transactions
+	# purchase_order
+	# purchase_receipt
+	# delivery_note
+	# stock_entry
+	
+	# for d in transaction_details:
+		# if d.uom == 'm':
+	
+	# transaction_uom
+	# transaction_stock_uom
+	
+	# if not stock_uom == transaction_uom:
+	
+	
+	
+	pass
+
+@frappe.whitelist()
+def force_update_stock_uom(item, stock_uom):
+	current_stock_uom = frappe.db.get_value("Item", item, "stock_uom")
+	if stock_uom == current_stock_uom:
+		return
+
+	matched = True
+	ref_uom = frappe.db.get_value("Stock Ledger Entry",
+							   {"item_code": item}, "stock_uom")
+
+	if ref_uom:
+		if cstr(ref_uom) != cstr(stock_uom):
+			matched = False
+	else:
+		bin_list = frappe.db.sql("select * from tabBin where item_code=%s", item, as_dict=1)
+		for bin in bin_list:
+			if (bin.reserved_qty > 0 or bin.ordered_qty > 0 or bin.indented_qty > 0
+								or bin.planned_qty > 0) and cstr(bin.stock_uom) != cstr(stock_uom):
+				matched = False
+				break
+
+		if matched and bin_list:
+			frappe.db.sql("""update tabBin set stock_uom=%s where item_code=%s""", (stock_uom, item))
+
+	if not matched:
+		frappe.db.sql("""update `tabItem` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+		frappe.db.sql("""update `tabUOM Conversion Detail` set uom=%s where parent=%s and uom=%s""", (stock_uom, item,current_stock_uom))
+		frappe.db.sql("""update `tabBin` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+		frappe.db.sql("""update `tabStock Ledger Entry` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+		
+		
+		# frappe.db.sql("""update `tabStock Entry Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+		# frappe.db.sql("""update `tabDelivery Note Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+		# frappe.db.sql("""update `tabPurchase Receipt Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+		# frappe.db.sql("""update `tabPurchase Order Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+

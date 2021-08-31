@@ -8,6 +8,7 @@ def get_data():
 			'Stock Entry': 'delivery_note_no',
 			'Quality Inspection': 'reference_name',
 			'Auto Repeat': 'reference_document',
+			'MRP Import Entry': 'reference_name',
 		},
 		'internal_links': {
 			'Sales Order': ['items', 'against_sales_order'],
@@ -15,7 +16,7 @@ def get_data():
 		'transactions': [
 			{
 				'label': _('Related'),
-				'items': ['Sales Invoice', 'Packing Slip', 'Delivery Trip']
+				'items': ['Sales Invoice', 'Packing Slip', 'Delivery Trip', 'MRP Import Entry']
 			},
 			{
 				'label': _('Reference'),

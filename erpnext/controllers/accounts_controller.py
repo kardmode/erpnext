@@ -513,7 +513,7 @@ class AccountsController(TransactionBase):
 
 		order_list = list(set([d.get(order_field)
 			for d in self.get("items") if d.get(order_field)]))
-
+		
 		journal_entries = get_advance_journal_entries(party_type, party, party_account,
 			amount_field, order_doctype, order_list, include_unallocated)
 
@@ -704,7 +704,6 @@ class AccountsController(TransactionBase):
 			if self.currency == self.company_currency and advance_paid > order_total:
 				frappe.throw(_("Total advance ({0}) against Order {1} cannot be greater than the Grand Total ({2})")
 							 .format(formatted_advance_paid, self.name, formatted_order_total))
-
 			frappe.db.set_value(self.doctype, self.name, "advance_paid", advance_paid)
 
 	@property

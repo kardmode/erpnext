@@ -37,7 +37,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Calculation",
-   "options": "area\nperimeter\nperimeter-length\nperimeter-width\nwidth-profile\ndepth-profile\nheight-profile\ncircle-area\ncircle-perimeter\nvolume\nuser-input-depth\nuser-input-height\nuser-input-width\nformula-float\nformula-int\nnos",
+   "options": "area\nperimeter\nperimeter-length\nperimeter-width\nwidth-profile\ndepth-profile\nheight-profile\ncircle-area\ncircle-perimeter\nvolume\nuser-input-depth\nuser-input-height\nuser-input-width\nformula-float\nformula-int\nnos\nbom\nuser-input-area-rect-col12\nuser-input-area-tri-col12\nuser-input-area-circle-col1",
    "reqd": 1
   },
   {
@@ -61,7 +61,7 @@
    "label": "Disabled"
   }
  ],
- "modified": "2019-11-19 14:00:46.638550",
+ "modified": "2020-08-17 19:37:22.064934",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM Part",

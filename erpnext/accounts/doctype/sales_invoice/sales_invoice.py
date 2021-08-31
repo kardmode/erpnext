@@ -237,12 +237,31 @@ class SalesInvoice(SellingController):
 			frappe.throw(_("At least one mode of payment is required for POS invoice."))
 
 	def before_cancel(self):
+		self.validate_payment_entries()
+
 		self.update_time_sheet(None)
+		
+	def validate_payment_entries(self):
+		reference_name = self.name
+		
+		pe = frappe.db.sql("""
+			select
+				t1.name
+			from `tabPayment Entry` t1, `tabPayment Entry Reference` t2
+			where
+				t1.name = t2.parent and t1.payment_type = "Receive"
+				and t1.party_type = "Customer" and t1.docstatus = 1
+				and t2.reference_doctype = "Sales Invoice" and t2.reference_name = %s
+			order by t1.name
+		""",reference_name, as_dict=1)
+
+		if pe:
+			frappe.throw(_("Invoice is linked with payment entries."))
 
 
 	def on_cancel(self):
 		super(SalesInvoice, self).on_cancel()
-
+		
 		self.check_sales_order_on_hold_or_close("sales_order")
 
 		if self.is_return and not self.update_billed_amount_in_sales_order:
@@ -1677,3 +1696,4 @@ def create_invoice_discounting(source_name, target_doc=None):
 	})
 
 	return invoice_discounting
+	

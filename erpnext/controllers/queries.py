@@ -556,27 +556,26 @@ def get_items_from(doc_type,doc_name,include_bundled_items=False):
 	from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle
 	from erpnext.stock.doctype.packed_item.packed_item import get_product_bundle_items
 	
-	conditions = "t1.item_code"
+	conditions = "t1.name, t1.parent, t1.item_code"
 	if doc_type == "Purchase Receipt":
 		conditions += ", t1.received_qty as qty"
 	
-	doctypeitem_name = str(doc_type) + ' Item'
-	doctype_name = str(doc_type)
-	meta_doctypeitem_name = frappe.get_meta(doctype_name)
-	meta_doctype_name = frappe.get_meta(doctypeitem_name)
+	parent_doctype_name = str(doc_type)
+	child_doctype_name = str(doc_type) + ' Item'
+	meta_parent_doctype = frappe.get_meta(parent_doctype_name, cached=True)
+	meta_child_doctype = frappe.get_meta(child_doctype_name, cached=True)
 	
 	for field in ["project"]:
-		if meta_doctype_name.has_field(field):
+		if meta_parent_doctype.has_field(field):
 			conditions += ", t2." + str(field)
 	
-	for field in ["rate","amount","description","item_name","uom","qty","stock_uom","stock_qty"]:
-		if meta_doctypeitem_name.has_field(field):
+	for field in ["rate","amount","description","item_name","uom","qty","stock_uom","stock_qty","hs_code"]:
+		if meta_child_doctype.has_field(field):
 			conditions += ", t1." + str(field)
 
-	
-	query = "select t1.name, t1.parent, " + conditions + " from `tab" +  doctypeitem_name + "` t1,`tab" + doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
+	query = "select " + conditions + " from `tab" +  child_doctype_name + "` t1,`tab" + parent_doctype_name + "` t2 where t2.name=%s and t1.parent = t2.name order by t1.idx"
 	original_item_list = frappe.db.sql(query, (doc_name), as_dict=1)
-	
+
 	item_list = []
 	if include_bundled_items:
 		if len(original_item_list) > 0:
@@ -658,3 +657,63 @@ def get_items_from_csv():
 		
 
 	return {"items":ret,"messages": messages, "error": error}
+	
+def uom_query(doctype, txt, searchfield, start, page_len, filters, as_dict=False):
+	conditions = []
+	from frappe.model.meta import get_field_precision
+
+	
+	precision = get_field_precision(frappe.get_meta("UOM Conversion Detail").get_field("conversion_factor"))
+
+	return frappe.db.sql("""
+		SELECT DISTINCT
+			results.name,
+			IF(results.name != @stock_uom, CONCAT(TRIM(results.conversion_factor)+0, ' ', @stock_uom), '') AS description
+		FROM
+			(SELECT
+				stock_uom AS name,
+				'1' AS conversion_factor,
+				'0' AS idx,
+				@stock_uom := stock_uom
+			FROM tabItem
+			WHERE
+				item_code = %(item)s
+			UNION ALL
+				SELECT
+					uom AS name,
+					ROUND(conversion_factor, {precision}),
+					'1' AS idx,
+					''
+				FROM `tabUOM Conversion Detail`
+				WHERE
+					parent = %(item)s
+					AND uom != @stock_uom
+			UNION ALL
+				SELECT
+					IF(to_uom = @stock_uom, from_uom, to_uom) AS name,
+					ROUND(IF(to_uom = @stock_uom, value, 1 / value), {precision}) AS conversion_factor,
+					'2' AS idx,
+					''
+				FROM `tabUOM Conversion Factor`
+				WHERE
+					from_uom = @stock_uom
+					OR to_uom = @stock_uom) results
+		WHERE
+			results.name LIKE %(txt)s
+			AND results.conversion_factor != 0
+		ORDER BY
+			IF(LOCATE(%(_txt)s, results.name), LOCATE(%(_txt)s, results.name), 99999),
+			results.idx ASC,
+			results.name ASC
+		LIMIT %(start)s, %(page_len)s """.format(
+			key=searchfield,
+			fcond=get_filters_cond(doctype, filters, conditions).replace('%', '%%'),
+			mcond=get_match_cond(doctype).replace('%', '%%'),
+			precision=precision),
+			{
+				"txt": "%%%s%%" % txt,
+				"_txt": txt.replace("%", ""),
+				"start": start or 0,
+				"page_len": page_len or 20,
+				"item": filters.get("item_code")
+			}, as_dict=as_dict)

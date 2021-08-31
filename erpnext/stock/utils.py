@@ -418,3 +418,25 @@ def add_additional_uom_columns(columns, result, include_uom, conversion_factors)
 				row[data.converted_col] = flt(value_before_conversion) / conversion_factor
 
 		result[row_idx] = row
+
+def validate_item_uoms(doc):
+	from erpnext.stock.get_item_details import get_conversion_factor, get_conversion_factor_between_two_units
+	
+	for d in doc.get("items"):
+		if not d.meta.get_field("stock_qty"):
+			break
+			
+		
+		uom = d.get("uom") or None
+		stock_uom = d.get("stock_uom") or None
+		item_code = d.get("item_code") or None
+				
+		if uom and stock_uom and item_code:
+			conversion_factor_details = get_conversion_factor_between_two_units(item_code, uom, stock_uom)
+			if not conversion_factor_details.get("conversion_factor_exists"):
+				frappe.throw(_("Conversion factor for Item {0} and UOM {1} does not exist.").format(item_code, initial_uom))
+			else:
+				d.conversion_factor = 1/conversion_factor_details.get("conversion_factor")
+				d.stock_qty = flt(d.qty) * flt(d.conversion_factor)
+
+			

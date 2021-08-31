@@ -14,20 +14,7 @@ frappe.ui.form.on('Cheque Print Template', {
 			erpnext.cheque_print.refresh_print_preview(frm);
 		}
 	},
-	is_account_payable: function(frm) {
-		erpnext.cheque_print.refresh_print_preview(frm);
-	},
-	show_account_no: function(frm) {
-		erpnext.cheque_print.refresh_print_preview(frm);
-	},
-	show_signatory: function(frm) {
-		erpnext.cheque_print.refresh_print_preview(frm);
-	},
-	show_main_currency: function(frm) {
-		erpnext.cheque_print.refresh_print_preview(frm);
-	},
-	
-	
+
 });
 
 
@@ -48,7 +35,7 @@ erpnext.cheque_print.refresh_print_preview  = function(frm) {
 						position: absolute;"> Acc. No. </span>';
 			}
 			
-			var test_amount =frm.doc.test_amount;
+			var test_amount = frm.doc.test_amount;
 			var symbol = frm.doc.symbol_to_add || '';
 			var show_main_currency = frm.doc.show_main_currency;
 			
@@ -60,25 +47,38 @@ erpnext.cheque_print.refresh_print_preview  = function(frm) {
 				},
 				callback: function(r) {
 					if (!r.exe) {
+						
 						var amount_in_words = symbol + r.message[1] + symbol;
 						var fmt_amount = symbol + r.message[0] + symbol;
+						
+						if (frm.doc.hide_amount === 1)
+						{
+							amount_in_words = "";
+							fmt_amount = "";
+							
+						}
+						
+						var display_date = frappe.datetime.obj_to_user();
+						if (frm.doc.hide_date === 1)
+							display_date = "";
+						
 						var first_line = symbol + r.message[2];
 						
 						var second_line = r.message[3] + symbol;
 						
 						var pay_to = symbol + "Pay To Name" + symbol;
-						var template = '<div style="position: relative; overflow-x: scroll;">\
-				<div id="cheque_preview" style="width: {{ cheque_width }}cm; \
-					height: {{ cheque_height }}cm;\
-					background-repeat: no-repeat;\
-					background-size: cover;font-size:{{ font_size }}px !important;font-weight:{{ font_weight }};">\
-					<span style="top: {{ acc_pay_dist_from_top_edge }}cm;\
+						var template = '<div style="position: relative;">\
+					<div id="cheque_preview" style="width: {{ cheque_width }}cm; \
+						font-size:{{ font_size }}cm !important;\
+						font-weight:{{ font_weight }};">'
+					+ '<img src="' + frm.doc.scanned_cheque + '" style="width:100%;">' +
+					'<span style="top: {{ acc_pay_dist_from_top_edge }}cm;\
 						left: {{ acc_pay_dist_from_left_edge }}cm;\
 						border-bottom: solid 1px;border-top:solid 1px;\
-						position: absolute;"> {{ message_to_show || __("A/C PAYEE ONLY") }} </span>\
+						position: absolute;"> {{ message_to_show }} </span>\
 					<span style="top: {{ date_dist_from_top_edge }}cm;\
 						left: {{ date_dist_from_left_edge }}cm;\
-						position: absolute;"> {{ frappe.datetime.obj_to_user() }} </span>'
+						position: absolute;">' + display_date +'</span>'
 					+ acc_no +
 					'<span style="top: {{ payer_name_from_top_edge }}cm;\
 						left: {{ payer_name_from_left_edge }}cm;\
@@ -102,9 +102,9 @@ erpnext.cheque_print.refresh_print_preview  = function(frm) {
 			
 						$(frappe.render(template, frm.doc)).appendTo(frm.fields_dict.cheque_print_preview.wrapper)
 						
-						if (frm.doc.scanned_cheque) {
+						/* if (frm.doc.scanned_cheque) {
 							$(frm.fields_dict.cheque_print_preview.wrapper).find("#cheque_preview").css('background-image', 'url(' + frm.doc.scanned_cheque + ')');
-						}
+						} */
 						
 						
 						
@@ -123,12 +123,13 @@ erpnext.cheque_print.view_cheque_print = function(frm) {
 		},
 		callback: function(r) {
 			if (!r.exe && !frm.doc.has_print_format) {
-				var doc = frappe.model.sync(r.message);
-				frappe.set_route("Form", r.message.doctype, r.message.name);
+				//var doc = frappe.model.sync(r.message);
+				//frappe.set_route("Form", r.message.doctype, r.message.name);
 			}
 			else {
 				frappe.msgprint(__("Print settings updated in respective print format"))
 			}
+			
 		}
 	})
 }

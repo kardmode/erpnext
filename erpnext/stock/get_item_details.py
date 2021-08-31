@@ -866,7 +866,6 @@ def get_serial_no_batchwise(args, sales_order=None):
 @frappe.whitelist()
 def get_conversion_factor(item_code, uom):
 	variant_of = frappe.db.get_value("Item", item_code, "variant_of", cache=True)
-	stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
 
 	filters = {"parent": item_code, "uom": uom}
 	if variant_of:
@@ -875,46 +874,58 @@ def get_conversion_factor(item_code, uom):
 		filters, "conversion_factor")
 	
 	if not conversion_factor:
-		if uom == "Sheet" and stock_uom == "Nos":
-			conversion_factor = 1.0
-		elif uom == "Nos" and stock_uom == "Sheet":
-			conversion_factor = 1.0
-		
+		stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
 		conversion_factor = get_uom_conv_factor(uom, stock_uom)
+		
+	if conversion_factor:
+		if conversion_factor == 0:
+			frappe.throw(_("Conversion factor for Item {0} and UOM {1} is 0.").format(item_code, uom))
 
-	return {"conversion_factor": conversion_factor or 1.0}
+		conversion_factor_exists = True
+	else:
+		conversion_factor_exists = False
+		frappe.throw(_("Conversion factor for Item {0} and UOM {1} NOT FOUND.").format(item_code, uom))
+
+
+	return {"conversion_factor": conversion_factor or 1.0,"conversion_factor_exists":conversion_factor_exists}
 	
 @frappe.whitelist()
 def get_conversion_factor_between_two_units(item_code, initial_uom, final_uom):
 	variant_of = frappe.db.get_value("Item", item_code, "variant_of")
 	stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
 	
-	if not item_code or not initial_uom or not final_uom:
-		return {"conversion_factor": 1}
+	conversion_factor = 1.0
+	conversion_factor_exists = False
 	
 	if initial_uom == stock_uom:
 		return get_conversion_factor(item_code, final_uom)
-	else:
-		uom = initial_uom
-		filters = {"parent": item_code, "uom": uom}
-		if variant_of:
-			filters["parent"] = ("in", (item_code, variant_of))
-
-		conversion_factor_initial = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
 	
-		uom = final_uom
-		filters = {"parent": item_code, "uom": uom}
-		if variant_of:
-			filters["parent"] = ("in", (item_code, variant_of))
+	else:
+		conversion_factor_initial_details = get_conversion_factor(item_code, initial_uom)
+		conversion_factor_final_details = get_conversion_factor(item_code, final_uom)
+		
+		if not conversion_factor_initial_details.get("conversion_factor_exists"):
+			conversion_factor = 1.0
+			conversion_factor_exists = False
+			frappe.throw(_("Conversion factor for Item {0} and UOM {1} does no exist.").format(item_code, initial_uom))
 
-		conversion_factor_final = frappe.db.get_value("UOM Conversion Detail",filters, "conversion_factor")
-		
-		
-		if not conversion_factor_initial or not conversion_factor_final:
-			return {"conversion_factor": 1}
-		
-		conversion_factor = (1/conversion_factor_initial) / (1/conversion_factor_final)
-		return {"conversion_factor": conversion_factor}
+		elif not conversion_factor_final_details.get("conversion_factor_exists"):
+			conversion_factor = 1.0
+			conversion_factor_exists = False
+			frappe.throw(_("Conversion factor for Item {0} and UOM {1} does not exist.").format(item_code, final_uom))
+
+		else:
+			conversion_factor_initial = conversion_factor_initial_details.get("conversion_factor")
+			conversion_factor_final = conversion_factor_final_details.get("conversion_factor")
+			try:
+				conversion_factor = conversion_factor_final/conversion_factor_initial
+				conversion_factor_exists = True
+			except:
+				conversion_factor_exists = False
+				frappe.throw(_("Conversion factor Calculation Error for Item {0}.").format(item_code))
+
+			
+	return {"conversion_factor": conversion_factor or 1.0,"conversion_factor_exists":conversion_factor_exists}
 
 @frappe.whitelist()
 def get_SI_units(type = "length"):

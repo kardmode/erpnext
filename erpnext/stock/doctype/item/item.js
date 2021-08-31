@@ -38,7 +38,9 @@ frappe.ui.form.on("Item", {
 			
 		}
 		
-		
+		frm.add_custom_button(__("Add Units"), function() {
+			frm.trigger('mrp_add_uom');
+		});
 
 
 		if (frm.doc.is_stock_item) {
@@ -145,11 +147,6 @@ frappe.ui.form.on("Item", {
 		calculate_conversion_factor(frm,false);
 		
 	},
-	
-	calculate_conversion: function(frm){
-		calculate_conversion_factor(frm,true);
-		frm.refresh_field("uoms");
-	},
 
 	image: function() {
 		refresh_field("image_view");
@@ -205,28 +202,28 @@ frappe.ui.form.on("Item", {
 
 	page_name: frappe.utils.warn_page_name_change,
 
-	item_name: function(frm) {
-		if(frm.doc.item_name)
-		{
-			var newword = process_string(frm.doc.item_name);
-			frm.set_value("item_name", newword.trim());
-		}
-	},
+	// item_name: function(frm) {
+		// if(frm.doc.item_name)
+		// {
+			// var newword = process_string(frm.doc.item_name);
+			// frm.set_value("item_name", newword.trim());
+		// }
+	// },
 	
 	item_code: function(frm) {
 		
-		if(frm.doc.item_code)
-		{
+		// if(frm.doc.item_code)
+		// {
 			
-			var newword = process_string(frm.doc.item_code);
-			frm.set_value("item_code", newword.trim());
-		}
+			// var newword = process_string(frm.doc.item_code);
+			// frm.set_value("item_code", newword.trim());
+		// }
 		
 		
-		// if(!frm.doc.item_name)
-		frm.set_value("item_name", frm.doc.item_code);
-		if(!frm.doc.description)
-			frm.set_value("description", frm.doc.item_code);
+		if(!frm.doc.item_name)
+			frm.set_value("item_name", frm.doc.item_code);
+		// if(!frm.doc.description)
+			// frm.set_value("description", frm.doc.item_code);
 
 	},
 	
@@ -279,25 +276,39 @@ frappe.ui.form.on("Item", {
 		// }
 	},
 	
-	add_uom: function(frm) {
+	mrp_add_uom: function(frm) {
 		var dialog = new frappe.ui.Dialog({
 			fields: [
-				{fieldtype:'Float', default:1,
-					reqd:1, label:'Stock Qty'},
-				{fieldtype:'Column Break',fieldname:'column1'},
-				{fieldtype:'Link', options:'UOM',
-					read_only:1, label:__('Stock UOM'),default:frm.doc.stock_uom},
-				{fieldtype:'Section Break',fieldname:'section1'},
-				{fieldtype:'Float', default:1,
-					reqd:1, label:'Qty'},
-				{fieldtype:'Column Break',fieldname:'column2'},
+				{fieldname:'calc_check', fieldtype:'Check', default:0, label:'Calculate Area/Volume from Dimensions',
+					onchange() {
+						var fieldnames = ['stock_qty','stock_uom','qty','uom']
+						var calc_check = dialog.get_field('calc_check');
+						fieldnames.forEach(function(d) {
+							dialog.set_df_property(d, 'reqd', !calc_check.get_value());
+						});
+					}
+				},
 
-				{fieldtype:'Link', options:'UOM',
-					reqd:1, label:__('UOM')},
-					
-					// {fieldname:'bundle', fieldtype:'Link', options: 'BOM Collection', label: __('Collection')},
-				// {fieldname:'branch', fieldtype:'Link', options: 'Branch', label: __('Branch')},
-				// {fieldname:'base_variable', fieldtype:'Section Break'},
+				
+				{fieldtype:'Section Break',fieldname:'section1',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldname:'qty', fieldtype:'Float', default:1, reqd:1, label:'Qty'},
+				{fieldtype:'Column Break',fieldname:'column2'},
+				{fieldname:'uom',fieldtype:'Link', options:'UOM', reqd:1, label:__('UOM')},
+								{fieldtype:'Section Break',fieldname:'section_1',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldtype:'Read Only',fieldname:'sectiondesc',default:'Converts To',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldtype:'Section Break',fieldname:'section0',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldname:'stock_qty', fieldtype:'Float', default:1, reqd:1, label:'Stock Qty'},
+				{fieldtype:'Column Break',fieldname:'column1'},
+				{fieldname:'stock_uom', fieldtype:'Link', options:'UOM', reqd:1, read_only:1, label:__('Stock UOM'),default:frm.doc.stock_uom},
+				
 			]
 		});
 
@@ -305,11 +316,17 @@ frappe.ui.form.on("Item", {
 			var data = dialog.get_values();
 			if(!data) return;
 			
-			if(data.uom === data.stock_uom) return;
-			var conversion_factor = flt(data.stock_qty) / flt(data.qty);
+			if(data.calc_check === 1)
+			{
+				calculate_conversion_factor(frm,true);
+			}
+			else
+			{
+				if(data.uom === data.stock_uom) return;
+				var conversion_factor = flt(data.stock_qty) / flt(data.qty);
+				mrp_add_uom_to_table(frm,[data.uom],[conversion_factor]);
+			}
 			
-			
-			check_conversion_factor(frm,data.uom,conversion_factor);
 			dialog.hide();
 			refresh_field("uoms");
 		})
@@ -883,12 +900,6 @@ var calculate_conversion_factor = function(frm,show_debug = false) {
 	
 	check_parent_item_group(frm);
 
-	// if(frm.doc.parent_item_group != "Raw Material Carpentry" && frm.doc.item_group != "Raw Material Carpentry"){
-		// if (show_debug) frappe.msgprint(__("Item Group or Parent Item Group is not Raw Material Carpentry"));
-		// return;
-	// }
-
-	
 	if (frm.doc.depth <=0 || frm.doc.width <= 0 || frm.doc.height <= 0)
 	{
 		if (show_debug) frappe.msgprint(__("All Dimensions have to be greater than 0"));
@@ -908,10 +919,7 @@ var calculate_conversion_factor = function(frm,show_debug = false) {
 			var cft_conversion_factor = conversion_factors[1];
 			conversion_factor = flt(conversion_factor.toFixed(5));
 			cft_conversion_factor = flt(cft_conversion_factor.toFixed(5));
-
-			check_conversion_factor(frm,"sqm",conversion_factor);
-			check_conversion_factor(frm,"cft",cft_conversion_factor);
-
+			mrp_add_uom_to_table(frm,["sqm","cft"],[conversion_factor,cft_conversion_factor]);
 		}
 		else
 		{
@@ -930,32 +938,23 @@ var check_current_units = function(unit) {
 }
 
 
-var check_conversion_factor = function(frm,unit,conversion_factor) {
-	if(flt(conversion_factor) > 0)
+var mrp_add_uom_to_table = function(frm,units,conversion_factors) {
+	var tbl = frm.doc.uoms || [];
+	var i = tbl.length;
+	while (i--)
 	{
-		var uoms = frm.doc.uoms || [];
+		let found_index = units.indexOf(tbl[i].uom);
 	
-		var hasUOM = false;
-		for(var i=0;i<uoms.length;i++) {
-			if(uoms[i].uom === unit){
-				hasUOM = true;
-				if(flt(uoms[i].conversion_factor) != conversion_factor){
-					//frappe.msgprint(__("Dimensions given calculate conversion factor {0}", [conversion_factor]));
-					uoms[i].conversion_factor = conversion_factor;
-				}
-				break;
-			}
-			
+		if(found_index > -1)
+		{
+			frm.get_field("uoms").grid.grid_rows[i].remove();
 		}
-		
-		if(hasUOM == false){
-			var row = frappe.model.add_child(cur_frm.doc, cur_frm.fields_dict.uoms.df.options, cur_frm.fields_dict.uoms.df.fieldname);
-			row.uom = unit;
-			row.conversion_factor = conversion_factor;
-		}
-		
 	}
 	
+	for(var i=0;i<units.length;i++)
+	{
+		let row = frm.add_child('uoms', {uom:  units[i], conversion_factor: conversion_factors[i]});
+	}
 }
 
 var process_string = function(code){

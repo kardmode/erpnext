@@ -21,9 +21,94 @@ frappe.ui.form.on("Item Price", {
 		if(!frm.doc.uom)
 			frm.set_value("uom",frm.doc.stock_uom);
 		
+		if (!frm.doc.__islocal && frm.doc.docstatus<2) {
+			
+			frm.add_custom_button(__("Current Item Price"), function() {
+				frm.events.add_to_another_pl(frm);
+			}, __("Copy"));
+
+			frm.add_custom_button(__("All Prices To New List"), function() {
+				frm.events.copy_all_to_another_pl(frm);
+			}, __("Copy"));
+		}
 
 	},
 	price_list: function(frm){
 
-	}
+	},
+	add_to_another_pl: function(frm){
+		var me=this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Copy This Item Price To Different List"),
+			fields: [
+				{fieldname:'price_list', fieldtype:'Link', options: 'Price List',label: __('Price List'),reqd:1},
+			]
+		});
+		dialog.set_primary_action(__("Copy"), function() {
+		
+			var filters = dialog.get_values();
+			if(filters.price_list === frm.doc.price_list)
+			{
+				frappe.throw(__("Same Price List"));
+			}
+			
+			frappe.call({
+				method:'erpnext.stock.doctype.item_price.item_price.add_to_another_pl',
+				args:{
+					item_price_docname: frm.doc.name,
+					new_price_list:filters.price_list,
+				},
+				callback:function (r) {
+					
+					dialog.hide();
+					frappe.set_route("Form", "Item Price", r.message);
+						
+
+				},
+				freeze:true,
+			})
+			
+
+		
+		});
+		dialog.show();
+	},
+	copy_all_to_another_pl: function(frm){
+		var me=this;
+		var dialog = new frappe.ui.Dialog({
+			title: __("Copy All Prices in List To Different List"),
+			fields: [
+				{fieldname:'price_list', fieldtype:'Link', options: 'Price List',label: __('Price List'),reqd:1},
+			]
+		});
+		dialog.set_primary_action(__("Add"), function() {
+		
+			var filters = dialog.get_values();
+			if(filters.price_list === frm.doc.price_list)
+			{
+				frappe.throw(__("Same Price List"));
+			}
+			
+			frappe.call({
+				method:'erpnext.stock.doctype.item_price.item_price.copy_all_to_another_pl',
+				args:{
+					original_price_list: frm.doc.price_list,
+					new_price_list:filters.price_list,
+				},
+				callback:function (r) {
+					
+					dialog.hide();
+					// frappe.set_route("Form", "Item Price", r.message);
+						
+
+				},
+				freeze:true,
+				freeze_message: __('Processing')
+			})
+			
+
+		
+		});
+		dialog.show();
+	},
 });

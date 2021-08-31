@@ -9,7 +9,8 @@ def get_data():
 			'Asset': 'purchase_receipt',
 			'Landed Cost Voucher': 'receipt_document',
 			'Auto Repeat': 'reference_document',
-			'Purchase Receipt': 'return_against'
+			'Purchase Receipt': 'return_against',
+			'MRP Import Entry': 'reference_name',
 		},
 		'internal_links': {
 			'Purchase Order': ['items', 'purchase_order'],
@@ -19,7 +20,7 @@ def get_data():
 		'transactions': [
 			{
 				'label': _('Related'),
-				'items': ['Purchase Invoice', 'Landed Cost Voucher', 'Asset']
+				'items': ['Purchase Invoice', 'Landed Cost Voucher', 'Asset','MRP Import Entry']
 			},
 			{
 				'label': _('Reference'),

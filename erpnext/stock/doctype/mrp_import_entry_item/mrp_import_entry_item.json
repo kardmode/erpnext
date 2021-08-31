@@ -62,8 +62,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Import Bill",
-   "options": "MRP Import Bill",
-   "reqd": 1
+   "options": "MRP Import Bill"
   },
   {
    "allow_on_submit": 1,
@@ -154,6 +153,7 @@
    "label": "Description"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "item_alt",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -162,7 +162,7 @@
   }
  ],
  "istable": 1,
- "modified": "2020-05-09 15:45:32.837251",
+ "modified": "2020-06-28 18:30:03.047153",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Entry Item",

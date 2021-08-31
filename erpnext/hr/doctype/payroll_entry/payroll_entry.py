@@ -50,30 +50,18 @@ class PayrollEntry(Document):
 		condition = ''
 
 		if self.payroll_frequency:
-			condition = """and ss.payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
-			# condition = """and payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
+			condition = """and payroll_frequency = '%(payroll_frequency)s'"""% {"payroll_frequency": self.payroll_frequency}
 
-		# sal_struct = frappe.db.sql_list("""
-				# select
-					# name from `tabSalary Structure`
-				# where
-					# docstatus = 1 and
-					# is_active = 'Yes'
-					# and company = %(company)s and
-					# ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
-					# {condition}""".format(condition=condition),
-				# {"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
-		
-		sal_struct = frappe.db.sql("""
+		sal_struct = frappe.db.sql_list("""
 				select
-					ss.name from `tabSalary Structure` ss, `tabEmployee` t1
+					name from `tabSalary Structure`
 				where
-					ss.docstatus != 2 and
-					ss.is_active = 'Yes' and
-					t1.company = %(company)s and
-					ifnull(ss.salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
+					docstatus = 1 and
+					is_active = 'Yes'
+					and ifnull(salary_slip_based_on_timesheet,0) = %(salary_slip_based_on_timesheet)s
 					{condition}""".format(condition=condition),
 				{"company": self.company, "salary_slip_based_on_timesheet":self.salary_slip_based_on_timesheet})
+		
 		
 		if sal_struct:
 			cond += "and t2.salary_structure IN %(sal_struct)s "
@@ -82,7 +70,7 @@ class PayrollEntry(Document):
 				select
 					distinct t1.name as employee, t1.employee_name, t1.department, t1.designation
 				from
-					`tabEmployee` t1, `tabSalary Structure Assignment` t2
+					`tabEmployee` t1, `tabSalary Structure Assignment` t2, `tabSalary Structure` t3
 				where
 					t1.name = t2.employee
 					and t2.docstatus = 1

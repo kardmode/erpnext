@@ -19,6 +19,35 @@ frappe.ui.form.on('MRP Production Order', {
 		}
 	},
 	setup: function(frm) {
+		frm.set_query("item_code", "items", function() {
+			return {
+				query: "erpnext.controllers.queries.item_query"
+			};
+		});
+		
+		if(frm.fields_dict["items"].grid.get_field('uom')) {
+			frm.set_query("uom", "items", function(doc, cdt, cdn) {
+				const row = locals[cdt][cdn];
+				return {
+					query: "erpnext.controllers.queries.uom_query",
+					filters: {'item_code': row.item_code}
+				}
+			});
+		}
+		
+		frm.set_query("bom", "items", function(doc, cdt, cdn) {
+			var d = locals[cdt][cdn];
+			return {
+				filters:[
+					// ['BOM', 'item', '=', d.item_code],
+					['BOM', 'company', '=', cur_frm.doc.company],
+					['BOM', 'is_active', '=', 1],
+					['BOM', 'docstatus', '<', 2]
+				]
+			};
+		});
+		
+		
 		if(frm.doc.reference_name == "Delivery Note")
 		{
 			frm.set_query('reference_name', function(doc) {
@@ -63,7 +92,7 @@ frappe.ui.form.on('MRP Production Order', {
 			}) */
 			
 			
-			if(frm.doc.docstatus < 1)
+			if(frm.doc.docstatus < 1 && self.workflow_state == "Draft")
 			{
 				frm.add_custom_button(__('Any Document'),
 				function() {
@@ -462,14 +491,5 @@ frappe.ui.form.on("MRP Production Plan Item",{
 });
 
 
-cur_frm.fields_dict['items'].grid.get_field('bom').get_query = function(doc, cdt, cdn) {
-	var d = locals[cdt][cdn];
-	if (d.item_code) {
-		return{
-		filters:[
-			['BOM', 'docstatus', '<', 2],['BOM', 'is_active', '=', 1],
-		]
-	}
-	} else frappe.msgprint(__("Please enter Item first"));
-}
+
 
