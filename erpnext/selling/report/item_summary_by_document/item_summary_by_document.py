@@ -101,10 +101,10 @@ def merge(dicts):
 	import copy
 	new_list = copy.deepcopy(dicts)
 	for item in new_list:
-		if item_dict.has_key(item.item_code):
-			item_dict[item.item_code]["qty"] += flt(item.qty)
+		if item_dict.has_key(item["item_code"]):
+			item_dict[item["item_code"]]["qty"] += flt(item["qty"])
 		else:
-			item_dict[item.item_code] = item
+			item_dict[item["item_code"]] = item
 	
 	return item_dict
 

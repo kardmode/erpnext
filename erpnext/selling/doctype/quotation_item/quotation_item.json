@@ -1,5 +1,4 @@
 {
- "actions": [],
  "creation": "2013-03-07 11:42:57",
  "doctype": "DocType",
  "document_type": "Document",
@@ -543,14 +542,12 @@
   {
    "fieldname": "brand",
    "fieldtype": "Link",
-   "hidden": 1,
    "label": "Brand",
    "oldfieldname": "brand",
    "oldfieldtype": "Link",
    "options": "Brand",
    "print_hide": 1,
    "print_width": "150px",
-   "read_only": 1,
    "width": "150px"
   },
   {
@@ -577,8 +574,7 @@
  ],
  "idx": 1,
  "istable": 1,
- "links": [],
- "modified": "2020-03-05 14:18:58.783751",
+ "modified": "2021-08-31 21:56:45.147780",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Quotation Item",

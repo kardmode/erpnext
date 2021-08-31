@@ -98,7 +98,7 @@ def get_data(filters,doc_names,company = None):
 		bom = item.get('bom') or item.get('bom_no') or get_default_bom(item.item_code, project) or None
 		bomitems = []
 		
-
+		# bomitems fetches exploded items so returns stock uom
 		if filters.get("bom_only") in ["Without BOM","With BOM","Only BOM"]:
 			if (filters.get("bom_only") == "Only BOM" and bom) or (not filters.get("bom_only") == "Only BOM"):
 				row = [item.item_code,item_name, description, uom, item.qty, actual_qty]
@@ -114,7 +114,7 @@ def get_data(filters,doc_names,company = None):
 				data.append(row)
 				for b in bomitems:
 					actual_qty = get_actual_qty(b["item_code"])
-					row = [b["item_code"],b["item_name"], b["description"],b["uom"],b["qty"],actual_qty]
+					row = [b["item_code"],b["item_name"], b["description"],b["stock_uom"],b["qty"],actual_qty]
 					data.append(row)
 				row = ["------", "------", "","",""]
 				data.append(row)
@@ -122,7 +122,7 @@ def get_data(filters,doc_names,company = None):
 		elif filters.get("bom_only") == "Consolidate BOM":
 			for b in bomitems:
 				actual_qty = get_actual_qty(b['item_code'])
-				all_bom_items.append({'item_code':b['item_code'],'item_name':b['item_name'],'description':b['description'],'uom':b['uom'],'qty':b['qty'],'actual_qty':actual_qty})
+				all_bom_items.append({'item_code':b['item_code'],'item_name':b['item_name'],'description':b['description'],'uom':b['stock_uom'],'qty':b['qty'],'actual_qty':actual_qty})
 
 
 					

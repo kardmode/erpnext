@@ -5,7 +5,7 @@ frappe.query_reports["Quotation Report"] = {
 	"filters": [
 		{
 			"fieldname":"quotation",
-			"label": __("Quotation Name"),
+			"label": __("Quotation"),
 			"fieldtype": "Link",
 			"options": "Quotation",
 		},
