@@ -133,17 +133,6 @@
    "fieldtype": "Check",
    "label": "Hide Customer's Tax Id from Sales Transactions"
   }
-<<<<<<< HEAD
- ],
- "icon": "fa fa-cog",
- "idx": 1,
- "issingle": 1,
- "modified": "2019-12-30 15:20:10.964115",
- "modified_by": "Administrator",
- "module": "Selling",
- "name": "Selling Settings",
- "owner": "Administrator",
-=======
  ], 
  "has_web_view": 0, 
  "hide_heading": 0, 
@@ -161,7 +150,6 @@
  "module": "Selling", 
  "name": "Selling Settings", 
  "owner": "Administrator", 
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "permissions": [
   {
    "create": 1,
@@ -172,12 +160,6 @@
    "share": 1,
    "write": 1
   }
-<<<<<<< HEAD
- ],
- "sort_field": "modified",
- "sort_order": "DESC"
-}
-=======
  ], 
  "quick_entry": 0, 
  "read_only": 0, 
@@ -189,4 +171,3 @@
  "track_seen": 0, 
  "track_views": 0
 }
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c

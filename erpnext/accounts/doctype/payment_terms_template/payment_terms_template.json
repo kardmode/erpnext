@@ -1,22 +1,4 @@
 {
-<<<<<<< HEAD
- "add_company_abbr_to_name": 0, 
- "add_date_to_name": 1, 
- "add_posting_date_to_name": 0, 
- "allow_copy": 0, 
- "allow_guest_to_view": 0, 
- "allow_import": 1, 
- "allow_rename": 1, 
- "autoname": "field:template_name", 
- "beta": 0, 
- "creation": "2017-08-10 15:34:28.058054", 
- "custom": 0, 
- "docstatus": 0, 
- "doctype": "DocType", 
- "document_type": "Setup", 
- "editable_grid": 1, 
- "engine": "InnoDB", 
-=======
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
@@ -30,7 +12,6 @@
   "allocate_payment_based_on_payment_terms",
   "terms"
  ],
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "fields": [
   {
    "fieldname": "template_name",
@@ -52,25 +33,6 @@
    "fieldtype": "Check",
    "label": "Allocate Payment Based On Payment Terms"
   }
-<<<<<<< HEAD
- ], 
- "has_web_view": 0, 
- "hide_heading": 0, 
- "hide_toolbar": 0, 
- "idx": 0, 
- "image_view": 0, 
- "in_create": 0, 
- "is_submittable": 0, 
- "issingle": 0, 
- "istable": 0, 
- "max_attachments": 0, 
- "modified": "2019-01-27 20:48:23.148338", 
- "modified_by": "Administrator", 
- "module": "Accounts", 
- "name": "Payment Terms Template", 
- "name_case": "", 
- "owner": "Administrator", 
-=======
  ],
  "links": [],
  "modified": "2020-04-01 15:35:18.112619",
@@ -78,7 +40,6 @@
  "module": "Accounts",
  "name": "Payment Terms Template",
  "owner": "Administrator",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "permissions": [
   {
    "create": 1,

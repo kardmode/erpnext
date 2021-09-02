@@ -1,26 +1,15 @@
 {
-<<<<<<< HEAD
-=======
  "actions": [],
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "allow_copy": 1,
  "creation": "2019-02-01 12:24:34.761380",
  "description": "Import Chart of Accounts from a csv file",
  "doctype": "DocType",
-<<<<<<< HEAD
  "document_type": "Tools",
-=======
- "document_type": "Other",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "company",
-<<<<<<< HEAD
-  "import_file_section",
-=======
   "download_template",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   "import_file",
   "chart_preview",
   "chart_tree"
@@ -34,14 +23,7 @@
    "options": "Company"
   },
   {
-<<<<<<< HEAD
-   "fieldname": "import_file_section",
-   "fieldtype": "Section Break"
-  },
-  {
-=======
    "depends_on": "company",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
    "fieldname": "import_file",
    "fieldtype": "Attach",
    "label": "Attach custom Chart of Accounts file"
@@ -56,26 +38,19 @@
    "fieldname": "chart_tree",
    "fieldtype": "HTML",
    "label": "Chart Tree"
-<<<<<<< HEAD
-=======
   },
   {
    "depends_on": "company",
    "fieldname": "download_template",
    "fieldtype": "Button",
    "label": "Download Template"
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   }
  ],
  "hide_toolbar": 1,
  "in_create": 1,
  "issingle": 1,
-<<<<<<< HEAD
- "modified": "2019-12-25 19:32:33.868192",
-=======
  "links": [],
  "modified": "2020-02-28 08:49:11.422846",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Chart of Accounts Importer",
@@ -91,9 +66,6 @@
  ],
  "quick_entry": 1,
  "read_only": 1,
-<<<<<<< HEAD
-=======
  "sort_field": "modified",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "sort_order": "DESC"
 }

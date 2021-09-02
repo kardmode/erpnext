@@ -2,11 +2,7 @@
  "creation": "2013-06-19 15:57:32",
  "description": "Default settings for Shopping Cart",
  "doctype": "DocType",
-<<<<<<< HEAD
  "document_type": "Setup",
-=======
- "document_type": "System",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "engine": "InnoDB",
  "field_order": [
   "enabled",
@@ -14,11 +10,7 @@
   "show_attachments",
   "show_price",
   "show_stock_availability",
-<<<<<<< HEAD
-  "show_configure_button",
-=======
   "enable_variants",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   "show_contact_us_button",
   "show_quantity_in_website",
   "show_apply_coupon_code_in_website",
@@ -68,15 +60,6 @@
   },
   {
    "default": "0",
-<<<<<<< HEAD
-   "fieldname": "show_configure_button",
-   "fieldtype": "Check",
-   "label": "Show Configure Button"
-  },
-  {
-   "default": "0",
-=======
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
    "fieldname": "show_contact_us_button",
    "fieldtype": "Check",
    "label": "Show Contact Us Button"
@@ -111,12 +94,7 @@
    "in_list_view": 1,
    "label": "Company",
    "options": "Company",
-<<<<<<< HEAD
-   "remember_last_selected_value": 1,
-   "reqd": 1
-=======
    "remember_last_selected_value": 1
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   },
   {
    "description": "Prices will not be shown if Price List is not set",
@@ -134,22 +112,12 @@
    "fieldtype": "Link",
    "ignore_user_permissions": 1,
    "label": "Default Customer Group",
-<<<<<<< HEAD
-   "options": "Customer Group",
-   "reqd": 1
-=======
    "options": "Customer Group"
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   },
   {
    "fieldname": "quotation_series",
    "fieldtype": "Select",
-<<<<<<< HEAD
-   "label": "Quotation Series",
-   "reqd": 1
-=======
    "label": "Quotation Series"
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   },
   {
    "collapsible": 1,
@@ -182,25 +150,18 @@
    "fieldtype": "Link",
    "label": "Payment Gateway Account",
    "options": "Payment Gateway Account"
-<<<<<<< HEAD
-=======
   },
   {
    "default": "0",
    "fieldname": "enable_variants",
    "fieldtype": "Check",
    "label": "Enable Variants"
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   }
  ],
  "icon": "fa fa-shopping-cart",
  "idx": 1,
  "issingle": 1,
-<<<<<<< HEAD
- "modified": "2019-11-18 21:29:13.321279",
-=======
  "modified": "2021-03-02 18:05:56.721122",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Shopping Cart",
  "name": "Shopping Cart Settings",
@@ -217,10 +178,6 @@
   }
  ],
  "sort_field": "modified",
-<<<<<<< HEAD
- "sort_order": "ASC"
-=======
  "sort_order": "ASC",
  "track_changes": 1
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 }

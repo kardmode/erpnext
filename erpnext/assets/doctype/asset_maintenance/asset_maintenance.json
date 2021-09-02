@@ -1,33 +1,17 @@
 {
-<<<<<<< HEAD
- "autoname": "field:asset_name",
- "creation": "2017-10-19 16:50:22.879545",
- "doctype": "DocType",
- "document_type": "Document",
-=======
  "actions": [],
  "autoname": "field:asset_name",
  "creation": "2017-10-19 16:50:22.879545",
  "doctype": "DocType",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "asset_name",
   "asset_category",
-<<<<<<< HEAD
-  "item_code",
-  "item_name",
-  "column_break_3",
-  "company",
-  "select_serial_no",
-  "serial_no",
-=======
   "company",
   "column_break_3",
   "item_code",
   "item_name",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
   "section_break_6",
   "maintenance_team",
   "column_break_9",
@@ -76,20 +60,6 @@
    "reqd": 1
   },
   {
-<<<<<<< HEAD
-   "fieldname": "select_serial_no",
-   "fieldtype": "Link",
-   "label": "Select Serial No",
-   "options": "Serial No"
-  },
-  {
-   "fieldname": "serial_no",
-   "fieldtype": "Small Text",
-   "label": "Serial No"
-  },
-  {
-=======
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
    "fieldname": "section_break_6",
    "fieldtype": "Section Break"
   },
@@ -132,12 +102,8 @@
    "reqd": 1
   }
  ],
-<<<<<<< HEAD
- "modified": "2020-04-09 04:14:04.097512",
-=======
  "links": [],
  "modified": "2020-05-28 20:28:32.993823",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Assets",
  "name": "Asset Maintenance",

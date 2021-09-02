@@ -173,12 +173,8 @@
  ],
  "icon": "fa fa-ok",
  "idx": 1,
-<<<<<<< HEAD
- "modified": "2020-04-23 05:19:30.195592",
-=======
  "is_submittable": 1,
  "modified": "2021-06-30 14:42:39.162146",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Attendance",

@@ -1235,12 +1235,8 @@
  "icon": "fa fa-truck",
  "idx": 146,
  "is_submittable": 1,
-<<<<<<< HEAD
- "modified": "2020-05-01 06:57:56.601615",
-=======
  "links": [],
  "modified": "2020-05-19 17:03:45.880106",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Delivery Note",

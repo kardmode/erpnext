@@ -1,11 +1,7 @@
 {
  "creation": "2015-05-18 05:21:07.270859",
  "doctype": "DocType",
-<<<<<<< HEAD
  "document_type": "Setup",
-=======
- "document_type": "System",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "engine": "InnoDB",
  "field_order": [
   "status_html",
@@ -263,11 +259,7 @@
   }
  ],
  "issingle": 1,
-<<<<<<< HEAD
- "modified": "2019-11-18 21:35:47.727753",
-=======
  "modified": "2021-03-02 18:06:00.868688",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "Shopify Settings",

@@ -5,13 +5,8 @@ from __future__ import unicode_literals
 import frappe, erpnext
 import frappe.defaults
 from frappe import _
-<<<<<<< HEAD
-from frappe.utils import cstr, cint, flt, comma_or, getdate, nowdate, formatdate, format_time
-from erpnext.stock.utils import get_incoming_rate,get_default_warehouse
-=======
 from frappe.utils import cstr, cint, flt, comma_or, getdate, nowdate, formatdate, format_time, get_link_to_form
-from erpnext.stock.utils import get_incoming_rate
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
+from erpnext.stock.utils import get_incoming_rate,get_default_warehouse
 from erpnext.stock.stock_ledger import get_previous_sle, NegativeStockError, get_valuation_rate
 from erpnext.stock.get_item_details import get_bin_details, get_default_cost_center, get_conversion_factor, get_reserved_qty_for_so
 from erpnext.setup.doctype.item_group.item_group import get_item_group_defaults
@@ -229,13 +224,8 @@ class StockEntry(StockController):
 						item.set(f, item_details.get(f))
 
 			if not item.transfer_qty and item.qty:
-<<<<<<< HEAD
-				item.transfer_qty = ( flt(item.qty, item.precision("qty"))
-					* flt(item.conversion_factor, item.precision("conversion_factor")) )
-=======
 				item.transfer_qty = flt(flt(item.qty) * flt(item.conversion_factor),
 				self.precision("transfer_qty", item))
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 
 			if (self.purpose in ("Material Transfer", "Material Transfer for Manufacture")
 				and not item.serial_no
@@ -530,14 +520,10 @@ class StockEntry(StockController):
 					if raw_material_cost and self.purpose == "Manufacture":
 						d.basic_rate = flt((raw_material_cost - scrap_material_cost) / flt(d.transfer_qty), d.precision("basic_rate"))
 						d.basic_amount = flt((raw_material_cost - scrap_material_cost), d.precision("basic_amount"))
-<<<<<<< HEAD
-	
-=======
 					elif self.purpose == "Repack" and total_fg_qty:
 						d.basic_rate = flt(raw_material_cost) / flt(total_fg_qty)
 						d.basic_amount = d.basic_rate * flt(d.qty)
 
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 	def distribute_additional_costs(self):
 		if self.purpose == "Material Issue":
 			self.additional_costs = []
@@ -891,10 +877,7 @@ class StockEntry(StockController):
 			ret.get('has_batch_no') and not args.get('batch_no')):
 			args.batch_no = get_batch_no(args['item_code'], args['s_warehouse'], args['qty'])
 
-<<<<<<< HEAD
-		
-		
-=======
+
 		if self.purpose == "Send to Subcontractor" and self.get("purchase_order") and args.get('item_code'):
 			subcontract_items = frappe.get_all("Purchase Order Item Supplied",
 				{"parent": self.purchase_order, "rm_item_code": args.get('item_code')}, "main_item_code")
@@ -902,7 +885,6 @@ class StockEntry(StockController):
 			if subcontract_items and len(subcontract_items) == 1:
 				ret["subcontracted_item"] = subcontract_items[0].main_item_code
 
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 		return ret
 
 	def set_items_for_stock_in(self):
@@ -1302,12 +1284,8 @@ class StockEntry(StockController):
 		return item_dict
 
 	def add_to_stock_entry_detail(self, item_dict, bom_no=None):
-<<<<<<< HEAD
 		cost_center = frappe.db.get_value("Company", self.company, 'cost_center')
 
-
-=======
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 		for d in item_dict:
 			stock_uom = item_dict[d].get("stock_uom") or frappe.db.get_value("Item", d, "stock_uom")
 
@@ -1318,14 +1296,11 @@ class StockEntry(StockController):
 			se_child.uom = item_dict[d]["uom"] if item_dict[d].get("uom") else stock_uom
 			se_child.stock_uom = stock_uom
 			se_child.qty = flt(item_dict[d]["qty"], se_child.precision("qty"))
-<<<<<<< HEAD
 			se_child.cost_center = item_dict[d].get("cost_center") or cost_center
 			
 			if item_dict[d].get("basic_rate"):				
 				se_child.basic_rate = item_dict[d].get("basic_rate")
 								
-=======
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
 			se_child.allow_alternative_item = item_dict[d].get("allow_alternative_item", 0)
 			se_child.subcontracted_item = item_dict[d].get("main_item_code")
 			se_child.cost_center = (item_dict[d].get("cost_center") or

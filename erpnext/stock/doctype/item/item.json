@@ -1064,15 +1064,10 @@
  "icon": "fa fa-tag",
  "idx": 2,
  "image_field": "image",
-<<<<<<< HEAD
- "max_attachments": 1,
- "modified": "2020-08-17 19:50:41.950573",
-=======
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 1,
  "modified": "2021-03-18 11:24:58.384992",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Item",

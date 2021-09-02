@@ -1,15 +1,4 @@
 {
-<<<<<<< HEAD
- "autoname": "field:source_name",
- "creation": "2016-09-16 01:47:47.382372",
- "doctype": "DocType",
- "document_type": "Setup",
- "editable_grid": 1,
- "field_order": [
-  "source_name",
-  "details"
- ],
-=======
  "allow_copy": 0, 
  "allow_import": 0, 
  "allow_rename": 1, 
@@ -21,7 +10,6 @@
  "doctype": "DocType", 
  "document_type": "", 
  "editable_grid": 1, 
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "fields": [
   {
    "fieldname": "source_name",
@@ -36,14 +24,6 @@
    "fieldtype": "Text Editor",
    "label": "Details"
   }
-<<<<<<< HEAD
- ],
- "modified": "2019-12-30 15:21:02.915194",
- "modified_by": "Administrator",
- "module": "Selling",
- "name": "Lead Source",
- "owner": "Administrator",
-=======
  ], 
  "hide_heading": 0, 
  "hide_toolbar": 0, 
@@ -61,7 +41,6 @@
  "name": "Lead Source", 
  "name_case": "", 
  "owner": "Administrator", 
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "permissions": [
   {
    "create": 1,
@@ -86,13 +65,6 @@
    "share": 1,
    "write": 1
   }
-<<<<<<< HEAD
- ],
- "quick_entry": 1,
- "sort_field": "modified",
- "sort_order": "DESC"
-}
-=======
  ], 
  "quick_entry": 1, 
  "read_only": 0, 
@@ -101,4 +73,3 @@
  "sort_order": "DESC", 
  "track_seen": 0
 }
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c

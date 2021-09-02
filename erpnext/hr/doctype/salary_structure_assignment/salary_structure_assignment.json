@@ -124,12 +124,8 @@
   }
  ],
  "is_submittable": 1,
-<<<<<<< HEAD
- "modified": "2021-07-31 22:31:13.039535",
-=======
  "links": [],
  "modified": "2020-04-25 18:24:23.617088",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Salary Structure Assignment",

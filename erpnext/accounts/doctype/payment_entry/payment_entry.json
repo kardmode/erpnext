@@ -577,11 +577,7 @@
   }
  ],
  "is_submittable": 1,
-<<<<<<< HEAD
- "modified": "2019-12-25 19:29:59.509318",
-=======
  "modified": "2021-03-10 13:05:16.958866",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Entry",

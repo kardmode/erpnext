@@ -505,12 +505,8 @@
  "idx": 1,
  "image_field": "image",
  "is_submittable": 1,
-<<<<<<< HEAD
- "modified": "2020-10-13 21:02:10.730603",
-=======
  "links": [],
  "modified": "2020-05-05 14:29:32.634952",
->>>>>>> 73666982c7d9cbec4e9706aeb8ab41dc8ad7040c
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",
