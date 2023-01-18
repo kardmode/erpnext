@@ -145,7 +145,7 @@ def get_bom_stock(filters):
 				, as_dict=1)
 			
 def get_manufacturer_records():
-	details = frappe.get_list('Item Manufacturer', fields = ["manufacturer", "manufacturer_part_no", "parent"])
+	details = frappe.get_all('Item Manufacturer', fields = ["manufacturer", "manufacturer_part_no", "parent"])
 	manufacture_details = frappe._dict()
 	for detail in details:
 		dic = manufacture_details.setdefault(detail.get('parent'), {})

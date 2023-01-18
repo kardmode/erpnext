@@ -36,6 +36,7 @@ def validate_eligibility(doc):
 		return False
 
 	invalid_company = not frappe.db.get_value('E Invoice User', { 'company': doc.get('company') })
+	invalid_company_gstin = not frappe.db.get_value('E Invoice User', {'gstin': doc.get('company_gstin')})
 	invalid_supply_type = doc.get('gst_category') not in ['Registered Regular', 'SEZ', 'Overseas', 'Deemed Export']
 	company_transaction = doc.get('billing_address_gstin') == doc.get('company_gstin')
 
@@ -44,7 +45,7 @@ def validate_eligibility(doc):
 	no_taxes_applied = not doc.get('taxes') and not doc.get('gst_category') == 'Overseas'
 	has_non_gst_item = any(d for d in doc.get('items', []) if d.get('is_non_gst'))
 
-	if invalid_company or invalid_supply_type or company_transaction or no_taxes_applied or has_non_gst_item:
+	if invalid_company or invalid_company_gstin or invalid_supply_type or company_transaction or no_taxes_applied or has_non_gst_item:
 		return False
 
 	return True
@@ -200,8 +201,6 @@ def get_item_list(invoice):
 		item.taxable_value = abs(item.taxable_value)
 		item.discount_amount = 0
 
-		item.batch_expiry_date = frappe.db.get_value('Batch', d.batch_no, 'expiry_date') if d.batch_no else None
-		item.batch_expiry_date = format_date(item.batch_expiry_date, 'dd/mm/yyyy') if item.batch_expiry_date else None
 		item.is_service_item = 'Y' if item.gst_hsn_code and item.gst_hsn_code[:2] == "99" else 'N'
 		item.serial_no = ""
 
@@ -308,7 +307,7 @@ def update_other_charges(tax_row, invoice_value_details, gst_accounts_list, invo
 
 def get_payment_details(invoice):
 	payee_name = invoice.company
-	mode_of_payment = ', '.join([d.mode_of_payment for d in invoice.payments])
+	mode_of_payment = ""
 	paid_amount = invoice.base_paid_amount
 	outstanding_amount = invoice.outstanding_amount
 
@@ -459,10 +458,16 @@ def make_einvoice(invoice):
 	try:
 		einvoice = safe_json_load(einvoice)
 		einvoice = santize_einvoice_fields(einvoice)
+	except json.JSONDecodeError:
+		raise
 	except Exception:
 		show_link_to_error_log(invoice, einvoice)
 
-	validate_totals(einvoice)
+	try:
+		validate_totals(einvoice)
+	except Exception:
+		log_error(einvoice)
+		raise
 
 	return einvoice
 
@@ -534,7 +539,14 @@ def safe_json_load(json_string):
 		pos = e.pos
 		start, end = max(0, pos-20), min(len(json_string)-1, pos+20)
 		snippet = json_string[start:end]
-		frappe.throw(_("Error in input data. Please check for any special characters near following input: <br> {}").format(snippet))
+		frappe.throw(
+			_(
+				"Error in input data. Please check for any special characters near following input: <br> {}"
+			).format(snippet),
+			title=_("Invalid JSON"),
+			exc=e,
+		)
+
 
 def throw_error_list(errors, title):
 	if len(errors) > 1:
@@ -611,10 +623,17 @@ class GSPConnector():
 		request_log.save(ignore_permissions=True)
 		frappe.db.commit()
 
+	def get_client_credentials(self):
+		if self.e_invoice_settings.client_id and self.e_invoice_settings.client_secret:
+			return self.e_invoice_settings.client_id, self.e_invoice_settings.get_password('client_secret')
+
+		return frappe.conf.einvoice_client_id, frappe.conf.einvoice_client_secret
+
 	def fetch_auth_token(self):
+		client_id, client_secret = self.get_client_credentials()
 		headers = {
-			'gspappid': frappe.conf.einvoice_client_id,
-			'gspappsecret': frappe.conf.einvoice_client_secret
+			'gspappid': client_id,
+			'gspappsecret': client_secret
 		}
 		res = {}
 		try:
@@ -757,12 +776,13 @@ class GSPConnector():
 
 		headers = self.get_headers()
 		eway_bill_details = get_eway_bill_details(args)
+
 		data = json.dumps({
 			'Irn': args.irn,
 			'Distance': cint(eway_bill_details.distance),
 			'TransMode': eway_bill_details.mode_of_transport,
 			'TransId': eway_bill_details.gstin,
-			'TransName': eway_bill_details.transporter,
+			'TransName': eway_bill_details.name,
 			'TrnDocDt': eway_bill_details.document_date,
 			'TrnDocNo': eway_bill_details.document_name,
 			'VehNo': eway_bill_details.vehicle_no,
@@ -854,7 +874,7 @@ class GSPConnector():
 		if errors:
 			throw_error_list(errors, title)
 		else:
-			link_to_error_list = '<a href="desk#List/Error Log/List?method=E Invoice Request Failed">Error Log</a>'
+			link_to_error_list = '<a href="desk#List/Error Log/List?method=E Invoice Request Failed" target="_blank">Error Log</a>'
 			frappe.msgprint(
 				_('An error occurred while making e-invoicing request. Please check {} for more information.').format(link_to_error_list),
 				title=title,

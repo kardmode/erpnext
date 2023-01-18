@@ -78,7 +78,11 @@ frappe.ui.form.on('Stock Entry', {
 					}
 				}
 
-				filters["warehouse"] = item.s_warehouse || item.t_warehouse;
+				// User could want to select a manually created empty batch (no warehouse)
+				// or a pre-existing batch
+				if (frm.doc.purpose != "Material Receipt") {
+					filters["warehouse"] = item.s_warehouse || item.t_warehouse;
+				}
 
 				return {
 					query : "erpnext.controllers.queries.get_batch_no",
@@ -281,6 +285,12 @@ frappe.ui.form.on('Stock Entry', {
 		}
 
 		frm.trigger("setup_quality_inspection");
+	},
+
+	before_save: function(frm) {
+		frm.doc.items.forEach((item) => {
+			item.uom = item.uom || item.stock_uom;
+		})
 	},
 
 	purpose: function(frm) {
