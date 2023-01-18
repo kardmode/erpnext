@@ -134,8 +134,8 @@ class GLEntry(Document):
 			return cint(frappe.get_cached_value('Cost Center', self.cost_center, 'is_group'))
 
 		if self.cost_center and _get_cost_center_company() != self.company:
-			frappe.throw(_("{0} {1}: Cost Center {2} does not belong to Company {3}")
-				.format(self.voucher_type, self.voucher_no, self.cost_center, self.company))
+			frappe.throw(_("{0} {1}: Cost Center {2} does not belong to Company {3}. Related to {4}")
+				.format(self.voucher_type, self.voucher_no, self.cost_center, self.company, self.account))
 
 		if not self.flags.from_repost and not self.voucher_type == 'Period Closing Voucher' \
 			and self.cost_center and _check_is_group():

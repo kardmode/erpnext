@@ -466,7 +466,7 @@ class PurchaseReceipt(BuyingController):
 						""", (self.name), as_dict=True)
 			
 			if not doc_details:
-				frappe.msgprint(_("Import Entry for purchase receipt {0} does not exist.").format(self.name))
+				frappe.msgprint(_("Purchase receipt {0} has no Import Entry. Ignore if not applicable.").format(self.name))
 	
 	
 		self.set_status(update=True, status = status)

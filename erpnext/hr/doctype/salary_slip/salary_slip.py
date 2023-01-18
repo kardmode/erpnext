@@ -992,7 +992,7 @@ class SalarySlip(TransactionBase):
 						d.rate = flt(regulations.overtime_weekdays_rate)
 						d.default_amount = flt(self.overtime_hours_weekdays) * flt(d.rate) * flt(hourlyrate)
 						d.is_tax_applicable = 0
-					elif(d.salary_component == "Overtime Fridays"):
+					elif(d.salary_component == "Overtime Weekends"):
 						d.rate = flt(regulations.overtime_fridays_rate)
 						d.default_amount = flt(self.overtime_hours_fridays) * flt(d.rate) * flt(hourlyrate)
 						d.is_tax_applicable = 0
@@ -1005,7 +1005,7 @@ class SalarySlip(TransactionBase):
 				self.set_salary_component(component_type,'Loan Repayment',custom_get_loan_deductions(self.start_date,self.end_date,self.employee))	
 		
 		leave_encashment_amount,self.leave_calculation,self.encash_leave = calculate_leave_advance(salaryperday, self.employee, self.start_date, self.total_working_days, self.encash_leave)
-		
+		# frappe.errprint(_("leave {0}").format(leave_encashment_amount))
 		self.set_salary_component('earnings','Leave Encashment',leave_encashment_amount)		
 
 		
@@ -1069,7 +1069,7 @@ class SalarySlip(TransactionBase):
 			fiscal_year = getdate(self.start_date).year
 			
 			# header_html = '<div class=""><h2>ATTENDANCE SLIP - {0}. {1}</h2></div></div>'.format(month_in_words,fiscal_year)
-			table_header = '<table class="table table-bordered table-condensed"><thead><tr style><th style="width: 15%;line-height:1">{0}</th><th style="width: 12%;line-height:1">{1}</th><th style="width: 12%;line-height:1">{2}</th><th style="width: 15%;line-height:1">{3}</th><th style="width: 15%;line-height:1">{4}</th><th style="width: 15%;line-height:1">{5}</th><th style="width: 15%;line-height:1">{6}</th></tr></thead><tbody>'.format("Date","Arrival","Departure","Normal","OT Weekdays","OT Fridays","OT Holidays")
+			table_header = '<table class="table table-bordered table-condensed"><thead><tr style><th style="width: 15%;line-height:1">{0}</th><th style="width: 12%;line-height:1">{1}</th><th style="width: 12%;line-height:1">{2}</th><th style="width: 15%;line-height:1">{3}</th><th style="width: 15%;line-height:1">{4}</th><th style="width: 15%;line-height:1">{5}</th><th style="width: 15%;line-height:1">{6}</th></tr></thead><tbody>'.format("Date","Arrival","Departure","Normal","OT Weekdays","OT Weekends","OT Holidays")
 			table_body = ''
 			
 			total_absent = 0
@@ -1178,13 +1178,18 @@ def calculate_leave_advance(salaryperday, employee, start_date, total_working_da
 	if not joining_date:
 		frappe.throw(_("Please set the Joining Date for employee {0}").format(frappe.bold(employee)))
 
-	if relieving_date:
+	if encash_leave == 0:
 		return leaveadvance,leave_calculation,encash_leave
 
-	# if encash_leave == 0:
-		# return leaveadvance,leave_calculation,encash_leave
-
 	dt = add_days(start_date, total_working_days+2)
+	maxleavecheckdt = add_days(start_date, total_working_days+30)
+	if relieving_date:
+		if relieving_date <= getdate(dt):
+			return leaveadvance,leave_calculation,encash_leave
+		# elif relieving_date <= getdate(maxleavecheckdt):
+		# else:
+			# frappe.throw(_("Employee relieved on {0} must be set as 'Left'")
+				# .format(relieving_date))
 	
 	leave = frappe.db.sql("""
 		select t1.from_date,t1.to_date,t1.leave_type,t2.is_paid_in_advance,t2.is_present_during_period

@@ -170,8 +170,6 @@ class Attendance(Document):
 			frappe.throw(_("Working time cannot be greater than 24. Please check arrival time {0} or departure time {1} for employee {2} on date {3}").format(self.arrival_time,self.departure_time,self.employee,self.attendance_date))
 
 		self.working_time = totalworkhours
-
-		weekday = get_datetime(self.attendance_date).weekday()
 		
 		if not self.department:
 			self.department = frappe.db.get_value("Employee", self.employee, "department")
@@ -183,6 +181,15 @@ class Attendance(Document):
 			self.normal_time = flt(working_hours[0][0])
 		else:
 			self.normal_time = flt(frappe.db.get_single_value("Regulations", "working_hours"))
+		
+		weekends = []
+		weekend_tb = frappe.get_list('MRP Day Selector',
+			['day'],
+			filters ={'parent':'Regulations', 'parentfield' : 'weekends'})
+		for d in weekend_tb:
+			weekends.append(d.day)
+		
+		weekday_name = get_datetime(self.attendance_date).strftime('%A')
 			
 		self.overtime = 0
 		self.overtime_fridays = 0
@@ -198,7 +205,7 @@ class Attendance(Document):
 			self.overtime_holidays = flt(totalworkhours) - flt(self.normal_time)
 			self.mrp_overtime = flt(totalworkhours) - flt(self.normal_time)
 			self.mrp_overtime_type = "Holidays"
-		elif weekday == 4:
+		elif weekday_name in weekends:
 			self.normal_time = 0
 			self.overtime_fridays = flt(totalworkhours) - flt(self.normal_time)
 			self.mrp_overtime = flt(totalworkhours) - flt(self.normal_time)

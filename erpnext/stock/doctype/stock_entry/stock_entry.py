@@ -109,6 +109,9 @@ class StockEntry(StockController):
 
 		if self.work_order and self.purpose == "Material Consumption for Manufacture":
 			self.validate_work_order_status()
+			
+		if self.custom_production_order and self.purpose == "Manufacture":
+			self.validate_custom_production_order_status()
 
 		self.update_work_order()
 		self.update_stock_ledger()
@@ -148,6 +151,11 @@ class StockEntry(StockController):
 		pro_doc = frappe.get_doc("Work Order", self.work_order)
 		if pro_doc.status == 'Completed':
 			frappe.throw(_("Cannot cancel transaction for Completed Work Order."))
+
+	def validate_custom_production_order_status(self):
+		pro_doc = frappe.get_doc("MRP Production Order", self.custom_production_order)
+		if pro_doc.docstatus == 1:
+			frappe.throw(_("Cannot cancel transaction for Completed Production Order."))
 
 	def validate_purpose(self):
 		valid_purposes = ["Material Issue", "Material Receipt", "Material Transfer",
@@ -674,11 +682,11 @@ class StockEntry(StockController):
 					format(d.idx,d.item_code))
 			elif self.purpose in ["Material Issue"]:
 				if d.t_warehouse:
-					frappe.throw(_("Row {0} ({1}) must not have a target warehouse for material issue"). \
+					frappe.throw(_("Row {0} ({1}) must not have a target warehouse for material discard"). \
 					format(d.idx,d.item_code))
 				
 				if not d.s_warehouse:
-					frappe.throw(_("Row {0} ({1}) must have a source warehouse for material issue"). \
+					frappe.throw(_("Row {0} ({1}) must have a source warehouse for material discard"). \
 					format(d.idx,d.item_code))
 			elif self.purpose in ["Material Receipt"]:
 				if d.s_warehouse:

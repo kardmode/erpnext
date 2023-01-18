@@ -10,7 +10,7 @@ from frappe.model.document import Document
 
 class MRPCustomsApproval(Document):
 	def validate(self):
-		op_list = frappe.get_list('Operating Cost Type', fields=["name", "default_percent"], ignore_permissions=True,order_by='sort_order')
+		op_list = frappe.get_list('Operating Cost Type', fields=["name", "default_percent"],filters={"default_cost": 1}, ignore_permissions=True,order_by='sort_order')
 		
 		self.summary = self.create_condensed_table(op_list)
 	
@@ -51,12 +51,15 @@ class MRPCustomsApproval(Document):
 				</tr></thead><tbody>"""	
 		
 		for i, d in enumerate(dict):
+			dutible = d.dutible or 0
+			non_dutible = d.non_dutible or 0
+			non_dutible = d.non_dutible or 0
 			joiningtext += """<tr>
 						<td>""" + str(i+1) + """</td>
 						<td>""" + str(d.item_name) + """</td>
 						<td>""" + str(1) +"""</td>
-						<td>""" + str(round(flt(d.dutible),2)) +"""</td>
-						<td>""" + str(round(flt(d.non_dutible),2)) + """</td>"""
+						<td>""" + str(round(flt(dutible),2)) +"""</td>
+						<td>""" + str(round(flt(non_dutible),2)) + """</td>"""
 			
 			mrp_operating_costs = []
 			if d.data:
@@ -67,7 +70,7 @@ class MRPCustomsApproval(Document):
 				value = 0.0
 				
 				if d.force_use_default_production_overhead:
-					value = flt(op.default_percent)/100 * (d.dutible+d.non_dutible)
+					value = flt(op.default_percent)/100 * (dutible+non_dutible)
 				else:
 					mrp_data = filter(lambda oc: oc['type'] == op.name, mrp_operating_costs)
 					if mrp_data and len(mrp_data)>0:
@@ -77,14 +80,14 @@ class MRPCustomsApproval(Document):
 				
 				joiningtext += """<td>""" + str(round(flt(value),2))+"""</td>"""
 			
-			ex_factory_price = d.ex_factory_price
-			customs_price = d.customs_price
-			
+			ex_factory_price = d.ex_factory_price or 0
+			customs_price = d.customs_price or 0
+			non_duty_percent = d.non_duty_percent or 0
 			if not d.force_use_default_production_overhead:
-				mfg_cost = ex_factory_price - d.dutible - d.non_dutible
+				mfg_cost = ex_factory_price - dutible - non_dutible
 			else:
-				ex_factory_price = mfg_cost + d.dutible + d.non_dutible
-				customs_price = (ex_factory_price * d.non_duty_percent/100)+d.dutible
+				ex_factory_price = mfg_cost + dutible + non_dutible
+				customs_price = (ex_factory_price * non_duty_percent/100)+dutible
 
 			joiningtext += """<td>""" + str(round(flt(mfg_cost or 0),2))+"""</td>
 						<td>""" + str(round(flt(ex_factory_price or 0),2))+"""</td>

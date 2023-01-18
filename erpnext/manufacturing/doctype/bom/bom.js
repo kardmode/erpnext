@@ -61,7 +61,7 @@ frappe.ui.form.on("BOM", {
 			};
 		});
 		
-		frm.set_query("bom_no", "bomitems", function(doc, cdt, cdn) {
+		frm.set_query("bom", "bomitems", function(doc, cdt, cdn) {
 			var d = locals[cdt][cdn];
 			return {
 				filters: [
@@ -77,8 +77,15 @@ frappe.ui.form.on("BOM", {
 
 	onload_post_render: function(frm) {
 		frm.get_field("items").grid.set_multiple_add("item_code", "qty");
-	},
+		
+		/* setTimeout(function(){
+				
+						frm.trigger("refresh_builder_editable");
 
+
+			}, 1000); */
+	},
+	
 	refresh: function(frm) {
 		// frm.toggle_enable("item", frm.doc.__islocal);
 		toggle_operations(frm);
@@ -103,24 +110,30 @@ frappe.ui.form.on("BOM", {
 				frappe.set_route("Tree", "BOM");
 			});
 			
+			
+			
+			
+			
+			
+			
 			// frm.add_custom_button(__("Make"), function() {
 				// frm.trigger("show_manufacture_dialog");
 			// });
 		}
+		/* if(frm.doc.docstatus!=0) {
 
-		// if(frm.doc.docstatus!=0) {
-			// frm.add_custom_button(__("Work Order"), function() {
-				// frm.trigger("make_work_order");
-			// }, __("Create"));
+			frm.add_custom_button(__("Work Order"), function() {
+				frm.trigger("make_work_order");
+			}, __("Create"));
 
-			// if (frm.doc.inspection_required) {
-				// frm.add_custom_button(__("Quality Inspection"), function() {
-					// frm.trigger("make_quality_inspection");
-				// }, __("Create"));
-			// }
+			if (frm.doc.inspection_required) {
+				frm.add_custom_button(__("Quality Inspection"), function() {
+					frm.trigger("make_quality_inspection");
+				}, __("Create"));
+			}
 
-			// frm.page.set_inner_btn_group_as_primary(__('Create'));
-		// }
+			frm.page.set_inner_btn_group_as_primary(__('Create'));
+		} */
 
 		if(frm.doc.items && frm.doc.allow_alternative_item) {
 			const has_alternative = frm.doc.items.find(i => i.allow_alternative_item === 1);
@@ -289,43 +302,27 @@ frappe.ui.form.on("BOM", {
 				"heightunit":r.message["heightunit"]})
 				
 				var bomitems = frm.doc.bomitems || [];
-				
-				for(var i=0;i<bomitems.length;i++) {
-					var row = bomitems[i];
-					calculate_builder_dimensions(row,false);
-				}
-				/* setTimeout(function(){
-					cur_frm.trigger("build_bom");
-					
+				refresh_builder_editable_row(bomitems,true,true)
 
-				}, 1000); */
 	
 			}
 		});
-	},
+	},	
 	
 	refresh_part_dimensions: function(frm) {
-		if (frm.doc.docstatus > 0)
-			return;
 		var bomitems = frm.doc.bomitems || [];
-	
-		for(var i=0;i<bomitems.length;i++) {
-			var row = bomitems[i];
-			calculate_builder_dimensions(row,false);
-		}
-		/* setTimeout(function(){
-			cur_frm.trigger("build_bom");
-			
+		refresh_builder_editable_row(bomitems,false,true)
 
-		}, 1000); */
 	},
 	build_bom: function(frm) {
 		
 		if (frm.doc.docstatus > 0) {
 			return;
 		}
+		
+		var bomitems = frm.doc.bomitems || [];
 
-		if(frm.doc.bomitems.length == 0)
+		if(bomitems.length == 0)
 		{
 			cur_frm.dirty();
 			return;
@@ -863,15 +860,14 @@ cur_frm.fields_dict['bomitems'].grid.get_field('item_code').get_query = function
 }
 
 frappe.ui.form.on('BOM Builder Item', {
-	
 	bomitems_add:function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
-		calculate_builder_dimensions(d,false);
 	},
 	
 	bomitems_remove:function(frm, cdt, cdn) {
 		frappe.msgprint(__("Build BOM Required"));
 		cur_frm.dirty();
+		// Slows down with multiple removes
 		// cur_frm.trigger("build_bom");
 	},
 	
@@ -891,7 +887,6 @@ frappe.ui.form.on('BOM Builder Item', {
 		var d = locals[cdt][cdn];
 		if(d.bb_item){
 			cur_frm.trigger("build_bom");
-		
 		}
 	},
 	
@@ -954,16 +949,99 @@ frappe.ui.form.on('BOM Builder Item', {
 		
 		}
 	},
-	bom_no: function(frm, cdt, cdn) {
+	bom: function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
 		if(d.bb_item){
 			cur_frm.trigger("build_bom");
 		
 		}
 	},
-	
-	
 });
+
+var refresh_builder_editable_row = function(rows,build=false,update_dimensions=false) {
+	
+	var depthOriginal = frappe.mrp.convert_units(cur_frm.doc.depthunit,cur_frm.doc.depth);
+	var widthOriginal = frappe.mrp.convert_units(cur_frm.doc.widthunit,cur_frm.doc.width);
+	var heightOriginal = frappe.mrp.convert_units(cur_frm.doc.heightunit,cur_frm.doc.height);
+	frappe.call({
+		method:'erpnext.manufacturing.doctype.bom.bom.get_all_part_details',
+		args:{
+			args: rows,
+		},
+		callback:function (r) {
+			for (let index = 0; index < r.message.length; ++index) {
+				const d = r.message[index];
+				if(!d.name)
+					continue;
+				var row_name = d.name;
+				var length = d.length;
+				var width = d.width;
+				var height = d.height;		
+				var side = d.side;
+				var plane = d.plane;
+				var requom = d.requom;
+
+				var allow_col1 = Boolean(Number(d.allow_col1)) ;
+				var allow_col2 = Boolean(Number(d.allow_col2)) ;
+				var allow_col3 = Boolean(Number(d.allow_col3)) ;
+				var allow_edit = false;
+				
+				if(plane == "top"){
+					allow_edit = false;
+					length = depthOriginal;
+					width = widthOriginal;
+					height = heightOriginal;
+				}
+				else if(plane == "front"){
+					allow_edit = false;
+					length = heightOriginal;
+					width = widthOriginal;
+					height = depthOriginal;
+				}
+				else if(plane == "side"){
+					allow_edit = false;
+					length = depthOriginal;
+					width = heightOriginal;
+					height = widthOriginal;
+				}
+				else{
+					allow_edit = true;
+					length = d.length;
+					width = d.width;
+					height = d.height;
+				}
+				
+				var grid_row = cur_frm.get_field('bomitems').grid.get_row(row_name);
+				if(grid_row)
+				{
+					if(allow_edit)
+					{	
+						grid_row.toggle_editable("length", allow_col1);
+						grid_row.toggle_editable("width", allow_col2);
+						grid_row.toggle_editable("bb_item", allow_col3);
+					}
+					else
+					{
+						// grid_row.toggle_editable("length", false);
+						// grid_row.toggle_editable("width", false);
+						// grid_row.toggle_editable("height", false);
+					}
+				
+				}
+				
+				if(update_dimensions){
+					frappe.model.set_value(d.doctype, d.name, "length", length);
+					frappe.model.set_value(d.doctype, d.name, "height", height);
+					frappe.model.set_value(d.doctype, d.name, "width", width);
+					frappe.model.set_value(d.doctype, d.name, "requom", requom);
+				}	
+			}
+			if(build){
+				cur_frm.trigger("build_bom");
+			}	
+		}
+	})
+}
 
 var calculate_builder_dimensions = function(d, build=false) {
 	if(!d.bb_item)
@@ -971,20 +1049,18 @@ var calculate_builder_dimensions = function(d, build=false) {
 	
 	if(!d.side) 
 		return;
-		// frappe.throw(__("Part for item {0}"),d.bb_item);
 
-	
-	
 	var side = d.side;
 	var length = 0;
 	var width = 0;
 	var height = 0;
 	var requom = d.requom;
+	var row_name = d.name;
 	
 	var depthOriginal = frappe.mrp.convert_units(cur_frm.doc.depthunit,cur_frm.doc.depth);
 	var widthOriginal = frappe.mrp.convert_units(cur_frm.doc.widthunit,cur_frm.doc.width);
 	var heightOriginal = frappe.mrp.convert_units(cur_frm.doc.heightunit,cur_frm.doc.height);
-	
+
 	frappe.call({
 		method:'erpnext.manufacturing.doctype.bom.bom.get_part_details',
 		args:{
@@ -993,40 +1069,61 @@ var calculate_builder_dimensions = function(d, build=false) {
 		},
 		callback:function (r) {
 			var plane = r.message[0];
-			var toggle_row = false;
-			requom = r.message[1];
+			var requom = r.message[1];
+			
+			
+			var allow_col1 = Boolean(Number(r.message[2])) ;
+			var allow_col2 = Boolean(Number(r.message[3])) ;
+			var allow_col3 = Boolean(Number(r.message[4])) ;
+			
+			var allow_edit = false;
 			
 			if(plane == "top"){
-				toggle_row = false;
+				allow_edit = false;
 				length = depthOriginal;
 				width = widthOriginal;
 				height = heightOriginal;
 			}
 			else if(plane == "front"){
-				toggle_row = false;
+				allow_edit = false;
 				length = heightOriginal;
 				width = widthOriginal;
 				height = depthOriginal;
 			}
 			else if(plane == "side"){
-				toggle_row = false;
+				allow_edit = false;
 				length = depthOriginal;
 				width = heightOriginal;
 				height = widthOriginal;
 			}
 			else{
-				toggle_row = true;
+				allow_edit = true;
 				length = d.length;
 				width = d.width;
 				height = d.height;
 			}
 			
-			var grid_row = cur_frm.get_field('bomitems').grid.get_row(d.name);
+			/* if(cur_frm.get_field('items').grid.fields_map.conversion_factor) {
+			cur_frm.fields_dict.items.grid.toggle_enable("conversion_factor",
+				((item.uom != item.stock_uom) && !frappe.meta.get_docfield(cur_frm.fields_dict.items.grid.doctype, "conversion_factor").read_only)? true: false);
+			} */
 			
-			grid_row.toggle_editable("length", toggle_row);
-			grid_row.toggle_editable("width", toggle_row);
-			grid_row.toggle_editable("height", toggle_row);
-				
+			var grid_row = cur_frm.get_field('bomitems').grid.get_row(row_name);
+			if(grid_row)
+			{
+				if(allow_edit)
+				{
+					grid_row.toggle_editable("length", allow_col1);
+					grid_row.toggle_editable("width", allow_col2);
+					grid_row.toggle_editable("height", allow_col3);
+				}
+				else
+				{
+					// grid_row.toggle_editable("length", false);
+					// grid_row.toggle_editable("width", false);
+					// grid_row.toggle_editable("height", false);
+				}
+			}
 			
 			frappe.model.set_value(d.doctype, d.name, "length", length);
 			frappe.model.set_value(d.doctype, d.name, "height", height);
@@ -1038,9 +1135,7 @@ var calculate_builder_dimensions = function(d, build=false) {
 			if(d.bb_item){
 				if(build){
 					cur_frm.trigger("build_bom");
-				}
-					
-			
+				}	
 			}
 				
 

@@ -8,7 +8,8 @@ def get_data():
 			'Item': 'default_bom',
 			'Purchase Order': 'bom',
 			'Purchase Receipt': 'bom',
-			'Purchase Invoice': 'bom'
+			'Purchase Invoice': 'bom',
+			'MRP Production Order':'bom'
 		},
 		'transactions': [
 			{
@@ -17,7 +18,7 @@ def get_data():
 			},
 			{
 				'label': _('Manufacture'),
-				'items': ['BOM', 'Work Order', 'Job Card']
+				'items': ['BOM','Work Order', 'Job Card','MRP Production Order']
 			},
 			{
 				'label': _('Subcontract'),

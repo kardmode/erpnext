@@ -8,6 +8,7 @@ from frappe import _
 from frappe.model import no_value_fields
 from frappe.model.document import Document
 from frappe.utils import cint, flt
+from erpnext.stock.get_item_details import get_conversion_factor
 
 
 class PackingSlip(Document):
@@ -201,3 +202,12 @@ def item_details(doctype, txt, searchfield, start, page_len, filters):
 	 			limit  %s, %s """ % ("%s", searchfield, "%s",
 	 			get_match_cond(doctype), "%s", "%s"),
 	 			((filters or {}).get("delivery_note"), "%%%s%%" % txt, start, page_len))
+				
+@frappe.whitelist()
+def get_item_details(item_code, uom=None):
+	details = frappe.db.get_value('Item', item_code, ['stock_uom', 'name','item_name','description','weight_per_unit','weight_uom','customs_tariff_number'], as_dict=1)
+	details.uom = uom or details.stock_uom
+	if uom:
+		details.update(get_conversion_factor(item_code, uom))
+
+	return details

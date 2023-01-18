@@ -23,11 +23,15 @@ from frappe.desk import query_report
 class MRPProductionOrder(Document):
 	def validate(self):
 		self.validate_duplicate_doc()
+		self.validate_items()
 		self.get_summary()
 		
+	def validate_items(self):
+		if not self.get("items"):
+			frappe.throw(_("Items Table Cannot Be Empty"))
+
 	def validate_duplicate_doc(self):
 		if self.reference_name:
-		
 			doc_details = frappe.db.sql("""
 						select name
 						from `tabMRP Production Order`where
@@ -35,24 +39,23 @@ class MRPProductionOrder(Document):
 						and reference_name = %s
 						and docstatus < 2
 						""", (self.name,self.reference_name), as_dict=True)
-						
 			if doc_details:
 				frappe.throw(_("Production Order for {0} already exists. {1}").format(self.reference_name,get_link_to_form("MRP Production Order",doc_details[0].name)))
-		
-	def on_submit(self):
-		if not self.get("items"):
-			frappe.throw(_("Items Table Cannot Be Empty"))
 
-		self.submit_entries()
-    
 	def on_update(self):
 		if self.workflow_state == "In Progress":
 			self.get_summary(submit = True)
-			self.make_stock_entries()
+			# self.make_stock_entries()
 		elif self.workflow_state == "Completed":
 			pass
-		elif self.workflow_state in ["Cancelled","Draft"]:
+		elif self.workflow_state in ["Draft"]:
 			self.delete_entries(True,True)
+			
+	def on_submit(self):
+		self.validate_duplicate_doc()
+		self.validate_items()
+		self.make_stock_entries(submit=True)
+		# self.submit_stock_entries()
 	
 	def on_cancel(self):
 		self.delete_entries(True,True)
@@ -63,6 +66,8 @@ class MRPProductionOrder(Document):
 	def on_trash(self):
 		if not self.workflow_state in ["Draft","Cancelled"]:
 			frappe.throw(_("Cannot Delete Non Drafts"))
+			
+
 
 	def get_items_from(self,reference_doctype,reference_name):
 		self.items = []
@@ -102,42 +107,7 @@ class MRPProductionOrder(Document):
 				ch.heightunit = item_dict.heightunit
 
 				ch.bom = item.get('bom_no') or get_default_bom(item.item_code, self.project) or None
-				
-	def get_stock_entries(self):
-		stock_entries = frappe.db.sql("""select name,docstatus,posting_date,title from `tabStock Entry` where custom_production_order=%s""", self.name, as_dict = 1)
-		summary = 'No stock entries for this production order' 
-		
-		if not stock_entries:
-			return summary
-		
-		summary = ''
-		items = []
-		for se in stock_entries:
-			dict = {}
-			button = '<button id="' + str(se.name) + '" class="btn btn-primary btn-sm"><i class="visible-xs octicon octicon-check"></i><span class="hidden-xs">Submit</span></button>'
-			status = "Draft"
-			if se.docstatus == 1:
-				status = "Submitted"
-				button = ""
-			elif se.docstatus == 2:
-				status = "Cancelled"
-				button = ""
-				
 			
-			button = ""
-			link = '<a href="#Form/Stock Entry/{0}">{0}</a><br>'.format(se.name)
-			summary = summary + link
-			
-			dict['status'] = status
-			dict['link'] = link
-			dict['title'] = se.title
-			dict['posting_date'] = se.posting_date
-			dict['button'] = button
-			items.append(dict)
-		
-		summary = create_condensed_table(items)
-		return summary
-		
 						
 	def get_summary(self,submit = False, should_save = False):
 		final_unmerged_items =[]
@@ -253,18 +223,11 @@ class MRPProductionOrder(Document):
 		return items, raw_material_cost
 	
 				
-	def make_stock_entries(self):
+	def make_stock_entries(self, submit=False):
 
-		stock_entry_list = []	
 		error_list = []
 		
 		for fg_item in self.get("items"):
-			prev_stock_entries = frappe.db.sql("""select name, docstatus from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 2""", (self.name,fg_item.item_code), as_dict = 1)
-			
-			if len(prev_stock_entries) > 0:
-				link = ['Item {0} has more than one stock entry'.format(fg_item.item_code)]
-				error_list.append(link)
-				frappe.throw(link)
 				
 			if not fg_item.depth or not fg_item.width or not fg_item.height:
 				link = ['Item {0} requires all dimensions'.format(fg_item.item_code)]
@@ -280,6 +243,16 @@ class MRPProductionOrder(Document):
 				link = ['Item {0} has missing uom.'.format(fg_item.item_code)]
 				error_list.append(link)
 				frappe.throw(link)
+				
+			if submit==False:
+				prev_stock_entries = frappe.db.sql("""select name,docstatus from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 2 and fg_completed_qty = %s""", (self.name,fg_item.item_code, fg_item.qty), as_dict = 1)
+				
+				if len(prev_stock_entries) > 0:
+					link = ['Item {0} has more than one stock entry'.format(fg_item.item_code)]
+					error_list.append(link)
+					frappe.throw(link)
+			else:
+				self.delete_entries(True,True)
 
 		for fg_item in self.get("items"):
 				
@@ -300,9 +273,11 @@ class MRPProductionOrder(Document):
 				stock_entry.from_bom = 0
 				stock_entry.use_multi_level_bom = 0
 				stock_entry.manufactured_item = fg_item.item_code
-				stock_entry.remarks = self.remarks
+				stock_entry.remarks = ' '.join(filter(None, [self.remarks, fg_item.remarks]))
 				stock_entry.posting_date = self.posting_date
 				stock_entry.posting_time = self.posting_time or nowtime()
+				stock_entry.set_posting_time = 1
+
 				
 				conversion_factor = get_conversion_factor(fg_item.item_code,fg_item.uom).get("conversion_factor")
 				stock_entry.fg_completed_qty = flt(fg_item.qty) * flt(conversion_factor)
@@ -328,7 +303,6 @@ class MRPProductionOrder(Document):
 					merged,summary,unmerged = build_bom_ext(updated_builder_items,qty,depthOriginal,widthOriginal,heightOriginal)
 				elif bom.get("exploded_items"):
 					# Note Gets exploded items
-
 					merged,summary,unmerged = get_material_list(bom.get("exploded_items"),qty,bom.quantity)
 
 					
@@ -369,7 +343,9 @@ class MRPProductionOrder(Document):
 
 				stock_entry.get_stock_and_rate()
 				stock_entry.insert()
-				stock_entry_list.append(stock_entry)
+				
+				if submit:
+					stock_entry.submit()
 			
 			except Exception as error:
 				link = ['Item {0} has error {1}.'.format(fg_item.item_code,error)]
@@ -381,20 +357,16 @@ class MRPProductionOrder(Document):
 			err_msg = ""
 			for err in error_list:
 				err_msg = err_msg + str(err) + '<br>'
-			
-			frappe.db.rollback()
+				
+			self.delete_entries(True,True)
 			frappe.throw(_("{0}").format(err_msg))
-		else:
-			frappe.db.commit()
+
 
 			
-	def submit_entries(self):
-		
-		stock_entry_list = []	
+	def submit_stock_entries(self):
 		error_list = []
 		
 		for fg_item in self.get("items"):
-		
 			if not fg_item.depth or not fg_item.width or not fg_item.height:
 				link = ['Item {0} requires all dimensions'.format(fg_item.item_code)]
 				error_list.append(link)
@@ -410,7 +382,7 @@ class MRPProductionOrder(Document):
 				error_list.append(link)
 				frappe.throw(link)
 		
-			prev_stock_entries = frappe.db.sql("""select name, docstatus from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 2""",  (self.name,fg_item.item_code), as_dict = 1)
+			prev_stock_entries = frappe.db.sql("""select name,docstatus from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 2 and fg_completed_qty = %s""", (self.name,fg_item.item_code, fg_item.qty), as_dict = 1)
 			
 			if not prev_stock_entries:
 				link = ['Item {0} has no stock entry to submit'.format(fg_item.item_code)]
@@ -439,8 +411,6 @@ class MRPProductionOrder(Document):
 			try:
 				stock_entry = frappe.get_doc("Stock Entry", prev_stock_entries[0].name)
 				stock_entry.submit()
-				stock_entry_list.append(stock_entry)
-
 			except Exception as error:
 				link = ['Item {0} has error {1}.'.format(fg_item.item_code,error)]
 				error_list.append(link)

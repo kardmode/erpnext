@@ -1,0 +1,31 @@
+{
+ "beta": 1,
+ "creation": "2022-02-01 13:45:04.063789",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "day"
+ ],
+ "fields": [
+  {
+   "fieldname": "day",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Day",
+   "options": "MRP Day",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "modified": "2022-02-01 13:45:04.063789",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "MRP Day Selector",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

@@ -39,12 +39,12 @@ def execute(filters=None):
 		if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
 			continue
 		
-		vars = frappe.db.sql("""select work_permit_id, emirates_id, mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
+		emp_details = frappe.db.sql("""select work_permit_id, emirates_id, mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
 		
 		row += [ss.employee, ss.employee_name]
 
-		if vars:
-			for d in vars:
+		if emp_details:
+			for d in emp_details:
 				row += [d.work_permit_id, d.mol_id,d.emirates_id,d.payroll_agent_code,d.payroll_agent_id]
 		
 		row += [ss.leave_without_pay]

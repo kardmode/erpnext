@@ -3,7 +3,7 @@
  "autoname": "naming_series:",
  "creation": "2013-03-25 10:53:52",
  "doctype": "DocType",
- "document_type": "Document",
+ "document_type": "Tools",
  "engine": "InnoDB",
  "field_order": [
   "entry_type_and_date",
@@ -489,7 +489,7 @@
  "icon": "fa fa-file-text",
  "idx": 176,
  "is_submittable": 1,
- "modified": "2020-01-16 13:05:30.634226",
+ "modified": "2022-02-16 23:11:22.576974",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Journal Entry",

@@ -1,11 +1,11 @@
 {
  "add_company_abbr_to_name": 1,
  "allow_import": 1,
- "autoname": "MAT-PAC-.YYYY.-.#####",
+ "autoname": "PSL-.#####",
  "creation": "2013-04-11 15:32:24",
  "description": "Generate packing slips for packages to be delivered. Used to notify package number, package contents and its weight.",
  "doctype": "DocType",
- "document_type": "Document",
+ "document_type": "Documents",
  "engine": "InnoDB",
  "field_order": [
   "packing_slip_details",
@@ -180,13 +180,14 @@
   {
    "fieldname": "title",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Title"
   }
  ],
  "icon": "fa fa-suitcase",
  "idx": 1,
  "is_submittable": 1,
- "modified": "2021-03-25 09:20:20.939725",
+ "modified": "2021-09-24 19:38:02.178781",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Packing Slip",

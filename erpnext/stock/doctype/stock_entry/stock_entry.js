@@ -802,6 +802,8 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 		}
 		erpnext.hide_company();
 		erpnext.utils.add_item(this.frm);
+		this.mrp_setup_custom_buttons();
+
 	},
 
 	scan_barcode: function() {
@@ -995,19 +997,16 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 		});
 		
 		this.frm.set_query('s_warehouse', 'items', function(doc, cdt, cdn) {
-			
 			var item = locals[cdt][cdn];
 			if(!item.item_code) {
-				
+				return erpnext.queries.warehouse(doc);
 			} else {
 				return {
 					query : "erpnext.stock.doctype.stock_entry.stock_entry.get_warehouses_with_stock",
 					filters: {"item_code":item.item_code,"company":me.frm.doc.company}
 				}
 			}
-		});
-		
-		
+		});		
 	},
 });
 

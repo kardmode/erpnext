@@ -10,6 +10,7 @@
  "field_order": [
   "document_name",
   "posting_date",
+  "reference",
   "remarks",
   "column_break_3",
   "company",
@@ -64,9 +65,14 @@
    "fieldtype": "Long Text",
    "label": "Summary",
    "read_only": 1
+  },
+  {
+   "fieldname": "reference",
+   "fieldtype": "Data",
+   "label": "Reference"
   }
  ],
- "modified": "2020-06-24 23:05:03.432437",
+ "modified": "2022-05-22 19:19:14.655851",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Bill",

@@ -745,12 +745,12 @@ def get_items_from_csv():
 		
 
 	return {"items":ret,"messages": messages, "error": error}
-	
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
 def uom_query(doctype, txt, searchfield, start, page_len, filters, as_dict=False):
 	conditions = []
 	from frappe.model.meta import get_field_precision
-
-	
 	precision = get_field_precision(frappe.get_meta("UOM Conversion Detail").get_field("conversion_factor"))
 
 	return frappe.db.sql("""

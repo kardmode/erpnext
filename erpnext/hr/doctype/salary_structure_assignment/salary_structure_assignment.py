@@ -54,7 +54,7 @@ class SalaryStructureAssignment(Document):
 								.format(self.from_date))
 						if check_variable:
 							if "variable" in d.formula:
-								frappe.throw(_("Variable value is required is required for this salary structure.")
+								frappe.throw(_("Variable value is required for this salary structure.")
 								.format(self.from_date))
 				
 

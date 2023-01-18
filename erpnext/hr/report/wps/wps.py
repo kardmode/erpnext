@@ -22,8 +22,9 @@ def execute(filters=None):
 	
 	if not salary_slips:
 		return columns, data
+		
 	columns, earning_types, ded_types = get_columns(filters,salary_slips)
-	
+
 	from erpnext.hr.doctype.payroll_entry.payroll_entry import get_month_details
 	month_details = get_month_details(year, filters.month)
 	
@@ -34,28 +35,25 @@ def execute(filters=None):
 	
 	total_salary = 0
 	total_count = 0
+	
+	import math
+
+	
 	for count, ss in enumerate(salary_slips,1):
 		row = []
 		
 		if no_leave and (ss.leave_calculation or ss.gratuity_calculation):
 			continue
 		
-		vars = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
-		
-		
+		emp_details = frappe.db.sql("""select mol_id, payroll_agent_id , payroll_agent_code from `tabEmployee` where employee = %(employee)s LIMIT 1""", {"employee": ss.employee}, as_dict=1)	
 		
 		if filters.get("company") == "Science Lab Inc":
-			
-			
-			
-			if vars:
-				payroll_agent_id = vars[0].payroll_agent_id
+			if emp_details:
+				payroll_agent_id = emp_details[0].payroll_agent_id
 				
 				if no_id and not payroll_agent_id:
 					continue
-					
-				
-				
+
 				if str(payroll_agent_id).isdigit():
 					payroll_agent_id = str(payroll_agent_id).zfill(16)
 				
@@ -63,9 +61,6 @@ def execute(filters=None):
 				row += ["EDR"]
 				row += [payroll_agent_id]
 					
-					
-					
-			
 			row += [ss.employee_name]
 			row += [count]
 			row +=	[month_details.month_start_date]
@@ -82,7 +77,6 @@ def execute(filters=None):
 				elif "benefit" in e.lower():
 					basic_pay += flt(ss_earning_map.get(ss.name, {}).get(e))
 				
-			import math
 			basic_pay = math.ceil(basic_pay)			
 			variable_pay = flt(ss.rounded_total) - flt(basic_pay)
 			if variable_pay < 0:
@@ -91,35 +85,33 @@ def execute(filters=None):
 				
 				
 			
-			row += [basic_pay,variable_pay]
+			row += [basic_pay]
+			row += [variable_pay]
 			row += [basic_pay + variable_pay]
-			
+			row += [""]			
+
 			total_salary = total_salary + basic_pay + variable_pay	
 			
-			
-			if not(basic_pay == 0  and variable_pay == 0):
+			if not(basic_pay == 0 and variable_pay == 0):
 				data.append(row)
-		
-		
-			
-
 		
 		else:
 		
-			if vars:
+			if emp_details:
 			
-				payroll_agent_id = vars[0].payroll_agent_id
+				payroll_agent_id = emp_details[0].payroll_agent_id
 				
 				if no_id and not payroll_agent_id:
 					continue
 			
 				row += ["EDR"]
-				row += [str(vars[0].mol_id).zfill(14)]
+				row += [str(emp_details[0].mol_id).zfill(14)]
 				
 				if str(payroll_agent_id).isdigit():
 					payroll_agent_id = str(payroll_agent_id).zfill(23)
 				
-				row += [vars[0].payroll_agent_code,payroll_agent_id]
+				row += [emp_details[0].payroll_agent_code]
+				row += [payroll_agent_id]
 					
 			row +=	[month_details.month_start_date]
 			row +=	[month_details.month_end_date]
@@ -136,7 +128,6 @@ def execute(filters=None):
 					pass
 		
 				
-			import math
 			basic_pay = math.ceil(basic_pay)			
 			variable_pay = flt(ss.rounded_total) - flt(basic_pay)
 			if variable_pay < 0:
@@ -146,12 +137,13 @@ def execute(filters=None):
 				
 			variable_pay = 0
 			total_salary = total_salary + basic_pay + variable_pay	
-			row += [basic_pay,variable_pay]
+			row += [basic_pay]
+			row += [variable_pay]
 			row +=	[ss.leave_without_pay]
-			
+			row += [""]			
+
 			if not(basic_pay == 0  and variable_pay == 0):
 				data.append(row)
-		
 	
 	row = []
 	row += ["SCR"]
@@ -166,15 +158,12 @@ def execute(filters=None):
 		establishment_id = company_details[0].establishment_id
 		default_payroll_agent = company_details[0].default_payroll_agent
 		
-	if filters.get("company") == "Science Lab Inc":
-		
+	import time
 
-			
+	if filters.get("company") == "Science Lab Inc":
 		row += [default_payroll_agent]
 		row += ["360"]
 		
-		
-		import time
 		creation_date = time.strftime("%Y-%m-%d")
 		creation_time = time.strftime("%H%M")
 		row += [str(filters.month).zfill(2)+str(year)]
@@ -185,23 +174,17 @@ def execute(filters=None):
 		row += [""]
 		row += [total_salary]
 		row += ["accounts@maarifagroup.com"]
-		
 		data.append(row)
-		
-		row = []
 		
 		creation_date = time.strftime("%Y%m%d")
 		creation_time = "{:<06}".format(creation_time)
 		row = [default_payroll_agent + "PR" + creation_date + creation_time + ".SIF"]
+		row += ["","","","","","","","","",""]
 		data.append(row)
 	else:
-		
-		
 		row += [str(establishment_id).zfill(13)]
 		row += [default_payroll_agent]
 		
-		
-		import time
 		creation_date = time.strftime("%Y-%m-%d")
 		creation_time = time.strftime("%H%M")
 		row += [creation_date]
@@ -212,29 +195,28 @@ def execute(filters=None):
 		row += ["AED"]
 		row += [company]
 		row += ["accounts@maarifagroup.com"]
-		
 		data.append(row)
-		
-		row = []
 		
 		creation_date = time.strftime("%y%m%d")
 		creation_time = "{:<06}".format(creation_time)
 		row = [establishment_id + creation_date + creation_time + ".SIF"]
+		row += ["","","","","","","","","",""]
 		data.append(row)
 	
 	return columns, data
 	
 def get_columns(filters,salary_slips):
 	
-	
+	# 7 columns
 	if filters.get("company") == "Science Lab Inc":
 		columns = [
-			_("Type") + "::100", "Customer No::140","Customer Name::150","Emp Ref No::80","Start Date::80",
+			_("Type") + "::75", "Customer No::140","Customer Name::150","Emp Ref No::80","Start Date::80",
 		"End Date::80","Days on Leave::50"
 		]
 	else:
+	# 7 columns
 		columns = [
-			_("Type") + "::100", "MOL ID::180","Agent Code::80","Agent ID::200","Start Date::80",
+			_("Type") + "::75", "MOL ID::140","Agent Code::80","Agent ID::200","Start Date::80",
 			"End Date::80","Number of Days::50"
 		]
 		
@@ -247,12 +229,13 @@ def get_columns(filters,salary_slips):
 		(', '.join(['%s']*len(salary_slips))), tuple([d.name for d in salary_slips]), as_dict=1):
 		salary_components[component.type].append(component.salary_component)
 	
+	# 11 columns
 	if filters.get("company") == "Science Lab Inc":
 		columns = columns +	["Fixed Salary::100", "Variable Salary::100","Total Amount::100","::100"]
 	else:
+		# 11 columns
 		columns = columns +	["Fixed Salary::100", "Variable Salary::100","Days on Leave::50","::100"]
 
-	
 	
 	return columns, salary_components[_("Earning")], salary_components[_("Deduction")]
 	
@@ -261,7 +244,7 @@ def get_columns(filters,salary_slips):
 	
 
 def get_salary_slips(conditions,filters):
-	salary_slips = frappe.db.sql("""select * from `tabSalary Slip` where docstatus < 2 %s
+	salary_slips = frappe.db.sql("""select name,employee, employee_name, leave_calculation, gratuity_calculation,leave_without_pay,rounded_total from `tabSalary Slip` where docstatus < 2 %s
 		order by employee_name""" % conditions, filters, as_dict=1)
 	return salary_slips
 	

@@ -320,6 +320,12 @@ def filter_items_with_custom_filters(filters,iwb_map):
 					iwb_map.pop((company, item, warehouse))
 					continue
 		
+		if filters.get("hide_positive_qty") == 1:
+			if qty_dict.bal_qty > 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
+		
+		
 		if filters.get("hide_negative_qty") == 1:
 			if qty_dict.bal_qty < 0:
 				iwb_map.pop((company, item, warehouse))
@@ -341,7 +347,7 @@ def get_items(filters):
 			conditions.append("item.brand=%(brand)s")
 		if filters.get("item_group"):
 			conditions.append(get_item_group_condition(filters.get("item_group")))
-
+	conditions.append("item.disabled=0")
 	items = []
 	if conditions:
 		items = frappe.db.sql_list("""select name from `tabItem` item where {}"""

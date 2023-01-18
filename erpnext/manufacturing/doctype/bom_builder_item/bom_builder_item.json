@@ -21,7 +21,7 @@
   "edging",
   "laminate_sides",
   "laminate",
-  "bom_no"
+  "bom"
  ],
  "fields": [
   {
@@ -113,14 +113,14 @@
    "options": "None\nSingle Pressed\nDouble Pressed"
   },
   {
-   "fieldname": "bom_no",
+   "fieldname": "bom",
    "fieldtype": "Link",
-   "label": "BOM No",
+   "label": "BOM",
    "options": "BOM"
   }
  ],
  "istable": 1,
- "modified": "2020-10-14 21:29:37.869806",
+ "modified": "2022-07-26 16:11:38.077592",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM Builder Item",

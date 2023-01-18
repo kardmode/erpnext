@@ -4,13 +4,13 @@
 
 frappe.query_reports["Total Stock Summary"] = {
 	"filters": [
-		{
+		/* {
 			"fieldname":"group_by",
 			"label": __("Group By"),
 			"fieldtype": "Select",
 			"width": "80",
 			"reqd": 1,
-			"options": ["", "Warehouse", "Company"],
+			"options": ["Warehouse", "Company"],
 			"change": function() {
 				let group_by = frappe.query_report.get_filter_value("group_by")
 				let company_filter = frappe.query_report.get_filter("company")
@@ -27,7 +27,7 @@ frappe.query_reports["Total Stock Summary"] = {
 					frappe.query_report.refresh();
 				}
 			}
-		},
+		}, */
 		{
 			"fieldname": "company",
 			"label": __("Company"),
@@ -40,6 +40,18 @@ frappe.query_reports["Total Stock Summary"] = {
 		{
 			"fieldname": "hide_disabled",
 			"label": __("Hide Disabled"),
+			"fieldtype": "Check",
+			"default":1
+		},
+		{
+			"fieldname": "hide_positive_qty",
+			"label": __("Hide Positive Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
+		{
+			"fieldname": "hide_zero_qty",
+			"label": __("Hide Zero Qty"),
 			"fieldtype": "Check",
 			"default":1
 		},

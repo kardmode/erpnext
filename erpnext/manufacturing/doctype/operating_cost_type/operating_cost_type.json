@@ -11,6 +11,7 @@
  "field_order": [
   "operating_cost",
   "default_cost",
+  "value_type",
   "default_percent",
   "sort_order"
  ],
@@ -27,7 +28,7 @@
    "fieldname": "default_percent",
    "fieldtype": "Percent",
    "in_list_view": 1,
-   "label": "Default Percent"
+   "label": "Value"
   },
   {
    "fieldname": "sort_order",
@@ -40,10 +41,17 @@
    "fieldname": "default_cost",
    "fieldtype": "Check",
    "label": "Default Cost"
+  },
+  {
+   "default": "Percent",
+   "fieldname": "value_type",
+   "fieldtype": "Select",
+   "label": "Value Type",
+   "options": "Percent"
   }
  ],
  "icon": "fa fa-wrench",
- "modified": "2020-04-17 00:01:28.723630",
+ "modified": "2021-11-15 22:33:40.469381",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Operating Cost Type",

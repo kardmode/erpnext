@@ -480,9 +480,7 @@ frappe.ui.form.on('Payroll Entry', {
 	},
 
 	company: function (frm) {
-		frm.set_value('employees', []);
-		frm.set_value('cost_center','Main - '+frappe.get_abbr(frm.doc.company,5))
-		
+		frm.set_value('employees', []);		
 		// frm.events.clear_employee_table(frm);
 	},
 

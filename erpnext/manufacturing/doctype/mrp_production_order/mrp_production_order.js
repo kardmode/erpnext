@@ -10,8 +10,8 @@ cur_frm.add_fetch("reference_name", "title", "reference_title");
 frappe.ui.form.on('MRP Production Order', {
 	onload: function(frm) {
 		if (frm.doc.__islocal) {
-				frm.set_value("posting_date", frappe.datetime.nowdate());
-				frm.set_value("posting_time", frappe.datetime.now_time());
+				//frm.set_value("posting_date", frappe.datetime.nowdate());
+				//frm.set_value("posting_time", frappe.datetime.now_time());
 		}
 		else
 		{
@@ -24,6 +24,14 @@ frappe.ui.form.on('MRP Production Order', {
 				query: "erpnext.controllers.queries.item_query"
 			};
 		});
+		
+		frm.set_query('project', function(doc) {
+			return {
+				filters: [
+						['Project', 'company', '=', frm.doc.company],
+					]
+			}
+		})
 		
 		if(frm.fields_dict["items"].grid.get_field('uom')) {
 			frm.set_query("uom", "items", function(doc, cdt, cdn) {
@@ -77,7 +85,6 @@ frappe.ui.form.on('MRP Production Order', {
 		
 		if(!frm.doc.__islocal)
 		{
-			// frm.trigger("make_dashboard");
 
 			/* frm.add_custom_button(__("Manufacture"), function() {
 				frm.trigger("make_entries");
@@ -127,22 +134,6 @@ frappe.ui.form.on('MRP Production Order', {
 			
 	},
 	
-	make_dashboard: function(frm) {
-		if (frm.doc.items) {
-			frappe.call({
-				doc: frm.doc,
-				method: "get_stock_entries",
-				freeze: false,
-				callback: function(r) {
-					frm.dashboard.add_section(r.message);
-					frm.dashboard.show();
-				}
-			});
-
-			
-		}
-	},
-	
 	reference_doctype: function(frm) {
 		if (frm.doc.reference_doctype == "")
 		{
@@ -169,10 +160,10 @@ frappe.ui.form.on('MRP Production Order', {
 
 		}
 		else{
-			frm.set_value("items",[]);
-			frm.set_value("project","");
+			//frm.set_value("items",[]);
+			//frm.set_value("project","");
 			frm.set_value("remarks","");
-			frm.set_value("reference_title","");
+			//frm.set_value("reference_title","");
 		}
 	},
 	

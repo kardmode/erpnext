@@ -274,17 +274,20 @@ class BOM(WebsiteGenerator):
 			})
 
 			if rate:
-				d.rate = rate
+				stock_rate = flt(rate)/flt(d.conversion_factor)
+				if not d.rate == rate or not d.stock_rate == stock_rate:
+					d.rate = rate
+					d.stock_rate = stock_rate
+					frappe.msgprint(_("{0}'s rate Updated Using {1}").format(d.item_code,self.rm_cost_as_per))
 
 			d.amount = flt(d.rate) * flt(d.qty)
 			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
 			d.base_amount = flt(d.amount) * flt(self.conversion_rate)
+			d.base_stock_rate = flt(d.stock_rate) * flt(self.conversion_rate)
 
 			if save:
 				d.db_update()
 
-			d.stock_rate = flt(d.rate)/flt(d.conversion_factor)
-			d.base_stock_rate = flt(d.stock_rate) * flt(self.conversion_rate)
 			
 		if self.docstatus == 1:
 			self.flags.ignore_validate_update_after_submit = True
@@ -624,10 +627,7 @@ class BOM(WebsiteGenerator):
 		for d in self.get('items'):
 			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
 			
-			# TODO FIX THIS - FIXED
-			d.amount = flt(d.rate, d.precision("rate")) * flt(d.qty, d.precision("qty"))
-			# d.amount = flt(d.rate, d.precision("rate")) * flt(d.stock_qty, d.precision("qty"))
-			
+			d.amount = flt(d.rate, d.precision("rate")) * flt(d.qty, d.precision("qty"))			
 			d.base_amount = d.amount * flt(self.conversion_rate)
 			d.qty_consumed_per_unit = flt(d.stock_qty, d.precision("stock_qty")) \
 				/ flt(self.quantity, self.precision("quantity"))	
@@ -1138,19 +1138,68 @@ def merge_bom_items(dicts):
 	
 @frappe.whitelist()
 def get_part_details(part=None,item_code=None):
+	from erpnext.stock.get_item_details import get_default_uom
+
 	plane = ""
 	part_uom = "Nos"
-	
+	allow_col1 = allow_col2 = allow_col3 = False
 	if part and item_code:
-		plane,part_uom = frappe.db.get_value("BOM Part", part,["plane", "required_uom"])
+		plane,part_uom,allow_col1,allow_col2,allow_col3 = frappe.db.get_value("BOM Part", 
+		part,["plane", "required_uom","allow_col1","allow_col2","allow_col3"])
 		
 		
 		if part_uom in ['Nos']:
 			if item_code:
-				from erpnext.stock.get_item_details import get_default_uom
 				part_uom = get_default_uom(item_code)
 			
-	return plane,part_uom
+	return plane,part_uom,allow_col1,allow_col2,allow_col3
+	
+@frappe.whitelist()
+def get_all_part_details(args=None):
+	from erpnext.stock.get_item_details import get_default_uom
+	
+	if not args:
+		args = frappe.form_dict.get('args')
+
+	if isinstance(args, string_types):
+		import json
+		args = json.loads(args)
+		
+
+	for d in args:
+		plane = ""
+		part = d.get("side",None) 
+		item_code = d.get("bb_item", None)
+		part_uom = "Nos"
+		allow_col1 = allow_col2 = allow_col3 = False
+		if part and item_code:
+		
+			part_details = frappe.db.get_value("BOM Part", 
+				part,["plane", "required_uom","allow_col1","allow_col2","allow_col3"], as_dict=1)
+		
+			if not part_details:
+				frappe.throw(
+					_("Part {0}: item_code {1} does not exist").format(part, item_code)
+				)
+		
+			plane = part_details.plane
+			part_uom = part_details.required_uom
+			allow_col1 = part_details.allow_col1
+			allow_col2 = part_details.allow_col2
+			allow_col3 = part_details.allow_col3
+			
+			
+			if part_uom in ['Nos']:
+				if item_code:
+					part_uom = get_default_uom(item_code)
+		
+		d["plane"] = plane
+		d["part_uom"] = part_uom
+		d["allow_col1"] = allow_col1
+		d["allow_col2"] = allow_col2
+		d["allow_col3"] = allow_col3
+	
+	return args
 
 def process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter):
 	if edging_sides and edging_sides != "None" and not d_edging:
@@ -1167,21 +1216,21 @@ def process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perime
 
 			
 		if edging_sides in ["All Sides"]:
-			required_qty = perimeter* flt(bb_qty)
+			required_qty = flt(perimeter) * flt(bb_qty)
 
 				
 		elif edging_sides in ["Front Side","Front Only","Back Only"]:
-			required_qty = width* flt(bb_qty)
+			required_qty = flt(width) * flt(bb_qty)
 			
 			
 			
 		elif edging_sides in ["Front & Back"]:
-			required_qty = 2 * width * flt(bb_qty)
+			required_qty = 2 * flt(width) * flt(bb_qty)
 			
 
 			
 		elif edging_sides in ["Sides Only"]:
-			required_qty = 2 * length* flt(bb_qty)
+			required_qty = 2 * flt(length) * flt(bb_qty)
 
 			
 			
@@ -1190,7 +1239,7 @@ def process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perime
 			
 			
 		if side in ["door frame"]:
-			required_qty = flt(2*length + width)* flt(bb_qty)
+			required_qty = flt(2 * length + width)* flt(bb_qty)
 		elif side in ["frame"]:
 			required_qty = flt(perimeter)* flt(bb_qty)
 		elif side in ["single door","AngledSingleDoor"]:
@@ -1434,9 +1483,9 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 	
 	for i, d in enumerate(bomitems):
 
-		length = d.length
-		width = d.width
-		height = d.height
+		length = flt(d.length) or 0
+		width = flt(d.width) or 0
+		height = flt(d.height) or 0
 		side = d.side
 		
 		perimeter = 2*flt(length)+2*flt(width)
@@ -1444,31 +1493,29 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 		fvolume = flt(length)*flt(width)*flt(height)
 		bb_item = d.bb_item
 		bb_qty = 1
+		
+		if not bb_item:
+			frappe.throw(_("No item provided for item {0} in BOM Builder Table").format(i))
 
 		if not side:
-			frappe.throw(_("No part provided for item {0}").format(bb_item))
+			frappe.throw(_("No part provided for item {0} in BOM Builder Table").format(bb_item))
 			
-		
-		
-		
+
 		calculation = frappe.db.get_value("BOM Part", side,["calculation"])
 
-		
 		if calculation in ["formula-int","formula-float"]:
 			if d.bb_qty:
-				bb_qty = d.bb_qty
+				bb_qty = flt(d.bb_qty)
 			else:
-				frappe.throw(_("No qty provided for item {0}").format(bb_item))
+				frappe.throw(_("No qty provided for item {0} in BOM Builder Table").format(bb_item))
 		else:
 			if d.bb_qty and is_number(d.bb_qty):
 				bb_qty = flt(d.bb_qty)*flt(qtyOriginal)
 			else:
-				frappe.throw(_("Qty is not valid for item {0}").format(bb_item))
+				frappe.throw(_("Qty is not valid for item {0} in BOM Builder Table").format(bb_item))
 		
 		required_qty = bb_qty
 		stock_qty = bb_qty
-				
-
 		d_edging = d.edging
 		edging_sides = d.edgebanding
 		d_laminate = d.laminate
@@ -1490,9 +1537,9 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 		has_edging = False
 		has_laminate = False
 		
-		bom_no = d.bom_no
+		bom_no = d.bom
 		if calculation not in ["bom"]:
-			if d.bom_no:
+			if bom_no:
 				frappe.msgprint(_("Item {0} does not need BOM entered in bom builder").format(bb_item))
 
 		if calculation in ["nos"]:
@@ -1507,7 +1554,7 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 			has_edging = False
 			has_laminate = False
 
-			if not d.bom_no:
+			if not bom_no:
 				frappe.throw(_("Item {0} requires a BOM entered in bom builder").format(bb_item))
 		
 		elif calculation in ["formula-int","formula-float"]:
@@ -1555,13 +1602,16 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 				required_qty = length * width * bb_qty
 			elif calculation in ["user-input-area-tri-col12"]:
 				required_qty = length * width * bb_qty / 2
+				farea = flt(length/2)*flt(width/2)
 			else:
 				from math import pi
 				required_qty = pi * flt(length/2)*flt(length/2) * bb_qty
+				perimeter = pi*flt(length)
+				farea = pi * flt(length/2)*flt(length/2)
 							
 			is_hardware = False
-			has_edging = False
-			has_laminate = False		
+			has_edging = True
+			has_laminate = True		
 			
 		elif calculation in ["user-input-height","user-input-depth","user-input-width"]:
 			if calculation in ["user-input-width"]:
@@ -1645,7 +1695,6 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 				mdf.append(newitem)
 				
 			if has_laminate:
-				
 				new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
 				if new_laminate:
 					laminate.append(new_laminate)
@@ -1724,7 +1773,7 @@ def calculate_builder_dimensions(depthOriginal,depthunit,widthOriginal,widthunit
 	widthOriginal = convert_units(widthunit,widthOriginal)
 	heightOriginal = convert_units(heightunit,heightOriginal)
 	
-	plane,required_uom = get_part_details(side,d.bb_item)
+	plane,required_uom,allow_col1,allow_col2,allow_col3 = get_part_details(side,d.bb_item)
 
 		
 	if plane == "top":

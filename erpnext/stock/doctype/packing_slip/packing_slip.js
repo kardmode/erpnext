@@ -21,10 +21,10 @@ frappe.ui.form.on('Packing Slip', {
 		frm.updating_party_details = false;
 		
 		//frm.add_fetch('delivery_note', 'company', 'company');
-		frm.add_fetch('delivery_note', 'title', 'title');
-		frm.add_fetch('delivery_note', 'customer', 'customer');
-		frm.add_fetch('delivery_note', 'project', 'project');
-		frm.add_fetch('delivery_note', 'shipping_address', 'shipping_address');
+		//frm.add_fetch('delivery_note', 'title', 'title');
+		//frm.add_fetch('delivery_note', 'customer', 'customer');
+		//frm.add_fetch('delivery_note', 'project', 'project');
+		//frm.add_fetch('delivery_note', 'shipping_address', 'shipping_address');
 		frm.set_query('contact_person', erpnext.queries.contact_query);
 	},
 	
@@ -34,8 +34,60 @@ frappe.ui.form.on('Packing Slip', {
 	shipping_address_name: function(frm) {
 		erpnext.utils.get_address_display(frm, "shipping_address_name", "shipping_address");
 	},
-	
+	customer_address: function(frm) {
+		erpnext.utils.get_address_display(frm, "customer_address", "address_display");
+	},
+	validate_company_and_party() {
+		return true;
+	}
 });
+
+frappe.ui.form.on('Packing Slip Item', {
+	item_code: (frm, cdt, cdn) => {
+		let row = frappe.get_doc(cdt, cdn);
+		if(row.qty == null)
+			frappe.model.set_value(cdt, cdn, 'qty', 1);
+
+		
+		if (row.item_code) {
+			get_item_details(row.item_code).then(data => {
+				frappe.model.set_value(cdt, cdn, 'item_name', data.item_name);
+				frappe.model.set_value(cdt, cdn, 'description', data.description);
+				frappe.model.set_value(cdt, cdn, 'uom', data.uom);
+				frappe.model.set_value(cdt, cdn, 'stock_uom', data.stock_uom);
+				frappe.model.set_value(cdt, cdn, 'conversion_factor', data.conversion_factor);
+				frappe.model.set_value(cdt, cdn, 'net_weight', data.weight_per_unit);
+				frappe.model.set_value(cdt, cdn, 'weight_uom', data.weight_uom);
+				frappe.model.set_value(cdt, cdn, 'hs_code', data.customs_tariff_number);
+			});
+		}
+	},
+	uom: (frm, cdt, cdn) => {
+		let row = frappe.get_doc(cdt, cdn);
+		if (row.uom) {
+			get_item_details(row.item_code, row.uom).then(data => {
+				frappe.model.set_value(cdt, cdn, 'conversion_factor', data.conversion_factor);
+			});
+		}
+	},
+	qty: (frm, cdt, cdn) => {
+		let row = frappe.get_doc(cdt, cdn);
+		frappe.model.set_value(cdt, cdn, 'stock_qty', row.qty * row.conversion_factor);
+	},
+	conversion_factor: (frm, cdt, cdn) => {
+		let row = frappe.get_doc(cdt, cdn);
+		frappe.model.set_value(cdt, cdn, 'stock_qty', row.qty * row.conversion_factor);
+	}
+});
+
+function get_item_details(item_code, uom=null) {
+	if (item_code) {
+		return frappe.xcall('erpnext.stock.doctype.packing_slip.packing_slip.get_item_details', {
+			item_code,
+			uom
+		});
+	}
+}
 
 cur_frm.fields_dict['delivery_note'].get_query = function(doc, cdt, cdn) {
 	return{
@@ -44,23 +96,23 @@ cur_frm.fields_dict['delivery_note'].get_query = function(doc, cdt, cdn) {
 }
 
 
-/* cur_frm.fields_dict['items'].grid.get_field('item_code').get_query = function(doc, cdt, cdn) {
+cur_frm.fields_dict['items'].grid.get_field('item_code').get_query = function(doc, cdt, cdn) {
 	if(!doc.delivery_note) {
-		frappe.throw(__("Please select a Delivery Note"));
+		//frappe.throw(__("Please select a Delivery Note"));
 	} else {
 		return {
 			query: "erpnext.stock.doctype.packing_slip.packing_slip.item_details",
 			filters:{ 'delivery_note': doc.delivery_note}
 		}
 	}
-} */
+}
 
-/* cur_frm.cscript.onload_post_render = function(doc, cdt, cdn) {
+cur_frm.cscript.onload_post_render = function(doc, cdt, cdn) {
 	if(doc.delivery_note && doc.__islocal) {
 		cur_frm.cscript.get_items(doc, cdt, cdn);
 	}
 }
- */
+
 cur_frm.cscript.get_items = function(doc, cdt, cdn) {
 	return this.frm.call({
 		doc: this.frm.doc,
@@ -131,29 +183,15 @@ cur_frm.cscript.validate_duplicate_items = function(doc, ps_detail) {
 
 // Calculate Net Weight of Package
 cur_frm.cscript.calc_net_total_pkg = function(doc, ps_detail) {
-	
-	
-	if(flt(doc.net_weight_pkg) && doc.net_weight_uom)
-	{
-		return;
-
-	}
-	
 	var net_weight_pkg = 0;
 	doc.net_weight_uom = (ps_detail && ps_detail.length) ? ps_detail[0].weight_uom : '';
-	
-	if(doc.net_weight_uom)
-	{
-		doc.gross_weight_uom = doc.net_weight_uom;
+	doc.gross_weight_uom = doc.net_weight_uom;
 
-	}
-
-	
 	for(var i=0; i<ps_detail.length; i++) {
 		var item = ps_detail[i];
 		if(item.weight_uom != doc.net_weight_uom) {
-			//frappe.msgprint(__("Different UOM for items will lead to incorrect (Total) Net Weight value. Make sure that Net Weight of each item is in the same UOM."));
-			//frappe.validated = false;
+			frappe.msgprint(__("Different UOM for items will lead to incorrect (Total) Net Weight value. Make sure that Net Weight of each item is in the same UOM."));
+			frappe.validated = false;
 		}
 		net_weight_pkg += flt(item.net_weight) * flt(item.qty);
 	}

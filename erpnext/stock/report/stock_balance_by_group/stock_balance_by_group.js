@@ -50,6 +50,12 @@ frappe.query_reports["Stock Balance By Group"] = {
 			"default":1
 		},
 		{
+			"fieldname": "hide_positive_qty",
+			"label": __("Hide Positive Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
+		{
 			"fieldname": "hide_zero_qty",
 			"label": __("Hide Zero Qty"),
 			"fieldtype": "Check",

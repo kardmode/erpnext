@@ -19,7 +19,7 @@ frappe.ui.form.on("Attendance", {
 	employee:function(frm){
 		calculate_all(frm.doc,frm.dt,frm.dn);
 	},
-	employee:function(frm){
+	attendance_date:function(frm){
 		calculate_all(frm.doc,frm.dt,frm.dn);
 	},
 	arrival_time:function(frm){

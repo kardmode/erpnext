@@ -14,7 +14,10 @@
   "calculation",
   "required_uom",
   "description",
-  "disabled"
+  "disabled",
+  "allow_col1",
+  "allow_col2",
+  "allow_col3"
  ],
  "fields": [
   {
@@ -59,9 +62,27 @@
    "fieldname": "disabled",
    "fieldtype": "Check",
    "label": "Disabled"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_col1",
+   "fieldtype": "Check",
+   "label": "Allow Col1"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_col2",
+   "fieldtype": "Check",
+   "label": "Allow Col2"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_col3",
+   "fieldtype": "Check",
+   "label": "Allow Col3"
   }
  ],
- "modified": "2020-08-17 19:37:22.064934",
+ "modified": "2021-09-05 23:14:16.784918",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM Part",

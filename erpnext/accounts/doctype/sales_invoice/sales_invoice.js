@@ -721,6 +721,11 @@ frappe.ui.form.on('Sales Invoice', {
 					}
 				}
 			})
+			
+			frm.set_value("taxes_and_charges",'')
+			frm.set_value("taxes",'')
+			//frm.script_manager.trigger("taxes");
+
 		}
 	},
 

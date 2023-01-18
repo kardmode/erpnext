@@ -1184,34 +1184,41 @@ def invalidate_item_variants_cache_for_website(doc):
 	if item_code:
 		item_cache = ItemVariantsCacheManager(item_code)
 		item_cache.rebuild_cache()
-
+		
 def check_stock_uom_with_bin(item, stock_uom):
 	if stock_uom == frappe.db.get_value("Item", item, "stock_uom"):
 		return
 
-	matched = True
-	ref_uom = frappe.db.get_value("Stock Ledger Entry",{"item_code": item}, "stock_uom")
+	ref_uom = frappe.db.get_value("Stock Ledger Entry", {"item_code": item}, "stock_uom")
 
 	if ref_uom:
 		if cstr(ref_uom) != cstr(stock_uom):
-			matched = False
-	else:
-		bin_list = frappe.db.sql("select * from tabBin where item_code=%s", item, as_dict=1)
-		for bin in bin_list:
-			if (bin.reserved_qty > 0 or bin.ordered_qty > 0 or bin.indented_qty > 0
-								or bin.planned_qty > 0) and cstr(bin.stock_uom) != cstr(stock_uom):
-				matched = False
-				break
+			frappe.throw(
+				_(
+					"Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You will need to create a new Item to use a different Default UOM."
+				).format(item)
+			)
 
-		if matched and bin_list:
-			frappe.db.sql("""update tabBin set stock_uom=%s where item_code=%s""", (stock_uom, item))
+	bin_list = frappe.db.sql(
+		"""
+			select * from `tabBin` where item_code = %s
+				and (reserved_qty > 0 or ordered_qty > 0 or indented_qty > 0 or planned_qty > 0)
+				and stock_uom != %s
+			""",
+		(item, stock_uom),
+		as_dict=1,
+	)
 
-	if not matched:
+	if bin_list:
 		frappe.throw(
-			_("Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You will need to create a new Item to use a different Default UOM.").format(item))
-	else:
-		self.set("uoms", [])
-		
+			_(
+				"Default Unit of Measure for Item {0} cannot be changed directly because you have already made some transaction(s) with another UOM. You need to either cancel the linked documents or create a new Item."
+			).format(item)
+		)
+
+	# No SLE or documents against item. Bin UOM can be changed safely.
+	frappe.db.sql("""update `tabBin` set stock_uom=%s where item_code=%s""", (stock_uom, item))
+	frappe.db.sql("""delete from `tabUOM Conversion Detail` where parent=%s""", (item))
 		
 def get_item_defaults(item_code, company):
 	item = frappe.get_cached_doc('Item', item_code)

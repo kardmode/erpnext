@@ -300,13 +300,15 @@ class MRPImportEntry(Document):
 		get_date = 1 if not data.get('get_date') else data["get_date"] 
 
 		document_details = frappe.db.get_value(purpose, {"name": document}, ["title", "posting_date"], as_dict=True)
-				
-		if not self.title or self.title == "":
-			if document_details.get("title"):
-				self.title = document_details.title
 		
-		if get_date == 1:
-			self.posting_date = document_details.posting_date
+		if document_details:		
+			if not self.title or self.title == "":
+				if document_details.get("title"):
+					self.title = document_details.title
+			
+			if get_date == 1:
+				if document_details.get("posting_date"):
+					self.posting_date = document_details.posting_date
 			
 		self.items = []
 		self.transaction_type = purpose
