@@ -8,7 +8,6 @@ from frappe.contacts.doctype.address.address import get_address_display
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.utils import get_fetch_values
 from frappe.utils import add_days, cint, cstr, flt, formatdate, get_link_to_form, getdate, nowdate
-
 import erpnext
 from erpnext.accounts.deferred_revenue import validate_service_stop_date
 from erpnext.accounts.doctype.loyalty_program.loyalty_program import (
@@ -43,8 +42,8 @@ from erpnext.stock.doctype.serial_no.serial_no import (
 
 form_grid_templates = {"items": "templates/form_grid/item_grid.html"}
 
-
 class SalesInvoice(SellingController):
+
 	def __init__(self, *args, **kwargs):
 		super(SalesInvoice, self).__init__(*args, **kwargs)
 		self.status_updater = [
@@ -81,6 +80,12 @@ class SalesInvoice(SellingController):
 		else:
 			self.indicator_color = "green"
 			self.indicator_title = _("Paid")
+			
+	def set_total_qty(self):
+		total_qty = 0
+		for d in self.get('items'):
+			total_qty = total_qty + flt(d.qty)
+		self.total_qty = total_qty
 
 	def validate(self):
 		super(SalesInvoice, self).validate()
@@ -89,6 +94,7 @@ class SalesInvoice(SellingController):
 		if not self.is_pos:
 			self.so_dn_required()
 
+		self.mrp_validate_items()
 		self.set_tax_withholding()
 
 		self.validate_proj_cust()
@@ -114,6 +120,8 @@ class SalesInvoice(SellingController):
 
 		if cint(self.is_pos):
 			self.validate_pos()
+			
+		self.set_total_qty()
 
 		if cint(self.update_stock):
 			self.validate_dropship_item()
@@ -169,6 +177,20 @@ class SalesInvoice(SellingController):
 			validate_loyalty_points(self, self.loyalty_points)
 
 		self.reset_default_field_value("set_warehouse", "items", "warehouse")
+
+	def mrp_validate_items(self):
+		for d in self.get('items'):
+			if d.expense_account:
+				if frappe.db.get_value("Account", d.expense_account, "company") != self.company:
+					d.expense_account = frappe.db.get_value("Company", self.company, "default_expense_account")
+			
+			if d.income_account:
+				if frappe.db.get_value("Account", d.income_account, "company") != self.company:
+					d.income_account = frappe.db.get_value("Company", self.company, "default_income_account")
+			
+			if d.cost_center:
+				if frappe.db.get_value("Cost Center", d.cost_center, "company") != self.company:
+					d.cost_center = frappe.db.get_value("Company", self.company, "cost_center")
 
 	def validate_fixed_asset(self):
 		for d in self.get("items"):
@@ -297,6 +319,7 @@ class SalesInvoice(SellingController):
 			self.apply_loyalty_points()
 
 		self.process_common_party_accounting()
+		self.process_common_party_accounting()
 
 	def validate_pos_return(self):
 		if self.is_consolidated:
@@ -332,16 +355,34 @@ class SalesInvoice(SellingController):
 				frappe.throw(msg, title=_("Not Allowed"))
 
 	def before_cancel(self):
+		# self.validate_payment_entries()
 		self.check_if_consolidated_invoice()
-
 		super(SalesInvoice, self).before_cancel()
 		self.update_time_sheet(None)
+		
+	def validate_payment_entries(self):
+		reference_name = self.name
+		
+		pe = frappe.db.sql("""
+			select
+				t1.name
+			from `tabPayment Entry` t1, `tabPayment Entry Reference` t2
+			where
+				t1.name = t2.parent and t1.payment_type = "Receive"
+				and t1.party_type = "Customer" and t1.docstatus = 1
+				and t2.reference_doctype = "Sales Invoice" and t2.reference_name = %s
+			order by t1.name
+		""",reference_name, as_dict=1)
+
+		if pe:
+			frappe.throw(_("Invoice is linked with payment entries."))
+
 
 	def on_cancel(self):
 		check_if_return_invoice_linked_with_payment_entry(self)
 
 		super(SalesInvoice, self).on_cancel()
-
+		
 		self.check_sales_order_on_hold_or_close("sales_order")
 
 		if self.is_return and not self.update_billed_amount_in_sales_order:
@@ -561,6 +602,9 @@ class SalesInvoice(SellingController):
 			if not for_validate:
 				self.tax_category = pos.get("tax_category")
 
+			if not for_validate:
+				self.tax_category = pos.get("tax_category")
+
 			if not for_validate and not self.customer:
 				self.customer = pos.customer
 
@@ -569,7 +613,6 @@ class SalesInvoice(SellingController):
 
 			if pos.get("account_for_change_amount"):
 				self.account_for_change_amount = pos.get("account_for_change_amount")
-
 			for fieldname in (
 				"currency",
 				"letter_head",
@@ -760,6 +803,7 @@ class SalesInvoice(SellingController):
 				(self.project, self.customer),
 			)
 			if not res:
+				pass
 				throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
 	def validate_pos(self):
@@ -1032,7 +1076,7 @@ class SalesInvoice(SellingController):
 		)
 
 		for tax in self.get("taxes"):
-			amount, base_amount = self.get_tax_amounts(tax, enable_discount_accounting)
+			amount, base_amount = self.get_tax_amounts(tax, self.enable_discount_accounting)
 
 			if flt(tax.base_tax_amount_after_discount_amount):
 				account_currency = get_account_currency(tax.account_head)
@@ -1118,7 +1162,7 @@ class SalesInvoice(SellingController):
 							else item.deferred_revenue_account
 						)
 
-						amount, base_amount = self.get_amount_and_base_amount(item, enable_discount_accounting)
+						amount, base_amount = self.get_amount_and_base_amount(item, self.enable_discount_accounting)
 
 						account_currency = get_account_currency(income_account)
 						gl_entries.append(
@@ -1832,6 +1876,9 @@ def make_maintenance_schedule(source_name, target_doc=None):
 @frappe.whitelist()
 def make_delivery_note(source_name, target_doc=None):
 	def set_missing_values(source, target):
+		if source.project:
+			target.project = source.project
+
 		target.run_method("set_missing_values")
 		target.run_method("set_po_nos")
 		target.run_method("calculate_taxes_and_totals")
@@ -1887,6 +1934,75 @@ def set_account_for_mode_of_payment(self):
 	for data in self.payments:
 		if not data.account:
 			data.account = get_bank_cash_account(data.mode_of_payment, self.company).get("account")
+
+
+def update_item(target_doc,source_doc,company,discount_percent=0):
+	factor = 1-flt(discount_percent)/100
+
+	for item in target_doc.items:
+		item.base_rate = factor * flt(item.base_rate)
+		item.rate = factor * flt(item.rate)
+		item.base_amount = item.qty * flt(item.base_rate)		
+		item.amount = item.qty * flt(item.rate)
+
+@frappe.whitelist()		
+def make_sales_invoice(data):
+		import json
+		args = json.loads(data)
+		
+		source_name = args["source_name"]
+		project_discount_percent = args["project_discount_percent"]
+		per_item_discount_percent = args["per_item_discount_percent"]
+		company= args["company"]
+		project= args["project"]
+		taxes_and_charges= args["taxes_and_charges"]
+		tc_name= args["tc_name"]
+		customer= args["customer"]
+		
+		source_doc = frappe.get_doc("Sales Invoice", source_name)
+		target_doc = frappe.copy_doc(source_doc, ignore_no_copy=False)
+		target_doc.customer = customer
+
+		target_doc.naming_series = source_doc.naming_series
+		target_doc.posting_date = source_doc.posting_date
+		target_doc.due_date = source_doc.due_date
+		target_doc.company = company
+		target_doc.project = project
+		target_doc.taxes_and_charges = taxes_and_charges
+		target_doc.tc_name = tc_name
+		
+
+		target_doc.taxes = []
+		target_doc.terms = ""
+		
+		# fetch terms
+		if target_doc.tc_name and not target_doc.terms:
+			target_doc.terms = frappe.db.get_value("Terms and Conditions", target_doc.tc_name, "terms")
+
+		# fetch charges
+		if target_doc.taxes_and_charges and not len(target_doc.get("taxes")):
+			target_doc.set_taxes()
+
+		
+		
+		target_doc.ignore_pricing_rule = 1
+		target_doc.run_method("set_missing_values")
+		target_doc.run_method("calculate_taxes_and_totals")
+		
+		update_item(target_doc,source_doc,company,per_item_discount_percent)
+		
+
+		factor = 1-flt(project_discount_percent)/100
+		target_doc.project_total = factor * flt(source_doc.project_total)
+
+		# target_doc.insert(ignore_permissions=True)
+
+		
+		can_read = False
+		if target_doc.has_permission('read'):
+			can_read = True
+		# frappe.db.commit()
+		return target_doc, can_read
 
 
 def get_inter_company_details(doc, doctype):
@@ -2208,6 +2324,7 @@ def update_pi_items(
 				)
 
 
+
 def update_pr_items(doc, sales_item_map, purchase_item_map, parent_child_map, warehouse_map):
 	for item in doc.get("items"):
 		item.warehouse = warehouse_map.get(sales_item_map.get(item.delivery_note_item))
@@ -2215,6 +2332,7 @@ def update_pr_items(doc, sales_item_map, purchase_item_map, parent_child_map, wa
 			item.warehouse = frappe.db.get_value(
 				"Purchase Order Item", item.purchase_order_item, "warehouse"
 			)
+
 
 
 def get_delivery_note_details(internal_reference):

@@ -41,9 +41,79 @@ frappe.ui.form.on("Purchase Order", {
 		});
 	},
 
+	refresh: function(frm) {
+		/* if(frm.doc.docstatus === 1 && frm.doc.status !== 'Closed'
+			&& flt(frm.doc.per_received) < 100 && flt(frm.doc.per_billed) < 100) {
+			frm.add_custom_button(__('Update Items'), () => {
+				erpnext.utils.update_child_items({
+					frm: frm,
+					child_docname: "items",
+					child_doctype: "Purchase Order Detail",
+					cannot_add_row: false,
+				})
+			});
+		} */
+		
+		
+		frm.add_custom_button(__('Make OLD PR'), () => {
+				frm.trigger("auto_make_purchase_receipts");
+			});
+	},
+		
 	company: function(frm) {
 		erpnext.accounts.dimensions.update_dimension(frm, frm.doctype);
 	},
+	
+	auto_make_purchase_receipts: function(){
+		var me = this;
+		var d = new frappe.ui.Dialog({
+			title: __('Auto Make Purchase Receipts For Old POs'),
+			fields: [
+				{
+					fieldname: "year",
+					fieldtype: "Int",
+					label:"Year",
+					reqd: 1,
+					default:2017
+				},
+				{
+					fieldname: "limit",
+					fieldtype: "Int",
+					label:"Limit",
+					reqd: 1,
+					default:1
+				},
+				{
+					fieldname: "submit",
+					fieldtype: "Check",
+					label:"Submit"
+				}
+			],
+		});
+		
+		d.set_primary_action(__('Create'), function() {
+			var data = d.get_values();
+			if(!data) return;
+			frappe.call({
+				method: "erpnext.buying.doctype.purchase_order.purchase_order.auto_make_purchase_receipts",
+				args: {
+					year: data.year,
+					limit: data.limit,
+					submit: cint(data.submit)
+				},
+				callback: function(r) {
+					if(!r.exc) {
+					}
+					console.log(r)
+					d.hide();
+					// frappe.msgprint(r.message.join("<br>"));
+				}
+			});
+		})
+		
+		d.show();
+	},
+
 
 	refresh: function(frm) {
 		if(frm.doc.is_old_subcontracting_flow) {
@@ -91,7 +161,6 @@ frappe.ui.form.on("Purchase Order", {
 			}, __('Create'));
 		}
 	},
-
 	onload: function(frm) {
 		set_schedule_date(frm);
 		if (!frm.doc.transaction_date){
@@ -158,6 +227,7 @@ erpnext.buying.PurchaseOrderController = class PurchaseOrderController extends e
 		super.refresh();
 		var allow_receipt = false;
 		var is_drop_ship = false;
+		
 
 		for (var i in cur_frm.doc.items) {
 			var item = cur_frm.doc.items[i];
@@ -171,6 +241,7 @@ erpnext.buying.PurchaseOrderController = class PurchaseOrderController extends e
 				break;
 			}
 		}
+
 
 		this.frm.set_df_property("drop_ship", "hidden", !is_drop_ship);
 
@@ -264,7 +335,6 @@ erpnext.buying.PurchaseOrderController = class PurchaseOrderController extends e
 
 					}
 				}
-
 				cur_frm.page.set_inner_btn_group_as_primary(__('Create'));
 			}
 		} else if(doc.docstatus===0) {

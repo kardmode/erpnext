@@ -1,0 +1,284 @@
+{
+ "append_company_abbr_to_name": "0",
+ "beta": 1,
+ "creation": "2017-04-26 23:12:03.672091",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "sheet_dimensions",
+  "sheet_length",
+  "sheet_width",
+  "sheet_height",
+  "price_per_sheet",
+  "stock_summary",
+  "column_break_5",
+  "sheet_length_units",
+  "sheet_width_units",
+  "sheet_height_units",
+  "panel_dimensions",
+  "panel_length",
+  "panel_width",
+  "panel_height",
+  "finished_qty_per_stock",
+  "num_of_sheets",
+  "conversion_factor",
+  "panel_summary",
+  "column_break_13",
+  "panel_length_units",
+  "panel_width_units",
+  "panel_height_units",
+  "finished_qty_per_stock_vol",
+  "num_of_stock_vol",
+  "cubic_m_conversion_factor",
+  "cft_conversion_factor",
+  "round_top_calculation",
+  "circle_radius",
+  "number_of_sheets_round_top",
+  "finished_qty_per_stock_round_top",
+  "round_top_summary",
+  "column_break_32",
+  "circle_radius_units"
+ ],
+ "fields": [
+  {
+   "fieldname": "sheet_dimensions",
+   "fieldtype": "Section Break",
+   "label": "Stock Dimensions"
+  },
+  {
+   "fieldname": "sheet_length",
+   "fieldtype": "Float",
+   "label": "Sheet Length"
+  },
+  {
+   "fieldname": "sheet_width",
+   "fieldtype": "Float",
+   "label": "Sheet Width"
+  },
+  {
+   "fieldname": "sheet_height",
+   "fieldtype": "Float",
+   "label": "Sheet Height"
+  },
+  {
+   "fieldname": "price_per_sheet",
+   "fieldtype": "Currency",
+   "label": "Price Per Sheet"
+  },
+  {
+   "fieldname": "stock_summary",
+   "fieldtype": "Text",
+   "label": "Stock Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sheet_length_units",
+   "fieldtype": "Select",
+   "label": "Sheet Length Units",
+   "options": "m\nft\ncm\nmm\nin"
+  },
+  {
+   "fieldname": "sheet_width_units",
+   "fieldtype": "Select",
+   "label": "Sheet Width Units",
+   "options": "m\nft\ncm\nmm\nin"
+  },
+  {
+   "fieldname": "sheet_height_units",
+   "fieldtype": "Select",
+   "label": "Sheet Height Units",
+   "options": "m\nft\ncm\nmm\nin"
+  },
+  {
+   "fieldname": "panel_dimensions",
+   "fieldtype": "Section Break",
+   "label": "Rectangular Panel Cut Piece"
+  },
+  {
+   "fieldname": "panel_length",
+   "fieldtype": "Float",
+   "label": "Panel Length"
+  },
+  {
+   "fieldname": "panel_width",
+   "fieldtype": "Float",
+   "label": "Panel Width"
+  },
+  {
+   "fieldname": "panel_height",
+   "fieldtype": "Float",
+   "label": "Panel Height"
+  },
+  {
+   "fieldname": "finished_qty_per_stock",
+   "fieldtype": "Float",
+   "label": "finished_qty_per_stock area",
+   "read_only": 1
+  },
+  {
+   "fieldname": "num_of_sheets",
+   "fieldtype": "Float",
+   "label": "num_of_sheets",
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversion_factor",
+   "fieldtype": "Float",
+   "label": "conversion_factor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "panel_summary",
+   "fieldtype": "Text",
+   "label": "Panel Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_13",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "panel_length_units",
+   "fieldtype": "Select",
+   "label": "Panel Length Units",
+   "options": "m\nft\ncm\nmm\nin"
+  },
+  {
+   "fieldname": "panel_width_units",
+   "fieldtype": "Select",
+   "label": "Panel Width Units",
+   "options": "m\nft\ncm\nmm\nin"
+  },
+  {
+   "fieldname": "panel_height_units",
+   "fieldtype": "Select",
+   "label": "Panel Height Units",
+   "options": "m\nft\ncm\nmm\nin"
+  },
+  {
+   "fieldname": "finished_qty_per_stock_vol",
+   "fieldtype": "Float",
+   "label": "finished_qty_per_stock_vol",
+   "read_only": 1
+  },
+  {
+   "fieldname": "num_of_stock_vol",
+   "fieldtype": "Float",
+   "label": "num_of_stock_vol",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cubic_m_conversion_factor",
+   "fieldtype": "Float",
+   "label": "cubic_m_conversion_factor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cft_conversion_factor",
+   "fieldtype": "Float",
+   "label": "cft_conversion_factor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "round_top_calculation",
+   "fieldtype": "Section Break",
+   "label": "Round Top Calculation"
+  },
+  {
+   "description": "Radius = Diameter/2",
+   "fieldname": "circle_radius",
+   "fieldtype": "Float",
+   "label": "Circle Radius"
+  },
+  {
+   "fieldname": "number_of_sheets_round_top",
+   "fieldtype": "Float",
+   "label": "Number of Sheets Round Top",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_qty_per_stock_round_top",
+   "fieldtype": "Float",
+   "label": "Finished qty per stock round top",
+   "read_only": 1
+  },
+  {
+   "fieldname": "round_top_summary",
+   "fieldtype": "Text",
+   "label": "Round Top Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_32",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "circle_radius_units",
+   "fieldtype": "Select",
+   "label": "Circle Radius Units",
+   "options": "m\nft\ncm\nmm\nin"
+  }
+ ],
+ "issingle": 1,
+ "modified": "2020-04-14 23:55:18.201666",
+ "modified_by": "Administrator",
+ "module": "Manufacturing",
+ "name": "Sheet Calculator",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Stock Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Stock User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Manufacturing Helper",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

@@ -1,0 +1,262 @@
+{
+ "add_company_abbr_to_name": 1,
+ "autoname": "REMIT-.PDY.#####",
+ "beta": 1,
+ "creation": "2019-02-22 20:05:27.523188",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "posting_date",
+  "title",
+  "subject",
+  "address",
+  "address_display",
+  "column_break_5",
+  "company",
+  "company_account",
+  "company_account_number",
+  "reference_doctype",
+  "reference_name",
+  "project",
+  "party_type",
+  "party",
+  "beneficiary_account",
+  "section_break_13",
+  "currency_of_transfer",
+  "transfer_amount",
+  "in_words",
+  "local_charges",
+  "correspondence_charges",
+  "purpose",
+  "column_break_23",
+  "beneficiary_account_name",
+  "beneficiary_bank_name",
+  "beneficiary_bank_swift_code",
+  "beneficiary_account_number",
+  "beneficiary_bank_address",
+  "section_break_7",
+  "body",
+  "sign_off"
+ ],
+ "fields": [
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Link",
+   "label": "Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "address_display",
+   "fieldtype": "Small Text",
+   "label": "Address Display"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "company_account",
+   "fieldtype": "Link",
+   "label": "Company Account",
+   "options": "Bank Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Select",
+   "label": "Reference Doctype",
+   "options": "\nSales Invoice\nPurchase Order"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "party_type",
+   "fieldtype": "Select",
+   "label": "Beneficiary Type",
+   "options": "Supplier\nCustomer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "label": "Beneficiary",
+   "options": "party_type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "beneficiary_account",
+   "fieldtype": "Link",
+   "label": "Beneficiary Account",
+   "options": "Bank Account"
+  },
+  {
+   "fieldname": "section_break_7",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Small Text",
+   "label": "Main Body"
+  },
+  {
+   "fieldname": "section_break_13",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "currency_of_transfer",
+   "fieldtype": "Link",
+   "label": "Currency of Transfer",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "transfer_amount",
+   "fieldtype": "Currency",
+   "label": "Transfer Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "in_words",
+   "fieldtype": "Data",
+   "label": "In Words",
+   "read_only": 1
+  },
+  {
+   "fieldname": "local_charges",
+   "fieldtype": "Data",
+   "label": "Local Charges"
+  },
+  {
+   "fieldname": "correspondence_charges",
+   "fieldtype": "Data",
+   "label": "Correspondence Charges"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Data",
+   "label": "Purpose"
+  },
+  {
+   "fieldname": "column_break_23",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "beneficiary_account.account_name",
+   "fieldname": "beneficiary_account_name",
+   "fieldtype": "Data",
+   "label": "Beneficiary Account Name"
+  },
+  {
+   "fetch_from": "beneficiary_account.bank",
+   "fieldname": "beneficiary_bank_name",
+   "fieldtype": "Data",
+   "label": "Beneficiary Bank Name"
+  },
+  {
+   "fetch_from": "beneficiary_account.swift_number",
+   "fieldname": "beneficiary_bank_swift_code",
+   "fieldtype": "Data",
+   "label": "Beneficiary Bank SWIFT Code"
+  },
+  {
+   "fetch_from": "beneficiary_account.iban",
+   "fieldname": "beneficiary_account_number",
+   "fieldtype": "Data",
+   "label": "Beneficiary Account Number"
+  },
+  {
+   "fieldname": "sign_off",
+   "fieldtype": "Small Text",
+   "label": "Sign Off"
+  },
+  {
+   "fetch_from": "company_account.bank_account_no",
+   "fieldname": "company_account_number",
+   "fieldtype": "Data",
+   "label": "Company Account Number"
+  },
+  {
+   "fieldname": "beneficiary_bank_address",
+   "fieldtype": "Small Text",
+   "label": "Beneficiary Bank Address"
+  }
+ ],
+ "modified": "2020-06-17 22:51:32.329518",
+ "modified_by": "Administrator",
+ "module": "Accounts",
+ "name": "MRP Bank Transfer",
+ "name_case": "Title Case",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "title",
+ "track_changes": 1
+}

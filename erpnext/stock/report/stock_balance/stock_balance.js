@@ -87,6 +87,37 @@ frappe.query_reports["Stock Balance"] = {
 			"label": __('Show Stock Ageing Data'),
 			"fieldtype": 'Check'
 		},
+				{
+			"fieldname": "hide_disabled",
+			"label": __("Hide Disabled Warehouse"),
+			"fieldtype": "Check",
+			"default":1
+		},
+		{
+			"fieldname": "hide_positive_qty",
+			"label": __("Hide Positive Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
+		{
+			"fieldname": "hide_zero_qty",
+			"label": __("Hide Zero Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
+		{
+			"fieldname": "hide_negative_qty",
+			"label": __("Hide Negative Qty"),
+			"fieldtype": "Check",
+			"default":0
+		},
+		{
+			"fieldname": "report_style",
+			"label": __("Report Style"),
+			"fieldtype": "Select",
+			"options":["Default","Minimal"],
+			"default":"Minimal"
+		},
 	],
 
 	"formatter": function (value, row, column, data, default_formatter) {

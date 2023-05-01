@@ -15,6 +15,15 @@ from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
 
 
 class Project(Document):
+
+	def autoname(self):
+		if self.company:
+			prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
+			if not self.project_name.startswith(prefix):
+				self.name = prefix + self.project_name
+		else:
+			self.name = self.project_name
+	
 	def get_feed(self):
 		return "{0}: {1}".format(_(self.status), frappe.safe_decode(self.project_name))
 
@@ -297,6 +306,59 @@ class Project(Document):
 				)
 				user.welcome_email_sent = 1
 
+	def on_update(self):
+		if self.status != 'Open':
+			self.validate_child_status()
+
+		self.update_nsm_model()
+		
+	def validate_parent_status(self):
+		if self.parent_project:
+			if frappe.db.sql("""select name from `tabProject` where name = %s and is_group = 0 limit 1""", self.name):
+				self.parent_project = None
+	
+	def validate_child_status(self):
+		if frappe.db.sql("""select name from `tabProject` where parent_project = %s and (status = 'Open') limit 1""", self.name):
+			frappe.throw(_("Child projects are still Active or Open"))	
+	
+	def on_trash(self):
+		
+		if self.check_if_child_exists():
+			throw(_("Child projects exists for this project. You can not delete this project."))
+
+		self.update_nsm_model()
+		
+	def update_nsm_model(self):
+		frappe.utils.nestedset.update_nsm(self)
+	
+	def check_if_child_exists(self):
+		return frappe.db.sql("""select name from `tabProject`
+			where parent_project = %s limit 1""", self.name)
+				
+	def convert_to_group_or_ledger(self):
+		if self.is_group:
+			self.convert_to_ledger()
+		else:
+			if self.parent_project:
+				frappe.throw(_("Can't add group in group"))	
+			else:
+				self.convert_to_group()
+
+	def convert_to_ledger(self):
+		if self.check_if_child_exists():
+			frappe.throw(_("Projects with child nodes cannot be converted to ledger"))
+		else:
+			self.is_group = 0
+			self.save()
+			return 1
+
+	def convert_to_group(self):
+		# if self.check_if_sle_exists():
+			# throw(_("Warehouses with existing transaction can not be converted to group."))
+		# else:
+		self.is_group = 1
+		self.save()
+		return 1
 
 def get_timeline_data(doctype, name):
 	"""Return timeline for attendance"""
@@ -315,6 +377,7 @@ def get_timeline_data(doctype, name):
 def get_project_list(
 	doctype, txt, filters, limit_start, limit_page_length=20, order_by="modified"
 ):
+
 	meta = frappe.get_meta(doctype)
 	if not filters:
 		filters = []
@@ -655,6 +718,47 @@ def set_project_status(project, status):
 	project.status = status
 	project.save()
 
+
+# def get_child_warehouses(project):
+	# lft, rgt = frappe.get_cached_value("Project", project, [lft, rgt])
+
+	# return frappe.db.sql_list("""select name from `tabProject`
+		# where lft >= %s and rgt =< %s""", (lft, rgt))
+
+@frappe.whitelist()
+def add_node():
+	from frappe.desk.treeview import make_tree_args
+	args = make_tree_args(**frappe.form_dict)
+
+	if cint(args.is_root):
+		args.parent_project = None
+	else:
+		if cint(args.is_group):
+			frappe.throw(_("Can't add group in group"))	
+
+	frappe.get_doc(args).insert()
+
+@frappe.whitelist()
+def convert_to_group_or_ledger():
+	args = frappe.form_dict
+	return frappe.get_doc("Project", args.docname).convert_to_group_or_ledger()
+
+@frappe.whitelist()
+def get_children(doctype, parent=None, company=None,status=None, is_root=False):
+
+	if is_root:
+		parent = ""
+
+	projects = frappe.db.sql("""select name as value,
+		is_group as expandable, total_billed_amount as balance, status, expected_end_date
+		from `tabProject`
+		where docstatus < 2
+		and ifnull(`parent_project`,'') = %s
+		and (`company` = %s or company is null or company = '')
+		and (`status` = %s or status is null or status = '')
+		order by name""", (parent, company,status), as_dict=1)
+
+	return projects
 
 def get_holiday_list(company=None):
 	if not company:

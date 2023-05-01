@@ -10,6 +10,7 @@ from frappe.model.document import Document
 from frappe.utils import flt, get_url, nowdate
 from frappe.utils.background_jobs import enqueue
 
+
 from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
 	get_accounting_dimensions,
 )
@@ -35,14 +36,17 @@ class PaymentRequest(Document):
 	def validate(self):
 		if self.get("__islocal"):
 			self.status = "Draft"
-		self.validate_reference_document()
-		self.validate_payment_request_amount()
-		self.validate_currency()
-		self.validate_subscription_details()
-
+		# self.validate_reference_document()
+		# self.validate_payment_request_amount()
+		# self.validate_currency()
+		# self.validate_subscription_details()
+		self.grand_total_requested = flt(self.advance_required) + flt(self.vat) - flt(self.additional_discount_amount)
+		self.request_in_words = money_in_words(self.grand_total_requested, self.currency)
+	
 	def validate_reference_document(self):
 		if not self.reference_doctype or not self.reference_name:
 			frappe.throw(_("To create a Payment Request reference document is required"))
+
 
 	def validate_payment_request_amount(self):
 		existing_payment_request_amount = get_existing_payment_request_amount(
@@ -60,7 +64,6 @@ class PaymentRequest(Document):
 							self.reference_doctype
 						)
 					)
-
 	def validate_currency(self):
 		ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
 		if self.payment_account and ref_doc.currency != frappe.db.get_value(
@@ -100,13 +103,25 @@ class PaymentRequest(Document):
 		elif self.payment_request_type == "Inward":
 			self.db_set("status", "Requested")
 
-		send_mail = self.payment_gateway_validation() if self.payment_gateway else None
-		ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+		
+		
+		if self.reference_doctype and self.reference_name:
+			# frappe.throw(_("Cannot Submit.".format(self.payment_request_type)))
+		
+			ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+
+
+			if (hasattr(ref_doc, "order_type") and getattr(ref_doc, "order_type") == "Shopping Cart") \
+				or self.flags.mute_email:
+				send_mail = False
+
 
 		if (
 			hasattr(ref_doc, "order_type") and getattr(ref_doc, "order_type") == "Shopping Cart"
 		) or self.flags.mute_email:
 			send_mail = False
+			
+		send_mail = False
 
 		if send_mail and self.payment_channel != "Phone":
 			self.set_payment_request_url()
@@ -391,6 +406,56 @@ class PaymentRequest(Document):
 					redirect_to = get_url("/orders/{0}".format(self.reference_name))
 
 			return redirect_to
+	
+	def get_invoice_info(self,args):
+		args = frappe._dict(args)		
+		newd = frappe.db.sql("""select title,posting_date,currency,customer,grand_total as total_amount, outstanding_amount,debit_to,project from `tabSales Invoice` where name = %s limit 1""", args.docname,as_dict = 1)
+		return newd
+		
+	def get_doc_info(self,args):
+		args = frappe._dict(args)
+
+		self.currency = "AED"
+		project = args.docname
+		self.subject = project
+		
+		invoices = get_invoices(project)
+		for d in sorted(invoices):
+			newd = self.append('invoices')
+			newd.sales_invoice = d.name
+			newd.posting_date = d.posting_date
+			newd.outstanding_amount = d.outstanding_amount
+			newd.total_amount = d.grand_total
+			newd.project = project
+			newd.title = d.title
+		
+		
+		self.calculate_totals()
+		
+		
+	def calculate_totals(self):	
+		grand_total = 0
+		outstanding_amount = 0
+		total_advance = 0
+		
+		for d in self.get('invoices'):
+			grand_total = grand_total + flt(d.total_amount)
+			outstanding_amount = outstanding_amount + flt(d.outstanding_amount)
+			
+		
+		
+		
+		
+		self.currency ="AED"
+		self.grand_total = grand_total
+		
+		
+		self.outstanding_amount = outstanding_amount
+		self.total_advance = flt(grand_total)-flt(outstanding_amount)
+		self.in_words = money_in_words(self.outstanding_amount, self.currency)
+		
+		self.grand_total_requested = flt(self.advance_required) + flt(self.vat) - flt(self.additional_discount_amount)
+		self.request_in_words = money_in_words(self.grand_total_requested, self.currency)
 
 	def create_subscription(self, payment_provider, gateway_controller, data):
 		if payment_provider == "stripe":
@@ -407,6 +472,10 @@ def make_payment_request(**args):
 	gateway_account = get_gateway_details(args) or frappe._dict()
 
 	grand_total = get_amount(ref_doc, gateway_account.get("payment_account"))
+	
+	outstanding_amount,payments_summary = get_outstanding_amount(ref_doc, args.dt)
+	total_advance = flt(grand_total)-flt(outstanding_amount)
+	
 	if args.loyalty_points and args.dt == "Sales Order":
 		from erpnext.accounts.doctype.loyalty_program.loyalty_program import validate_loyalty_points
 
@@ -463,6 +532,7 @@ def make_payment_request(**args):
 			}
 		)
 
+
 		# Update dimensions
 		pr.update(
 			{
@@ -477,8 +547,8 @@ def make_payment_request(**args):
 		if args.order_type == "Shopping Cart" or args.mute_email:
 			pr.flags.mute_email = True
 
-		pr.insert(ignore_permissions=True)
 		if args.submit_doc:
+			pr.insert(ignore_permissions=True)
 			pr.submit()
 
 	if args.order_type == "Shopping Cart":
@@ -494,16 +564,32 @@ def make_payment_request(**args):
 
 def get_amount(ref_doc, payment_account=None):
 	"""get amount based on doctype"""
+	grand_total = 0
 	dt = ref_doc.doctype
 	if dt in ["Sales Order", "Purchase Order"]:
-		grand_total = flt(ref_doc.grand_total) - flt(ref_doc.advance_paid)
+		if ref_doc.party_account_currency == ref_doc.currency:
+			grand_total = flt(ref_doc.grand_total) - flt(ref_doc.advance_paid)
+		else:
+			grand_total = flt(ref_doc.grand_total) - flt(ref_doc.advance_paid) / ref_doc.conversion_rate
 
 	elif dt in ["Sales Invoice", "Purchase Invoice"]:
 		if ref_doc.party_account_currency == ref_doc.currency:
-			grand_total = flt(ref_doc.outstanding_amount)
+			grand_total = flt(ref_doc.grand_total)
 		else:
-			grand_total = flt(ref_doc.outstanding_amount) / ref_doc.conversion_rate
+			grand_total = flt(ref_doc.grand_total) / ref_doc.conversion_rate
 
+	elif dt == "Sales Invoice":
+		if ref_doc.party_account_currency == ref_doc.currency:
+			grand_total = flt(ref_doc.grand_total)
+		else:
+			grand_total = flt(ref_doc.grand_total) / ref_doc.conversion_rate
+	elif dt == "Project":
+		doc_list = get_documents(ref_doc.name,"Sales Invoice")
+		
+		for d in doc_list:
+			grand_total = grand_total + flt(d.grand_total)
+	
+	
 	elif dt == "POS Invoice":
 		for pay in ref_doc.payments:
 			if pay.type == "Phone" and pay.account == payment_account:
@@ -513,11 +599,53 @@ def get_amount(ref_doc, payment_account=None):
 	elif dt == "Fees":
 		grand_total = ref_doc.outstanding_amount
 
-	if grand_total > 0:
-		return grand_total
+	return grand_total
+	
+		
+def get_outstanding_amount(ref_doc, dt):
+	"""get amount based on doctype"""
+	outstanding_amount = 0
+	
+	payments_summary = """<table class="table table-bordered table-condensed">"""
+	payments_summary += """<thead><tr style>
+				<th>Sr</th>
+				<th width="20%">Ref.</th>
+				<th>Transaction Ref.</th>
+				<th>Date</th>
+				<th>Amount</th>
+				</tr></thead><tbody>"""
+	
+	if dt == "Sales Order":
+		outstanding_amount = flt(ref_doc.grand_total) - flt(ref_doc.advance_paid)
+		if ref_doc.party_account_currency == ref_doc.currency:
+			outstanding_amount = flt(outstanding_amount)
+		else:
+			outstanding_amount = flt(outstanding_amount) / ref_doc.conversion_rate
+		
+		payments_summary += get_advances(ref_doc)
+	elif dt == "Sales Invoice":
+		if ref_doc.party_account_currency == ref_doc.currency:
+			outstanding_amount = flt(ref_doc.outstanding_amount)
+		else:
+			outstanding_amount = flt(ref_doc.outstanding_amount) / ref_doc.conversion_rate
+		
+		payments_summary += get_advances(ref_doc)
+	elif dt == "Project":
+		doctype = "Sales Invoice"
+		doc_list = get_documents(ref_doc.name,doctype)
+		
+		
+		for d in doc_list:
+			outstanding_amount = outstanding_amount + flt(d.outstanding_amount)
+			d["doctype"] = doctype
+			payments_summary += get_advances(d)
+		
+	if outstanding_amount <= 0 :
+		frappe.msgprint(_("No Outstanding Balance"))
+		
+	payments_summary += """</tbody></table>"""
+	return outstanding_amount,payments_summary
 
-	else:
-		frappe.throw(_("Payment Entry is already created"))
 
 
 def get_existing_payment_request_amount(ref_dt, ref_dn):
@@ -625,12 +753,8 @@ def get_dummy_message(doc):
 		"""{% if doc.contact_person -%}
 <p>Dear {{ doc.contact_person }},</p>
 {%- else %}<p>Hello,</p>{% endif %}
-
 <p>{{ _("Requesting payment against {0} {1} for amount {2}").format(doc.doctype,
 	doc.name, doc.get_formatted("grand_total")) }}</p>
-
-<a href="{{ payment_url }}">{{ _("Make Payment") }}</a>
-
 <p>{{ _("If you have any questions, please get back to us.") }}</p>
 
 <p>{{ _("Thank you for your business!") }}</p>
@@ -638,6 +762,99 @@ def get_dummy_message(doc):
 		dict(doc=doc, payment_url="{{ payment_url }}"),
 	)
 
+
+def get_documents(project,doctype):
+	ss_list = []
+	if doctype == "Sales Order":
+		ss_list = frappe.db.sql("""select name,title,posting_date,currency,customer,grand_total , advance_paid, debit_to from `tabSales Order` where project = %s and docstatus = 1""", project,as_dict = 1)
+
+	elif doctype == "Sales Invoice":
+		ss_list = frappe.db.sql("""select name,title,posting_date,currency,customer,grand_total, outstanding_amount,debit_to from `tabSales Invoice` where project = %s and docstatus = 1""", project,as_dict = 1)
+
+	return ss_list
+	
+def get_invoices(project):
+	"""Returns list of advances against Account, Party, Reference"""
+	res = get_documents(project,"Sales Invoice")
+	
+	return res
+
+	
+def get_advances(ref_doc):
+	"""Returns list of advances against Account, Party, Reference"""
+	order_list = [ref_doc.name]
+	res = get_advance_entries(order_list,ref_doc.doctype,ref_doc,include_unallocated=False)
+	
+		
+	joiningtext = ""
+	for i, d in enumerate(res):
+		amount = fmt_money(d.amount, 2, d.paid_from_account_currency)
+		joiningtext += """<tr>
+					<td>""" + str(i+1) +"""</td>
+					<td>""" + str(ref_doc.name) +"""</td>
+					<td>""" + str(d.reference_no) +"""</td>
+					<td>""" + str(formatdate(d.reference_date)) +"""</td>
+					<td>""" + str(d.paid_from_account_currency) + " " + amount +"""</td>
+					</tr>"""
+	
+	return joiningtext
+
+def get_advance_entries(order_list,order_doctype,ref_doc,include_unallocated=True):
+	party_account = ref_doc.debit_to
+	party_type = "Customer"
+	party = ref_doc.customer
+	amount_field = "credit_in_account_currency"
+
+	# from erpnext.controllers.accounts_controller import get_advance_journal_entries
+
+	# journal_entries = get_advance_journal_entries(party_type, party, party_account,
+		# amount_field, order_doctype, order_list, include_unallocated)
+
+	payment_entries = get_advance_payment_entries(party_type, party, party_account,
+		order_doctype, order_list, include_unallocated)
+
+	res = payment_entries
+
+	return res
+
+def get_advance_payment_entries(party_type, party, party_account,
+		order_doctype, order_list=None, include_unallocated=True, against_all_orders=False):
+	party_account_field = "paid_from" if party_type == "Customer" else "paid_to"
+	payment_type = "Receive" if party_type == "Customer" else "Pay"
+	payment_entries_against_order, unallocated_payment_entries = [], []
+
+	if order_list or against_all_orders:
+		if order_list:
+			reference_condition = " and t2.reference_name in ({0})"\
+				.format(', '.join(['%s'] * len(order_list)))
+		else:
+			reference_condition = ""
+			order_list = []
+
+		payment_entries_against_order = frappe.db.sql("""
+			select
+				"Payment Entry" as reference_type, t1.name as reference_name,
+				t1.remarks, t2.allocated_amount as amount, t2.name as reference_row,
+				t2.reference_name as against_order, t1.posting_date,t1.paid_from_account_currency, t1.reference_no,t1.reference_date
+			from `tabPayment Entry` t1, `tabPayment Entry Reference` t2
+			where
+				t1.name = t2.parent and t1.{0} = %s and t1.payment_type = %s
+				and t1.party_type = %s and t1.party = %s and t1.docstatus = 1
+				and t2.reference_doctype = %s {1}
+		""".format(party_account_field, reference_condition),
+		[party_account, payment_type, party_type, party, order_doctype] + order_list, as_dict=1)
+
+	if include_unallocated:
+		unallocated_payment_entries = frappe.db.sql("""
+				select "Payment Entry" as reference_type, name as reference_name,
+				remarks, unallocated_amount as amount
+				from `tabPayment Entry`
+				where
+					{0} = %s and party_type = %s and party = %s and payment_type = %s
+					and docstatus = 1 and unallocated_amount > 0
+			""".format(party_account_field), (party_account, party_type, party, payment_type), as_dict=1)
+
+	return list(payment_entries_against_order) + list(unallocated_payment_entries)
 
 @frappe.whitelist()
 def get_subscription_details(reference_doctype, reference_name):

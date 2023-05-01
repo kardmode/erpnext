@@ -150,7 +150,6 @@ def get_serial_nos_data_after_transactions(args):
 	serial_nos = set()
 	args = frappe._dict(args)
 	sle = frappe.qb.DocType("Stock Ledger Entry")
-
 	stock_ledger_entries = (
 		frappe.qb.from_(sle)
 		.select("serial_no", "actual_qty")
@@ -210,6 +209,29 @@ def get_latest_stock_qty(item_code, warehouse=None):
 	return actual_qty
 
 
+@frappe.whitelist()
+def get_actual_qty(item_code,company = None):
+
+	actual_qty = 0
+	
+	if not company:
+		if item_code:
+			values, condition = [item_code], ""
+			actual_qty = frappe.db.sql("""select sum(actual_qty) from tabBin
+			where item_code=%s {0}""".format(condition), values)[0][0]
+
+	else:
+	
+		stock_details = frappe.db.sql("select t1.warehouse, t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY actual_qty DESC",(item_code),as_dict=1)
+
+		for stdetail in stock_details:
+			company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
+			if company == company_of_warehouse:
+				actual_qty = actual_qty + flt(stdetail.actual_qty)
+			
+	
+	return actual_qty
+		
 def get_latest_stock_balance():
 	bin_map = {}
 	for d in frappe.db.sql(
@@ -255,6 +277,7 @@ def _create_bin(item_code, warehouse):
 		bin_obj = frappe.get_last_doc("Bin", {"item_code": item_code, "warehouse": warehouse})
 
 	return bin_obj
+
 
 
 @frappe.whitelist()
@@ -395,6 +418,21 @@ def is_group_warehouse(warehouse):
 	if frappe.db.get_value("Warehouse", warehouse, "is_group", cache=True):
 		frappe.throw(_("Group node warehouse is not allowed to select for transactions"))
 
+@frappe.whitelist()
+def get_default_warehouse(company = None):
+	if company:
+		source_warehouse = (frappe.db.get_value('Company', company, 'stock_stores') or frappe.db.get_single_value("Stock Settings","default_warehouse"))
+		wip_warehouse = (frappe.db.get_value('Company', company, 'wip_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse"))
+		fg_warehouse = (frappe.db.get_value('Company', company, 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
+		scrap_warehouse = (frappe.db.get_value('Company', company, 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))	
+	else:
+		from erpnext import get_default_company
+		source_warehouse = (frappe.db.get_value('Company', get_default_company(), 'stock_stores') or frappe.db.get_single_value("Stock Settings","default_warehouse"))
+		wip_warehouse = (frappe.db.get_value('Company', get_default_company(), 'wip_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse"))
+		fg_warehouse = (frappe.db.get_value('Company', get_default_company(), 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
+		scrap_warehouse = (frappe.db.get_value('Company', get_default_company(), 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))
+	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse,"scrap_warehouse": scrap_warehouse}
+
 
 def validate_disabled_warehouse(warehouse):
 	if frappe.db.get_value("Warehouse", warehouse, "disabled", cache=True):
@@ -403,7 +441,6 @@ def validate_disabled_warehouse(warehouse):
 				get_link_to_form("Warehouse", warehouse)
 			)
 		)
-
 
 def update_included_uom_in_report(columns, result, include_uom, conversion_factors):
 	if not include_uom or not conversion_factors:
@@ -497,6 +534,29 @@ def add_additional_uom_columns(columns, result, include_uom, conversion_factors)
 				row[data.converted_col] = flt(value_before_conversion) / conversion_factor
 
 		result[row_idx] = row
+		
+		
+# I made this - validate uoms
+@frappe.whitelist()
+def validate_item_uoms(doc):
+	from erpnext.stock.get_item_details import get_conversion_factor, get_conversion_factor_between_two_units
+	
+	for d in doc.get("items"):
+		if not d.meta.get_field("stock_qty"):
+			break
+			
+		
+		uom = d.get("uom") or None
+		stock_uom = d.get("stock_uom") or None
+		item_code = d.get("item_code") or None
+				
+		if uom and stock_uom and item_code:
+			conversion_factor_details = get_conversion_factor_between_two_units(item_code, uom, stock_uom)
+			if not conversion_factor_details.get("conversion_factor_exists"):
+				frappe.throw(_("Conversion factor for Item {0} and UOM {1} does not exist.").format(item_code, initial_uom))
+			else:
+				d.conversion_factor = 1/conversion_factor_details.get("conversion_factor")
+				d.stock_qty = flt(d.qty) * flt(d.conversion_factor)
 
 
 def get_incoming_outgoing_rate_for_cancel(item_code, voucher_type, voucher_no, voucher_detail_no):

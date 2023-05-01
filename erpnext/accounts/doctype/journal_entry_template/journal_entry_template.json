@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_rename": 1,
  "autoname": "field:template_title",
  "creation": "2020-04-09 01:32:51.332301",
  "doctype": "DocType",
@@ -86,10 +87,11 @@
   }
  ],
  "links": [],
- "modified": "2020-05-01 18:32:01.420488",
+ "modified": "2023-04-24 20:06:37.075346",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Journal Entry Template",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -129,6 +131,6 @@
  "search_fields": "voucher_type, company",
  "sort_field": "modified",
  "sort_order": "DESC",
- "title_field": "template_title",
- "track_changes": 1
+ "states": [],
+ "title_field": "template_title"
 }

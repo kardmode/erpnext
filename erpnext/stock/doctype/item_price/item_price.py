@@ -1,13 +1,12 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 
-
 import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.query_builder import Criterion
 from frappe.query_builder.functions import Cast_
-from frappe.utils import getdate
+from frappe.utils import getdate,cint, cstr, flt, ceil
 
 
 class ItemPriceDuplicateItem(frappe.ValidationError):
@@ -114,10 +113,60 @@ class ItemPrice(Document):
 			self.reference = self.customer
 		if self.buying:
 			self.reference = self.supplier
-
 		if self.selling and not self.buying:
 			# if only selling then remove supplier
 			self.supplier = None
 		if self.buying and not self.selling:
 			# if only buying then remove customer
 			self.customer = None
+
+@frappe.whitelist()
+def add_to_another_pl(item_price_docname, new_price_list):
+	new_price_list_currency = frappe.db.get_value("Price List",
+			{"name": new_price_list, "enabled": 1},
+			["currency"])
+		
+	if not new_price_list_currency:
+		link = frappe.utils.get_link_to_form('Price List', new_price_list)
+		frappe.throw("The price list {0} does not exists or disabled".
+			format(link))
+	
+	item_price_doc = frappe.get_doc("Item Price", item_price_docname)
+	original_price_list = item_price_doc.price_list
+	original_item_price = item_price_doc.price_list_rate
+	original_price_list_currency = item_price_doc.currency
+	
+	if not original_price_list_currency == new_price_list_currency:
+		conversion_rate = get_exchange_rate(original_price_list_currency,new_price_list_currency, args="for_buying")
+		new_price_list_rate = flt(original_item_price) * (conversion_rate or 1)
+	
+	copy_doc = frappe.copy_doc(item_price_doc)
+	copy_doc.update({"price_list": new_price_list})
+	copy_doc.update({"price_list_rate": new_price_list_rate})
+	try:
+		copy_doc.insert()
+		return copy_doc.name
+	except frappe.DuplicateEntryError:
+		pass
+		
+@frappe.whitelist()
+def copy_all_to_another_pl(original_price_list, new_price_list):
+	new_price_list_currency = frappe.db.get_value("Price List",
+			{"name": new_price_list, "enabled": 1},
+			["currency"])
+		
+	if not new_price_list_currency:
+		link = frappe.utils.get_link_to_form('Price List', new_price_list)
+		frappe.throw("The price list {0} does not exists or disabled".
+			format(link))
+	
+	item_price_names = frappe.get_all("Item Price",
+		fields = ["name"],
+		filters = {'price_list': original_price_list}
+	)
+
+	for d in item_price_names:
+		add_to_another_pl(d.name, new_price_list)
+	
+	
+	return

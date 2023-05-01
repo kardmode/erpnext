@@ -124,6 +124,18 @@ $.extend(erpnext.queries, {
 			]
 		};
 	},
+	
+	project:function(doc) {
+		var filters = {
+			'status': ["in",["Open"]]
+			// 'company': doc.company
+		};
+
+		return {
+			filters: filters
+		};
+	},
+
 
 	get_filtered_dimensions: function(doc, child_fields, dimension, company) {
 		let account = '';
@@ -182,4 +194,58 @@ erpnext.queries.setup_warehouse_query = function(frm){
 		}
 		return filters
 	});
+}
+
+erpnext.queries.setup_project_query = function(frm){
+	if(frm.fields_dict["items"].grid.get_field('project')) {
+		frm.set_query('project', 'items', function(doc, cdt, cdn) {
+			var filters = erpnext.queries.project(frm.doc);
+			if (frm.fields_dict["customer"] && frm.doc.customer) 
+			{
+				filters["filters"]["customer"] = frm.doc.customer;
+			}
+			return filters;
+		});
+	}
+	
+	if(frm.fields_dict["project"]) {
+		frm.set_query('project', function() {
+			var filters = erpnext.queries.project(frm.doc);
+			if (frm.fields_dict["customer"] && frm.doc.customer) 
+			{
+				filters["filters"]["customer"]  = frm.doc.customer;
+			}
+			
+			if (frm.fields_dict["company"] && frm.doc.company) 
+			{
+				filters["filters"]["company"]  = frm.doc.company;
+			}
+			
+			return filters;
+		})
+			
+	}
+	
+	
+}
+
+erpnext.queries.setup_product_bundle_query = function(frm){
+	
+	if(frm.fields_dict["items"].grid.get_field('product_bundle')) {
+		frm.set_query('product_bundle', 'items', function(doc, cdt, cdn) {
+			var d  = locals[cdt][cdn];
+			var filters = {
+				filters: {
+				// 'status': ["in",["Open"]],
+				"new_item_code": d.item_code,
+				"company": frm.doc.company,
+				"project": frm.doc.project,
+				}
+			};
+
+			return filters;
+		});
+	}
+
+	
 }

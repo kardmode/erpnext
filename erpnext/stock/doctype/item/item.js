@@ -48,6 +48,24 @@ frappe.ui.form.on("Item", {
 	},
 
 	refresh: function(frm) {
+		
+		if (!frm.doc.__islocal){
+			if(!frm.doc.parent_item_group && frm.doc.item_group)
+			{		
+				frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
+					parent_item_group = r && r.parent_item_group;
+					frm.set_value("parent_item_group",parent_item_group);
+				});
+				
+			}
+			
+		}
+		
+		frm.add_custom_button(__("Add Units"), function() {
+			frm.trigger('mrp_add_uom');
+		});
+
+
 		if (frm.doc.is_stock_item) {
 			frm.add_custom_button(__("Stock Balance"), function() {
 				frappe.route_options = {
@@ -180,6 +198,8 @@ frappe.ui.form.on("Item", {
 
 	validate: function(frm){
 		erpnext.item.weight_to_validate(frm);
+		calculate_conversion_factor(frm,false);
+		
 	},
 
 	image: function() {
@@ -188,6 +208,20 @@ frappe.ui.form.on("Item", {
 
 	is_customer_provided_item: function(frm) {
 		frm.toggle_reqd('customer', frm.doc.is_customer_provided_item ? 1:0);
+	},
+
+	gst_hsn_code: function(frm) {
+		if(!frm.doc.taxes || !frm.doc.taxes.length) {
+			frappe.db.get_doc("GST HSN Code", frm.doc.gst_hsn_code).then(hsn_doc => {
+				$.each(hsn_doc.taxes || [], function(i, tax) {
+					let a = frappe.model.add_child(frm.doc, 'Item Tax', 'taxes');
+					a.item_tax_template = tax.item_tax_template;
+					a.tax_category = tax.tax_category;
+					a.valid_from = tax.valid_from;
+					frm.refresh_field('taxes');
+				});
+			});
+		}
 	},
 
 	is_fixed_asset: function(frm) {
@@ -221,9 +255,37 @@ frappe.ui.form.on("Item", {
 
 	page_name: frappe.utils.warn_page_name_change,
 
+	// item_name: function(frm) {
+		// if(frm.doc.item_name)
+		// {
+			// var newword = process_string(frm.doc.item_name);
+			// frm.set_value("item_name", newword.trim());
+		// }
+	// },
+	
 	item_code: function(frm) {
 		if(!frm.doc.item_name)
 			frm.set_value("item_name", frm.doc.item_code);
+	},
+	
+	item_group: function(frm) {
+		if(frm.doc.item_group == "Services" || frm.doc.item_group == "Header1" || frm.doc.item_group == "Header2"){
+			frm.set_value("is_stock_item", 0);
+		}else {			
+		}
+	},
+	
+	opening_stock: function(frm) {
+		if(frm.doc.opening_stock > 0){
+			frappe.call({
+				method: "erpnext.stock.utils.get_default_warehouse",
+				callback: function(r) {
+					if(!r.exc) {
+						cur_frm.set_value("opening_warehouse", r.message.source_warehouse);
+					}
+				}
+			});
+		}
 	},
 
 	is_stock_item: function(frm) {
@@ -236,7 +298,65 @@ frappe.ui.form.on("Item", {
 
 	has_variants: function(frm) {
 		erpnext.item.toggle_attributes(frm);
-	}
+	},
+	
+	mrp_add_uom: function(frm) {
+		var dialog = new frappe.ui.Dialog({
+			fields: [
+				{fieldname:'calc_check', fieldtype:'Check', default:0, label:'Calculate Area/Volume from Dimensions',
+					onchange() {
+						var fieldnames = ['stock_qty','stock_uom','qty','uom']
+						var calc_check = dialog.get_field('calc_check');
+						fieldnames.forEach(function(d) {
+							dialog.set_df_property(d, 'reqd', !calc_check.get_value());
+						});
+					}
+				},
+
+				
+				{fieldtype:'Section Break',fieldname:'section1',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldname:'qty', fieldtype:'Float', default:1, reqd:1, label:'Qty'},
+				{fieldtype:'Column Break',fieldname:'column2'},
+				{fieldname:'uom',fieldtype:'Link', options:'UOM', reqd:1, label:__('UOM')},
+								{fieldtype:'Section Break',fieldname:'section_1',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldtype:'Read Only',fieldname:'sectiondesc',default:'Converts To',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldtype:'Section Break',fieldname:'section0',
+					depends_on: doc => doc.calc_check === 0
+				},
+				{fieldname:'stock_qty', fieldtype:'Float', default:1, reqd:1, label:'Stock Qty'},
+				{fieldtype:'Column Break',fieldname:'column1'},
+				{fieldname:'stock_uom', fieldtype:'Link', options:'UOM', reqd:1, read_only:1, label:__('Stock UOM'),default:frm.doc.stock_uom},
+				
+			]
+		});
+
+		dialog.set_primary_action(__('Add'), function() {
+			var data = dialog.get_values();
+			if(!data) return;
+			
+			if(data.calc_check === 1)
+			{
+				calculate_conversion_factor(frm,true);
+			}
+			else
+			{
+				if(data.uom === data.stock_uom) return;
+				var conversion_factor = flt(data.stock_qty) / flt(data.qty);
+				mrp_add_uom_to_table(frm,[data.uom],[conversion_factor]);
+			}
+			
+			dialog.hide();
+			refresh_field("uoms");
+		})
+
+		dialog.show();
+	},
 });
 
 frappe.ui.form.on('Item Reorder', {
@@ -370,8 +490,17 @@ $.extend(erpnext.item, {
 			return { query: "erpnext.controllers.queries.supplier_query" }
 		}
 
-		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
+		/* frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
 			const row = locals[cdt][cdn];
+			return {
+				filters: {
+					"is_group": 0,
+					"company": row.company
+				}
+			}
+		} */
+		
+		frm.fields_dict['opening_warehouse'].get_query = function(doc) {
 			return {
 				filters: {
 					"is_group": 0,
@@ -818,6 +947,132 @@ $.extend(erpnext.item, {
 		frm.layout.refresh_sections();
 	}
 });
+
+var check_parent_item_group = function(frm) {
+	if(!frm.doc.parent_item_group)
+	{		
+		frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
+			parent_item_group = r && r.parent_item_group;
+			frm.set_value("parent_item_group",parent_item_group);
+		});
+		
+	}
+}
+var calculate_conversion_factor = function(frm,show_debug = false) {
+	
+	check_parent_item_group(frm);
+
+	if (frm.doc.depth <=0 || frm.doc.width <= 0 || frm.doc.height <= 0)
+	{
+		if (show_debug) frappe.msgprint(__("All Dimensions have to be greater than 0"));
+	}
+	else
+	{
+		var check_units = show_debug;
+		
+		if (!show_debug)
+			check_units = check_current_units(frm.doc.stock_uom);
+		
+		if (check_units)
+		{
+			
+			var conversion_factors = get_dimensions(frm);
+			var conversion_factor = conversion_factors[0];
+			var cft_conversion_factor = conversion_factors[1];
+			conversion_factor = flt(conversion_factor.toFixed(5));
+			cft_conversion_factor = flt(cft_conversion_factor.toFixed(5));
+			mrp_add_uom_to_table(frm,["sqm","cft"],[conversion_factor,cft_conversion_factor]);
+		}
+		else
+		{
+			if (show_debug) frappe.msgprint(__("Stock UOM can't be a standard unit of length. Must be Nos or sheet etc."));
+		}
+	}
+	
+}
+
+var check_current_units = function(unit) {
+	if (["sqm","cft","ft","m","cm","in","mm"].indexOf(unit) < 0){
+		return true;
+	}
+		
+	return false;
+}
+
+
+var mrp_add_uom_to_table = function(frm,units,conversion_factors) {
+	var tbl = frm.doc.uoms || [];
+	var i = tbl.length;
+	while (i--)
+	{
+		let found_index = units.indexOf(tbl[i].uom);
+	
+		if(found_index > -1)
+		{
+			frm.get_field("uoms").grid.grid_rows[i].remove();
+		}
+	}
+	
+	for(var i=0;i<units.length;i++)
+	{
+		let row = frm.add_child('uoms', {uom:  units[i], conversion_factor: conversion_factors[i]});
+	}
+}
+
+var process_string = function(code){
+	
+	code = code.replace(/  +/g, ' ');
+			var newword = "";
+			var tests = ["mm","cm","m","in","ft"];
+
+			code.trim().split(" ").forEach(function(s) {
+				if(s.toLowerCase() == "x"){
+					var ss = s.toLowerCase();
+					if (newword == "")
+						newword = ss;
+					else
+						newword = newword + " " + ss;
+				}
+				else if (tests.indexOf(s.toLowerCase()) != -1)
+				{
+					var ss = s.toLowerCase();
+					if (newword == "")
+						newword = ss;
+					else
+						newword = newword + ss;
+				}
+				else
+				{
+					var ss = s;
+					if (newword == "")
+						newword = ss;
+					else
+						newword = newword + " " + ss;
+					
+				}
+			});
+			newword = newword.replace(" X ", "x");
+			newword = newword.replace(" x ", "x");
+			// newword = newword.replace('"', "");
+			// newword = newword.replace(' " ', "");
+			return newword.trim();
+}
+
+var get_dimensions = function(frm) {
+	
+	var length = frappe.mrp.convert_units(frm.doc.depthunit,frm.doc.depth);
+	var width = frappe.mrp.convert_units(frm.doc.widthunit,frm.doc.width);
+	var height = frappe.mrp.convert_units(frm.doc.heightunit,frm.doc.height);
+	
+	var perimeter = 2*flt(length)+2*flt(width);
+	var farea = flt(length) * flt(width);
+	var fvolume = flt(length) * flt(width) * flt(height);
+	var fvolumecft = fvolume * 35.3147;
+	
+	var conversion_factor = 1/flt(farea);
+	var cft_conversion_factor = 1/flt(fvolumecft);
+	return [conversion_factor, cft_conversion_factor];
+}
 
 frappe.ui.form.on("UOM Conversion Detail", {
 	uom: function(frm, cdt, cdn) {

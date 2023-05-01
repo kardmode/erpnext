@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_import": 1,
+ "allow_rename": 1,
  "creation": "2013-01-22 15:11:38",
  "doctype": "DocType",
  "document_type": "Setup",
@@ -605,7 +606,7 @@
  "image_field": "image",
  "is_submittable": 1,
  "links": [],
- "modified": "2023-01-10 07:47:08.652616",
+ "modified": "2023-02-17 22:54:23.413183",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",

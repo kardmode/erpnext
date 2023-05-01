@@ -1,0 +1,124 @@
+{
+ "allow_rename": 1,
+ "beta": 1,
+ "creation": "2019-02-28 21:55:30.298878",
+ "doctype": "DocType",
+ "document_type": "Users",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "actual_qty",
+  "stock_uom",
+  "column_break_3",
+  "image_5",
+  "attach_image_6",
+  "section_break_5",
+  "items",
+  "total_qty"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1,
+   "set_only_once": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "actual_qty",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Actual Qty for item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_uom",
+   "fieldtype": "Link",
+   "label": "Stock UOM",
+   "options": "UOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "attach_image_6",
+   "fieldtype": "Attach Image"
+  },
+  {
+   "fieldname": "section_break_5",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "MRP Store Item Detail"
+  },
+  {
+   "fieldname": "total_qty",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Total for item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "image_5",
+   "fieldtype": "Image",
+   "options": "attach_image_6"
+  }
+ ],
+ "max_attachments": 1,
+ "modified": "2020-03-24 16:52:22.190607",
+ "modified_by": "Administrator",
+ "module": "Stock",
+ "name": "MRP Store Item",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock Helper",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "item_code",
+ "track_changes": 1
+}

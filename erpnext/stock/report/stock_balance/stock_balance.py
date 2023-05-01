@@ -251,6 +251,29 @@ def get_columns(filters: StockBalanceFilter):
 			{"label": att_name, "fieldname": att_name, "width": 100}
 			for att_name in get_variants_attributes()
 		]
+		
+	if filters.get("report_style") == "Minimal":
+		columns = [
+			{"label": _("Item"), "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 300},
+			# _("Item Name")+"::150",
+			{"label": _("Item Group"), "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 100},
+			# _("Brand")+"::90",
+			# _("Description")+"::140",
+			{"label": _("Warehouse"), "fieldname": "warehouse", "fieldtype": "Link", "options": "Warehouse", "width": 100},
+			{"label": _("Stock UOM"), "fieldname": "stock_uom", "fieldtype": "Link", "options": "UOM", "width": 90},
+			# _("Opening Qty")+":Float:100",
+			# _("Opening Value")+":Float:60",
+			# _("In Qty")+":Float:100",
+			# _("In Value")+":Float:80",
+			# _("Out Qty")+":Float:100",
+			# _("Out Value")+":Float:80",
+			{"label": _("Balance Qty"), "fieldname": "bal_qty", "fieldtype": "Float", "width": 100, "convertible": "qty"},
+			# _("Balance Value")+":Float:100",
+			# _("Valuation Rate")+":Float:100"
+			# ,_("Reorder Level")+":Float:80",
+			# _("Reorder Qty")+":Float:80",
+			# _("Company")+":Link/Company:100"
+		]
 
 	return columns
 
@@ -384,6 +407,7 @@ def get_item_warehouse_map(filters: StockBalanceFilter, sle: List[SLEntry]):
 		qty_dict.bal_val += value_diff
 
 	iwb_map = filter_items_with_no_transactions(iwb_map, float_precision, inventory_dimensions)
+	iwb_map = filter_items_with_custom_filters(filters,iwb_map)
 
 	return iwb_map
 
@@ -515,3 +539,33 @@ def get_variant_values_for(items):
 		attribute_map[attr["parent"]].update({attr["attribute"]: attr["attribute_value"]})
 
 	return attribute_map
+
+
+def filter_items_with_custom_filters(filters,iwb_map):
+	for (company, item, warehouse) in sorted(iwb_map):
+		qty_dict = iwb_map[(company, item, warehouse)]
+		
+		
+		if filters.get("hide_disabled") == 1:
+			warehouse_details = frappe.db.get_value("Warehouse", warehouse , ["disabled"], as_dict=1)
+			if warehouse_details:
+				if warehouse_details.disabled == True:
+					iwb_map.pop((company, item, warehouse))
+					continue
+		
+		if filters.get("hide_positive_qty") == 1:
+			if qty_dict.bal_qty > 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
+				
+		if filters.get("hide_negative_qty") == 1:
+			if qty_dict.bal_qty < 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
+				
+		if filters.get("hide_zero_qty") == 1:
+			if qty_dict.bal_qty == 0:
+				iwb_map.pop((company, item, warehouse))
+				continue
+
+	return iwb_map

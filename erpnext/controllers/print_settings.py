@@ -4,7 +4,7 @@
 
 def set_print_templates_for_item_table(doc, settings):
 	doc.print_templates = {
-		"items": "templates/print_formats/includes/items.html",
+		# "items": "templates/print_formats/includes/items.html",
 	}
 
 	doc.child_print_templates = {
@@ -14,15 +14,18 @@ def set_print_templates_for_item_table(doc, settings):
 	}
 
 	if doc.meta.get_field("items"):
-		doc.meta.get_field("items").hide_in_print_layout = ["uom", "stock_uom"]
+		doc.meta.get_field("items").hide_in_print_layout = ["uom", "stock_uom","weight_uom"]
 
-	doc.flags.compact_item_fields = ["description", "qty", "rate", "amount"]
 
 	if settings.compact_item_print:
 		doc.child_print_templates["items"][
-			"description"
-		] = "templates/print_formats/includes/item_table_description.html"
+			"item_name"
+		] = "templates/print_formats/includes/custom_item_table_description.html"
+		
+		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount","total_weight","net_weight","remarks"]
 		doc.flags.format_columns = format_columns
+
+	doc.flags.format_columns_custom = format_columns_custom
 
 
 def set_print_templates_for_taxes(doc, settings):
@@ -36,9 +39,20 @@ def set_print_templates_for_taxes(doc, settings):
 
 
 def format_columns(display_columns, compact_fields):
-	compact_fields = compact_fields + ["image", "item_code", "item_name"]
+	compact_fields = compact_fields + ["image", "item_code"]
 	final_columns = []
 	for column in display_columns:
 		if column not in compact_fields:
 			final_columns.append(column)
+	return final_columns
+
+
+# gets the more info from print format builder	
+def format_columns_custom(display_columns, compact_fields):
+	compact_fields = compact_fields + ["image", "item_code"]
+	final_columns = []
+	for column in display_columns:
+		if column.fieldname not in compact_fields:
+			final_columns.append(column)
+			
 	return final_columns

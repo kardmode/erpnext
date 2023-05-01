@@ -11,7 +11,7 @@ import frappe
 from frappe import _
 from frappe.core.doctype.version.version import get_diff
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import cint, cstr, flt, today
+from frappe.utils import cint, cstr, flt, today, ceil
 from frappe.website.website_generator import WebsiteGenerator
 
 import erpnext
@@ -109,46 +109,50 @@ class BOM(WebsiteGenerator):
 	)
 
 	def autoname(self):
+		from frappe.model.naming import make_autoname
+
+		self.name = make_autoname(self.item + '-.###')
+		
 		# ignore amended documents while calculating current index
-		existing_boms = frappe.get_all(
-			"BOM", filters={"item": self.item, "amended_from": ["is", "not set"]}, pluck="name"
-		)
+		# existing_boms = frappe.get_all(
+			# "BOM", filters={"item": self.item, "amended_from": ["is", "not set"]}, pluck="name"
+		# )
 
-		if existing_boms:
-			index = self.get_next_version_index(existing_boms)
-		else:
-			index = 1
+		# if existing_boms:
+			# index = self.get_next_version_index(existing_boms)
+		# else:
+			# index = 1
 
-		prefix = self.doctype
-		suffix = "%.3i" % index  # convert index to string (1 -> "001")
-		bom_name = f"{prefix}-{self.item}-{suffix}"
+		# prefix = self.doctype
+		# suffix = "%.3i" % index  # convert index to string (1 -> "001")
+		# bom_name = f"{prefix}-{self.item}-{suffix}"
 
-		if len(bom_name) <= 140:
-			name = bom_name
-		else:
-			# since max characters for name is 140, remove enough characters from the
-			# item name to fit the prefix, suffix and the separators
-			truncated_length = 140 - (len(prefix) + len(suffix) + 2)
-			truncated_item_name = self.item[:truncated_length]
-			# if a partial word is found after truncate, remove the extra characters
-			truncated_item_name = truncated_item_name.rsplit(" ", 1)[0]
-			name = f"{prefix}-{truncated_item_name}-{suffix}"
+		# if len(bom_name) <= 140:
+			# name = bom_name
+		# else:
+			# # since max characters for name is 140, remove enough characters from the
+			# # item name to fit the prefix, suffix and the separators
+			# truncated_length = 140 - (len(prefix) + len(suffix) + 2)
+			# truncated_item_name = self.item[:truncated_length]
+			# # if a partial word is found after truncate, remove the extra characters
+			# truncated_item_name = truncated_item_name.rsplit(" ", 1)[0]
+			# name = f"{prefix}-{truncated_item_name}-{suffix}"
 
-		if frappe.db.exists("BOM", name):
-			conflicting_bom = frappe.get_doc("BOM", name)
+		# if frappe.db.exists("BOM", name):
+			# conflicting_bom = frappe.get_doc("BOM", name)
 
-			if conflicting_bom.item != self.item:
-				msg = _("A BOM with name {0} already exists for item {1}.").format(
-					frappe.bold(name), frappe.bold(conflicting_bom.item)
-				)
+			# if conflicting_bom.item != self.item:
+				# msg = _("A BOM with name {0} already exists for item {1}.").format(
+					# frappe.bold(name), frappe.bold(conflicting_bom.item)
+				# )
 
-				frappe.throw(
-					_("{0}{1} Did you rename the item? Please contact Administrator / Tech support").format(
-						msg, "<br>"
-					)
-				)
+				# frappe.throw(
+					# _("{0}{1} Did you rename the item? Please contact Administrator / Tech support").format(
+						# msg, "<br>"
+					# )
+				# )
 
-		self.name = name
+		# self.name = name
 
 	@staticmethod
 	def get_next_version_index(existing_boms: List[str]) -> int:
@@ -204,6 +208,8 @@ class BOM(WebsiteGenerator):
 		self.check_recursion()
 
 	def on_submit(self):
+		self.validate_main_item_dimensions(submit=True)
+		self.validate_materials(submit=True)
 		self.manage_default_bom()
 
 	def on_cancel(self):
@@ -213,7 +219,8 @@ class BOM(WebsiteGenerator):
 		# check if used in any other bom
 		self.validate_bom_links()
 		self.manage_default_bom()
-
+	
+	
 	def on_update_after_submit(self):
 		self.validate_bom_links()
 		self.manage_default_bom()
@@ -315,23 +322,37 @@ class BOM(WebsiteGenerator):
 			and item.include_item_in_manufacturing
 			or 0
 		)
+
 		args.update(item)
+		
+		conversion_factor = get_conversion_factor(args['item_code'], args.get('uom') or args.get('stock_uom')).get("conversion_factor") or 1.0
+		args['conversion_factor'] = conversion_factor
+		
 
 		rate = self.get_rm_rate(args)
+		stock_rate = rate / conversion_factor
+
+		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
+
+		best_warehouse,enough_stock = get_best_warehouse(args["item_code"],args.get("stock_qty") or args.get("qty") or 1,company = self.company)
+
 		ret_item = {
 			"item_name": item and args["item_name"] or "",
 			"description": item and args["description"] or "",
 			"image": item and args["image"] or "",
 			"stock_uom": item and args["stock_uom"] or "",
-			"uom": item and args["stock_uom"] or "",
-			"conversion_factor": 1,
+			"uom": item and args.get('uom') or args.get('stock_uom') or '',
+			"conversion_factor": args['conversion_factor'],
 			"bom_no": args["bom_no"],
 			"rate": rate,
 			"qty": args.get("qty") or args.get("stock_qty") or 1,
-			"stock_qty": args.get("qty") or args.get("stock_qty") or 1,
+			"stock_qty": args.get("stock_qty") or args.get("qty") or 1,
 			"base_rate": flt(rate) * (flt(self.conversion_rate) or 1),
 			"include_item_in_manufacturing": cint(args.get("transfer_for_manufacture")),
 			"sourced_by_supplier": args.get("sourced_by_supplier", 0),
+			'stock_rate' : stock_rate,
+			'base_stock_rate' : flt(stock_rate) * (flt(self.conversion_rate) or 1),
+			'source_warehouse':best_warehouse,
 		}
 
 		if args.get("do_not_explode"):
@@ -382,13 +403,60 @@ class BOM(WebsiteGenerator):
 							)
 		return flt(rate) * flt(self.plc_conversion_rate or 1) / (self.conversion_rate or 1)
 
+	
 	@frappe.whitelist()
-	def update_cost(self, update_parent=True, from_child_bom=False, update_hour_rate=True, save=True):
+	def update_cost(self, update_parent=True, from_child_bom=False, update_hour_rate=True, save=True,update_child = True,verbose=False):
 		if self.docstatus == 2:
 			return
 
 		self.flags.cost_updated = False
 		existing_bom_cost = self.total_cost
+
+		for d in self.get("items"):
+			if not d.item_code:
+				continue
+				
+			if d.bom_no:
+				if update_child:
+					bom_no = frappe.get_doc("BOM", d.bom_no)
+					bom_no.update_cost(update_parent=False)
+			
+			stock_uom = frappe.db.get_value("Item", d.item_code, "stock_uom")
+			if d.stock_uom != stock_uom:
+				d.stock_uom = stock_uom
+				
+				if d.uom and d.qty:
+					d.conversion_factor = get_conversion_factor(d.item_code, d.uom).get("conversion_factor")
+					d.stock_qty = flt(d.conversion_factor)*flt(d.qty)
+				if not d.uom and d.stock_uom:
+					d.uom = d.stock_uom
+					d.qty = d.stock_qty
+				
+			rate = self.get_rm_rate({
+				"company": self.company,
+				"item_code": d.item_code,
+				"bom_no": d.bom_no,
+				"qty": d.qty,
+				"uom": d.uom,
+				"stock_uom": d.stock_uom,
+				"conversion_factor": d.conversion_factor
+			})
+
+			if rate:
+				stock_rate = flt(rate)/flt(d.conversion_factor)
+				if not d.rate == rate or not d.stock_rate == stock_rate:
+					d.rate = rate
+					d.stock_rate = stock_rate
+					frappe.msgprint(_("{0}'s rate Updated Using {1}").format(d.item_code,self.rm_cost_as_per))
+
+			d.amount = flt(d.rate) * flt(d.qty)
+			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
+			d.base_amount = flt(d.amount) * flt(self.conversion_rate)
+			d.base_stock_rate = flt(d.stock_rate) * flt(self.conversion_rate)
+
+			if save:
+				d.db_update()
+
 
 		if self.docstatus == 1:
 			self.flags.ignore_validate_update_after_submit = True
@@ -402,7 +470,7 @@ class BOM(WebsiteGenerator):
 		if self.total_cost != existing_bom_cost and update_parent:
 			parent_boms = frappe.db.sql_list(
 				"""select distinct parent from `tabBOM Item`
-				where bom_no = %s and docstatus=1 and parenttype='BOM'""",
+				where bom_no = %s and docstatus < 2 and parenttype='BOM'""",
 				self.name,
 			)
 
@@ -415,6 +483,10 @@ class BOM(WebsiteGenerator):
 				msg = "No changes in cost found"
 
 			frappe.msgprint(_(msg), alert=True)
+			
+		if verbose:
+			frappe.msgprint(_("{0}'s Cost Updated").format(self.item))
+
 
 	def update_parent_cost(self):
 		if self.total_cost:
@@ -451,6 +523,7 @@ class BOM(WebsiteGenerator):
 			not frappe.db.exists(dict(doctype="BOM", docstatus=1, item=self.item, is_default=1))
 			and self.is_active
 		):
+
 			self.db_set("is_default", 1)
 			frappe.db.set_value("Item", self.item, "default_bom", self.name)
 		else:
@@ -460,8 +533,58 @@ class BOM(WebsiteGenerator):
 				frappe.db.set_value("Item", self.item, "default_bom", None)
 
 	def clear_operations(self):
+		if not cint(self.with_operations):
+			self.with_operations = 0
 		if not self.with_operations:
-			self.set("operations", [])
+			self.set('operations', [])
+			
+	def validate_main_item_dimensions(self, submit = False):
+		ret = frappe.db.get_value("Item", self.item, ["description", "stock_uom", "item_name",
+			"depth","width","height","depthunit","widthunit","heightunit"])
+			
+		self.description = ret[0]
+		self.uom = ret[1]
+		self.item_name= ret[2]
+		
+		depth = flt(ret[3]) or 0.0
+		width = flt(ret[4]) or 0.0
+		height = flt(ret[5]) or 0.0
+		depthunit = ret[6]
+		widthunit = ret[7]
+		heightunit = ret[8]
+		
+		if not self.depth or self.depth == 0.0:
+			self.depth = depth
+			self.depthunit = depthunit
+		elif not depth == self.depth:
+			if submit:
+				frappe.throw(_("Main Item depth different than depth in BOM. Please update before submitting."))	
+		elif not depthunit == self.depthunit:
+			if submit:
+				frappe.throw(_("Main Item depth unit different than depth unit in BOM. Please update before submitting."))	
+
+		
+		if not self.width or self.width == 0.0:
+			self.width = width
+			self.widthunit = widthunit
+		elif not width == self.width:
+			if submit:
+				frappe.throw(_("Main Item width different than width in BOM. Please update before submitting."))	
+		elif not widthunit == self.widthunit:
+			if submit:
+				frappe.throw(_("Main Item width unit different than width unit in BOM. Please update before submitting."))	
+
+			
+		if not self.height or self.height == 0.0:
+			self.height= height
+			self.heightunit = heightunit
+		elif not height == self.height:
+			if submit:
+				frappe.throw(_("Main Item height different than height in BOM. Please update before submitting."))	
+		elif not heightunit == self.heightunit:
+			if submit:
+				frappe.throw(_("Main Item height unit different than height unit in BOM. Please update before submitting."))	
+
 
 	def clear_inspection(self):
 		if not self.inspection_required:
@@ -473,6 +596,8 @@ class BOM(WebsiteGenerator):
 		if not item:
 			frappe.throw(_("Item {0} does not exist in the system or has expired").format(self.item))
 		else:
+			self.validate_main_item_dimensions()
+
 			ret = frappe.db.get_value("Item", self.item, ["description", "stock_uom", "item_name"])
 			self.description = ret[0]
 			self.uom = ret[1]
@@ -480,7 +605,23 @@ class BOM(WebsiteGenerator):
 
 		if not self.quantity:
 			frappe.throw(_("Quantity should be greater than 0"))
+			
+	def get_main_item_dimensions(self):
+		ret = frappe.db.get_value("Item", self.item, ["description", "stock_uom", "item_name",
+			"depth","width","height","depthunit","widthunit","heightunit"],as_dict=True)
+		
+		self.depth = flt(ret.get("depth")) or 0.0
+		self.depthunit = ret.get("depthunit")
+		self.width = flt(ret.get("width")) or 0.0
+		self.widthunit = ret.get("widthunit")
+		self.height= flt(ret.get("height")) or 0.0
+		self.heightunit= ret.get("heightunit")
 
+		
+	def update_builder_items(self):
+		builder_items = calculate_builder_items_dimensions(self.get("bomitems"),self.depth,self.depthunit,self.width,self.widthunit,self.height,self.heightunit)
+		self.set('bomitems', builder_items)
+	
 	def validate_currency(self):
 		if self.rm_cost_as_per == "Price List":
 			price_list_currency = frappe.db.get_value("Price List", self.buying_price_list, "currency")
@@ -523,8 +664,8 @@ class BOM(WebsiteGenerator):
 				self.price_list_currency, self.company_currency(), args="for_buying"
 			)
 
-	def validate_materials(self):
-		"""Validate raw material entries"""
+	def validate_materials(self, submit = False):
+		""" Validate raw material entries """
 
 		if not self.get("items"):
 			frappe.throw(_("Raw Materials cannot be blank."))
@@ -532,7 +673,7 @@ class BOM(WebsiteGenerator):
 		check_list = []
 		for m in self.get("items"):
 			if m.bom_no:
-				validate_bom_no(m.item_code, m.bom_no)
+				validate_bom_no(m.item_code, m.bom_no, submit)
 			if flt(m.qty) <= 0:
 				frappe.throw(_("Quantity required for Item {0} in row {1}").format(m.item_code, m.idx))
 			check_list.append(m)
@@ -609,11 +750,41 @@ class BOM(WebsiteGenerator):
 
 		if self.total_cost != old_cost:
 			self.flags.cost_updated = True
+		
+		self.calculate_duty()
+
+
+	def calculate_duty(self):
+		dutible = 0.0
+		non_dutible = 0.0
+		mrp_total_production_overhead = 0.0
+		for d in self.get('exploded_items'):
+			if d.dutible == 1:
+				dutible = dutible + flt(d.amount)
+			else:
+				non_dutible = non_dutible + flt(d.amount)
+		
+		for d in self.get('mrp_operating_costs'):
+			d.amount = self.raw_material_cost * d.percent/100
+			mrp_total_production_overhead += flt(d.amount)
+		
+		self.mrp_total_production_overhead = mrp_total_production_overhead
+		self.mrp_base_total_production_overhead = flt(mrp_total_production_overhead) * flt(self.conversion_rate)
+		self.mrp_factory_price = flt(dutible + non_dutible + self.mrp_total_production_overhead)
+		self.mrp_base_factory_price = flt(self.mrp_factory_price) * flt(self.conversion_rate)
+		self.total_duty = flt(self.non_duty_percent)/100 * self.mrp_factory_price + dutible;
+		self.base_total_duty = flt(self.total_duty) * flt(self.conversion_rate)
+		self.total_duty = ceil(self.total_duty)
+		self.base_total_duty = ceil(self.base_total_duty)
+		self.dutible = dutible
+		self.non_dutible = non_dutible
+		
 
 	def calculate_op_cost(self, update_hour_rate=False):
 		"""Update workstation rate and calculates totals"""
 		self.operating_cost = 0
 		self.base_operating_cost = 0
+
 		if self.get("with_operations"):
 			for d in self.get("operations"):
 				if d.workstation:
@@ -675,7 +846,8 @@ class BOM(WebsiteGenerator):
 			)
 
 			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
-			d.amount = flt(d.rate, d.precision("rate")) * flt(d.qty, d.precision("qty"))
+			
+			d.amount = flt(d.rate, d.precision("rate")) * flt(d.qty, d.precision("qty"))			
 			d.base_amount = d.amount * flt(self.conversion_rate)
 			d.qty_consumed_per_unit = flt(d.stock_qty, d.precision("stock_qty")) / flt(
 				self.quantity, self.precision("quantity")
@@ -766,9 +938,13 @@ class BOM(WebsiteGenerator):
 							"image": d.image,
 							"stock_uom": d.stock_uom,
 							"stock_qty": flt(d.stock_qty),
-							"rate": flt(d.base_rate) / (flt(d.conversion_factor) or 1.0),
+							# "rate": flt(d.base_rate) / (flt(d.conversion_factor) or 1.0),
 							"include_item_in_manufacturing": d.include_item_in_manufacturing,
 							"sourced_by_supplier": d.sourced_by_supplier,
+							"stock_rate": d.base_stock_rate,
+							"rate": d.base_rate,
+							"required_uom": d.uom,
+							"required_qty": flt(d.qty),
 						}
 					)
 				)
@@ -777,10 +953,16 @@ class BOM(WebsiteGenerator):
 		return erpnext.get_company_currency(self.company)
 
 	def add_to_cur_exploded_items(self, args):
-		if self.cur_exploded_items.get(args.item_code):
-			self.cur_exploded_items[args.item_code]["stock_qty"] += args.stock_qty
+		key = (args.item_code)
+		
+		if args.operation:
+			key = (args.item_code, args.operation)
+
+		if key in self.cur_exploded_items:
+			self.cur_exploded_items[key]["stock_qty"] += args.stock_qty
+			self.cur_exploded_items[key]["required_qty"] += args.required_qty
 		else:
-			self.cur_exploded_items[args.item_code] = args
+			self.cur_exploded_items[key] = args
 
 	def get_child_exploded_items(self, bom_no, stock_qty):
 		"""Add all items from Flat BOM of child BOM"""
@@ -795,6 +977,7 @@ class BOM(WebsiteGenerator):
 				bom_item.operation,
 				bom_item.stock_uom,
 				bom_item.stock_qty,
+				bom_item.stock_rate,
 				bom_item.rate,
 				bom_item.include_item_in_manufacturing,
 				bom_item.sourced_by_supplier,
@@ -803,7 +986,7 @@ class BOM(WebsiteGenerator):
 			WHERE
 				bom_item.parent = bom.name
 				AND bom.name = %s
-				AND bom.docstatus = 1
+				AND bom.docstatus < 2
 		""",
 			bom_no,
 			as_dict=1,
@@ -823,25 +1006,46 @@ class BOM(WebsiteGenerator):
 						"rate": flt(d["rate"]),
 						"include_item_in_manufacturing": d.get("include_item_in_manufacturing", 0),
 						"sourced_by_supplier": d.get("sourced_by_supplier", 0),
+						"stock_rate":flt(d["stock_rate"]),
+						"required_uom":d["stock_uom"],
+						"required_qty":d["qty_consumed_per_unit"] * stock_qty,
 					}
 				)
 			)
 
 	def add_exploded_items(self, save=True):
-		"Add items to Flat BOM table"
+		
+		exploded_items = {}
+		for d in self.get('exploded_items'):
+			exploded_items[d.item_code] = d
+			
+		# Add items to Flat BOM table
 		self.set("exploded_items", [])
 
 		if save:
 			frappe.db.sql("""delete from `tabBOM Explosion Item` where parent=%s""", self.name)
 
+		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse_with_qty
+
 		for d in sorted(self.cur_exploded_items, key=itemgetter(0)):
 			ch = self.append("exploded_items", {})
 			for i in self.cur_exploded_items[d].keys():
 				ch.set(i, self.cur_exploded_items[d][i])
-			ch.amount = flt(ch.stock_qty) * flt(ch.rate)
+			
+			# MRP TODO FIX - MY FIX
+			ch.amount = flt(ch.required_qty) * flt(ch.rate)
+			# ch.amount = flt(ch.stock_qty) * flt(ch.rate)
+			
 			ch.qty_consumed_per_unit = flt(ch.stock_qty) / flt(self.quantity)
+			if exploded_items.get(ch.item_code):
+				ch.dutible = exploded_items[ch.item_code].dutible
 			ch.docstatus = self.docstatus
 
+			# if not ch.source_warehouse:
+			best_warehouse,enough_stock,actual_qty = get_best_warehouse_with_qty(ch.item_code,ch.stock_qty,company = self.company)
+			ch.source_warehouse = best_warehouse
+			ch.actual_qty = actual_qty
+				
 			if save:
 				ch.db_insert()
 
@@ -882,10 +1086,207 @@ class BOM(WebsiteGenerator):
 				if not d.batch_size or d.batch_size <= 0:
 					d.batch_size = 1
 
+	def validate_scrap_items(self):
+		for item in self.scrap_items:
+			msg = ""
+			if item.item_code == self.item and not item.is_process_loss:
+				msg = _(
+					"Scrap/Loss Item: {0} should have Is Process Loss checked as it is the same as the item to be manufactured or repacked."
+				).format(frappe.bold(item.item_code))
+			elif item.item_code != self.item and item.is_process_loss:
+				msg = _(
+					"Scrap/Loss Item: {0} should not have Is Process Loss checked as it is different from  the item to be manufactured or repacked"
+				).format(frappe.bold(item.item_code))
+
+			must_be_whole_number = frappe.get_value("UOM", item.stock_uom, "must_be_whole_number")
+			if item.is_process_loss and must_be_whole_number:
+				msg = _(
+					"Item: {0} with Stock UOM: {1} cannot be a Scrap/Loss Item as {1} is a whole UOM."
+				).format(frappe.bold(item.item_code), frappe.bold(item.stock_uom))
+
+			if item.is_process_loss and (item.stock_qty >= self.quantity):
+				msg = _("Scrap/Loss Item: {0} should have Qty less than finished goods Quantity.").format(
+					frappe.bold(item.item_code)
+				)
+
+			if item.is_process_loss and (item.rate > 0):
+				msg = _(
+					"Scrap/Loss Item: {0} should have Rate set to 0 because Is Process Loss is checked."
+				).format(frappe.bold(item.item_code))
+
+			if msg:
+				frappe.throw(msg, title=_("Note"))
+
 	def get_tree_representation(self) -> BOMTree:
 		"""Get a complete tree representation preserving order of child items."""
 		return BOMTree(self.name)
+		
+	@frappe.whitelist()
+	def build_bom(self):
+		bomitems = self.get("bomitems")
+		if not (bomitems):
+			frappe.throw(_("BOM Builder Items Table Is Empty"))
+		
+		depthOriginal = convert_units(self.depthunit,self.depth)
+		widthOriginal = convert_units(self.widthunit,self.width)
+		heightOriginal = convert_units(self.heightunit,self.height)
+		qtyOriginal = self.quantity or 1
 
+		merged,summary,final = build_bom_ext(bomitems,qtyOriginal,depthOriginal,widthOriginal,heightOriginal)
+		
+		self.update_bom_builder(merged)
+		self.summary = summary
+		
+	
+	def update_bom_builder(self,merged):
+		self.set('items', [])
+		
+		for key in merged:
+			
+			d = merged[key]
+			newd = self.append('items')
+			newd.item_code = d["item_code"]
+			newd.stock_qty = flt(d["stock_qty"])
+			newd.qty = flt(d["qty"])
+			newd.stock_uom = d["stock_uom"]
+			newd.uom = d["uom"]
+			
+			bom_no = d["bom_no"] or get_default_bom(newd.item_code,self.project)
+			
+			ret_item = self.get_bom_material_detail({
+				"item_code": newd.item_code,
+				"bom_no": bom_no,
+				"stock_qty": newd.stock_qty,
+				# "include_item_in_manufacturing": newd.include_item_in_manufacturing,
+				"qty": newd.qty,
+				"uom": newd.uom,
+				"stock_uom": newd.stock_uom,
+				# "conversion_factor": newd.conversion_factor
+			})
+			
+			
+			newd.rate = flt(ret_item["rate"])
+			newd.base_rate = flt(ret_item["base_rate"])
+			
+			newd.stock_rate = flt(ret_item["stock_rate"])
+			newd.base_stock_rate = flt(ret_item["base_stock_rate"])
+			
+			
+			newd.amount = flt(newd.rate)* flt(newd.stock_qty)
+			
+			newd.conversion_factor = ret_item["conversion_factor"]
+			newd.bom_no = ret_item["bom_no"]
+			newd.item_name = ret_item["item_name"]
+			newd.description = ret_item["description"]
+			
+		
+						
+
+	def make_stock_entry(self,fg_item=None,bom=None,purpose=None,project=None,company=None,
+		sales_order_no=None,delivery_note_no=None,qty=None,
+		add_operating_costs=False,remarks=None,submit=False):
+
+		if purpose not in ["Manufacture","Material Issue"]:
+			return None
+			
+		if not company:
+			company = self.company
+			
+		if not qty or not fg_item:
+			return None
+			
+		if not self.quantity or self.quantity == 0:
+			return None
+			
+			
+		from erpnext.stock.stock_ledger import NegativeStockError
+		from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, DuplicateEntryForProductionOrderError, OperationsNotCompleteError
+		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
+	
+		try:	
+			stock_entry = frappe.new_doc("Stock Entry")
+			stock_entry.purpose = purpose
+			stock_entry.sales_order = sales_order_no
+			stock_entry.delivery_note_no = delivery_note_no
+			stock_entry.project = project
+			stock_entry.company = company
+			stock_entry.from_bom = 0
+			stock_entry.use_multi_level_bom = 0
+			stock_entry.remarks = remarks
+			
+			from frappe.utils import nowtime, nowdate
+			stock_entry.posting_date = nowdate()
+			stock_entry.posting_time = nowtime()
+			
+			from erpnext.stock.utils import get_default_warehouse
+			default_warehouses = get_default_warehouse(company = company)
+
+			stock_entry.from_warehouse = default_warehouses.get("source_warehouse")
+			stock_entry.to_warehouse = default_warehouses.get("fg_warehouse")
+						
+			for item in self.get("exploded_items"):
+				best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.stock_qty,stock_entry.from_warehouse,company = company)
+
+				stock_entry.add_to_stock_entry_detail({
+					item.item_code: {
+						"to_warehouse": "",
+						"from_warehouse": best_warehouse,
+						"qty": item.stock_qty/self.quantity * qty,
+						"item_name": item.item_name,
+						"description": item.description,
+						"stock_uom": item.stock_uom,
+						"expense_account": None,
+						"cost_center": None
+					}
+				})
+			
+			item_dict = self.get_item_det(fg_item)[0]
+			
+				
+			stock_entry.add_to_stock_entry_detail({
+				fg_item: {
+					"to_warehouse": stock_entry.to_warehouse,
+					"from_warehouse": "",
+					"qty": qty,
+					"item_name": item_dict['item_name'],
+					"description": item_dict['description'],
+					"stock_uom": item_dict['stock_uom'],
+					"expense_account": None,
+					"cost_center": None,
+					"basic_rate" : self.raw_material_cost
+				}
+			})
+			
+			
+			additional_costs = []
+			if purpose=="Manufacture" and add_operating_costs:
+				
+				additional_costs.append({
+					"description": "Operating Cost as per Production Order / BOM",
+					"amount": self.operating_cost * flt(qty)
+				})
+				
+				stock_entry.set("additional_costs", additional_costs)	
+		
+
+			stock_entry.get_stock_and_rate()
+			# stock_entry.get_items()
+			stock_entry.insert()
+			
+			
+			
+			frappe.db.commit()
+			
+			if submit:
+				stock_entry.submit()
+			
+			return stock_entry.name
+		
+		except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
+			OperationsNotCompleteError):
+			frappe.db.rollback()
+			return None
+	
 	def set_process_loss_qty(self):
 		if self.process_loss_percentage:
 			self.process_loss_qty = flt(self.quantity) * flt(self.process_loss_percentage) / 100
@@ -1092,15 +1493,15 @@ def get_bom_items(bom, company, qty=1, fetch_exploded=1):
 	items.sort(key=functools.cmp_to_key(lambda a, b: a.item_code > b.item_code and 1 or -1))
 	return items
 
-
-def validate_bom_no(item, bom_no):
+def validate_bom_no(item, bom_no, submit = True):
 	"""Validate BOM No of sub-contracted items"""
 	bom = frappe.get_doc("BOM", bom_no)
 	if not bom.is_active:
 		frappe.throw(_("BOM {0} must be active").format(bom_no))
-	if bom.docstatus != 1:
-		if not getattr(frappe.flags, "in_test", False):
-			frappe.throw(_("BOM {0} must be submitted").format(bom_no))
+	if submit:
+		if bom.docstatus != 1:
+			if not getattr(frappe.flags, "in_test", False):
+				frappe.throw(_("BOM {0} must be submitted").format(bom_no))
 	if item:
 		rm_item_exists = False
 		for d in bom.items:
@@ -1158,6 +1559,723 @@ def get_children(parent=None, is_root=False, **filters):
 			bom_item.image = frappe.db.escape(bom_item.image)
 
 		return bom_items
+
+@frappe.whitelist()	
+def convert_units(unit,value):
+	if unit == "ft":
+		finalvalue = flt(value) * flt(.3048)
+	elif unit == "cm":
+		finalvalue = flt(value) * flt(.01)
+	elif unit == "mm":
+		finalvalue = flt(value) * flt(0.001)
+	elif unit == "in":
+		finalvalue = flt(value) * flt(.0254)
+	else:
+		finalvalue = flt(value)
+	return finalvalue	
+	
+@frappe.whitelist()		
+def merge_bom_items(dicts):
+	item_dict = {}
+	import copy
+	new_list = copy.deepcopy(dicts)
+	for item in new_list:
+		item_code = item["item_code"]
+		bom_no = item["bom_no"]
+
+		if (item_code,bom_no) in item_dict:
+			item_dict[item_code,bom_no]["stock_qty"] += flt(item["stock_qty"])
+			item_dict[item_code,bom_no]["qty"] = flt(item_dict[item_code,bom_no]["stock_qty"]) * flt(item_dict[item_code,bom_no]["conversion_factor"])
+		else:
+			item_dict[item_code,bom_no] = item
+
+	return item_dict
+	
+@frappe.whitelist()
+def get_part_details(part=None,item_code=None):
+	from erpnext.stock.get_item_details import get_default_uom
+
+	plane = ""
+	part_uom = "Nos"
+	allow_col1 = allow_col2 = allow_col3 = False
+	if part and item_code:
+		plane,part_uom,allow_col1,allow_col2,allow_col3 = frappe.db.get_value("BOM Part", 
+		part,["plane", "required_uom","allow_col1","allow_col2","allow_col3"])
+		
+		
+		if part_uom in ['Nos']:
+			if item_code:
+				part_uom = get_default_uom(item_code)
+			
+	return plane,part_uom,allow_col1,allow_col2,allow_col3
+	
+@frappe.whitelist()
+def get_all_part_details(args=None):
+	from erpnext.stock.get_item_details import get_default_uom
+	
+	if not args:
+		args = frappe.form_dict.get('args')
+
+	if isinstance(args, str):
+		import json
+		args = json.loads(args)
+		
+
+	for d in args:
+		plane = ""
+		part = d.get("side",None) 
+		item_code = d.get("bb_item", None)
+		part_uom = "Nos"
+		allow_col1 = allow_col2 = allow_col3 = False
+		if part and item_code:
+		
+			part_details = frappe.db.get_value("BOM Part", 
+				part,["plane", "required_uom","allow_col1","allow_col2","allow_col3"], as_dict=1)
+		
+			if not part_details:
+				frappe.throw(
+					_("Part {0}: item_code {1} does not exist").format(part, item_code)
+				)
+		
+			plane = part_details.plane
+			part_uom = part_details.required_uom
+			allow_col1 = part_details.allow_col1
+			allow_col2 = part_details.allow_col2
+			allow_col3 = part_details.allow_col3
+			
+			
+			if part_uom in ['Nos']:
+				if item_code:
+					part_uom = get_default_uom(item_code)
+		
+		d["plane"] = plane
+		d["part_uom"] = part_uom
+		d["allow_col1"] = allow_col1
+		d["allow_col2"] = allow_col2
+		d["allow_col3"] = allow_col3
+	
+	return args
+
+def process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter):
+	if edging_sides and edging_sides != "None" and not d_edging:
+		frappe.throw(_("Item {0} set to {1} and has no edgebanding item set.").format(bb_item,edging_sides))
+
+	
+	if edging_sides and edging_sides != "None" and d_edging:
+		edginginfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", d_edging, as_dict = 1)
+		if not edginginfo:
+			frappe.msgprint(_("Item {0} not found").format(d_edging))
+			return None
+			
+		required_qty = 0
+
+			
+		if edging_sides in ["All Sides"]:
+			required_qty = flt(perimeter) * flt(bb_qty)
+
+				
+		elif edging_sides in ["Front Side","Front Only","Back Only"]:
+			required_qty = flt(width) * flt(bb_qty)
+			
+			
+			
+		elif edging_sides in ["Front & Back"]:
+			required_qty = 2 * flt(width) * flt(bb_qty)
+			
+
+			
+		elif edging_sides in ["Sides Only"]:
+			required_qty = 2 * flt(length) * flt(bb_qty)
+
+			
+			
+		elif edging_sides in ["FrontAndSides","Front & Sides"]:
+			required_qty = ( flt(perimeter) - flt(width) )* flt(bb_qty)
+			
+			
+		if side in ["door frame"]:
+			required_qty = flt(2 * length + width)* flt(bb_qty)
+		elif side in ["frame"]:
+			required_qty = flt(perimeter)* flt(bb_qty)
+		elif side in ["single door","AngledSingleDoor"]:
+			required_qty = flt(perimeter)* flt(bb_qty)
+		elif side in ["double door","AngledDoubleDoor"]:
+			required_qty = ( 2*flt(length) + flt(perimeter))* flt(bb_qty)
+			
+		required_uom = "m"
+		stock_uom = edginginfo[0].stock_uom
+		conversion_factor = get_conversion_factor(d_edging, required_uom).get("conversion_factor")
+		
+		if not conversion_factor:
+			frappe.throw(_("Edgebanding Item {0} has no conversion factor for {1}. Edgebanding Not Added").format(d_edging,required_uom))
+			return None
+			
+		else:
+			conversion_factor = flt(1/conversion_factor)
+			stock_qty = flt(required_qty)/flt(conversion_factor)
+			detail = side + " " + edging_sides		
+			newitem = {"side":detail,"item_code":d_edging,"length":length,"width":width,"qty":required_qty,"stock_qty":stock_qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"uom":required_uom,"bom_no":None}
+			return newitem
+			
+	else:
+		return None
+		
+def process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea):
+	if laminate_sides and laminate_sides != "None" and not d_laminate:
+		frappe.throw(_("Item {0} set to {1} and has no laminate item set.").format(bb_item,laminate_sides))
+
+	
+	
+	if laminate_sides and laminate_sides != "None" and d_laminate:
+		required_qty = 0
+					
+		laminate_info = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", d_laminate, as_dict = 1)
+		
+		if not laminate_info:
+			frappe.msgprint(_("Item {0} not found").format(d_laminate))
+			return None
+		
+		
+		required_qty =  bb_qty * farea
+		if laminate_sides == "Double Pressed":
+			required_qty = bb_qty * farea * 2
+
+			
+		required_uom = "sqm"
+		conversion_factor = get_conversion_factor(d_laminate, required_uom).get("conversion_factor")
+		
+		if not conversion_factor:
+			frappe.throw(_("Laminate Item {0} has no conversion factor for {1}. Laminate Not Added").format(d_laminate,required_uom))
+			return None
+		else:
+			conversion_factor = flt(1/conversion_factor)
+		
+			stock_uom = laminate_info[0].stock_uom
+			# calculate stock required_qty using dimensions of item
+			stock_qty = flt(required_qty) / flt(conversion_factor)
+			
+			detail = side + " " + laminate_sides
+			newitem = {"side":detail,"item_code":d_laminate,"length":length,"width":width,"qty":required_qty,"stock_qty":stock_qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"uom":required_uom,"bom_no":None}
+			return newitem
+		
+
+		# if glueitem:
+			
+			# glueinfo = frappe.db.sql("""select stock_uom from `tabItem` where name=%s""", glueitem, as_dict = 1)
+			# required_qty = required_qty
+			# required_uom = "g"
+			# conversion_factor = get_conversion_factor(glueitem, required_uom).get("conversion_factor") or 1.0
+			# stock_uom = glueinfo[0].stock_uom
+			# conversion_factor = flt(1/conversion_factor)
+			# stock_qty = flt(required_qty)/flt(conversion_factor)
+			# newitem = {"side":side,"item_code":glueitem,"length":length,"width":width,"required_qty":required_qty,"stock_qty":stock_qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"uom":required_uom}
+			# glue.append(newitem)
+		# else:
+			# frappe.msgprint(_("Glue Item Not Set"))
+	else:
+		return None
+		
+def create_condensed_table(dict):
+	from frappe.utils import get_link_to_form
+	summary = ""
+	
+	joiningtext = """<table class="table table-bordered table-condensed">"""
+	joiningtext += """<thead>
+			<tr style>
+				<th width="20%">Item Code</th>
+				<th>Part</th>
+				<th>Required Qty</th>
+				<th width="20%">Stock Details</th>
+				<th width="20%">Stock Qty</th>
+				</tr></thead><tbody>"""	
+	for i, d in enumerate(dict):
+		d["qty"] = round_decimal_sig(flt(d["qty"]),3)
+		d["conversion_factor"] = round_decimal_sig(flt(d["conversion_factor"]),3)
+		item_code = get_link_to_form("Item", d["item_code"])
+		joiningtext += """<tr>
+					<td>""" + item_code +"""</td>
+					<td>""" + str(d["side"]) +"""</td>
+					<td>""" + str(d["qty"]) + " " +str(d["uom"])+"""</td>
+					<td>""" + str(d["conversion_factor"]) + (" " + str(d["uom"]) + "/" + str(d["stock_uom"]) if d["conversion_factor"] else "")+"""</td>
+					<td>""" + str(d["stock_qty"]) + " " +str(d["stock_uom"])+"""</td>
+					</tr>"""
+	joiningtext += """</tbody></table>"""
+	summary += joiningtext
+	return summary
+	
+	
+def create_custom_table(dict):
+	summary = ""
+	
+	joiningtext = """<table class="table table-bordered table-condensed">"""
+	joiningtext += """<thead>
+			<tr style>
+				<th width="20%">Item Code</th>
+				<th>Part</th>
+				<th>Length (m)</th>
+				<th>Width (m)</th>
+				<th>Required Qty</th>
+				<th width="20%">Stock Details</th>
+				<th width="20%">Stock Qty</th>
+				</tr></thead><tbody>"""	
+	for i, d in enumerate(dict):
+		d["stock_qty"] = round_decimal_sig(flt(d["stock_qty"]),3)
+		d["conversion_factor"] = round_decimal_sig(flt(d["conversion_factor"]),3)
+		joiningtext += """<tr>
+					<td>""" + str(d["item_code"]) +"""</td>
+					<td>""" + str(d["side"]) +"""</td>
+					<td>""" + str(d["length"]) +"""</td>
+					<td>""" + str(d["width"]) +"""</td>
+					<td>""" + str(d["qty"]) + " " +str(d["uom"])+"""</td>
+					<td>""" + str(d["conversion_factor"]) + (" " + str(d["uom"]) + "/" + str(d["stock_uom"]) if d["conversion_factor"] else "")+"""</td>
+					<td>""" + str(d["stock_qty"]) + " " +str(d["stock_uom"])+"""</td>
+					</tr>"""
+	joiningtext += """</tbody></table>"""
+	summary += joiningtext
+	return summary
+
+@frappe.whitelist()	
+def get_default_bom(item_code,project=None):
+	bom_no = ""
+	if project:
+		bom_no = frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "project": project}) or frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "is_default": 1})
+	else:
+		bom_no = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "is_default": 1})
+	return bom_no
+	
+def round_sig(x, sig=2):
+	from math import log10, floor
+	if x != 0:
+		return round(x, -int(floor(log10(abs(x))) - (sig - 1)))
+	else:
+		return 0  # Can't take the log of 0
+
+def round_decimal_sig(x, sig=2):
+	import math
+	frac, whole = math.modf(x)
+	final_num = whole + round_sig(frac,sig)
+	return flt(final_num)
+	
+def get_boms_in_bottom_up_order(bom_no=None):
+	def _get_parent(bom_no):
+		return frappe.db.sql_list("""
+			select distinct bom_item.parent from `tabBOM Item` bom_item
+			where bom_item.bom_no = %s and bom_item.docstatus=1 and bom_item.parenttype='BOM'
+				and exists(select bom.name from `tabBOM` bom where bom.name=bom_item.parent and bom.is_active=1)
+		""", bom_no)
+
+	count = 0
+	bom_list = []
+	if bom_no:
+		bom_list.append(bom_no)
+	else:
+		# get all leaf BOMs
+		bom_list = frappe.db.sql_list("""select name from `tabBOM` bom
+			where docstatus=1 and is_active=1
+				and not exists(select bom_no from `tabBOM Item`
+					where parent=bom.name and ifnull(bom_no, '')!='')""")
+
+	while(count < len(bom_list)):
+		for child_bom in _get_parent(bom_list[count]):
+			if child_bom not in bom_list:
+				bom_list.append(child_bom)
+		count += 1
+
+	return bom_list
+
+@frappe.whitelist()
+def get_material_list(items,qty,qtyOriginal,using_exploded = True):
+	summary = ""
+	merged = []
+	final = []
+	
+	for d in items:
+		new_d = {}
+		new_d["stock_qty"] = d.stock_qty * qty/qtyOriginal
+		new_d["stock_uom"] = d.stock_uom
+		new_d["item_code"] = d.item_code
+		new_d["side"] = ""
+		
+		if using_exploded:
+			new_d["qty"] = new_d["stock_qty"]
+			new_d["uom"] = new_d["stock_uom"]
+			new_d["conversion_factor"] = 1.0
+			new_d["bom_no"] = None
+		else:
+			new_d["qty"] = d.qty * qty/qtyOriginal
+			new_d["uom"] = d.uom
+			new_d["conversion_factor"] = d.conversion_factor
+			new_d["bom_no"] = d.bom_no
+
+		
+		final.append(new_d)
+	
+	summary = str(create_condensed_table(final))
+
+	merged = merge_bom_items(final)
+
+	
+	return merged,summary,final 
+	
+@frappe.whitelist()
+def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightOriginal=0):
+	
+	summary = ""
+	merged = []
+	final = []
+	
+	if not (bomitems):
+		return merged,summary,final
+	
+	edgebanding = []
+	laminate = []
+	mdf = []
+	custom = []
+	
+	# glue = []
+	
+	for i, d in enumerate(bomitems):
+
+		length = flt(d.length) or 0
+		width = flt(d.width) or 0
+		height = flt(d.height) or 0
+		side = d.side
+		
+		perimeter = 2*flt(length)+2*flt(width)
+		farea = flt(length)*flt(width)
+		fvolume = flt(length)*flt(width)*flt(height)
+		bb_item = d.bb_item
+		bb_qty = 1
+		
+		if not bb_item:
+			frappe.throw(_("No item provided for item {0} in BOM Builder Table").format(i))
+
+		if not side:
+			frappe.throw(_("No part provided for item {0} in BOM Builder Table").format(bb_item))
+			
+
+		calculation = frappe.db.get_value("BOM Part", side,["calculation"])
+
+		if calculation in ["formula-int","formula-float"]:
+			if d.bb_qty:
+				bb_qty = flt(d.bb_qty)
+			else:
+				frappe.throw(_("No qty provided for item {0} in BOM Builder Table").format(bb_item))
+		else:
+			if d.bb_qty and is_number(d.bb_qty):
+				bb_qty = flt(d.bb_qty)*flt(qtyOriginal)
+			else:
+				frappe.throw(_("Qty is not valid for item {0} in BOM Builder Table").format(bb_item))
+		
+		required_qty = bb_qty
+		stock_qty = bb_qty
+		d_edging = d.edging
+		edging_sides = d.edgebanding
+		d_laminate = d.laminate
+		laminate_sides = d.laminate_sides
+				
+
+		item = frappe.db.sql("""select stock_uom,depth,depthunit,width,widthunit,height,heightunit from `tabItem` where name=%s""", bb_item, as_dict = 1)
+		if not item:
+			frappe.throw(_("Item {0} does not exist").format(bb_item))
+
+
+		stock_uom = item[0].stock_uom
+		required_uom = d.requom
+		
+		conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+
+		
+		is_hardware = False
+		has_edging = False
+		has_laminate = False
+		
+		bom_no = d.bom
+		if calculation not in ["bom"]:
+			if bom_no:
+				frappe.msgprint(_("Item {0} does not need BOM entered in bom builder").format(bb_item))
+
+		if calculation in ["nos"]:
+			required_qty = bb_qty
+			is_hardware = True
+			has_edging = False
+			has_laminate = False
+		elif calculation in ["bom"]:
+
+			required_qty = bb_qty
+			is_hardware = True
+			has_edging = False
+			has_laminate = False
+
+			if not bom_no:
+				frappe.throw(_("Item {0} requires a BOM entered in bom builder").format(bb_item))
+		
+		elif calculation in ["formula-int","formula-float"]:
+			
+			
+			data = frappe._dict()
+			data["d"] = depthOriginal
+			data["w"] = widthOriginal
+			data["h"] = heightOriginal
+			data["c1"] = length
+			data["c2"] = width
+			data["c3"] = height
+			
+			struct_row = frappe._dict()
+			struct_row["amount"] = 0
+			struct_row["condition"] = None
+			struct_row["formula"] = d.bb_qty
+			struct_row["amount_based_on_formula"] = True
+			
+			formula_qty = eval_condition_and_formula(struct_row, data)
+			required_qty = formula_qty * flt(qtyOriginal)
+			
+			
+			if calculation == "formula-int":
+				from frappe.utils import ceil
+				required_qty = ceil(required_qty)
+			
+			is_hardware = False
+			has_edging = False
+			has_laminate = False
+			
+		elif calculation in ["height-profile","depth-profile","width-profile"]:
+			if calculation in ["width-profile"]:
+				required_qty = width * bb_qty
+			elif calculation in ["height-profile","depth-profile"]:
+				required_qty = length * bb_qty
+			else:
+				required_qty = length * bb_qty
+				
+			is_hardware = False
+			has_edging = False
+			has_laminate = False
+		elif calculation in ["user-input-area-rect-col12","user-input-area-tri-col12","user-input-area-circle-col1"]:
+			if calculation in ["user-input-area-rect-col12"]:
+				required_qty = length * width * bb_qty
+			elif calculation in ["user-input-area-tri-col12"]:
+				required_qty = length * width * bb_qty / 2
+				farea = flt(length/2)*flt(width/2)
+			else:
+				from math import pi
+				required_qty = pi * flt(length/2)*flt(length/2) * bb_qty
+				perimeter = pi*flt(length)
+				farea = pi * flt(length/2)*flt(length/2)
+							
+			is_hardware = False
+			has_edging = True
+			has_laminate = True		
+			
+		elif calculation in ["user-input-height","user-input-depth","user-input-width"]:
+			if calculation in ["user-input-width"]:
+				required_qty = width * bb_qty
+			elif calculation in ["user-input-height"]:
+				required_qty = height * bb_qty
+			else:
+				required_qty = length * bb_qty
+				
+			is_hardware = False
+			has_edging = False
+			has_laminate = False
+		
+		elif calculation in ["perimeter","perimeter-width","perimeter-length"]:
+
+			if calculation in ["perimeter-width"]:
+				required_qty = (perimeter - width) * bb_qty
+			elif calculation in ["perimeter-length"]:
+				required_qty = (perimeter - length) * bb_qty
+			else:
+				required_qty = perimeter * bb_qty
+				
+			is_hardware = False
+			has_edging = True
+			has_laminate = False
+			
+		
+		elif calculation in ["circle-perimeter"]:
+			from math import pi
+			perimeter = pi*flt(length)
+			required_qty = perimeter * bb_qty
+			
+			is_hardware = False
+			has_edging = True
+			has_laminate = False
+		
+		elif calculation in ["circle-area"]:
+		
+			from math import pi
+
+		
+			perimeter = pi*flt(length)
+			farea = pi * flt(length/2)*flt(length/2)
+			
+			required_qty = farea * bb_qty
+			
+			is_hardware = False
+			has_edging = True
+			has_laminate = True
+
+			
+		elif calculation in ["area"]:
+
+			required_qty = farea * bb_qty
+			is_hardware = False
+			has_edging = True
+			has_laminate = True
+			
+		elif calculation in ["volume"]:
+			
+			required_qty = fvolume * bb_qty
+			is_hardware = False
+			has_edging = True
+			has_laminate = True
+			
+			
+			
+		if not conversion_factor:
+			frappe.throw(_("Item {0} has no conversion factor for {1}. Item Not Added").format(bb_item,required_uom))
+		else:
+		
+			conversion_factor = flt(1/conversion_factor)
+			
+			stock_qty = flt(required_qty)/flt(conversion_factor)
+			
+			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"qty":required_qty,"stock_qty":stock_qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"uom":required_uom,"bom_no":bom_no}
+			
+			if is_hardware:
+				custom.append(newitem)
+			else:
+				mdf.append(newitem)
+				
+			if has_laminate:
+				new_laminate = process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,farea)
+				if new_laminate:
+					laminate.append(new_laminate)
+			if has_edging:
+				new_edging = process_edging(bb_item,bb_qty,side,d_edging,edging_sides,length,width,perimeter)
+				if new_edging:
+					edgebanding.append(new_edging)
+		
+	
+	if len(custom)> 0 :
+		summary = str(create_condensed_table(custom))
+			
+	materials = mdf + laminate + edgebanding
+	if len(materials)> 0 :
+		summary = str(summary) + str(create_custom_table(materials))
+		
+		
+	final = custom + mdf + laminate + edgebanding
+	merged = merge_bom_items(final)
+	
+	return merged,summary,final
+	
+	
+def eval_condition_and_formula(d, data):
+	try:
+		condition = d.condition.strip() if d.condition else None
+		if condition:
+			if not frappe.safe_eval(condition, None, data):
+				return None
+		amount = d.amount
+		if d.amount_based_on_formula:
+			formula = d.formula.strip() if d.formula else None
+			if formula:
+				amount = frappe.safe_eval(formula, None, data)
+		data[d.abbr] = amount
+
+		return amount
+
+	except NameError as err:
+		frappe.throw(_("Name error: {0}".format(err)))
+	except SyntaxError as err:
+		frappe.throw(_("Syntax error in formula or condition: {0}".format(err)))
+	except Exception as e:
+		frappe.throw(_("Error in formula or condition: {0}".format(e)))
+		raise
+		
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+		
+
+@frappe.whitelist()
+def calculate_builder_items_dimensions(bomitems,depth,depthunit,width,widthunit,height,heightunit):
+	for item in bomitems:
+		
+		item.length,item.width,item.height,item.requom = calculate_builder_dimensions(depth,depthunit,width,widthunit,height,heightunit,item)
+		
+	return bomitems
+	
+def calculate_builder_dimensions(depthOriginal,depthunit,widthOriginal,widthunit,heightOriginal,heightunit,d):
+	length = 0
+	width = 0
+	height = 0
+	required_uom = ''
+	
+	if not d.side or not d.bb_item:
+		return length,width,height,required_uom
+
+	side = d.side
+	required_uom = d.requom
+
+	depthOriginal = convert_units(depthunit,depthOriginal)
+	widthOriginal = convert_units(widthunit,widthOriginal)
+	heightOriginal = convert_units(heightunit,heightOriginal)
+	
+	plane,required_uom,allow_col1,allow_col2,allow_col3 = get_part_details(side,d.bb_item)
+
+		
+	if plane == "top":
+		length = depthOriginal
+		width = widthOriginal
+		height = heightOriginal
+	elif plane == "front":
+		length = heightOriginal
+		width = widthOriginal
+		height = depthOriginal
+	
+	elif plane == "side":
+		length = depthOriginal
+		width = heightOriginal
+		height = widthOriginal
+	
+	else:
+		length = d.length
+		width = d.width
+		height = d.height
+	
+	
+	return length,width,height,required_uom
+
+@frappe.whitelist()
+def mrp_get_valuation_rate(args):
+	""" Get weighted average of valuation rate from all warehouses """
+
+	total_qty, total_value, valuation_rate = 0.0, 0.0, 0.0
+	for d in frappe.db.sql("""select actual_qty, stock_value from `tabBin`
+		where item_code=%s""", args['item_code'], as_dict=1):
+			total_qty += flt(d.actual_qty)
+			total_value += flt(d.stock_value)
+
+	if total_qty:
+		valuation_rate = total_value / total_qty
+
+	if valuation_rate <= 0:
+		last_valuation_rate = frappe.db.sql("""select valuation_rate
+			from `tabStock Ledger Entry`
+			where item_code = %s and valuation_rate > 0
+			order by posting_date desc, posting_time desc, name desc limit 1""", args['item_code'])
+
+		valuation_rate = flt(last_valuation_rate[0][0]) if last_valuation_rate else 0
+
+	if not valuation_rate:
+		valuation_rate = frappe.db.get_value("Item", args['item_code'], "valuation_rate")
+
+	return valuation_rate
 
 
 def add_additional_cost(stock_entry, work_order):

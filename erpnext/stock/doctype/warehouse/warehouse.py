@@ -39,11 +39,30 @@ class Warehouse(NestedSet):
 		self.warn_about_multiple_warehouse_account()
 
 	def on_update(self):
+		
+		if self.disabled:
+			self.on_disable()
+
 		self.update_nsm_model()
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
+	
+	def on_disable(self):
+	
+		if self.check_if_child_exists():
+				throw(_("Child warehouse exists for this warehouse. You can not disable this warehouse."))
 
+		bins = frappe.db.sql("select * from `tabBin` where warehouse = %s",
+			self.name, as_dict=1)
+			
+		
+		for d in bins:
+			if d['actual_qty'] or d['reserved_qty'] or d['ordered_qty'] or \
+					d['indented_qty'] or d['projected_qty'] or d['planned_qty']:
+				throw(_("Warehouse {0} can not be disabled as quantity exists for Item {1}").format(self.name, d['item_code']))
+
+		
 	def on_trash(self):
 		# delete bin
 		bins = frappe.get_all("Bin", fields="*", filters={"warehouse": self.name})
@@ -166,7 +185,6 @@ def get_children(doctype, parent=None, company=None, is_root=False):
 
 	return frappe.get_list(doctype, fields=fields, filters=filters, order_by="name")
 
-
 @frappe.whitelist()
 def add_node():
 	from frappe.desk.treeview import make_tree_args
@@ -212,6 +230,36 @@ def get_warehouses_based_on_account(account, company=None):
 		frappe.throw(_("Warehouse not found against the account {0}").format(account))
 
 	return warehouses
+	
+	
+@frappe.whitelist()
+def check_all_disabled():
+
+	parent = ""
+
+	fields = ['name','disabled']
+	filters = [
+		['docstatus', '<', '2'],
+		['is_group','=','0'],
+		['disabled', '=', '1']
+	]
+	
+
+	warehouses = frappe.get_list("Warehouse", fields=fields, filters=filters, order_by='name')
+
+	# return warehouses
+	for wh in warehouses:
+		bins = frappe.db.sql("select * from `tabBin` where warehouse = %s",
+			wh.name, as_dict=1)
+			
+		should_correct = False
+
+		for d in bins:
+			if d['actual_qty'] or d['reserved_qty'] or d['ordered_qty'] or \
+					d['indented_qty'] or d['projected_qty'] or d['planned_qty']:
+				should_correct = True
+		if should_correct:
+			frappe.errprint(wh.name)
 
 
 # Will be use for frappe.qb

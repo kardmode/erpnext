@@ -97,7 +97,16 @@ class PurchaseReceipt(BuyingController):
 					},
 				]
 			)
-
+			
+	def set_total_qty(self):
+		total_qty = 0
+		fake_total = 0
+		for d in self.get('items'):
+			total_qty = total_qty + flt(d.qty)
+			fake_total = fake_total + flt(d.fake_qty)
+		self.total_qty = total_qty
+		self.fake_qty = fake_total
+		
 	def before_validate(self):
 		from erpnext.stock.doctype.putaway_rule.putaway_rule import apply_putaway_rule
 
@@ -107,6 +116,8 @@ class PurchaseReceipt(BuyingController):
 	def validate(self):
 		self.validate_posting_time()
 		super(PurchaseReceipt, self).validate()
+		
+		self.validate_supplier_with_dn()
 
 		if self._action == "submit":
 			self.make_batches("warehouse")
@@ -117,6 +128,8 @@ class PurchaseReceipt(BuyingController):
 		self.validate_with_previous_doc()
 		self.validate_uom_is_integer("uom", ["qty", "received_qty"])
 		self.validate_uom_is_integer("stock_uom", "stock_qty")
+		
+		self.set_total_qty()
 		self.validate_cwip_accounts()
 		self.validate_provisional_expense_account()
 
@@ -276,6 +289,7 @@ class PurchaseReceipt(BuyingController):
 		self.ignore_linked_doctypes = ("GL Entry", "Stock Ledger Entry", "Repost Item Valuation")
 		self.delete_auto_created_batches()
 		self.set_consumed_qty_in_subcontract_order()
+
 
 	def get_gl_entries(self, warehouse_account=None):
 		from erpnext.accounts.general_ledger import process_gl_map
@@ -748,6 +762,18 @@ class PurchaseReceipt(BuyingController):
 			frappe.db.set_value("Asset", asset.name, "purchase_receipt_amount", flt(valuation_rate))
 
 	def update_status(self, status):
+		if status == "Closed":
+			doc_details = frappe.db.sql("""
+						select name
+						from `tabMRP Import Entry`where
+						transaction_type = "Purchase Receipt"
+						and reference_name = %s
+						""", (self.name), as_dict=True)
+			
+			if not doc_details:
+				frappe.msgprint(_("Purchase receipt {0} has no Import Entry. IGNORE if not applicable.").format(self.name))
+	
+	
 		self.set_status(update=True, status=status)
 		self.notify_update()
 		clear_doctype_notifications(self)
@@ -769,6 +795,17 @@ class PurchaseReceipt(BuyingController):
 			update_billing_percentage(pr_doc, update_modified=update_modified)
 
 		self.load_from_db()
+		
+	def validate_supplier_with_dn(self):
+		if self.supplier_delivery_note:
+			duplicate_pr = None
+			if cint(self.get("__islocal")):
+				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where supplier = %s and supplier_delivery_note = %s and docstatus = 1 limit 1""", (self.supplier,self.supplier_delivery_note),as_dict=True)
+			else:
+				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where name <> %s and supplier = %s and supplier_delivery_note = %s limit 1""", (self.name,self.supplier,self.supplier_delivery_note),as_dict=True)
+
+			if duplicate_pr:
+				frappe.throw(_("Supplier Delivery Note Identical to {0}").format(duplicate_pr[0].name))
 
 
 def update_billed_amount_based_on_po(po_details, update_modified=True):
@@ -879,7 +916,6 @@ def get_billed_amount_against_po(po_items):
 	).run(as_dict=1)
 
 	return {d.po_detail: flt(d.billed_amt) for d in query}
-
 
 def update_billing_percentage(pr_doc, update_modified=True):
 	# Reload as billed amount was set in db directly
@@ -1049,7 +1085,10 @@ def make_purchase_return(source_name, target_doc=None):
 @frappe.whitelist()
 def update_purchase_receipt_status(docname, status):
 	pr = frappe.get_doc("Purchase Receipt", docname)
-	pr.update_status(status)
+	pr.update_status(status)	
+	
+
+
 
 
 @frappe.whitelist()
@@ -1078,6 +1117,40 @@ def make_stock_entry(source_name, target_doc=None):
 		target_doc,
 		set_missing_values,
 	)
+
+	return doclist
+	
+@frappe.whitelist()
+def make_delivery_note(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+
+	def set_missing_values(source, target):
+		doc = frappe.get_doc(target)
+		doc.ignore_pricing_rule = 1
+		doc.run_method("set_missing_values")
+		# doc.run_method("calculate_taxes_and_totals")
+
+	def update_item(source_doc, target_doc, source_parent):
+		target_doc.qty = source_doc.qty
+
+	doclist = get_mapped_doc("Purchase Receipt", source_name,	{
+		"Purchase Receipt": {
+			"doctype": "Delivery Note",
+			"validation": {
+				"docstatus": ["=", 1],
+			},
+		},
+		"Purchase Receipt Item": {
+			"doctype": "Delivery Note Item",
+			"field_map": {
+				# "name": "pr_detail",
+				# "parent": "purchase_receipt",
+				# "purchase_order_item": "po_detail",
+				# "purchase_order": "purchase_order",
+			},
+			"postprocess": update_item
+		}
+	}, target_doc, set_missing_values)
 
 	return doclist
 

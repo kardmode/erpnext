@@ -294,6 +294,19 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 
 	if item.variant_of:
 		item.update_template_tables()
+		
+	# from frappe.defaults import get_user_default_as_list
+	# user_default_warehouse_list = get_user_default_as_list('Warehouse')
+	# best_warehouse = user_default_warehouse_list[0] \
+		# if len(user_default_warehouse_list) == 1 else ""
+	
+	company = args.get("company") or None
+	
+	from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
+	best_warehouse,enough_stock = get_best_warehouse(company = company)
+	
+	if args.get('doctype') in ['Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice']:
+		best_warehouse,enough_stock = get_best_warehouse(item.name,args.get("qty") or 0,company = company)
 
 	item_defaults = get_item_defaults(item.name, args.company)
 	item_group_defaults = get_item_group_defaults(item.name, args.company)
@@ -394,6 +407,7 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 			"weight_per_unit": args.get("weight_per_unit") or item.get("weight_per_unit"),
 			"weight_uom": args.get("weight_uom") or item.get("weight_uom"),
 			"grant_commission": item.get("grant_commission"),
+			"hs_code":item.get("customs_tariff_number"),
 		}
 	)
 
@@ -432,8 +446,9 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 		if not out[d[1]]:
 			out[d[1]] = frappe.get_cached_value("Company", args.company, d[2]) if d[2] else None
 
-	for fieldname in ("item_name", "item_group", "brand", "stock_uom"):
+	for fieldname in ("item_name", "item_group", "barcode", "brand", "stock_uom","manufacturer_part_no","warranty_period"):
 		out[fieldname] = item.get(fieldname)
+
 
 	if args.get("manufacturer"):
 		part_no = get_item_manufacturer_part_no(args.get("item_code"), args.get("manufacturer"))
@@ -923,6 +938,18 @@ def get_price_list_rate_for(args, item_code):
 	:param qty: Desired Qty
 	:param transaction_date: Date of the price
 	"""
+	
+	
+	if args.get('transaction_type') =="selling":
+		from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle,get_product_bundle_details
+		product_bundle = has_product_bundle(item_code,args.get('project'))
+		
+		if product_bundle:
+			product_bundle_details = get_product_bundle_details(product_bundle[0][0])			
+			if product_bundle_details.use_total_to_cost:
+				return product_bundle_details.total
+			
+	
 	item_price_args = {
 		"item_code": item_code,
 		"price_list": args.get("price_list"),
@@ -1162,6 +1189,7 @@ def get_serial_no_batchwise(args, sales_order=None):
 @frappe.whitelist()
 def get_conversion_factor(item_code, uom):
 	variant_of = frappe.db.get_value("Item", item_code, "variant_of", cache=True)
+
 	filters = {"parent": item_code, "uom": uom}
 	if variant_of:
 		filters["parent"] = ("in", (item_code, variant_of))
@@ -1169,7 +1197,100 @@ def get_conversion_factor(item_code, uom):
 	if not conversion_factor:
 		stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
 		conversion_factor = get_uom_conv_factor(uom, stock_uom)
-	return {"conversion_factor": conversion_factor or 1.0}
+		
+	if conversion_factor:
+		if conversion_factor == 0:
+			frappe.throw(_("Conversion factor for Item {0} and UOM {1} is 0.").format(item_code, uom))
+
+		conversion_factor_exists = True
+	else:
+		conversion_factor_exists = False
+		frappe.throw(_("Conversion factor for Item {0} and UOM {1} NOT FOUND.").format(item_code, uom))
+
+
+	return {"conversion_factor": conversion_factor or 1.0,"conversion_factor_exists":conversion_factor_exists}
+	
+@frappe.whitelist()
+def get_conversion_factor_between_two_units(item_code, initial_uom, final_uom):
+	variant_of = frappe.db.get_value("Item", item_code, "variant_of")
+	stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
+	
+	conversion_factor = 1.0
+	conversion_factor_exists = False
+	
+	if initial_uom == stock_uom:
+		return get_conversion_factor(item_code, final_uom)
+	
+	else:
+		conversion_factor_initial_details = get_conversion_factor(item_code, initial_uom)
+		conversion_factor_final_details = get_conversion_factor(item_code, final_uom)
+		
+		if not conversion_factor_initial_details.get("conversion_factor_exists"):
+			conversion_factor = 1.0
+			conversion_factor_exists = False
+			frappe.throw(_("Conversion factor for Item {0} and UOM {1} does no exist.").format(item_code, initial_uom))
+
+		elif not conversion_factor_final_details.get("conversion_factor_exists"):
+			conversion_factor = 1.0
+			conversion_factor_exists = False
+			frappe.throw(_("Conversion factor for Item {0} and UOM {1} does not exist.").format(item_code, final_uom))
+
+		else:
+			conversion_factor_initial = conversion_factor_initial_details.get("conversion_factor")
+			conversion_factor_final = conversion_factor_final_details.get("conversion_factor")
+			try:
+				conversion_factor = conversion_factor_final/conversion_factor_initial
+				conversion_factor_exists = True
+			except:
+				conversion_factor_exists = False
+				frappe.throw(_("Conversion factor Calculation Error for Item {0}.").format(item_code))
+
+			
+	return {"conversion_factor": conversion_factor or 1.0,"conversion_factor_exists":conversion_factor_exists}
+
+@frappe.whitelist()
+def get_SI_units(type = "length"):
+
+	SI_Length = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0,'ft':.3048,'in':.0254}
+	SI_squaredLength = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0,'ft':.3048,'in':.0254}
+	SI_cubicLength = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0,'ft':.3048,'in':.0254}
+	SI_Mass = {'mg':0.001, 'cg':0.01, 'g':1.0, 'kg':1000.0,'tonne':1000000}
+	if type == 'length':
+		return SI_Length
+	elif type == 'mass':
+		return SI_Mass
+	else:
+		return SI_Length + SI_Mass
+		
+@frappe.whitelist()
+def convert_SI(val, unit_in, unit_out):
+	
+	in_dict = out_dict = None
+	
+	if unit_in in get_SI_units(type ='length'):
+		if unit_out in get_SI_units(type ='length'):
+			in_dict = out_dict = get_SI_units(type ='length')
+
+	elif unit_in in get_SI_units(type ='mass'):
+		if unit_out in get_SI_units(type ='mass'):
+			in_dict = out_dict = get_SI_units(type ='mass')
+
+	
+	if not in_dict or not out_dict:
+		return None
+	
+	in_rate = in_dict[unit_in]
+	if not in_rate:
+		return None
+	
+
+	out_rate = out_dict[unit_out]
+	if not out_rate:
+		return None
+		
+	return val*in_rate/out_rate
+
+
 
 
 @frappe.whitelist()
@@ -1461,6 +1582,15 @@ def get_serial_no(args, serial_nos=None, sales_order=None):
 		serial_no = serial_nos
 
 	return serial_no
+
+@frappe.whitelist()
+def get_default_uom(item_code=None):
+	if item_code:
+		uom = frappe.db.get_value("Item", {"name": item_code},"stock_uom")
+		if uom:
+			return uom
+		else:
+			frappe.throw(_("No default UOM exists for Item {0}").format(item_code))
 
 
 def update_party_blanket_order(args, out):

@@ -1,0 +1,175 @@
+{
+ "beta": 1,
+ "creation": "2019-03-06 23:20:35.503597",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_alt",
+  "item_name",
+  "description",
+  "section_break_3",
+  "qty",
+  "customs_exit_rate",
+  "rate",
+  "stock_qty",
+  "column_break_6",
+  "uom",
+  "amount",
+  "import_bill",
+  "base_rate",
+  "stock_uom",
+  "conversion_factor",
+  "section_break_13",
+  "available_qty",
+  "balance_qty"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "stock_qty",
+   "fieldtype": "Float",
+   "label": "Stock Qty",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "stock_uom",
+   "fieldtype": "Link",
+   "label": "Stock UOM",
+   "options": "UOM",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "import_bill",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Import Bill",
+   "options": "MRP Import Bill"
+  },
+  {
+   "allow_on_submit": 1,
+   "columns": 1,
+   "fieldname": "available_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Available Qty",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "columns": 1,
+   "fieldname": "balance_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Balance Qty After Transaction",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Qty",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "UOM",
+   "options": "UOM",
+   "reqd": 1
+  },
+  {
+   "fieldname": "conversion_factor",
+   "fieldtype": "Float",
+   "label": "Conversion Factor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_rate",
+   "fieldtype": "Currency",
+   "label": "Base Rate (Company Currency)",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "customs_exit_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Customs Rate",
+   "options": "Company:company:default_currency",
+   "precision": "3",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_13",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "item_alt",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Alt",
+   "options": "MRP Import Item Alt"
+  }
+ ],
+ "istable": 1,
+ "modified": "2020-06-28 18:30:03.047153",
+ "modified_by": "Administrator",
+ "module": "Stock",
+ "name": "MRP Import Entry Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "restrict_to_domain": "Manufacturing",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

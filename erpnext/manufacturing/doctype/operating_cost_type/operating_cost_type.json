@@ -1,0 +1,94 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "append_company_abbr_to_name": "0",
+ "autoname": "field:operating_cost",
+ "beta": 1,
+ "creation": "2016-12-23 22:19:04.913188",
+ "doctype": "DocType",
+ "document_type": "Setup",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "operating_cost",
+  "default_cost",
+  "value_type",
+  "default_percent",
+  "sort_order"
+ ],
+ "fields": [
+  {
+   "fieldname": "operating_cost",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Operating Cost",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "default_cost",
+   "fieldtype": "Check",
+   "label": "Default Cost"
+  },
+  {
+   "default": "Percent",
+   "fieldname": "value_type",
+   "fieldtype": "Select",
+   "label": "Value Type",
+   "options": "Percent"
+  },
+  {
+   "fieldname": "default_percent",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Value"
+  },
+  {
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sort Order"
+  }
+ ],
+ "icon": "fa fa-wrench",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-02-06 12:07:25.537200",
+ "modified_by": "Administrator",
+ "module": "Manufacturing",
+ "name": "Operating Cost Type",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "operating_cost"
+}

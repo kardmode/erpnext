@@ -175,6 +175,8 @@ var update_jv_details = function(doc, r) {
 		var row = frappe.model.add_child(doc, "Journal Entry Account", "accounts");
 		frappe.model.set_value(row.doctype, row.name, "account", d.account)
 		frappe.model.set_value(row.doctype, row.name, "balance", d.balance)
+		frappe.model.set_value(row.doctype, row.name, "debit_in_account_currency", d.debit)
+		frappe.model.set_value(row.doctype, row.name, "credit_in_account_currency", d.credit)
 	});
 	refresh_field("accounts");
 }
