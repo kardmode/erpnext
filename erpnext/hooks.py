@@ -276,7 +276,7 @@ has_website_permission = {
 before_tests = "erpnext.setup.utils.before_tests"
 
 standard_queries = {
-	"Customer": "erpnext.selling.doctype.customer.customer.get_customer_list",
+	"Customer": "erpnext.controllers.queries.customer_query",
 }
 
 doc_events = {
@@ -368,8 +368,9 @@ auto_cancel_exempted_doctypes = [
 
 scheduler_events = {
 	"cron": {
-		"0/5 * * * *": [
+		"0/15 * * * *": [
 			"erpnext.manufacturing.doctype.bom_update_log.bom_update_log.resume_bom_cost_update_jobs",
+			"erpnext.accounts.doctype.process_payment_reconciliation.process_payment_reconciliation.trigger_reconciliation_for_queued_docs",
 		],
 		"0/30 * * * *": [
 			"erpnext.utilities.doctype.video.video.update_youtube_data",

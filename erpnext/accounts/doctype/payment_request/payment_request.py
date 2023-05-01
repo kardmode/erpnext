@@ -49,21 +49,21 @@ class PaymentRequest(Document):
 
 
 	def validate_payment_request_amount(self):
-		existing_payment_request_amount = get_existing_payment_request_amount(
-			self.reference_doctype, self.reference_name
+		existing_payment_request_amount = flt(
+			get_existing_payment_request_amount(self.reference_doctype, self.reference_name)
 		)
 
-		if existing_payment_request_amount:
-			ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
-			if not hasattr(ref_doc, "order_type") or getattr(ref_doc, "order_type") != "Shopping Cart":
-				ref_amount = get_amount(ref_doc, self.payment_account)
+		ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+		if not hasattr(ref_doc, "order_type") or getattr(ref_doc, "order_type") != "Shopping Cart":
+			ref_amount = get_amount(ref_doc, self.payment_account)
 
-				if existing_payment_request_amount + flt(self.grand_total) > ref_amount:
-					frappe.throw(
-						_("Total Payment Request amount cannot be greater than {0} amount").format(
-							self.reference_doctype
-						)
+			if existing_payment_request_amount + flt(self.grand_total) > ref_amount:
+				frappe.throw(
+					_("Total Payment Request amount cannot be greater than {0} amount").format(
+						self.reference_doctype
 					)
+				)
+
 	def validate_currency(self):
 		ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
 		if self.payment_account and ref_doc.currency != frappe.db.get_value(
@@ -589,17 +589,18 @@ def get_amount(ref_doc, payment_account=None):
 		for d in doc_list:
 			grand_total = grand_total + flt(d.grand_total)
 	
-	
 	elif dt == "POS Invoice":
 		for pay in ref_doc.payments:
 			if pay.type == "Phone" and pay.account == payment_account:
 				grand_total = pay.amount
 				break
-
 	elif dt == "Fees":
 		grand_total = ref_doc.outstanding_amount
 
-	return grand_total
+	if grand_total > 0:
+		return grand_total
+	else:
+		frappe.throw(_("Payment Entry is already created"))
 	
 		
 def get_outstanding_amount(ref_doc, dt):
@@ -646,6 +647,7 @@ def get_outstanding_amount(ref_doc, dt):
 	payments_summary += """</tbody></table>"""
 	return outstanding_amount,payments_summary
 
+	
 
 
 def get_existing_payment_request_amount(ref_dt, ref_dn):
