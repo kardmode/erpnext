@@ -236,7 +236,9 @@ frappe.ui.form.on('Payment Entry', {
 		frm.set_currency_labels(["total_allocated_amount", "unallocated_amount",
 			"total_taxes_and_charges"], party_account_currency);
 
-		var currency_field = (frm.doc.payment_type=="Receive") ? "paid_from_account_currency" : "paid_to_account_currency"
+		// var currency_field = (frm.doc.payment_type=="Receive") ? "paid_from_account_currency" : "paid_to_account_currency"
+		var currency_field = (frm.doc.payment_type=="Receive") ? "paid_from_account_currency" : "mrp_party_account_currency"
+
 		frm.set_df_property("total_allocated_amount", "options", currency_field);
 		frm.set_df_property("unallocated_amount", "options", currency_field);
 		frm.set_df_property("total_taxes_and_charges", "options", currency_field);
@@ -351,10 +353,18 @@ frappe.ui.form.on('Payment Entry', {
 									frm.set_value("paid_from", r.message.party_account);
 									frm.set_value("paid_from_account_currency", r.message.party_account_currency);
 									frm.set_value("paid_from_account_balance", r.message.account_balance);
+									
+									// MRP
+									frm.set_value("mrp_party_account", r.message.party_account);
+									frm.set_value("mrp_party_account_currency", r.message.party_account_currency);
 								} else if (frm.doc.payment_type == "Pay"){
 									frm.set_value("paid_to", r.message.party_account);
 									frm.set_value("paid_to_account_currency", r.message.party_account_currency);
 									frm.set_value("paid_to_account_balance", r.message.account_balance);
+
+									// MRP
+									frm.set_value("mrp_party_account", r.message.party_account);
+									frm.set_value("mrp_party_account_currency", r.message.party_account_currency);
 								}
 							},
 							() => frm.set_value("party_balance", r.message.party_balance),
@@ -406,6 +416,8 @@ frappe.ui.form.on('Payment Entry', {
 
 		frm.events.set_account_currency_and_balance(frm, frm.doc.paid_to,
 			"paid_to_account_currency", "paid_to_account_balance", function(frm) {
+				
+
 				if (frm.doc.payment_type == "Receive") {
 					if(frm.doc.paid_from_account_currency == frm.doc.paid_to_account_currency) {
 						if(frm.doc.source_exchange_rate) {
@@ -416,6 +428,14 @@ frappe.ui.form.on('Payment Entry', {
 					} else {
 						frm.events.received_amount(frm);
 					}
+				}
+				else
+				{
+					frappe.msgprint(
+						__("Payment References will be cleared. Get Outstanding Invoice")
+					);
+					frm.clear_table("references");
+					frm.events.paid_amount(frm);
 				}
 			}
 		);
@@ -605,6 +625,13 @@ frappe.ui.form.on('Payment Entry', {
 				frm.set_value("target_exchange_rate", frm.doc.source_exchange_rate);
 			}
 			frm.set_value("base_received_amount", frm.doc.base_paid_amount);
+		}
+		
+		if(frm.doc.payment_type == "Pay")
+		{
+			//frm.set_value("base_received_amount", frm.doc.base_paid_amount);
+			//frm.set_value("received_amount", frm.doc.base_received_amount / frm.doc.target_exchange_rate);
+			
 		}
 
 		if(frm.doc.payment_type == "Receive")

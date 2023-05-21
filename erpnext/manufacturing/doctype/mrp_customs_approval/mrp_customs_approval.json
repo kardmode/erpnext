@@ -1,4 +1,5 @@
 {
+ "actions": [],
  "add_company_abbr_to_name": 1,
  "autoname": "MCA-.#####",
  "beta": 1,
@@ -13,15 +14,24 @@
   "company_license",
   "license_number",
   "license_type",
+  "location",
   "column_break_4",
   "posting_date",
-  "location",
   "approval_id",
   "approval_date",
   "valid_till",
+  "customs_reference",
+  "delivery_note",
   "section_break_7",
   "items",
+  "section_break_9kpbx",
   "summary",
+  "section_break_slctu",
+  "required_materials",
+  "section_break_cpvli",
+  "exploded",
+  "section_break_fzyih",
+  "cost_summary",
   "section_break_9",
   "prepared_by",
   "notes"
@@ -123,12 +133,65 @@
    "fieldname": "approval_date",
    "fieldtype": "Date",
    "label": "Approval Date"
+  },
+  {
+   "fieldname": "section_break_cpvli",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "exploded",
+   "fieldtype": "Table",
+   "label": "Exploded",
+   "options": "MRP CA Exploded Item"
+  },
+  {
+   "fieldname": "cost_summary",
+   "fieldtype": "Long Text",
+   "label": "Cost Summary",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_9kpbx",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_fzyih",
+   "fieldtype": "Section Break",
+   "label": "Cost Sheet"
+  },
+  {
+   "fieldname": "customs_reference",
+   "fieldtype": "Data",
+   "label": "Customs Reference"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_slctu",
+   "fieldtype": "Section Break",
+   "label": "Required Materials"
+  },
+  {
+   "fieldname": "required_materials",
+   "fieldtype": "Long Text",
+   "label": "Required Materials",
+   "read_only": 1
+  },
+  {
+   "fieldname": "delivery_note",
+   "fieldtype": "Link",
+   "label": "Delivery Note",
+   "options": "Delivery Note"
   }
  ],
- "modified": "2020-04-18 20:59:12.516972",
+ "links": [],
+ "modified": "2023-05-11 04:36:55.419348",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "MRP Customs Approval",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -182,5 +245,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "title"
 }

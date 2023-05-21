@@ -161,7 +161,7 @@ class PurchaseInvoice(BuyingController):
 			self.due_date = get_due_date(
 				self.posting_date, "Supplier", self.supplier, self.company, self.bill_date
 			)
-
+			
 		tds_category = frappe.db.get_value("Supplier", self.supplier, "tax_withholding_category")
 		if tds_category and not for_validate:
 			self.apply_tds = 1
@@ -195,6 +195,14 @@ class PurchaseInvoice(BuyingController):
 				).format(frappe.bold("Credit To"), frappe.bold(self.credit_to)),
 				title=_("Invalid Account"),
 			)
+			
+		# if not self.currency == account.account_currency:
+			# frappe.throw(
+				# _(
+					# "Please ensure {} account {} has the same currency as the current document {}. Or create a new payable account with the same currency."
+				# ).format(frappe.bold("Credit To"), frappe.bold(self.credit_to),frappe.bold(self.currency)),
+				# title=_("Invalid Credit To Currency"),
+			# )
 
 		self.party_account_currency = account.account_currency
 

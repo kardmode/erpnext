@@ -560,6 +560,9 @@ frappe.ui.form.on("BOM", {
 	non_duty_percent(frm) {
 		erpnext.bom.calculate_total(frm.doc);	
 	},
+	mrp_profit_percent(frm) {
+		erpnext.bom.calculate_total(frm.doc);	
+	},
 	get_production_overheads(frm){
 		if(frm.doc.__islocal)
 		{
@@ -1031,8 +1034,12 @@ var calculate_duty = function(doc) {
 	total_duty = Math.ceil(total_duty);
 	base_total_duty = Math.ceil(base_total_duty);
 	
-	var mrp_final_price = mrp_factory_price + (total_duty * (doc.mrp_duty_percent/100));
+	var mrp_final_price = flt(mrp_factory_price) + (total_duty * (doc.mrp_duty_percent/100));
 	var mrp_base_final_price = flt(mrp_final_price) * flt(doc.conversion_rate);
+	
+	
+	var mrp_final_price_plus_profit = flt(mrp_factory_price) + (mrp_final_price * (doc.mrp_profit_percent/100));
+	var mrp_base_final_price_plus_profit = flt(mrp_final_price_plus_profit) * flt(doc.conversion_rate);
 
 	cur_frm.set_value("dutible", dutible);
 	cur_frm.set_value("non_dutible", non_dutible);
@@ -1044,6 +1051,9 @@ var calculate_duty = function(doc) {
 	cur_frm.set_value("mrp_base_total_production_overhead", mrp_base_total_production_overhead);
 	cur_frm.set_value("mrp_final_price", mrp_final_price);
 	cur_frm.set_value("mrp_base_final_price", mrp_base_final_price);
+	
+	cur_frm.set_value("mrp_final_price_plus_profit", mrp_final_price_plus_profit);
+	cur_frm.set_value("mrp_base_final_price_plus_profit", mrp_base_final_price_plus_profit);
 
 };
 

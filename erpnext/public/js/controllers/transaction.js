@@ -386,14 +386,14 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 			// cur_frm.add_custom_button(__('CSV'),
 				// function() {
 					// cur_frm.trigger('get_items_from_csv');				
-				// }, __("Get items from"), "btn-default");
+				// }, __("Get Items From"), "btn-default");
 	
 			
 			cur_frm.add_custom_button(__('Any Document'),
 				function() {
 					cur_frm.trigger('get_items_from');
 					
-				}, __("Get items from"), "btn-default");
+				}, __("Get Items From"), "btn-default");
 			
 				
 			cur_frm.add_custom_button(__('Items Quantity'),
@@ -889,7 +889,6 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		var me = this;
 		if (this.frm.doc.posting_date) {
 			this.frm.posting_date = this.frm.doc.posting_date;
-
 			if ((this.frm.doc.doctype == "Sales Invoice" && this.frm.doc.customer) ||
 				(this.frm.doc.doctype == "Purchase Invoice" && this.frm.doc.supplier)) {
 				return frappe.call({
@@ -922,27 +921,30 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		if (this.frm.doc.due_date && !this.frm.updating_party_details && !this.frm.doc.is_pos) {
 			if (this.frm.doc.payment_terms_template ||
 				(this.frm.doc.payment_schedule && this.frm.doc.payment_schedule.length)) {
-				var message1 = "";
-				var message2 = "";
-				var final_message = __("Please clear the") + " ";
+				// this.frm.set_value("payment_schedule",[]);
+				// this.recalculate_terms();
+					
+				// var message1 = "";
+				// var message2 = "";
+				// var final_message = __("Please clear the") + " ";
 
-				if (this.frm.doc.payment_terms_template) {
-					message1 = __("selected Payment Terms Template");
-					final_message = final_message + message1;
-				}
+				// if (this.frm.doc.payment_terms_template) {
+					// message1 = __("selected Payment Terms Template");
+					// final_message = final_message + message1;
+				// }
 
-				if ((this.frm.doc.payment_schedule || []).length) {
-					message2 = __("Payment Schedule Table");
-					if (message1.length !== 0) message2 = " and " + message2;
-					final_message = final_message + message2;
-				}
-				frappe.msgprint(final_message);
+				// if ((this.frm.doc.payment_schedule || []).length) {
+					// message2 = __("Payment Schedule Table");
+					// if (message1.length !== 0) message2 = " and " + message2;
+					// final_message = final_message + message2;
+				// }
+				// frappe.msgprint(final_message);
 			}
 		}
 	}
 
 	bill_date() {
-		this.posting_date();
+		// this.posting_date();
 	}
 
 	recalculate_terms() {
@@ -979,6 +981,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		let transaction_date = this.frm.doc.transaction_date || this.frm.doc.posting_date;
 
 		let me = this;
+				
 		this.set_dynamic_labels();
 		let company_currency = this.get_company_currency();
 		// Added `ignore_price_list` to determine if document is loading after mapping from another doc
@@ -1018,12 +1021,35 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 			if(this.frm.doc.__onload && this.frm.doc.__onload.ignore_price_list) {
 				this.calculate_taxes_and_totals();
 			} else if (!this.in_apply_price_list){
-				this.apply_price_list();
+				this.apply_price_list(null,true);
 			}
-
 		}
 		// Make read only if Accounts Settings doesn't allow stale rates
 		this.frm.set_df_property("conversion_rate", "read_only", erpnext.stale_rate_allowed() ? 0 : 1);
+	}
+	
+	is_mapped_doc() {
+		var me = this;
+		var is_mapped = false;
+		const mapped_item_field_map = {
+				"Delivery Note Item": ["si_detail", "so_detail", "dn_detail"],
+				"Sales Invoice Item": ["dn_detail", "so_detail", "sales_invoice_item"],
+				"Purchase Receipt Item": ["purchase_order_item", "purchase_invoice_item", "purchase_receipt_item"],
+				"Purchase Invoice Item": ["purchase_order_item", "pr_detail", "po_detail"],
+		};
+		
+		$.each(me.frm.doc.items || [], function(i, d) {
+			var mapped_fields = mapped_item_field_map[d.doctype] || [];
+			var mapped = mapped_fields.map((field) => d[field]).filter(Boolean).length > 0;
+			if(mapped === true)
+			{
+				is_mapped = true;
+				return false;
+			}
+				
+		});
+		
+		return is_mapped
 	}
 
 	shipping_rule() {
@@ -1090,7 +1116,6 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	price_list_currency() {
 		var me=this;
 		this.set_dynamic_labels();
-
 		var company_currency = this.get_company_currency();
 		// Added `ignore_price_list` to determine if document is loading after mapping from another doc
 		if(this.frm.doc.price_list_currency !== company_currency  &&
@@ -1598,23 +1623,33 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 
 		for (const child of children) {
 			const existing_pricing_rule = frappe.model.get_value(child.doctype, child.name, "pricing_rules");
+			
+			console.log(child);
 
 			for (const [key, value] of Object.entries(child)) {
 				if (!["doctype", "name"].includes(key)) {
 					if (key === "price_list_rate") {
-						frappe.model.set_value(child.doctype, child.name, "rate", value);
+						if(this.mrp_apply_price_list === true)
+						{
+							console.log("applying price list values");
+							frappe.model.set_value(child.doctype, child.name, "rate", value);							
+						}
+						else{
+							console.log("not applying price list values");
+						}
 					}
 
 					if (key === "pricing_rules") {
 						frappe.model.set_value(child.doctype, child.name, key, value);
 					}
 
-					if (key !== "free_item_data") {
+					if (key !== "free_item_data" && key !== "price_list_rate") {
 						if (child.apply_rule_on_other_items && JSON.parse(child.apply_rule_on_other_items).length) {
 							if (!in_list(JSON.parse(child.apply_rule_on_other_items), child.item_code)) {
 								continue;
 							}
 						}
+
 
 						frappe.model.set_value(child.doctype, child.name, key, value);
 					}
@@ -1641,6 +1676,9 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				items_rule_dict[child.name] = child;
 			}
 		}
+
+		if(this.mrp_apply_price_list === true)
+			this.mrp_apply_price_list = false;
 
 		this.apply_rule_on_other_items(items_rule_dict);
 		this.calculate_taxes_and_totals();
@@ -1696,6 +1734,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	}
 
 	apply_price_list(item, reset_plc_conversion) {
+		console.log("apply price list");
 		// We need to reset plc_conversion_rate sometimes because the call to
 		// `erpnext.stock.get_item_details.apply_price_list` is sensitive to its value
 		if (!reset_plc_conversion) {
@@ -1723,12 +1762,19 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 							if(args.items.length) {
 								me._set_values_for_item_list(r.message.children);
 							}
+							else {
+								me.mrp_apply_price_list = false;
+							}
 						},
-						() => { me.in_apply_price_list = false; }
+						() => { me.in_apply_price_list = false;}
 					]);
 
 				} else {
 					me.in_apply_price_list = false;
+					
+					if(me.mrp_apply_price_list === true)
+						me.mrp_apply_price_list = false;
+					
 				}
 			}
 		}).always(() => {

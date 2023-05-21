@@ -158,6 +158,7 @@ erpnext.buying.BuyingController = class BuyingController extends erpnext.Transac
 	}
 
 	buying_price_list() {
+		this.mrp_apply_price_list = true;
 		this.apply_price_list();
 	}
 

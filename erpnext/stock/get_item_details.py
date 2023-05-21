@@ -819,7 +819,7 @@ def get_price_list_rate(args, item_doc, out=None):
 			# `get_price_list_currency_and_exchange_rate` has already been called
 			pl_details = get_price_list_currency_and_exchange_rate(args)
 			args.update(pl_details)
-
+			
 		if meta.get_field("currency"):
 			validate_conversion_rate(args, meta)
 
@@ -1409,10 +1409,8 @@ def apply_price_list(args, as_doc=False):
 	        }
 	"""
 	args = process_args(args)
-
 	parent = get_price_list_currency_and_exchange_rate(args)
 	args.update(parent)
-
 	children = []
 
 	if "items" in args:
@@ -1444,7 +1442,6 @@ def apply_price_list_on_item(args):
 	item_doc = frappe.db.get_value("Item", args.item_code, ["name", "variant_of"], as_dict=1)
 	item_details = get_price_list_rate(args, item_doc)
 	item_details.update(get_pricing_rule_for_item(args))
-
 	return item_details
 
 
@@ -1477,7 +1474,6 @@ def get_price_list_currency_and_exchange_rate(args):
 			)
 			or plc_conversion_rate
 		)
-
 	return frappe._dict(
 		{
 			"price_list_currency": price_list_currency,

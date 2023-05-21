@@ -199,6 +199,22 @@ class AccountsController(TransactionBase):
 
 		if self.doctype != "Material Request" and not self.ignore_pricing_rule:
 			apply_pricing_rule_on_transaction(self)
+			
+		self.mrp_validate_exchange_rate()
+		
+	def mrp_validate_exchange_rate(self):
+	
+		if self.meta.get_field("posting_date"):
+			transaction_date = self.posting_date
+		else:
+			transaction_date = self.transaction_date
+
+		if self.meta.get_field("currency") and self.meta.get_field("conversion_rate"):
+			live_exchange_rate = get_exchange_rate(self.currency, self.company_currency, transaction_date)
+			from math import isclose
+			if not isclose(live_exchange_rate, self.conversion_rate, abs_tol=2.5):
+				frappe.throw(_("The differenct between the exchange rate and the live exchange rate is greater than 2.5. Please check the value."))
+		
 
 	def before_cancel(self):
 		validate_einvoice_fields(self)
@@ -1749,7 +1765,18 @@ class AccountsController(TransactionBase):
 	def set_due_date(self):
 		due_dates = [d.due_date for d in self.get("payment_schedule") if d.due_date]
 		if due_dates:
-			self.due_date = max(due_dates)
+			max_due_date = max(due_dates)
+
+			if self.due_date and getdate(max_due_date) < getdate(self.due_date):
+			
+				if self.get("payment_schedule") and len(self.payment_schedule) == 1:
+					self.payment_schedule[0].due_date = self.due_date
+				else:
+					frappe.throw(
+						_("Current Due Date is less than in the Payment Schedule table.")
+					)
+			else:
+				self.due_date = max_due_date
 
 	def validate_payment_schedule_dates(self):
 		dates = []

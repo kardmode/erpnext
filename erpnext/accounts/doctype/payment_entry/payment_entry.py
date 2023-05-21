@@ -345,6 +345,51 @@ class PaymentEntry(AccountsController):
 
 					if ref_doc.docstatus != 1:
 						frappe.throw(_("{0} {1} must be submitted").format(d.reference_doctype, d.reference_name))
+	
+	@frappe.whitelist()
+	def mrp_validate_reference_documents(self):
+		for d in self.get("references"):
+			if d.reference_name:
+				if not frappe.db.exists(d.reference_doctype, d.reference_name):
+					frappe.throw(_("{0} {1} does not exist").format(d.reference_doctype, d.reference_name))
+				else:
+					ref_doc = frappe.get_doc(d.reference_doctype, d.reference_name)
+
+					if d.reference_doctype != "Journal Entry":
+						if self.party != ref_doc.get(scrub(self.party_type)):
+							frappe.throw(
+								_("{0} {1} is not associated with {2} {3}").format(
+									d.reference_doctype, d.reference_name, self.party_type, self.party
+								)
+							)
+					else:
+						self.validate_journal_entry()
+
+					if d.reference_doctype in frappe.get_hooks("invoice_doctypes"):
+						if self.party_type == "Customer":
+							ref_party_account = (
+								get_party_account_based_on_invoice_discounting(d.reference_name) or ref_doc.debit_to
+							)
+						elif self.party_type == "Supplier":
+							ref_party_account = ref_doc.credit_to
+						elif self.party_type == "Employee":
+							ref_party_account = ref_doc.payable_account
+
+						if ref_party_account != self.party_account:
+							frappe.throw(
+								_("{0} {1} is associated with {2}, but Party Account is {3}").format(
+									d.reference_doctype, d.reference_name, ref_party_account, self.party_account
+								)
+							)
+
+						if ref_doc.doctype == "Purchase Invoice" and ref_doc.get("on_hold"):
+							frappe.throw(
+								_("{0} {1} is on hold").format(d.reference_doctype, d.reference_name),
+								title=_("Invalid Invoice"),
+							)
+
+					if ref_doc.docstatus != 1:
+						frappe.throw(_("{0} {1} must be submitted").format(d.reference_doctype, d.reference_name))
 
 	def get_valid_reference_doctypes(self):
 		if self.party_type == "Customer":
@@ -1345,7 +1390,7 @@ def get_outstanding_reference_documents(args):
 	if not data:
 		frappe.msgprint(
 			_(
-				"No outstanding invoices found for the {0} {1} which qualify the filters you have specified."
+				"No outstanding invoices found for the {0} {1} which qualify the filters you have specified. Check Paid To Account"
 			).format(_(args.get("party_type")).lower(), frappe.bold(args.get("party")))
 		)
 
@@ -1661,7 +1706,18 @@ def get_reference_details(reference_doctype, reference_name, party_account_curre
 			)
 
 		if reference_doctype in ("Sales Invoice", "Purchase Invoice"):
-			outstanding_amount = ref_doc.get("outstanding_amount")
+			ref_doc_party_account_currency = ref_doc.get("party_account_currency") or company_currency
+			if party_account_currency == ref_doc_party_account_currency:
+				outstanding_amount = ref_doc.get("outstanding_amount")
+			else:
+			
+				# Get the exchange rate from the original ref doc
+				# or get it based on the posting date of the ref doc.
+				party_exchange_rate = get_exchange_rate(
+					party_account_currency, ref_doc_party_account_currency, ref_doc.posting_date
+				)
+				outstanding_amount = ref_doc.get("outstanding_amount") / party_exchange_rate
+				
 		else:
 			outstanding_amount = flt(total_amount) - flt(ref_doc.get("advance_paid"))
 
@@ -1745,6 +1801,11 @@ def get_payment_entry(
 	pe.paid_to_account_currency = (
 		party_account_currency if payment_type == "Pay" else bank.account_currency
 	)
+	
+	# mrp
+	pe.mrp_party_account = party_account
+	pe.mrp_party_account_currency = party_account_currency
+	
 	pe.paid_amount = paid_amount
 	pe.received_amount = received_amount
 	pe.letter_head = doc.get("letter_head")

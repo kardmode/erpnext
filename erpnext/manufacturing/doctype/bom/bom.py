@@ -780,6 +780,12 @@ class BOM(WebsiteGenerator):
 		self.dutible = dutible
 		self.non_dutible = non_dutible
 		
+		self.mrp_final_price = self.mrp_factory_price + (self.total_duty * (self.mrp_duty_percent/100))
+		self.mrp_base_final_price = flt(self.mrp_final_price) * flt(self.conversion_rate)
+		
+		self.mrp_final_price_plus_profit = self.mrp_factory_price + (self.mrp_factory_price * (self.mrp_profit_percent/100))
+		self.mrp_base_final_price_plus_profit = flt(self.mrp_final_price_plus_profit) * flt(self.conversion_rate)
+		
 
 	def calculate_op_cost(self, update_hour_rate=False):
 		"""Update workstation rate and calculates totals"""
@@ -2009,6 +2015,8 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 			is_hardware = True
 			has_edging = False
 			has_laminate = False
+
+			
 		elif calculation in ["bom"]:
 
 			required_qty = bb_qty

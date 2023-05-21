@@ -376,6 +376,7 @@
    "label": "Supplier Invoice"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "bill_no",
    "fieldtype": "Data",
    "label": "Supplier Invoice No",
@@ -388,6 +389,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "bill_date",
    "fieldtype": "Date",
    "label": "Supplier Invoice Date",
@@ -1565,7 +1567,7 @@
  "idx": 204,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-04-03 22:57:14.074982",
+ "modified": "2023-05-06 05:20:34.741002",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Purchase Invoice",

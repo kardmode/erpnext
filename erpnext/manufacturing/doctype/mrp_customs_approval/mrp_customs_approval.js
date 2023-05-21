@@ -15,15 +15,122 @@ frappe.ui.form.on('MRP Customs Approval', {
 		}
 	},
 	
-	// refresh: function(frm) {
+	setup:function(frm){
+		
+		frm.set_query("import_bill", "exploded", function(doc, cdt, cdn) {
+			var row  = locals[cdt][cdn];
+			
+			return {
+				query: "erpnext.stock.doctype.mrp_import_bill.mrp_import_bill.import_bill_query",
+				filters: {
+					"item_code":row.item_code,
+					"company":cur_frm.doc.company,
+					"posting_date":cur_frm.doc.posting_date
+				}
+			};
+			
+		});
+		
+	},
+	
+	refresh: function(frm) {
+		if (frm.doc.__islocal) {
+				//frm.set_value("posting_date", frappe.datetime.nowdate());
 
-	// },
+				//frm.set_value("posting_time", frappe.datetime.now_time());
+				//frm.set_value("posting_date", frappe.datetime.get_today()+frappe.datetime.now_time());
+		}
+		else
+		{
+			frm.add_custom_button(__("Approval"), () => {
+				frm.events.update_approval(frm);
+			}, __("Generate"));
+			
+			
+			frm.add_custom_button(__("Exploded Items"), () => {
+				frm.events.get_exploded_items(frm);
+			}, __("Generate"));
+			frm.add_custom_button(__("Cost Sheet"), () => {
+				frm.events.update_cost_sheet(frm);
+			}, __("Generate"));
+			
+			frm.page.set_inner_btn_group_as_primary(__('Generate'));
+		}
+			
 
+	},
+
+	update_approval(frm) {
+		frappe.confirm(
+			__('This will update the approval sheet to the latest values from BOM.'),
+			function() {
+				return frappe.call({
+					doc: frm.doc,
+					method: "update_approval",
+					freeze: true,
+					args: {
+					},
+					callback(r) {
+						refresh_field("summary");
+						if(!r.exc) frm.refresh_fields();
+									cur_frm.dirty();
+
+					}
+				});
+			}
+		);
+	},
+	update_cost_sheet(frm) {
+		frappe.confirm(
+			__('This will update the Cost Sheet using values from the Exploded table.'),
+			function() {
+				
+				return frappe.call({
+					doc: frm.doc,
+					method: "update_cost_sheet",
+					freeze: true,
+					args: {
+					},
+					callback(r) {
+						refresh_field("cost_summary");
+						if(!r.exc) frm.refresh_fields();
+						cur_frm.dirty();
+
+					}
+				});
+			}
+		);
+		
+		
+	},
+	
+	get_exploded_items(frm) {
+		
+		frappe.confirm(
+			__('This will reset any changes to the exploded items table.'),
+			function() {
+				frappe.call({
+					doc: frm.doc,
+					method: "get_exploded_items",
+					freeze: true,
+					args: {
+					},
+					callback(r) {
+						refresh_field("exploded");
+						refresh_field("cost_summary");
+						refresh_field("required_materials");
+						if(!r.exc) frm.refresh_fields();
+						cur_frm.dirty();
+					}
+				});
+			}
+		);
+	},
 	
 });
 
 frappe.ui.form.on("MRP CA Item",{
-	bom:function(frm, cdt, cdn) {
+	/* bom:function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];;
 
 		if(d.item_code && d.bom) {
@@ -58,7 +165,7 @@ frappe.ui.form.on("MRP CA Item",{
 			
 			
 			
-			/* return frappe.call({
+			return frappe.call({
 				
 				method:'erpnext.manufacturing.doctype.mrp_production_order.mrp_production_order.get_item_det',
 				args: {
@@ -74,12 +181,12 @@ frappe.ui.form.on("MRP CA Item",{
 					// frappe.model.set_value(d.doctype, d.name, "depthunit", r.message.depthunit);
 					// frappe.model.set_value(d.doctype, d.name, "bom", r.message.default_bom);
 				}
-			}); */
+			}); 
 		}
 		
 		
 		
-	},
+	}, */
 	item_code:function(frm, cdt, cdn) {
 		var d = locals[cdt][cdn];
 		
