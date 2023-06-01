@@ -7,6 +7,7 @@
  ],
  "content": "[{\"id\":\"lSwxPfdi80\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Purchase Order Trends\",\"col\":12}},{\"id\":\"NB_Y50Wuy-\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"IorPj9UedU\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"jPwEnUUgzZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"D25qB0ly3W\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"GZhuFJjv9X\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order\",\"col\":3}},{\"id\":\"lJb7noJYMX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Analytics\",\"col\":3}},{\"id\":\"lTCm9OlTey\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order Analysis\",\"col\":3}},{\"id\":\"FlGOdCc2mv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"CD0dbDdDcm\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"20ltvlBLvZ\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"5KEOOlQqcO\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying\",\"col\":4}},{\"id\":\"BWyRiGqURJ\",\"type\":\"card\",\"data\":{\"card_name\":\"Items & Pricing\",\"col\":4}},{\"id\":\"LHwPfKR6Aa\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"dRoCioyN9c\",\"type\":\"card\",\"data\":{\"card_name\":\"Supplier\",\"col\":4}},{\"id\":\"j0JVO-AmgE\",\"type\":\"card\",\"data\":{\"card_name\":\"Supplier Scorecard\",\"col\":4}},{\"id\":\"jjNID5LV3S\",\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"id\":\"Od7NLz2ipZ\",\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}},{\"id\":\"ulmHMpt4oJ\",\"type\":\"card\",\"data\":{\"card_name\":\"Regional\",\"col\":4}}]",
  "creation": "2020-01-28 11:50:26.195467",
+ "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -510,10 +511,11 @@
    "type": "Link"
   }
  ],
- "modified": "2023-02-28 12:36:29.774439",
+ "modified": "2023-05-24 14:47:20.535772",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Buying",
+ "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,

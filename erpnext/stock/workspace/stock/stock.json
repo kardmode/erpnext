@@ -5,8 +5,9 @@
    "label": "Warehouse wise Stock Value"
   }
  ],
- "content": "[{\"id\":\"soxKFoIl-2\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Warehouse wise Stock Value\",\"col\":12}},{\"id\":\"Pp4XDgbXGS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"scqEyzQ2zw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"lW_S9npXuf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"-kpSBhDR4F\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"PGVlWYqhlx\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"nRTZwTaIXR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"JpN6LHmjjp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"0zpUdH8WS4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"eFJj7svnl4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"uXEwl01t52\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"P_aWuqHbA5\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"mBOVBrVYS0\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"xJuzWDH59m\",\"type\":\"card\",\"data\":{\"card_name\":\"Items and Pricing\",\"col\":4}},{\"id\":\"YJFdZvoJh9\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"id\":\"kP9yMEZqbl\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Reports\",\"col\":4}},{\"id\":\"D_8aBC4Zbr\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"5unah5fJjX\",\"type\":\"card\",\"data\":{\"card_name\":\"Serial No and Batch\",\"col\":4}},{\"id\":\"qb90Y9dlak\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"id\":\"LdXMiehe0J\",\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"id\":\"fH5HHW0xIe\",\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}}]",
+ "content": "[{\"type\":\"onboarding\",\"data\":{\"onboarding_name\":\"Stock\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Warehouse wise Stock Value\",\"col\":12}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Items and Pricing\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Stock Reports\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Serial No and Batch\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}}]",
  "creation": "2020-03-02 15:43:10.096528",
+ "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -637,7 +638,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Stock Reports",
-   "link_count": 9,
+   "link_count": 7,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -716,39 +717,20 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Balance By Group",
-   "link_count": 0,
-   "link_to": "Stock Balance By Group",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Balance By Group 2",
-   "link_count": 0,
-   "link_to": "Stock Balance By Group 2",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2023-02-28 12:35:46.221797",
+ "modified": "2023-05-24 14:47:21.707580",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock",
+ "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
  "restrict_to_domain": "",
  "roles": [],
- "sequence_id": 22.0,
+ "sequence_id": 7.0,
  "shortcuts": [
   {
    "color": "Green",
@@ -756,21 +738,6 @@
    "label": "Item",
    "link_to": "Item",
    "stats_filter": "{\n    \"disabled\" : 0\n}",
-   "type": "DocType"
-  },
-  {
-   "color": "Yellow",
-   "format": "{} To Bill",
-   "label": "Purchase Receipt",
-   "link_to": "Purchase Receipt",
-   "type": "DocType"
-  },
-  {
-   "color": "Yellow",
-   "doc_view": "List",
-   "format": "{} To Bill",
-   "label": "Delivery Note",
-   "link_to": "Delivery Note",
    "type": "DocType"
   },
   {
@@ -784,6 +751,22 @@
   {
    "label": "Stock Entry",
    "link_to": "Stock Entry",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "format": "{} To Bill",
+   "label": "Purchase Receipt",
+   "link_to": "Purchase Receipt",
+   "stats_filter": "{\n    \"company\": [\"like\", '%' + frappe.defaults.get_global_default(\"company\") + '%'],\n    \"status\": \"To Bill\"\n}",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "format": "{} To Bill",
+   "label": "Delivery Note",
+   "link_to": "Delivery Note",
+   "stats_filter": "{\n    \"company\": [\"like\", '%' + frappe.defaults.get_global_default(\"company\") + '%'],\n    \"status\": \"To Bill\"\n}",
    "type": "DocType"
   },
   {

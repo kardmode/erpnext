@@ -1,7 +1,13 @@
 {
- "charts": [],
- "content": "[{\"id\":\"HVDBDOUUPG\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"IuOCbOfgI4\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"gpznvjctja\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Task\",\"col\":3}},{\"id\":\"ywrfOUwlo3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project\",\"col\":3}},{\"id\":\"71dD1WoA45\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Timesheet\",\"col\":3}},{\"id\":\"dDv2i_wngt\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project Billing Summary\",\"col\":3}},{\"id\":\"9otJu57UUE\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"ZKPhtYVxiE\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"3R-a8ADu3V\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"9JugEcQLyp\",\"type\":\"card\",\"data\":{\"card_name\":\"Projects\",\"col\":4}},{\"id\":\"OU1wnw-_oF\",\"type\":\"card\",\"data\":{\"card_name\":\"Time Tracking\",\"col\":4}},{\"id\":\"MaLXbfvFv5\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"R0abNzIqil\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
+ "charts": [
+  {
+   "chart_name": "Project Summary",
+   "label": "Open Projects"
+  }
+ ],
+ "content": "[{\"type\":\"chart\",\"data\":{\"chart_name\":\"Open Projects\",\"col\":12}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Task\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Timesheet\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project Billing Summary\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Projects\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Time Tracking\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
  "creation": "2020-03-02 15:46:04.874669",
+ "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -186,17 +192,18 @@
    "type": "Link"
   }
  ],
- "modified": "2023-02-26 04:29:58.925466",
+ "modified": "2023-05-24 14:47:23.179860",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Projects",
+ "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
  "restrict_to_domain": "",
  "roles": [],
- "sequence_id": 19.0,
+ "sequence_id": 11.0,
  "shortcuts": [
   {
    "color": "Blue",
