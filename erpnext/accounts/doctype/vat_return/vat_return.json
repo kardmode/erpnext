@@ -1,14 +1,16 @@
 {
+ "actions": [],
  "add_company_abbr_to_name": 1,
  "append_company_abbr_to_name": "0",
  "autoname": "VATRET-.#####",
  "beta": 1,
  "creation": "2017-12-27 21:01:30.710646",
  "doctype": "DocType",
- "document_type": "Tools",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "title",
   "company",
   "company_name_in_arabic",
   "posting_date",
@@ -69,9 +71,10 @@
    "label": "Vat Reporting Period"
   },
   {
+   "default": "0",
    "fetch_from": "company.use_profit_margin_scheme",
    "fieldname": "use_profit_margin_scheme",
-   "fieldtype": "Read Only",
+   "fieldtype": "Check",
    "label": "Using Profit Margin Scheme"
   },
   {
@@ -116,13 +119,21 @@
    "options": "VAT Return",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Title"
   }
  ],
  "is_submittable": 1,
- "modified": "2019-12-25 19:46:28.496188",
+ "links": [],
+ "modified": "2023-05-23 12:10:12.100078",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "VAT Return",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -152,9 +163,23 @@
    "share": 1,
    "submit": 1,
    "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
   }
  ],
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "track_changes": 1
+ "states": [],
+ "title_field": "title"
 }

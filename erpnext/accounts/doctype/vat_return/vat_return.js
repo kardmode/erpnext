@@ -37,7 +37,7 @@ frappe.ui.form.on('VAT Return', {
 	set_start_end_dates: function (frm) {
 		var date = frm.doc.start_date || frm.doc.posting_date;
 		frappe.call({
-			method: 'erpnext.hr.doctype.payroll_entry.payroll_entry.get_start_end_dates',
+			method: 'hrms.payroll.doctype.payroll_entry.payroll_entry.get_start_end_dates',
 			args: {
 				payroll_frequency: frm.doc.vat_reporting_period,
 				start_date: date,

@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"2MS4ac2SLM\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"Zg3YfbqUEk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"2KSnNRLc2c\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}},{\"id\":\"2zAb645ArX\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Y4OYlxho-1\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting\",\"col\":4}},{\"id\":\"n0i9dAhz26\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock\",\"col\":4}},{\"id\":\"LzGKgxnO0p\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales\",\"col\":4}},{\"id\":\"r6FNaBrsEK\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying\",\"col\":4}},{\"id\":\"kUgVQ4WZYh\",\"type\":\"card\",\"data\":{\"card_name\":\"HR\",\"col\":4}},{\"id\":\"ibW1OZRBy5\",\"type\":\"card\",\"data\":{\"card_name\":\"Projects\",\"col\":4}}]",
+ "content": "[{\"id\":\"2MS4ac2SLM\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"Zg3YfbqUEk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"2KSnNRLc2c\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}},{\"id\":\"qdR7RheoK_\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Chart of Accounts\",\"col\":3}},{\"id\":\"2zAb645ArX\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Y4OYlxho-1\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting\",\"col\":4}},{\"id\":\"n0i9dAhz26\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock\",\"col\":4}},{\"id\":\"LzGKgxnO0p\",\"type\":\"card\",\"data\":{\"card_name\":\"Sales\",\"col\":4}},{\"id\":\"r6FNaBrsEK\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying\",\"col\":4}},{\"id\":\"kUgVQ4WZYh\",\"type\":\"card\",\"data\":{\"card_name\":\"HR\",\"col\":4}},{\"id\":\"ibW1OZRBy5\",\"type\":\"card\",\"data\":{\"card_name\":\"Projects\",\"col\":4}}]",
  "creation": "2020-01-23 13:46:38.833076",
  "docstatus": 0,
  "doctype": "Workspace",
@@ -317,10 +317,11 @@
    "type": "Link"
   }
  ],
- "modified": "2023-03-07 16:31:54.802430",
+ "modified": "2023-05-22 06:06:31.243933",
  "modified_by": "Administrator",
  "module": "Setup",
  "name": "Home",
+ "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
@@ -330,12 +331,20 @@
  "sequence_id": 1.0,
  "shortcuts": [
   {
+   "color": "Grey",
+   "doc_view": "Tree",
+   "label": "Chart of Accounts",
+   "link_to": "Account",
+   "type": "DocType"
+  },
+  {
    "doc_view": "List",
    "label": "Item",
    "link_to": "Item",
    "type": "DocType"
   },
   {
+   "doc_view": "List",
    "label": "Customer",
    "link_to": "Customer",
    "type": "DocType"

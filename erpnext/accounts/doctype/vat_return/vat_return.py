@@ -5,9 +5,14 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
-from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,money_in_words
-from frappe.contacts.doctype.address.address import get_default_address
+from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,money_in_words,fmt_money
+from frappe.contacts.doctype.address.address import get_default_address,get_company_address
+from erpnext.accounts.report.utils import convert_to_presentation_currency, get_currency
 
+from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
+	get_accounting_dimensions,
+	get_dimension_with_children,
+)
 class VATReturn(Document):
 	def validate(self):
 		self.validate_dates()
@@ -25,6 +30,7 @@ class VATReturn(Document):
 		if ret_exist:
 			frappe.throw(_("VAT Return of company {0} already created for this period").format(self.employee))
 	
+	@frappe.whitelist()
 	def create_vat_return(self):
 		
 		summary = ""
@@ -79,7 +85,7 @@ class VATReturn(Document):
 		# VAT paid on personal imports via Agents
 		header = "VAT paid on personal imports via Agents"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
-		data = self.get_angent_vat_gcc()
+		data = self.get_agent_vat_gcc()
 		table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# Transportation of own goods to other GCC states
@@ -147,194 +153,138 @@ class VATReturn(Document):
 		
 	
 	def get_sales_data(self):
-		filters = {}
-		filters['company'] = self.company
-		
+		filters = frappe._dict({})
+		filters['company'] = self.company		
 		filters['to_date'] = self.end_date
 		filters['from_date'] = self.start_date
-		filters['account'] = 'UAE VAT 5% - SLI'
-		
-		gl_entries = get_gl_entries(filters)
+
 		amount_data = {}
-		vat_states = ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah']
-		
-		vat_types = ['reverse_charge_data','zero_rated_data','other_gcc_data','exempt_data','import_customs_data','amendments_data']
+		standard_amount_data = {}
 		totals_data = {'amount':0,'vat_amount':0,'adjustment':0}
 		
-		for type in vat_types:
-			amount_data[type] = {'amount':0,'vat_amount':0,'adjustment':0}
-			
-		for state in vat_states:
-			amount_data[state] = {'amount':0,'vat_amount':0,'adjustment':0}
+		account_list = []
+		account_doc = frappe.get_doc("UAE VAT Settings", self.company)
+		if account_doc:
+			for d in account_doc.uae_vat_accounts:
+				account_list.append({'mrp_vat_type':d.mrp_vat_type,'account':d.account})
 		
-		for entry in gl_entries:
+		vat_states = ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah']
+		for state in vat_states:
+			standard_amount_data[state] = {'amount':0,'vat_amount':0,'adjustment':0}
 			
-			if entry.voucher_type == "Sales Invoice":
-				details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-				if len(details)>0:
-					billing_address_name = get_default_address('Customer',details[0].customer)
-					if billing_address_name:
-						billing_address = frappe.get_doc('Address', billing_address_name)
-						if billing_address:
-							for state in vat_states:
-								if state == billing_address.state:
-									amount_data[state]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-									amount_data[state]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
-					
+						
 		
 		data = []
-		letter = 97
-		
-		for state in vat_states:
-			data.append(("1"+chr(letter),"Standard rated supplies in " + str(state),amount_data[state]['amount'],amount_data[state]['vat_amount'],amount_data[state]['adjustment']))
-			letter = letter + 1
+		section = 1
+		for i, d in enumerate(account_list,1):
+			section = i
+			type = d['mrp_vat_type']
+			account = d['account']
 			
-		
-		section = 2
-		for type in vat_types:
-			totals_data["vat_amount"] = amount_data[type]["vat_amount"] + totals_data["vat_amount"]
-			totals_data["amount"] = amount_data[type]["amount"] + totals_data["amount"]
-			totals_data["adjustment"] = amount_data[type]["adjustment"] + totals_data["adjustment"]
-			
-			section_txt = ''
-			
-			if type == "reverse_charge_data":
-				section_txt = "Supplies subject to the reverse charge provisions"
+			if not type or not account:
+				continue
 				
-				filters['account'] = 'UAE VAT 5% - SLI'
-				gl_entries = get_gl_entries(filters)
+			amount_data[type] = {'amount':0,'vat_amount':0,'adjustment':0}
+			section_txt = type
+			
+			filters['account'] = account
+			gl_entries = get_gl_entries(filters)
+			if type == "Standard Rated":
 				for entry in gl_entries:
 					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						details = frappe.db.sql("""select name,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-							amount_data[type]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
 							
+							doc_state=""
+							
+							# billing_address_name = get_default_address('Customer',details[0].customer)
+							# if billing_address_name:
+								# billing_address = frappe.get_doc('Address', billing_address_name)
+								# if billing_address:
+									# doc_state = billing_address.city
+							
+							billing_address_name = get_company_address(self.company)
+							if billing_address_name:
+								billing_address = frappe.get_doc('Address', billing_address_name.company_address)
+								if billing_address:
+									doc_state = billing_address.emirate
+							
+							if doc_state and doc_state in vat_states:
+								standard_amount_data[doc_state]['amount'] = standard_amount_data[doc_state]['amount'] + details[0].base_grand_total - entry.credit
+								standard_amount_data[doc_state]['vat_amount'] = standard_amount_data[doc_state]['vat_amount'] + entry.credit
 										
-				
-			elif type == "zero_rated_data":
-				section_txt = "Zero rated supplies"
-				
-				filters['account'] = 'UAE VAT 5% - SLI'
-				gl_entries = get_gl_entries(filters)
-				for entry in gl_entries:
-					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-							amount_data[type]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
-							
-				
-			elif type == "other_gcc_data":
-				section_txt = "Supplies of goods and services to registered customers in other GCC implementing states"
+				for letter, state in enumerate(vat_states, 97):
+					totals_data["vat_amount"] = standard_amount_data[state]["vat_amount"] + totals_data["vat_amount"]
+					totals_data["amount"] = standard_amount_data[state]["amount"] + totals_data["amount"]
+					totals_data["adjustment"] = standard_amount_data[state]["adjustment"] + totals_data["adjustment"]
+					data.append((str(section)+chr(letter),str(section_txt) + ' ' + str(state),standard_amount_data[state]['amount'],standard_amount_data[state]['vat_amount'],standard_amount_data[state]['adjustment']))
 			
-				filters['account'] = 'UAE VAT 5% - SLI'
-				gl_entries = get_gl_entries(filters)
+			else:
 				for entry in gl_entries:
 					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						details = frappe.db.sql("""select name,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-							amount_data[type]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
-							
-			elif type == "exempt_data":
-				section_txt = "Exempt supplies"
-				
-				filters['account'] = 'UAE VAT 5% - SLI'
-				gl_entries = get_gl_entries(filters)
-				for entry in gl_entries:
-					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-							amount_data[type]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
-							
-				
-			elif type == "import_customs_data":
-				section_txt = "Import VAT accounted through UAE customs"
-				
-				filters['account'] = 'UAE VAT 5% - SLI'
-				gl_entries = get_gl_entries(filters)
-				for entry in gl_entries:
-					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-							amount_data[type]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
-							
-				
-			elif type == "amendments_data":
-				section_txt = "Amendments or corrections to Output figures"
-				
-				filters['account'] = 'UAE VAT 5% - SLI'
-				gl_entries = get_gl_entries(filters)
-				for entry in gl_entries:
-					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,posting_date,currency,customer,grand_total, base_total_taxes_and_charges,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[state]['amount'] + details[0].grand_total
-							amount_data[type]['vat_amount'] = amount_data[state]['vat_amount'] + entry.credit
-							
-			
-			
-			data.append((str(section),str(section_txt),amount_data[type]["amount"],amount_data[type]["vat_amount"],amount_data[type]["adjustment"]))	
-
-			
-			section = section + 1
-		
+							amount_data[type]['amount'] = amount_data[type]['amount'] + details[0].base_grand_total - entry.credit
+							amount_data[type]['vat_amount'] = amount_data[type]['vat_amount'] + entry.credit
+								
+				totals_data["vat_amount"] = amount_data[type]["vat_amount"] + totals_data["vat_amount"]
+				totals_data["amount"] = amount_data[type]["amount"] + totals_data["amount"]
+				totals_data["adjustment"] = amount_data[type]["adjustment"] + totals_data["adjustment"]
+				data.append((str(section),str(section_txt),amount_data[type]["amount"],amount_data[type]["vat_amount"],amount_data[type]["adjustment"]))	
 		
 		data.append((str(section),"Totals",totals_data["amount"],totals_data["vat_amount"],totals_data["adjustment"]))
-		
-		
 		return data,totals_data
 
 	def get_purchase_data(self):
 	
-		filters = {}
+		filters = frappe._dict({})
 		filters['company'] = self.company
-		
 		filters['to_date'] = self.end_date
 		filters['from_date'] = self.start_date
-		filters['account'] = 'UAE VAT 5% - SLI'
 		amount_data = {'vat_amount':0,'amount':0,'adjustment':0}
+		reverse_data = {'vat_amount':0,'amount':0,'adjustment':0}
 
-		gl_entries = get_gl_entries(filters)
-
-		for entry in gl_entries:
-			if entry.voucher_type == "Purchase Invoice":
-				details = frappe.db.sql("""select name,posting_date,currency,supplier,grand_total, base_total_taxes_and_charges,supplier_address from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-				if len(details)>0:
-					amount_data['amount'] = flt(amount_data['amount']) + flt(details[0].grand_total)
-					amount_data['vat_amount'] = flt(amount_data['vat_amount']) + flt(entry.debit)
-	
-		filters['account'] = 'UAE VAT 5%_reverse - SLI'							
+		account_list = []
+		account_doc = frappe.get_doc("UAE VAT Settings", self.company)
+		if account_doc:
+			for d in account_doc.uae_vat_accounts:
+				account_list.append({'mrp_vat_type':d.mrp_vat_type,'account':d.account})
+				
+		for d in account_list:
+			type = d['mrp_vat_type']
+			account = d['account']
+			
+			if not type or not account:
+				continue
+				
+			filters['account'] = account
+				
+			if type == "Standard Rated":
+				gl_entries = get_gl_entries(filters)
+				for entry in gl_entries:
+					if entry.voucher_type == "Purchase Invoice":
+						details = frappe.db.sql("""select name,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						if len(details)>0:
+							amount_data['amount'] = flt(amount_data['amount']) + flt(details[0].base_grand_total) - flt(entry.debit)
+							amount_data['vat_amount'] = flt(amount_data['vat_amount']) + flt(entry.debit)
+			
+			
+			elif type == "Reverse Charge":
+				gl_entries = get_gl_entries(filters)
+				for entry in gl_entries:
+					if entry.voucher_type == "Purchase Invoice":
+						details = frappe.db.sql("""select name,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						if len(details)>0:
+							reverse_data['amount'] = flt(reverse_data['amount']) + flt(details[0].base_grand_total) - flt(entry.debit)
+							reverse_data['vat_amount'] = flt(reverse_data['vat_amount']) + flt(entry.debit)
 			
 		data = []
 		data.append(("9","Standard rated expenses",amount_data['amount'],amount_data['vat_amount'],amount_data['adjustment']))
-		
-		gl_entries = get_gl_entries(filters)
-		
-		reverse_data = {'vat_amount':0,'amount':0,'adjustment':0}
-
-		for entry in gl_entries:
-			if entry.voucher_type == "Purchase Invoice":
-				details = frappe.db.sql("""select name,posting_date,currency,supplier,grand_total, base_total_taxes_and_charges,supplier_address from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
-				if len(details)>0:
-					reverse_data['amount'] = flt(reverse_data['amount']) + flt(details[0].grand_total)
-					reverse_data['vat_amount'] = flt(reverse_data['vat_amount']) + flt(entry.debit)
-	
-		
-		
-
-		
 		data.append(("10","Supplies subject to the reverse charge provisions",reverse_data["amount"],reverse_data["vat_amount"],reverse_data["adjustment"]))
-		
 		totals_data = {'vat_amount':0,'amount':0,'adjustment':0}
-		
 		totals_data["amount"] = amount_data["amount"] + reverse_data["amount"] 
 		totals_data["vat_amount"] = amount_data["vat_amount"] + reverse_data["vat_amount"]
 		totals_data["adjustment"] = amount_data["adjustment"] + reverse_data["adjustment"]
-		
 		data.append(("11","Totals",totals_data["amount"],totals_data["vat_amount"],totals_data["adjustment"]))
 		
 		return data,totals_data
@@ -379,13 +329,13 @@ class VATReturn(Document):
 	
 		data = []
 		for state in vat_states:
-			data.append(("","Imported goods transferred to the " + str(state),amount_data["state"]["amount"],amount_data["state"]["vat_amount"],amount_data["state"]["adjustment"]))
+			data.append(("","Imported goods transferred to the " + str(state),amount_data[state]["amount"],amount_data[state]["vat_amount"],amount_data[state]["adjustment"]))
 		
 		
 		
 		return data
 		
-	def get_angent_vat_gcc(self):
+	def get_agent_vat_gcc(self):
 	
 		amount_data = {}
 		vat_states = ['Kingdom of Bahrain','State of Kuwait','Sultanate of Oman','State of Qatar','Kingdom of Saudi Arabia']
@@ -396,7 +346,7 @@ class VATReturn(Document):
 	
 		data = []
 		for state in vat_states:
-			data.append(("","Imported goods transferred to the " + str(state),amount_data["state"]["amount"],amount_data["state"]["vat_amount"],amount_data["state"]["adjustment"]))
+			data.append(("","Imported goods transferred to the " + str(state),amount_data[state]["amount"],amount_data[state]["vat_amount"],amount_data[state]["adjustment"]))
 		
 		
 		return data
@@ -412,7 +362,7 @@ class VATReturn(Document):
 	
 		data = []
 		for state in vat_states:
-			data.append(("","Goods transported to the " + str(state),amount_data["state"]["amount"],amount_data["state"]["vat_amount"],amount_data["state"]["adjustment"]))	
+			data.append(("","Goods transported to the " + str(state),amount_data[state]["amount"],amount_data[state]["vat_amount"],amount_data[state]["adjustment"]))	
 		
 		return data
 		
@@ -427,7 +377,7 @@ class VATReturn(Document):
 	
 		data = []
 		for state in vat_states:
-			data.append(("","Recoverable VAT paid in the " + str(state),amount_data["state"]["amount"],amount_data["state"]["vat_amount"],amount_data["state"]["adjustment"]))
+			data.append(("","Recoverable VAT paid in the " + str(state),amount_data[state]["amount"],amount_data[state]["vat_amount"],amount_data[state]["adjustment"]))
 		
 		
 		return data
@@ -443,7 +393,7 @@ class VATReturn(Document):
 		data = []
 		
 		for state in vat_states:
-			data.append(("","Tax Refunds for Tourists Scheme paid in " + str(state),amount_data["state"]["amount"],amount_data["state"]["vat_amount"],amount_data["state"]["adjustment"]))
+			data.append(("","Tax Refunds for Tourists Scheme paid in " + str(state),amount_data[state]["amount"],amount_data[state]["vat_amount"],amount_data[state]["adjustment"]))
 	
 		
 		return data
@@ -494,101 +444,203 @@ def create_condensed_table(header,columns,dict):
 					gotdata = str(d[i])
 				except IndexError:
 					gotdata = ""
-			
-				joiningtext += """<td>""" + str(gotdata) +"""</td>"""
+
+				if is_number_tryexcept(gotdata) and not i ==0:
+					joiningtext += """<td>""" + str(fmt_money(flt(gotdata))) +"""</td>"""
+				else:
+					joiningtext += """<td>""" + str(gotdata) +"""</td>"""
+					
 		else:
 			for data in d:
 				try:
 					joiningtext += """<td>""" + str(data) +"""</td>"""
 				except:
 					joiningtext += """<td>""" + data +"""</td>"""
+					
 		joiningtext += """</tr>"""
 	joiningtext += """</tbody></table>"""
 	return joiningtext
+	
+def is_number_tryexcept(s):
+    """ Returns True if string is a number. """
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 def validate_filters(filters, account_details):
-	if not filters.get('company'):
-		frappe.throw(_('{0} is mandatory').format(_('Company')))
+	if not filters.get("company"):
+		frappe.throw(_("{0} is mandatory").format(_("Company")))
 
-	if filters.get("account") and not account_details.get(filters.account):
-		frappe.throw(_("Account {0} does not exists").format(filters.account))
+	if not filters.get("from_date") and not filters.get("to_date"):
+		frappe.throw(
+			_("{0} and {1} are mandatory").format(frappe.bold(_("From Date")), frappe.bold(_("To Date")))
+		)
 
-	if filters.get("account") and filters.get("group_by_account") \
-			and account_details[filters.account].is_group == 0:
-		frappe.throw(_("Can not filter based on Account, if grouped by Account"))
+	if filters.get("account"):
+		filters.account = frappe.parse_json(filters.get("account"))
+		for account in filters.account:
+			if not account_details.get(account):
+				frappe.throw(_("Account {0} does not exists").format(account))
 
-	if filters.get("voucher_no") and filters.get("group_by_voucher"):
+	if filters.get("account") and filters.get("group_by") == "Group by Account":
+		filters.account = frappe.parse_json(filters.get("account"))
+		for account in filters.account:
+			if account_details[account].is_group == 0:
+				frappe.throw(_("Can not filter based on Child Account, if grouped by Account"))
+
+	if filters.get("voucher_no") and filters.get("group_by") in ["Group by Voucher"]:
 		frappe.throw(_("Can not filter based on Voucher No, if grouped by Voucher"))
 
 	if filters.from_date > filters.to_date:
 		frappe.throw(_("From Date must be before To Date"))
+
+	if filters.get("project"):
+		filters.project = frappe.parse_json(filters.get("project"))
+
+	if filters.get("cost_center"):
+		filters.cost_center = frappe.parse_json(filters.get("cost_center"))
 		
 		
-def get_gl_entries(filters):
-	select_fields = """, sum(debit_in_account_currency) as debit_in_account_currency,
-		sum(credit_in_account_currency) as credit_in_account_currency""" \
-		if filters.get("show_in_account_currency") else ""
+def get_gl_entries(filters, accounting_dimensions = None):
+	currency_map = get_currency(filters)
+	select_fields = """, debit, credit, debit_in_account_currency,
+		credit_in_account_currency """
 
-	group_by_condition = "group by voucher_type, voucher_no, account, cost_center" \
-		if filters.get("group_by_voucher") else "group by name"
+	order_by_statement = "order by posting_date, account, creation"
 
-	gl_entries = frappe.db.sql("""
+	if filters.get("include_dimensions"):
+		order_by_statement = "order by posting_date, creation"
+
+	if filters.get("group_by") == "Group by Voucher":
+		order_by_statement = "order by posting_date, voucher_type, voucher_no"
+	if filters.get("group_by") == "Group by Account":
+		order_by_statement = "order by account, posting_date, creation"
+
+	if filters.get("include_default_book_entries"):
+		filters["company_fb"] = frappe.get_cached_value(
+			"Company", filters.get("company"), "default_finance_book"
+		)
+
+	dimension_fields = ""
+	if accounting_dimensions:
+		dimension_fields = ", ".join(accounting_dimensions) + ","
+
+	gl_entries = frappe.db.sql(
+		"""
 		select
-			posting_date, account, party_type, party,
-			sum(debit) as debit, sum(credit) as credit,
-			voucher_type, voucher_no, cost_center, project,
-			against_voucher_type, against_voucher,
-			remarks, against, is_opening {select_fields}
+			name as gl_entry, posting_date, account, party_type, party,
+			voucher_type, voucher_no, {dimension_fields}
+			cost_center, project,
+			against_voucher_type, against_voucher, account_currency,
+			remarks, against, is_opening, creation {select_fields}
 		from `tabGL Entry`
 		where company=%(company)s {conditions}
-		{group_by_condition}
-		order by posting_date, account"""\
-		.format(select_fields=select_fields, conditions=get_conditions(filters),
-			group_by_condition=group_by_condition), filters, as_dict=1)
+		{order_by_statement}
+	""".format(
+			dimension_fields=dimension_fields,
+			select_fields=select_fields,
+			conditions=get_conditions(filters),
+			order_by_statement=order_by_statement,
+		),
+		filters,
+		as_dict=1,
+	)
 
-	return gl_entries
+	if filters.get("presentation_currency"):
+		return convert_to_presentation_currency(gl_entries, currency_map, filters.get("company"))
+	else:
+		return gl_entries
+
 	
 def get_conditions(filters):
 	conditions = []
 	if filters.get("account"):
-		lft, rgt = frappe.db.get_value("Account", filters["account"], ["lft", "rgt"])
-		conditions.append("""account in (select name from tabAccount
-			where lft>=%s and rgt<=%s and docstatus<2)""" % (lft, rgt))
+		filters.account = get_accounts_with_children(filters.get("account"))
+		conditions.append("account in %(account)s")
+
+	if filters.get("cost_center"):
+		filters.cost_center = get_cost_centers_with_children(filters.get("cost_center"))
+		conditions.append("cost_center in %(cost_center)s")
 
 	if filters.get("voucher_no"):
 		conditions.append("voucher_no=%(voucher_no)s")
+
+	if filters.get("group_by") == "Group by Party" and not filters.get("party_type"):
+		conditions.append("party_type in ('Customer', 'Supplier')")
 
 	if filters.get("party_type"):
 		conditions.append("party_type=%(party_type)s")
 
 	if filters.get("party"):
-		conditions.append("party=%(party)s")
+		conditions.append("party in %(party)s")
 
-	if not (filters.get("account") or filters.get("party") or filters.get("group_by_account")):
-		conditions.append("posting_date >=%(from_date)s")
+	conditions.append("(posting_date >=%(from_date)s)")
+
+	conditions.append("(posting_date <=%(to_date)s)")
 
 	if filters.get("project"):
-		conditions.append("project=%(project)s")
+		conditions.append("project in %(project)s")
+
+	if filters.get("include_default_book_entries"):
+		if filters.get("finance_book"):
+			if filters.get("company_fb") and cstr(filters.get("finance_book")) != cstr(
+				filters.get("company_fb")
+			):
+				frappe.throw(
+					_("To use a different finance book, please uncheck 'Include Default Book Entries'")
+				)
+			else:
+				conditions.append("(finance_book in (%(finance_book)s, '') OR finance_book IS NULL)")
+		else:
+			conditions.append("(finance_book in (%(company_fb)s, '') OR finance_book IS NULL)")
+	else:
+		if filters.get("finance_book"):
+			conditions.append("(finance_book in (%(finance_book)s, '') OR finance_book IS NULL)")
+		else:
+			conditions.append("(finance_book in ('') OR finance_book IS NULL)")
+
+	if not filters.get("show_cancelled_entries"):
+		conditions.append("is_cancelled = 0")
 
 	from frappe.desk.reportview import build_match_conditions
+
 	match_conditions = build_match_conditions("GL Entry")
-	if match_conditions: conditions.append(match_conditions)
+
+	if match_conditions:
+		conditions.append(match_conditions)
+
+	if filters.get("include_dimensions"):
+		accounting_dimensions = get_accounting_dimensions(as_list=False)
+
+		if accounting_dimensions:
+			for dimension in accounting_dimensions:
+				if not dimension.disabled:
+					if filters.get(dimension.fieldname):
+						if frappe.get_cached_value("DocType", dimension.document_type, "is_tree"):
+							filters[dimension.fieldname] = get_dimension_with_children(
+								dimension.document_type, filters.get(dimension.fieldname)
+							)
+							conditions.append("{0} in %({0})s".format(dimension.fieldname))
+						else:
+							conditions.append("{0} in %({0})s".format(dimension.fieldname))
 
 	return "and {}".format(" and ".join(conditions)) if conditions else ""
 
-	
-def get_result_as_list(data, filters):
-	result = []
-	for d in data:
-		row = [d.get("posting_date"), d.get("account"), d.get("debit"), d.get("credit")]
+def get_accounts_with_children(accounts):
+	if not isinstance(accounts, list):
+		accounts = [d.strip() for d in accounts.strip().split(",") if d]
 
-		if filters.get("show_in_account_currency"):
-			row += [d.get("debit_in_account_currency"), d.get("credit_in_account_currency")]
+	all_accounts = []
+	for d in accounts:
+		account = frappe.get_cached_doc("Account", d)
+		if account:
+			children = frappe.get_all(
+				"Account", filters={"lft": [">=", account.lft], "rgt": ["<=", account.rgt]}
+			)
+			all_accounts += [c.name for c in children]
+		else:
+			frappe.throw(_("Account: {0} does not exist").format(d))
 
-		row += [d.get("voucher_type"), d.get("voucher_no"), d.get("against"),
-			d.get("party_type"), d.get("party"), d.get("project"), d.get("cost_center"), d.get("against_voucher_type"), d.get("against_voucher"), d.get("remarks")
-		]
-
-		result.append(row)
-
-	return result
+	return list(set(all_accounts))
