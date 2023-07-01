@@ -13,6 +13,12 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 	company() {
 		erpnext.accounts.dimensions.update_dimension(this.frm, this.frm.doctype);
 
+		$.each(this.frm.doc.items || [], function(i, d) {
+			if(d.cost_center) {
+				frappe.model.set_value(d.doctype, d.name, "cost_center","");
+			}
+		});
+
 		let me = this;
 		if (this.frm.doc.company) {
 			frappe.call({

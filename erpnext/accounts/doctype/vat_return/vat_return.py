@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_days, cint, cstr, flt, getdate,get_datetime, nowdate, rounded, date_diff,money_in_words,fmt_money
 from frappe.contacts.doctype.address.address import get_default_address,get_company_address
@@ -28,7 +29,7 @@ class VATReturn(Document):
 			and company = %s and name != %s""",
 			(self.start_date,self.company, self.name))
 		if ret_exist:
-			frappe.throw(_("VAT Return of company {0} already created for this period").format(self.employee))
+			frappe.throw(_("VAT Return of company {0} already created for this period").format(ret_exist))
 	
 	@frappe.whitelist()
 	def create_vat_return(self):
@@ -176,28 +177,31 @@ class VATReturn(Document):
 		
 		data = []
 		section = 1
+		sales_data = []
+
 		for i, d in enumerate(account_list,1):
 			section = i
-			type = d['mrp_vat_type']
+			vat_type = d['mrp_vat_type']
 			account = d['account']
 			
-			if not type or not account:
+			if not vat_type or not account:
 				continue
 				
-			amount_data[type] = {'amount':0,'vat_amount':0,'adjustment':0}
-			section_txt = type
+			amount_data[vat_type] = {'amount':0,'vat_amount':0,'adjustment':0}
+			section_txt = vat_type
+			
 			
 			filters['account'] = account
 			gl_entries = get_gl_entries(filters)
-			if type == "Standard Rated":
+			if vat_type == "Standard Rated":
 				for entry in gl_entries:
 					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						details = frappe.db.sql("""select name,title,project,outstanding_amount,posting_date,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
-							
+							doc_info = details[0]
 							doc_state=""
 							
-							# billing_address_name = get_default_address('Customer',details[0].customer)
+							# billing_address_name = get_default_address('Customer',doc_info.customer)
 							# if billing_address_name:
 								# billing_address = frappe.get_doc('Address', billing_address_name)
 								# if billing_address:
@@ -210,9 +214,14 @@ class VATReturn(Document):
 									doc_state = billing_address.emirate
 							
 							if doc_state and doc_state in vat_states:
-								standard_amount_data[doc_state]['amount'] = standard_amount_data[doc_state]['amount'] + details[0].base_grand_total - entry.credit
+								standard_amount_data[doc_state]['amount'] = standard_amount_data[doc_state]['amount'] + doc_info.base_grand_total - entry.credit
 								standard_amount_data[doc_state]['vat_amount'] = standard_amount_data[doc_state]['vat_amount'] + entry.credit
-										
+							
+								link = frappe.utils.get_link_to_form("Sales Invoice", doc_info.name)
+								sales_data.append((link,doc_info.title,doc_info.posting_date,vat_type,doc_info.base_grand_total,entry.credit))
+							
+							
+							
 				for letter, state in enumerate(vat_states, 97):
 					totals_data["vat_amount"] = standard_amount_data[state]["vat_amount"] + totals_data["vat_amount"]
 					totals_data["amount"] = standard_amount_data[state]["amount"] + totals_data["amount"]
@@ -222,15 +231,25 @@ class VATReturn(Document):
 			else:
 				for entry in gl_entries:
 					if entry.voucher_type == "Sales Invoice":
-						details = frappe.db.sql("""select name,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						details = frappe.db.sql("""select name,posting_date,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
-							amount_data[type]['amount'] = amount_data[type]['amount'] + details[0].base_grand_total - entry.credit
-							amount_data[type]['vat_amount'] = amount_data[type]['vat_amount'] + entry.credit
-								
-				totals_data["vat_amount"] = amount_data[type]["vat_amount"] + totals_data["vat_amount"]
-				totals_data["amount"] = amount_data[type]["amount"] + totals_data["amount"]
-				totals_data["adjustment"] = amount_data[type]["adjustment"] + totals_data["adjustment"]
-				data.append((str(section),str(section_txt),amount_data[type]["amount"],amount_data[type]["vat_amount"],amount_data[type]["adjustment"]))	
+							doc_info = details[0]
+							amount_data[vat_type]['amount'] = amount_data[vat_type]['amount'] + doc_info.base_grand_total - entry.credit
+							amount_data[vat_type]['vat_amount'] = amount_data[vat_type]['vat_amount'] + entry.credit
+							
+							link = frappe.utils.get_link_to_form("Sales Invoice", doc_info.name)
+							sales_data.append((link,doc_info.title,doc_info.posting_date,vat_type,doc_info.base_grand_total,entry.credit))
+							
+							
+				totals_data["vat_amount"] = amount_data[vat_type]["vat_amount"] + totals_data["vat_amount"]
+				totals_data["amount"] = amount_data[vat_type]["amount"] + totals_data["amount"]
+				totals_data["adjustment"] = amount_data[vat_type]["adjustment"] + totals_data["adjustment"]
+				data.append((str(section),str(section_txt),amount_data[vat_type]["amount"],amount_data[vat_type]["vat_amount"],amount_data[vat_type]["adjustment"]))	
+		
+		sales_data.append(("Totals","","","",totals_data["amount"] + totals_data["vat_amount"],totals_data["vat_amount"]))
+		sales_columns = ["ID","Title","Date","VAT Type","Grand Total","VAT Amount"]
+		self.sales_summary = create_condensed_table("",sales_columns,sales_data,True)
+
 		
 		data.append((str(section),"Totals",totals_data["amount"],totals_data["vat_amount"],totals_data["adjustment"]))
 		return data,totals_data
@@ -249,35 +268,47 @@ class VATReturn(Document):
 		if account_doc:
 			for d in account_doc.uae_vat_accounts:
 				account_list.append({'mrp_vat_type':d.mrp_vat_type,'account':d.account})
-				
+		
+		purchases_data = []
+	
 		for d in account_list:
-			type = d['mrp_vat_type']
+			vat_type = d['mrp_vat_type']
 			account = d['account']
 			
-			if not type or not account:
+			if not vat_type or not account:
 				continue
 				
 			filters['account'] = account
 				
-			if type == "Standard Rated":
+			if vat_type == "Standard Rated":
 				gl_entries = get_gl_entries(filters)
 				for entry in gl_entries:
 					if entry.voucher_type == "Purchase Invoice":
-						details = frappe.db.sql("""select name,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						details = frappe.db.sql("""select name,title,posting_date,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
-							amount_data['amount'] = flt(amount_data['amount']) + flt(details[0].base_grand_total) - flt(entry.debit)
+							doc_info = details[0]
+							amount_data['amount'] = flt(amount_data['amount']) + flt(doc_info.base_grand_total) - flt(entry.debit)
 							amount_data['vat_amount'] = flt(amount_data['vat_amount']) + flt(entry.debit)
+							
+							link = frappe.utils.get_link_to_form("Purchase Invoice", doc_info.name)
+							purchases_data.append((link,doc_info.title,doc_info.posting_date,vat_type,doc_info.base_grand_total,entry.debit))
+
 			
-			
-			elif type == "Reverse Charge":
+			elif vat_type == "Reverse Charge":
 				gl_entries = get_gl_entries(filters)
 				for entry in gl_entries:
 					if entry.voucher_type == "Purchase Invoice":
-						details = frappe.db.sql("""select name,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
+						details = frappe.db.sql("""select name,title,posting_date,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
-							reverse_data['amount'] = flt(reverse_data['amount']) + flt(details[0].base_grand_total) - flt(entry.debit)
+							doc_info = details[0]
+							reverse_data['amount'] = flt(reverse_data['amount']) + flt(doc_info.base_grand_total) - flt(entry.debit)
 							reverse_data['vat_amount'] = flt(reverse_data['vat_amount']) + flt(entry.debit)
-			
+							
+							link = frappe.utils.get_link_to_form("Purchase Invoice", doc_info.name)
+							purchases_data.append((link,doc_info.title,doc_info.posting_date,vat_type,doc_info.base_grand_total,entry.debit))
+
+		
+		
 		data = []
 		data.append(("9","Standard rated expenses",amount_data['amount'],amount_data['vat_amount'],amount_data['adjustment']))
 		data.append(("10","Supplies subject to the reverse charge provisions",reverse_data["amount"],reverse_data["vat_amount"],reverse_data["adjustment"]))
@@ -286,6 +317,11 @@ class VATReturn(Document):
 		totals_data["vat_amount"] = amount_data["vat_amount"] + reverse_data["vat_amount"]
 		totals_data["adjustment"] = amount_data["adjustment"] + reverse_data["adjustment"]
 		data.append(("11","Totals",totals_data["amount"],totals_data["vat_amount"],totals_data["adjustment"]))
+		
+		purchases_data.append(("Totals","","","",totals_data["amount"] + totals_data["vat_amount"],totals_data["vat_amount"]))
+		purchases_columns = ["ID","Title","Date","VAT Type","Grand Total","VAT Amount"]
+		self.purchases_summary = create_condensed_table("",purchases_columns,purchases_data,True)
+		
 		
 		return data,totals_data
 		
@@ -296,7 +332,7 @@ class VATReturn(Document):
 		data.append(("12","Total value of due tax for the period",sales_totals["vat_amount"]))
 		data.append(("13","Total value of recoverable tax for the period",purchase_totals["vat_amount"]))
 		data.append(("14","Net VAT due(or reclaimed) for the period",net_vat))
-		
+		self.calculated_due = net_vat
 		if cint(self.request_for_refund):
 			request_for_refund = "Y"		 
 		else:
@@ -415,28 +451,31 @@ class VATReturn(Document):
 		
 		
 
-def create_condensed_table(header,columns,dict):
+def create_condensed_table(header,columns,data,add_sr = False):
 	
 	joiningtext = ""
 	if header:
 		joiningtext += """<h2>"""+header+"""</h2>"""
 	
-	if len(columns) == 0 and len(dict) == 0:
+	if len(columns) == 0 and len(data) == 0:
 		return joiningtext
 	
 	joiningtext += """<table class="table table-bordered table-condensed">"""
 	joiningtext += """<thead>
 			<tr style>"""
 	
+	if add_sr:
+		joiningtext += """<th>Sr</th>"""
+		
 	for table_column in columns:
 		joiningtext += """<th>"""+ str(table_column)+"""</th>"""
 	
 	joiningtext += """</tr></thead><tbody>"""	
 	
-	for d in dict:
+	for count, d in enumerate(data,1):
 		joiningtext += """<tr>"""
-		
-		
+		if add_sr:
+			joiningtext += """<td>"""+str(count)+"""</td>"""		
 		if len(columns) > 0:
 			for i, column in enumerate(columns):
 				gotdata = ""
@@ -451,15 +490,16 @@ def create_condensed_table(header,columns,dict):
 					joiningtext += """<td>""" + str(gotdata) +"""</td>"""
 					
 		else:
-			for data in d:
+			for entry in d:
 				try:
-					joiningtext += """<td>""" + str(data) +"""</td>"""
+					joiningtext += """<td>""" + str(entry) +"""</td>"""
 				except:
-					joiningtext += """<td>""" + data +"""</td>"""
+					joiningtext += """<td>""" + entry +"""</td>"""
 					
 		joiningtext += """</tr>"""
 	joiningtext += """</tbody></table>"""
 	return joiningtext
+	
 	
 def is_number_tryexcept(s):
     """ Returns True if string is a number. """
@@ -578,7 +618,7 @@ def get_conditions(filters):
 
 	conditions.append("(posting_date >=%(from_date)s)")
 
-	conditions.append("(posting_date <=%(to_date)s)")
+	conditions.append("(posting_date <%(to_date)s)")
 
 	if filters.get("project"):
 		conditions.append("project in %(project)s")

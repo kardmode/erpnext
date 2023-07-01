@@ -786,6 +786,14 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 
 	company() {
 		var me = this;
+		
+		$.each(this.frm.doc.items || [], function(i, d) {
+			if(d.cost_center) {
+				frappe.model.set_value(d.doctype, d.name, "cost_center","");
+			}
+		});
+		
+		
 		var set_pricing = function() {
 			if(me.frm.doc.company && me.frm.fields_dict.currency) {
 				var company_currency = me.get_company_currency();

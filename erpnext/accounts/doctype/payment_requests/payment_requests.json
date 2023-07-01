@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "append_company_abbr_to_name": "0",
+ "creation": "2017-04-22 16:43:49.889428",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "type",
+  "percent",
+  "amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Description",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "percent",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Percent",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2023-06-16 22:25:12.157686",
+ "modified_by": "Administrator",
+ "module": "Accounts",
+ "name": "Payment Requests",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

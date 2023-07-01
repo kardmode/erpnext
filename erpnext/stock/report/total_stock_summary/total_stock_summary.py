@@ -36,15 +36,31 @@ def get_total_stock(filters):
 	bin = frappe.qb.DocType("Bin")
 	item = frappe.qb.DocType("Item")
 	wh = frappe.qb.DocType("Warehouse")
-
-	query = (
-		frappe.qb.from_(bin)
-		.inner_join(item)
-		.on(bin.item_code == item.item_code)
-		.inner_join(wh)
-		.on(wh.name == bin.warehouse)
-		.where(bin.actual_qty != 0)
-	)
+	hide_negative = filters.get("hide_negative")
+	hide_positive = filters.get("hide_positive")
+	hide_zero = filters.get("hide_zero")
+	hide_disabled = filters.get("hide_disabled")
+	
+	if hide_disabled:
+		query = (
+			frappe.qb.from_(bin)
+			.inner_join(item)
+			.on(bin.item_code == item.item_code)
+			.inner_join(wh)
+			.on(wh.name == bin.warehouse)
+			.where(bin.actual_qty != 0)
+			.where(wh.disabled == 0)
+		)
+	else:
+	
+		query = (
+			frappe.qb.from_(bin)
+			.inner_join(item)
+			.on(bin.item_code == item.item_code)
+			.inner_join(wh)
+			.on(wh.name == bin.warehouse)
+			.where(bin.actual_qty != 0)
+		)
 
 	if filters.get("group_by") == "Warehouse":
 		if filters.get("company"):
@@ -58,4 +74,17 @@ def get_total_stock(filters):
 		item.item_code, item.description, Sum(bin.actual_qty).as_("actual_qty")
 	).groupby(item.item_code)
 
-	return query.run()
+	data = query.run()
+	
+	filtered_data = []
+	
+	for d in data:
+		if hide_positive and d[3] > 0:
+			continue
+		if hide_negative and d[3] < 0:
+			continue
+		if hide_zero and d[3] == 0:
+			continue
+		
+		filtered_data.append(d)
+	return filtered_data

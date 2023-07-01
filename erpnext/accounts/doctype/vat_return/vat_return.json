@@ -21,9 +21,14 @@
   "use_profit_margin_scheme",
   "vat_return_period_section",
   "start_date",
+  "previous__payment",
   "column_break_10",
   "end_date",
+  "current_payment",
+  "calculated_due",
   "section_break_11",
+  "sales_summary",
+  "purchases_summary",
   "vat_summary",
   "amended_from"
  ],
@@ -125,11 +130,39 @@
    "fieldtype": "Data",
    "hidden": 1,
    "label": "Title"
+  },
+  {
+   "fieldname": "sales_summary",
+   "fieldtype": "Long Text",
+   "label": "Sales Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "purchases_summary",
+   "fieldtype": "Long Text",
+   "label": "Purchases Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous__payment",
+   "fieldtype": "Currency",
+   "label": "Previous  Payment"
+  },
+  {
+   "fieldname": "current_payment",
+   "fieldtype": "Currency",
+   "label": "Current Payment"
+  },
+  {
+   "fieldname": "calculated_due",
+   "fieldtype": "Currency",
+   "label": "Calculated Due",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-05-23 12:10:12.100078",
+ "modified": "2023-06-22 23:25:56.578525",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "VAT Return",
@@ -137,21 +170,6 @@
  "owner": "Administrator",
  "permissions": [
   {
-   "cancel": 1,
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "submit": 1,
-   "write": 1
-  },
-  {
-   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -161,7 +179,6 @@
    "report": 1,
    "role": "Accounts Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   },
   {
