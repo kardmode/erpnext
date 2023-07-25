@@ -56,8 +56,16 @@ frappe.ui.form.on("Purchase Order", {
 		
 		
 		frm.add_custom_button(__('Make OLD PR'), () => {
-				frm.trigger("auto_make_purchase_receipts");
-			});
+			frm.trigger("auto_make_purchase_receipts");
+		});
+	},
+	
+	schedule_date: function(frm) {
+		for (var i in frm.doc.items) {
+			var item = frm.doc.items[i];
+			item.schedule_date = frm.doc.schedule_date;
+		}
+		refresh_field("items");
 	},
 		
 	company: function(frm) {

@@ -26,9 +26,12 @@
   "end_date",
   "current_payment",
   "calculated_due",
+  "section_break_v4kiv",
+  "remarks",
   "section_break_11",
   "sales_summary",
   "purchases_summary",
+  "section_break_8areg",
   "vat_summary",
   "amended_from"
  ],
@@ -108,7 +111,7 @@
   {
    "fieldname": "section_break_11",
    "fieldtype": "Section Break",
-   "label": "Summary"
+   "label": "Invoices for Sales and Purchases depend on the posting date"
   },
   {
    "fieldname": "vat_summary",
@@ -158,11 +161,26 @@
    "fieldtype": "Currency",
    "label": "Calculated Due",
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_8areg",
+   "fieldtype": "Section Break",
+   "label": "Report"
+  },
+  {
+   "fieldname": "section_break_v4kiv",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-06-22 23:25:56.578525",
+ "modified": "2023-07-18 11:06:15.404834",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "VAT Return",

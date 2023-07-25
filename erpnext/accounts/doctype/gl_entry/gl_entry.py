@@ -244,8 +244,8 @@ class GLEntry(Document):
 
 		if company != self.company:
 			frappe.throw(
-				_("{0} {1}: Cost Center {2} does not belong to Company {3}").format(
-					self.voucher_type, self.voucher_no, self.cost_center, self.company
+				_("{0} {1}: Cost Center {2} does not belong to Company {3}, Account {4}").format(
+					self.voucher_type, self.voucher_no, self.cost_center, self.company,self.account
 				)
 			)
 

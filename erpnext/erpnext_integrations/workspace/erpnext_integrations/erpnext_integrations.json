@@ -252,13 +252,13 @@
    "type": "Link"
   }
  ],
- "modified": "2023-05-24 14:47:25.984717",
+ "modified": "2023-07-14 11:49:17.636725",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "ERPNext Integrations",
  "number_cards": [],
  "owner": "Administrator",
- "parent_page": "",
+ "parent_page": "ERPNext Settings",
  "public": 1,
  "quick_lists": [],
  "restrict_to_domain": "",
