@@ -164,6 +164,20 @@ class PaymentEntry(AccountsController):
 				if flt(d.allocated_amount) < 0 and flt(d.allocated_amount) < flt(d.outstanding_amount):
 					frappe.throw(fail_message.format(d.idx))
 
+	def term_based_allocation_enabled_for_reference(
+		self, reference_doctype: str, reference_name: str
+	) -> bool:
+		if (
+			reference_doctype
+			and reference_doctype in ["Sales Invoice", "Sales Order", "Purchase Order", "Purchase Invoice"]
+			and reference_name
+		):
+			if template := frappe.db.get_value(reference_doctype, reference_name, "payment_terms_template"):
+				return frappe.db.get_value(
+					"Payment Terms Template", template, "allocate_payment_based_on_payment_terms"
+				)
+		return False
+
 	def validate_allocated_amount_with_latest_data(self):
 		latest_references = get_outstanding_reference_documents(
 			{
@@ -184,10 +198,23 @@ class PaymentEntry(AccountsController):
 			d = frappe._dict(d)
 			latest_lookup.setdefault((d.voucher_type, d.voucher_no), frappe._dict())[d.payment_term] = d
 
-		for d in self.get("references"):
-			latest = (latest_lookup.get((d.reference_doctype, d.reference_name)) or frappe._dict()).get(
-				d.payment_term
-			)
+		for idx, d in enumerate(self.get("references"), start=1):
+			latest = latest_lookup.get((d.reference_doctype, d.reference_name)) or frappe._dict()
+
+			# If term based allocation is enabled, throw
+			if (
+				d.payment_term is None or d.payment_term == ""
+			) and self.term_based_allocation_enabled_for_reference(
+				d.reference_doctype, d.reference_name
+			):
+				frappe.throw(
+					_(
+						"{0} has Payment Term based allocation enabled. Select a Payment Term for Row #{1} in Payment References section"
+					).format(frappe.bold(d.reference_name), frappe.bold(idx))
+				)
+
+			# if no payment template is used by invoice and has a custom term(no `payment_term`), then invoice outstanding will be in 'None' key
+			latest = latest.get(d.payment_term) or latest.get(None)
 
 			# The reference has already been fully paid
 			if not latest:
@@ -207,12 +234,14 @@ class PaymentEntry(AccountsController):
 
 			fail_message = _("Row #{0}: Allocated Amount cannot be greater than outstanding amount.")
 
-			if (flt(d.allocated_amount)) > 0 and flt(d.allocated_amount) > flt(latest.outstanding_amount):
-				frappe.throw(fail_message.format(d.idx))
-
-			if d.payment_term and (
-				(flt(d.allocated_amount)) > 0
-				and flt(d.allocated_amount) > flt(latest.payment_term_outstanding)
+			if (
+				d.payment_term
+				and (
+					(flt(d.allocated_amount)) > 0
+					and latest.payment_term_outstanding
+					and (flt(d.allocated_amount) > flt(latest.payment_term_outstanding))
+				)
+				and self.term_based_allocation_enabled_for_reference(d.reference_doctype, d.reference_name)
 			):
 				frappe.throw(
 					_(
@@ -221,6 +250,9 @@ class PaymentEntry(AccountsController):
 						d.idx, d.allocated_amount, latest.payment_term_outstanding, d.payment_term
 					)
 				)
+
+			if (flt(d.allocated_amount)) > 0 and flt(d.allocated_amount) > flt(latest.outstanding_amount):
+				frappe.throw(fail_message.format(d.idx))
 
 			# Check for negative outstanding invoices as well
 			if flt(d.allocated_amount) < 0 and flt(d.allocated_amount) < flt(latest.outstanding_amount):
@@ -650,7 +682,9 @@ class PaymentEntry(AccountsController):
 		if not self.apply_tax_withholding_amount:
 			return
 
-		net_total = self.paid_amount
+		order_amount = self.get_order_net_total()
+
+		net_total = flt(order_amount) + flt(self.unallocated_amount)
 
 		# Adding args as purchase invoice to get TDS amount
 		args = frappe._dict(
@@ -694,6 +728,20 @@ class PaymentEntry(AccountsController):
 
 		for d in to_remove:
 			self.remove(d)
+
+	def get_order_net_total(self):
+		if self.party_type == "Supplier":
+			doctype = "Purchase Order"
+		else:
+			doctype = "Sales Order"
+
+		docnames = [d.reference_name for d in self.references if d.reference_doctype == doctype]
+
+		tax_withholding_net_total = frappe.db.get_value(
+			doctype, {"name": ["in", docnames]}, ["sum(base_tax_withholding_net_total)"]
+		)
+
+		return tax_withholding_net_total
 
 	def apply_taxes(self):
 		self.initialize_taxes()
@@ -1556,6 +1604,9 @@ def split_invoices_based_on_payment_terms(outstanding_invoices, company):
 										"invoice_amount": flt(d.invoice_amount),
 										"outstanding_amount": flt(d.outstanding_amount),
 										"payment_term_outstanding": payment_term_outstanding,
+										"allocated_amount": payment_term_outstanding
+										if payment_term_outstanding
+										else d.outstanding_amount,
 										"payment_amount": payment_term.payment_amount,
 										"payment_term": payment_term.payment_term,
 									}
