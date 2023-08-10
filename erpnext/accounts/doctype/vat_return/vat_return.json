@@ -28,6 +28,7 @@
   "calculated_due",
   "section_break_v4kiv",
   "remarks",
+  "adjustments_summary",
   "section_break_11",
   "sales_summary",
   "purchases_summary",
@@ -176,11 +177,17 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "adjustments_summary",
+   "fieldtype": "Long Text",
+   "label": "Adjustments Summary",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-07-18 11:06:15.404834",
+ "modified": "2023-07-30 09:55:45.237296",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "VAT Return",

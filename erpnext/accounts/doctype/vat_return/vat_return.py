@@ -39,83 +39,91 @@ class VATReturn(Document):
 		
 		header = "Main"
 		data = self.get_main_data()
-		table_list.append({'header':header,'columns':[],'data':data})
+		# table_list.append({'header':header,'columns':[],'data':data})
 		
 		# VAT Company Info
 		header = "Taxable Person details"
 		data = self.get_taxable_person_data()
-		table_list.append({'header':header,'columns':[],'data':data})
+		# table_list.append({'header':header,'columns':[],'data':data})
 		
 		# VAT Period Info
 		header = "VAT Return Period"
 		data = self.get_vat_return_period_data()
-		table_list.append({'header':header,'columns':[],'data':data})
+		# table_list.append({'header':header,'columns':[],'data':data})
+		
+		sales_adjustments,purchase_adjustments = self.get_adjustments()
 		
 		# VAT on Sales and all other Outputs Amount
 		header = "VAT on Sales and all other Outputs Amount"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
-		data,sales_totals = self.get_sales_data()
+		data,sales_totals = self.get_sales_data(sales_adjustments)
 		table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# VAT on Expenses and all other Inputs
 		header = "VAT on Expenses and all other Inputs"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
-		data,purchase_totals = self.get_purchase_data()
+		data,purchase_totals = self.get_purchase_data(purchase_adjustments)
 		table_list.append({'header':header,'columns':columns,'data':data})
-		
+
 		# Net VAT due
 		header = "Net VAT due"
 		data = self.get_net_vat_due(sales_totals,purchase_totals)
-		table_list.append({'header':header,'columns':[],'data':data})
+		table_list.append({'header':header,'columns':[],'data':data, 'add_sr':True,'index': 12})
 		
 		# Additional Reporting Requirements
 		header = "Additional Reporting Requirements"
-		table_list.append({'header':header,'columns':[],'data':[]})
+		# table_list.append({'header':header,'columns':[],'data':[]})
 		
 		# Profit Margin Scheme
 		header = "Profit Margin Scheme"
 		data = self.get_profit_margin_scheme()
-		table_list.append({'header':header,'columns':[],'data':data})
+		# table_list.append({'header':header,'columns':[],'data':data})
 		
 		# Goods transferred to GCC implementing states
 		header = "Goods transferred to GCC implementing states"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
 		data = self.get_transferred_to_gcc()
-		table_list.append({'header':header,'columns':columns,'data':data})
+		# table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# VAT paid on personal imports via Agents
 		header = "VAT paid on personal imports via Agents"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
 		data = self.get_agent_vat_gcc()
-		table_list.append({'header':header,'columns':columns,'data':data})
+		# table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# Transportation of own goods to other GCC states
 		header = "Transportation of own goods to other GCC states"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
 		data = self.get_transport_own_goods_gcc()
-		table_list.append({'header':header,'columns':columns,'data':data})
+		# table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# Recoverable VAT paid in other GCC implementing states
 		header = "Recoverable VAT paid in other GCC implementing states"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
 		data = self.get_recoverable_vat_gcc()
-		table_list.append({'header':header,'columns':columns,'data':data})
+		# table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# Tax Refunds for Tourists Scheme provided
 		header = "Tax Refunds for Tourists Scheme provided"
 		columns = ["","","Amount","VAT Amount","Adjustment"]
 		data = self.get_tax_refunds_for_tourists()
-		table_list.append({'header':header,'columns':columns,'data':data})
+		# table_list.append({'header':header,'columns':columns,'data':data})
 		
 		# Declaration
 		header = "Declaration"
 		data = self.get_declaration()
-		table_list.append({'header':header,'columns':[],'data':data})
-		
-		
-		
+		# table_list.append({'header':header,'columns':[],'data':data})
+				
 		for d in table_list:
-			summary = summary + create_condensed_table(d['header'],d['columns'],d['data'])
+			add_sr = False
+			index = 1
+			if d.get("add_sr"):
+				add_sr = d.get("add_sr")
+				
+			if d.get("index"):
+				index = d.get("index")
+			
+			summary = summary + create_condensed_table(d['header'],d['columns'],d['data'],add_sr,index)
 			summary = summary + "<br>"
 		self.vat_summary = summary
 		return summary
@@ -152,13 +160,45 @@ class VATReturn(Document):
 		data.append(("","VAT Return Period Reference Number",""))
 		return data
 		
+	def get_adjustments(self):
+		additions = frappe.db.sql("""select name, document_type, document, document_date,adjustment_date from `tabVAT Return Adjustment` where adjustment_date >= %s and adjustment_date < %s and company = %s""", (self.start_date,self.end_date,self.company),as_dict = 1)
+		deductions = frappe.db.sql("""select name, document_type, document, document_date,adjustment_date from `tabVAT Return Adjustment` where document_date >= %s and document_date < %s and company = %s""", (self.start_date,self.end_date,self.company),as_dict = 1)
+		data = []
+		sales_additions = []
+		sales_deductions = []
+		purchase_additions = []
+		purchase_deductions = []
+		
+		for d in additions:
+			if d.document_type == "Sales Invoice":
+				sales_additions.append(d.document)
+			elif d.document_type == "Purchase Invoice":
+				purchase_additions.append(d.document)
+
+			link = frappe.utils.get_link_to_form("VAT Return Adjustment", d.name)
+			data.append((link,d.document_type,d.document,d.document_date,d.adjustment_date))
+			
+		for d in deductions:
+			if d.document_type == "Sales Invoice":
+				sales_deductions.append(d.document)
+			elif d.document_type == "Purchase Invoice":
+				purchase_deductions.append(d.document)
+
+			link = frappe.utils.get_link_to_form("VAT Return Adjustment", d.name)
+			data.append((link,d.document_type,d.document,d.document_date,d.adjustment_date))
+
+		columns = ["Adjustment ID","Document Type","Document", "Document Date","Adjustment Date"]
+		self.adjustments_summary = create_condensed_table("",columns,data,True)
 	
-	def get_sales_data(self):
+		return {'additions':sales_additions,'deductions':sales_deductions},{'additions':purchase_additions,'deductions':purchase_deductions}
+	
+	def get_sales_data(self,adjustments):
 		filters = frappe._dict({})
 		filters['company'] = self.company		
 		filters['to_date'] = self.end_date
 		filters['from_date'] = self.start_date
-
+		filters['voucher_type'] = "Sales Invoice"
+		
 		amount_data = {}
 		standard_amount_data = {}
 		totals_data = {'amount':0,'vat_amount':0,'adjustment':0}
@@ -183,7 +223,8 @@ class VATReturn(Document):
 			section = i
 			vat_type = d['mrp_vat_type']
 			account = d['account']
-			
+			filters['account'] = account
+
 			if not vat_type or not account:
 				continue
 				
@@ -191,10 +232,33 @@ class VATReturn(Document):
 			section_txt = vat_type
 			
 			
-			filters['account'] = account
 			gl_entries = get_gl_entries(filters)
+			
+			final_entries = []
+			for entry in gl_entries:
+				add = True
+				
+				if entry.voucher_no in adjustments["additions"]:
+					add = False
+				elif entry.voucher_no in adjustments["deductions"]:
+					add = False
+					
+				if add == True:
+					final_entries.append(entry)
+			
+			for d in adjustments["additions"]:
+				add_filters = frappe._dict({})
+				add_filters['company'] = self.company
+				add_filters['voucher_no'] = d
+				add_filters['account'] = account
+				add_filters['voucher_type'] = "Sales Invoice"
+			
+				new_entries = get_gl_entries_for_name(add_filters)
+				for e in new_entries:
+					final_entries.append(e)
+			
 			if vat_type == "Standard Rated":
-				for entry in gl_entries:
+				for entry in final_entries:
 					if entry.voucher_type == "Sales Invoice":
 						details = frappe.db.sql("""select name,title,project,outstanding_amount,posting_date,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
@@ -229,7 +293,7 @@ class VATReturn(Document):
 					data.append((str(section)+chr(letter),str(section_txt) + ' ' + str(state),standard_amount_data[state]['amount'],standard_amount_data[state]['vat_amount'],standard_amount_data[state]['adjustment']))
 			
 			else:
-				for entry in gl_entries:
+				for entry in final_entries:
 					if entry.voucher_type == "Sales Invoice":
 						details = frappe.db.sql("""select name,posting_date,customer,base_total, base_grand_total,customer_address from `tabSales Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
@@ -254,12 +318,15 @@ class VATReturn(Document):
 		data.append((str(section),"Totals",totals_data["amount"],totals_data["vat_amount"],totals_data["adjustment"]))
 		return data,totals_data
 
-	def get_purchase_data(self):
+	def get_purchase_data(self,adjustments):
 	
 		filters = frappe._dict({})
 		filters['company'] = self.company
 		filters['to_date'] = self.end_date
 		filters['from_date'] = self.start_date
+		filters['voucher_type'] = "Purchase Invoice"
+		
+		
 		amount_data = {'vat_amount':0,'amount':0,'adjustment':0}
 		reverse_data = {'vat_amount':0,'amount':0,'adjustment':0}
 
@@ -274,15 +341,41 @@ class VATReturn(Document):
 		for d in account_list:
 			vat_type = d['mrp_vat_type']
 			account = d['account']
+			filters['account'] = account
 			
 			if not vat_type or not account:
 				continue
+			
+			if vat_type not in ["Standard Rated","Reverse Charge"]:
+				continue
 				
-			filters['account'] = account
+			
+			gl_entries = get_gl_entries(filters)
+			final_entries = []
+			for entry in gl_entries:
+				add = True
 				
+				if entry.voucher_no in adjustments["additions"]:
+					add = False
+				elif entry.voucher_no in adjustments["deductions"]:
+					add = False
+					
+				if add == True:
+					final_entries.append(entry)
+			
+			for d in adjustments["additions"]:
+				add_filters = frappe._dict({})
+				add_filters['company'] = self.company
+				add_filters['voucher_no'] = d
+				add_filters['account'] = account
+				add_filters['voucher_type'] = "Purchase Invoice"
+			
+				new_entries = get_gl_entries_for_name(add_filters)
+				for e in new_entries:
+					final_entries.append(e)
+			
 			if vat_type == "Standard Rated":
-				gl_entries = get_gl_entries(filters)
-				for entry in gl_entries:
+				for entry in final_entries:
 					if entry.voucher_type == "Purchase Invoice":
 						details = frappe.db.sql("""select name,title,posting_date,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
@@ -295,8 +388,7 @@ class VATReturn(Document):
 
 			
 			elif vat_type == "Reverse Charge":
-				gl_entries = get_gl_entries(filters)
-				for entry in gl_entries:
+				for entry in final_entries:
 					if entry.voucher_type == "Purchase Invoice":
 						details = frappe.db.sql("""select name,title,posting_date,base_total,base_grand_total, base_total_taxes_and_charges from `tabPurchase Invoice` where name = %s and company = %s""", (entry.voucher_no,self.company),as_dict = 1)
 						if len(details)>0:
@@ -329,15 +421,15 @@ class VATReturn(Document):
 		
 		net_vat = flt(sales_totals["vat_amount"]) - flt(purchase_totals["vat_amount"])
 		data = []
-		data.append(("12","Total value of due tax for the period",sales_totals["vat_amount"]))
-		data.append(("13","Total value of recoverable tax for the period",purchase_totals["vat_amount"]))
-		data.append(("14","Net VAT due(or reclaimed) for the period",net_vat))
+		data.append(("Total value of due tax for the period",sales_totals["vat_amount"]))
+		data.append(("Total value of recoverable tax for the period",purchase_totals["vat_amount"]))
+		data.append(("Net VAT due(or reclaimed) for the period",net_vat))
 		self.calculated_due = net_vat
 		if cint(self.request_for_refund):
 			request_for_refund = "Y"		 
 		else:
 			request_for_refund = "N"		 
-		data.append(("15","If a VAT refund is due, do you wish to request that the refund is paid to you?",str(request_for_refund)))
+		data.append(("If a VAT refund is due, do you wish to request that the refund is paid to you?",str(request_for_refund)))
 		
 		return data
 		
@@ -451,7 +543,7 @@ class VATReturn(Document):
 		
 		
 
-def create_condensed_table(header,columns,data,add_sr = False):
+def create_condensed_table(header,columns,data,add_sr = False, sr_start_index = 1):
 	
 	joiningtext = ""
 	if header:
@@ -464,7 +556,7 @@ def create_condensed_table(header,columns,data,add_sr = False):
 	joiningtext += """<thead>
 			<tr style>"""
 	
-	if add_sr:
+	if len(columns) > 0 and add_sr == True:
 		joiningtext += """<th>Sr</th>"""
 		
 	for table_column in columns:
@@ -472,9 +564,9 @@ def create_condensed_table(header,columns,data,add_sr = False):
 	
 	joiningtext += """</tr></thead><tbody>"""	
 	
-	for count, d in enumerate(data,1):
+	for count, d in enumerate(data,sr_start_index):
 		joiningtext += """<tr>"""
-		if add_sr:
+		if add_sr == True:
 			joiningtext += """<td>"""+str(count)+"""</td>"""		
 		if len(columns) > 0:
 			for i, column in enumerate(columns):
@@ -484,17 +576,23 @@ def create_condensed_table(header,columns,data,add_sr = False):
 				except IndexError:
 					gotdata = ""
 
-				if is_number_tryexcept(gotdata) and not i ==0:
+				if is_number_tryexcept(gotdata) and not i==0:
 					joiningtext += """<td>""" + str(fmt_money(flt(gotdata))) +"""</td>"""
 				else:
 					joiningtext += """<td>""" + str(gotdata) +"""</td>"""
 					
 		else:
-			for entry in d:
-				try:
-					joiningtext += """<td>""" + str(entry) +"""</td>"""
-				except:
-					joiningtext += """<td>""" + entry +"""</td>"""
+			for i, entry in enumerate(d):			
+				if is_number_tryexcept(entry) and not i==0:
+					joiningtext += """<td>""" + str(fmt_money(flt(entry))) +"""</td>"""
+				else:
+					try:
+						joiningtext += """<td>""" + str(entry) +"""</td>"""
+					except:
+						joiningtext += """<td>""" + entry +"""</td>"""
+
+			
+				
 					
 		joiningtext += """</tr>"""
 	joiningtext += """</tbody></table>"""
@@ -544,7 +642,6 @@ def validate_filters(filters, account_details):
 		
 		
 def get_gl_entries(filters, accounting_dimensions = None):
-	currency_map = get_currency(filters)
 	select_fields = """, debit, credit, debit_in_account_currency,
 		credit_in_account_currency """
 
@@ -589,10 +686,67 @@ def get_gl_entries(filters, accounting_dimensions = None):
 	)
 
 	if filters.get("presentation_currency"):
+		currency_map = get_currency(filters)
 		return convert_to_presentation_currency(gl_entries, currency_map, filters.get("company"))
 	else:
 		return gl_entries
 
+
+def get_gl_entries_for_name(filters, accounting_dimensions = None):
+	select_fields = """, debit, credit, debit_in_account_currency,
+		credit_in_account_currency """
+
+	order_by_statement = "order by posting_date, account, creation"
+
+	dimension_fields = ""
+	if accounting_dimensions:
+		dimension_fields = ", ".join(accounting_dimensions) + ","
+	
+	conditions = []
+	
+	if filters.get("account"):
+		filters.account = get_accounts_with_children(filters.get("account"))
+		conditions.append("account in %(account)s")
+		
+	if filters.get("voucher_no"):
+		conditions.append("voucher_no=%(voucher_no)s")
+		
+	if filters.get("voucher_nos"):
+		conditions.append("voucher_no in %(voucher_nos)s")
+
+	if filters.get("voucher_type"):
+		conditions.append("voucher_type=%(voucher_type)s")
+	
+
+	conditions_statement = "and {}".format(" and ".join(conditions)) if conditions else ""
+
+	gl_entries = frappe.db.sql(
+		"""
+		select
+			name as gl_entry, posting_date, account, party_type, party,
+			voucher_type, voucher_no, {dimension_fields}
+			cost_center, project,
+			against_voucher_type, against_voucher, account_currency,
+			remarks, against, is_opening, creation {select_fields}
+		from `tabGL Entry`
+		where company=%(company)s {conditions}
+		{order_by_statement}
+	""".format(
+			dimension_fields=dimension_fields,
+			select_fields=select_fields,
+			conditions=conditions_statement,
+			order_by_statement=order_by_statement,
+		),
+		filters,
+		as_dict=1,
+	)
+
+	if filters.get("presentation_currency"):
+		currency_map = get_currency(filters)
+
+		return convert_to_presentation_currency(gl_entries, currency_map, filters.get("company"))
+	else:
+		return gl_entries
 	
 def get_conditions(filters):
 	conditions = []
@@ -606,6 +760,9 @@ def get_conditions(filters):
 
 	if filters.get("voucher_no"):
 		conditions.append("voucher_no=%(voucher_no)s")
+
+	if filters.get("voucher_type"):
+		conditions.append("voucher_type=%(voucher_type)s")
 
 	if filters.get("group_by") == "Group by Party" and not filters.get("party_type"):
 		conditions.append("party_type in ('Customer', 'Supplier')")
