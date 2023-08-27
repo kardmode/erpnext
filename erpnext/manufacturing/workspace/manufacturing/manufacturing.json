@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"csBCiDglCE\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"xit0dg7KvY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"BOM\",\"col\":3}},{\"id\":\"bN_6tHS-Ct\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"yVEFZMqVwd\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"rwrmsTI58-\",\"type\":\"card\",\"data\":{\"card_name\":\"Production\",\"col\":4}},{\"id\":\"6dnsyX-siZ\",\"type\":\"card\",\"data\":{\"card_name\":\"Bill of Materials\",\"col\":4}},{\"id\":\"CIq-v5f5KC\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"8RRiQeYr0G\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"id\":\"Pu8z7-82rT\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
+ "content": "[{\"id\":\"csBCiDglCE\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"xit0dg7KvY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"BOM\",\"col\":3}},{\"id\":\"bN_6tHS-Ct\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"yVEFZMqVwd\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"rwrmsTI58-\",\"type\":\"card\",\"data\":{\"card_name\":\"Production\",\"col\":4}},{\"id\":\"6dnsyX-siZ\",\"type\":\"card\",\"data\":{\"card_name\":\"Bill of Materials\",\"col\":4}},{\"id\":\"CIq-v5f5KC\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"8RRiQeYr0G\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"id\":\"Pu8z7-82rT\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
  "creation": "2020-03-02 17:11:37.032604",
  "custom_blocks": [],
  "docstatus": 0,
@@ -342,7 +342,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-07-14 11:49:16.061353",
+ "modified": "2023-08-20 08:07:02.781157",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Manufacturing",

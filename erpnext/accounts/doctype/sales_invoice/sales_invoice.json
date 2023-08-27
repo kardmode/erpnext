@@ -2132,6 +2132,7 @@
    "read_only": 1
   },
   {
+   "default": "0",
    "depends_on": "allocate_advances_automatically",
    "description": "Advance payments allocated against orders will only be fetched",
    "fieldname": "only_include_allocated_payments",
@@ -2155,7 +2156,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2023-06-19 16:02:05.309332",
+ "modified": "2023-08-25 20:11:41.928741",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",

@@ -1,11 +1,12 @@
 {
+ "actions": [],
  "add_company_abbr_to_name": 1,
  "allow_import": 1,
  "autoname": "MIT-.PDY.#####",
  "beta": 1,
  "creation": "2019-03-01 00:56:04.199075",
  "doctype": "DocType",
- "document_type": "Users",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -68,8 +69,7 @@
    "fieldname": "reference_name",
    "fieldtype": "Dynamic Link",
    "label": "Reference Name",
-   "options": "transaction_type",
-   "read_only": 1
+   "options": "transaction_type"
   },
   {
    "allow_on_submit": 1,
@@ -222,10 +222,12 @@
   }
  ],
  "is_submittable": 1,
- "modified": "2020-07-07 19:54:29.203336",
+ "links": [],
+ "modified": "2023-08-27 09:50:32.620822",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Entry",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -269,5 +271,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "title"
 }

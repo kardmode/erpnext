@@ -252,18 +252,22 @@
    "type": "Link"
   }
  ],
- "modified": "2023-07-14 11:49:17.636725",
+ "modified": "2023-08-19 11:52:51.543504",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "ERPNext Integrations",
  "number_cards": [],
  "owner": "Administrator",
- "parent_page": "ERPNext Settings",
+ "parent_page": "",
  "public": 1,
  "quick_lists": [],
  "restrict_to_domain": "",
- "roles": [],
- "sequence_id": 21.0,
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 20.0,
  "shortcuts": [],
  "title": "ERPNext Integrations"
 }

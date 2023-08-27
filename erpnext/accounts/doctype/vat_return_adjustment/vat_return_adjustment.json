@@ -6,6 +6,7 @@
  "creation": "2023-07-30 09:32:54.452963",
  "default_view": "List",
  "doctype": "DocType",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -70,7 +71,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-07-30 12:21:03.281306",
+ "modified": "2023-08-20 04:43:02.251773",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "VAT Return Adjustment",
