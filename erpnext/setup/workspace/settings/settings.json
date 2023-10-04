@@ -6,13 +6,11 @@
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
- "hide_custom": 1,
+ "hide_custom": 0,
  "icon": "setting",
  "idx": 0,
  "is_hidden": 0,
- "kard_menu": [],
- "kard_theme_color": "#8fe3e3",
- "label": "ERPNext Settings",
+ "label": "Settings",
  "links": [
   {
    "dependencies": "",
@@ -439,10 +437,10 @@
    "type": "Link"
   }
  ],
- "modified": "2023-09-16 13:12:52.035965",
+ "modified": "2023-08-31 16:11:23.931633",
  "modified_by": "Administrator",
  "module": "Setup",
- "name": "ERPNext Settings",
+ "name": "Settings",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
@@ -498,5 +496,5 @@
    "type": "DocType"
   }
  ],
- "title": "ERPNext Settings"
+ "title": "Settings"
 }

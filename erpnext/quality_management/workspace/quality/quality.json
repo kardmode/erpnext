@@ -6,10 +6,11 @@
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
- "hide_custom": 0,
+ "hide_custom": 1,
  "icon": "quality",
  "idx": 0,
  "is_hidden": 0,
+ "kard_menu": [],
  "label": "Quality",
  "links": [
   {
@@ -144,7 +145,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-08-20 08:08:23.344716",
+ "modified": "2023-09-16 13:13:18.109536",
  "modified_by": "Administrator",
  "module": "Quality Management",
  "name": "Quality",

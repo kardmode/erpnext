@@ -1,20 +1,17 @@
 {
- "charts": [
-  {
-   "chart_name": "Project Summary",
-   "label": "Open Projects"
-  }
- ],
- "content": "[{\"id\":\"q_8LyzwzCi\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Open Projects\",\"col\":12}},{\"id\":\"tVu1zi3y0d\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"GI-ZUd0r-A\",\"type\":\"header\",\"data\":{\"text\":\"<span style=\\\"font-size: 18px;\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"EMVM0idnPv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Task\",\"col\":3}},{\"id\":\"6CnhVNFN4c\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project\",\"col\":3}},{\"id\":\"Pt8OOO2jMJ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"PudNjvEewK\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"01hMN8otn6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"UwVjj_rwVC\",\"type\":\"card\",\"data\":{\"card_name\":\"Projects\",\"col\":4}},{\"id\":\"--Qa7iWdeK\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
+ "charts": [],
+ "content": "[{\"id\":\"Mjt06Fix7O\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Project\",\"col\":12}},{\"id\":\"tVu1zi3y0d\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"GI-ZUd0r-A\",\"type\":\"header\",\"data\":{\"text\":\"<span style=\\\"font-size: 18px;\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"EMVM0idnPv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Task\",\"col\":3}},{\"id\":\"6CnhVNFN4c\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project\",\"col\":3}},{\"id\":\"Pt8OOO2jMJ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"PudNjvEewK\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"01hMN8otn6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"UwVjj_rwVC\",\"type\":\"card\",\"data\":{\"card_name\":\"Projects\",\"col\":4}},{\"id\":\"--Qa7iWdeK\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
  "creation": "2020-03-02 15:46:04.874669",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
- "hide_custom": 0,
+ "hide_custom": 1,
  "icon": "project",
  "idx": 0,
  "is_hidden": 0,
+ "kard_menu": [],
+ "kard_theme_color": "#4463F0",
  "label": "Projects",
  "links": [
   {
@@ -186,7 +183,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-08-20 08:08:11.671450",
+ "modified": "2023-09-27 08:08:43.500108",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Projects",
@@ -194,7 +191,13 @@
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
- "quick_lists": [],
+ "quick_lists": [
+  {
+   "document_type": "Project",
+   "label": "Project",
+   "quick_list_filter": "{\"status\":[\"=\",\"Open\"],\"modified\":[\"Timespan\",\"last month\"]}"
+  }
+ ],
  "restrict_to_domain": "",
  "roles": [],
  "sequence_id": 12.0,

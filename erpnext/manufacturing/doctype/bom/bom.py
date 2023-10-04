@@ -323,18 +323,13 @@ class BOM(WebsiteGenerator):
 			and item.include_item_in_manufacturing
 			or 0
 		)
-
 		args.update(item)
 		
 		conversion_factor = get_conversion_factor(args['item_code'], args.get('uom') or args.get('stock_uom')).get("conversion_factor") or 1.0
 		args['conversion_factor'] = conversion_factor
-		
-
 		rate = self.get_rm_rate(args)
 		stock_rate = rate / conversion_factor
-
 		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
-
 		best_warehouse,enough_stock = get_best_warehouse(args["item_code"],args.get("stock_qty") or args.get("qty") or 1,company = self.company)
 
 		ret_item = {
@@ -398,7 +393,7 @@ class BOM(WebsiteGenerator):
 								),
 								alert=True,
 							)
-						else:
+						elif not self.rm_cost_as_per == "Manual":
 							frappe.msgprint(
 								_("{0} not found for item {1}").format(self.rm_cost_as_per, arg["item_code"]), alert=True
 							)
@@ -433,32 +428,6 @@ class BOM(WebsiteGenerator):
 					d.uom = d.stock_uom
 					d.qty = d.stock_qty
 				
-			rate = self.get_rm_rate({
-				"company": self.company,
-				"item_code": d.item_code,
-				"bom_no": d.bom_no,
-				"qty": d.qty,
-				"uom": d.uom,
-				"stock_uom": d.stock_uom,
-				"conversion_factor": d.conversion_factor
-			})
-
-			if rate:
-				stock_rate = flt(rate)/flt(d.conversion_factor)
-				if not d.rate == rate or not d.stock_rate == stock_rate:
-					d.rate = rate
-					d.stock_rate = stock_rate
-					frappe.msgprint(_("{0}'s rate Updated Using {1}").format(d.item_code,self.rm_cost_as_per))
-
-			d.amount = flt(d.rate) * flt(d.qty)
-			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
-			d.base_amount = flt(d.amount) * flt(self.conversion_rate)
-			d.base_stock_rate = flt(d.stock_rate) * flt(self.conversion_rate)
-
-			if save:
-				d.db_update()
-
-
 		if self.docstatus == 1:
 			self.flags.ignore_validate_update_after_submit = True
 
@@ -839,18 +808,27 @@ class BOM(WebsiteGenerator):
 
 		for d in self.get("items"):
 			old_rate = d.rate
-			d.rate = self.get_rm_rate(
-				{
-					"company": self.company,
-					"item_code": d.item_code,
-					"bom_no": d.bom_no,
-					"qty": d.qty,
-					"uom": d.uom,
-					"stock_uom": d.stock_uom,
-					"conversion_factor": d.conversion_factor,
-					"sourced_by_supplier": d.sourced_by_supplier,
-				}
-			)
+			if self.rm_cost_as_per != "Manual" and d.mrp_rm_cost_as_per != "Manual":
+				d.rate = self.get_rm_rate(
+					{
+						"company": self.company,
+						"item_code": d.item_code,
+						"bom_no": d.bom_no,
+						"qty": d.qty,
+						"uom": d.uom,
+						"stock_uom": d.stock_uom,
+						"conversion_factor": d.conversion_factor,
+						"sourced_by_supplier": d.sourced_by_supplier,
+					}
+				)
+				
+				if d.rate:
+					d.stock_rate = flt(d.rate)/flt(d.conversion_factor)
+
+			else:
+				
+				if d.stock_rate:
+					d.rate = flt(d.stock_rate) * flt(d.conversion_factor)
 
 			d.base_rate = flt(d.rate) * flt(self.conversion_rate)
 			
@@ -859,6 +837,9 @@ class BOM(WebsiteGenerator):
 			d.qty_consumed_per_unit = flt(d.stock_qty, d.precision("stock_qty")) / flt(
 				self.quantity, self.precision("quantity")
 			)
+			
+			d.base_stock_rate = flt(d.stock_rate) * flt(self.conversion_rate)
+
 
 			total_rm_cost += d.amount
 			base_total_rm_cost += d.base_amount
@@ -1310,6 +1291,7 @@ class BOM(WebsiteGenerator):
 
 
 def get_bom_item_rate(args, bom_doc):
+	rate = 0
 	if bom_doc.rm_cost_as_per == "Valuation Rate":
 		rate = get_valuation_rate(args) * (args.get("conversion_factor") or 1)
 	elif bom_doc.rm_cost_as_per == "Last Purchase Rate":

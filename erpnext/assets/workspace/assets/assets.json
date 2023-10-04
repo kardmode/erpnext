@@ -1,15 +1,17 @@
 {
  "charts": [],
- "content": "[{\"id\":\"aN4J5JX6bH\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Qtfbu72MA-\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"HSdrePPCSE\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"id\":\"6dONiu_hh_\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset Category\",\"col\":3}},{\"id\":\"yuoBvxF_mb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fixed Asset Register\",\"col\":3}},{\"id\":\"ScsTYVxNE7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"F-ITuo7vF6\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"zSWH3PDAWa\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"hk2ZHUIx25\",\"type\":\"card\",\"data\":{\"card_name\":\"Assets\",\"col\":4}},{\"id\":\"tZaI0g66IQ\",\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":4}},{\"id\":\"D_fdAd2ACo\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
+ "content": "[{\"id\":\"Qtfbu72MA-\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"HSdrePPCSE\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"id\":\"6dONiu_hh_\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset Category\",\"col\":3}},{\"id\":\"yuoBvxF_mb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Fixed Asset Register\",\"col\":3}},{\"id\":\"ScsTYVxNE7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"F-ITuo7vF6\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"zSWH3PDAWa\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"hk2ZHUIx25\",\"type\":\"card\",\"data\":{\"card_name\":\"Assets\",\"col\":4}},{\"id\":\"tZaI0g66IQ\",\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":4}}]",
  "creation": "2020-03-02 15:43:27.634865",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
- "hide_custom": 0,
+ "hide_custom": 1,
  "icon": "assets",
  "idx": 0,
  "is_hidden": 0,
+ "kard_menu": [],
+ "kard_theme_color": "#449CF0",
  "label": "Assets",
  "links": [
   {
@@ -139,14 +141,6 @@
    "type": "Link"
   },
   {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Reports",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
    "dependencies": "Asset",
    "hidden": 0,
    "is_query_report": 1,
@@ -180,7 +174,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-08-20 08:06:11.934493",
+ "modified": "2023-09-27 04:39:12.929007",
  "modified_by": "Administrator",
  "module": "Assets",
  "name": "Assets",

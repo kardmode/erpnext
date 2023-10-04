@@ -6,10 +6,11 @@
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
- "hide_custom": 0,
+ "hide_custom": 1,
  "icon": "integration",
  "idx": 0,
  "is_hidden": 0,
+ "kard_menu": [],
  "label": "ERPNext Integrations",
  "links": [
   {
@@ -252,7 +253,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-08-19 11:52:51.543504",
+ "modified": "2023-09-16 13:13:21.396944",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "ERPNext Integrations",
