@@ -16,7 +16,6 @@ def set_print_templates_for_item_table(doc, settings):
 	if doc.meta.get_field("items"):
 		doc.meta.get_field("items").hide_in_print_layout = ["uom", "stock_uom","weight_uom"]
 
-
 	if settings.compact_item_print:
 		doc.child_print_templates["items"][
 			"item_name"

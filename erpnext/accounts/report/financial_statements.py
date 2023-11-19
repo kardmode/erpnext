@@ -335,12 +335,10 @@ def add_total_row(out, root_type, balance_must_be, period_list, company_currency
 			for period in period_list:
 				total_row.setdefault(period.key, 0.0)
 				total_row[period.key] += row.get(period.key, 0.0)
-				row[period.key] = row.get(period.key, 0.0)
 
 			total_row.setdefault("total", 0.0)
 			total_row["total"] += flt(row["total"])
 			total_row["opening_balance"] += row["opening_balance"]
-			row["total"] = ""
 
 	if "total" in total_row:
 		out.append(total_row)
@@ -563,9 +561,7 @@ def apply_additional_conditions(doctype, query, from_date, ignore_closing_entrie
 			company_fb = frappe.get_cached_value("Company", filters.company, "default_finance_book")
 
 			if filters.finance_book and company_fb and cstr(filters.finance_book) != cstr(company_fb):
-				frappe.throw(
-					_("To use a different finance book, please uncheck 'Include Default Book Entries'")
-				)
+				frappe.throw(_("To use a different finance book, please uncheck 'Include Default FB Entries'"))
 
 			query = query.where(
 				(gl_entry.finance_book.isin([cstr(filters.finance_book), cstr(company_fb), ""]))
@@ -639,7 +635,13 @@ def get_columns(periodicity, period_list, accumulated_values=1, company=None):
 	if periodicity != "Yearly":
 		if not accumulated_values:
 			columns.append(
-				{"fieldname": "total", "label": _("Total"), "fieldtype": "Currency", "width": 150}
+				{
+					"fieldname": "total",
+					"label": _("Total"),
+					"fieldtype": "Currency",
+					"width": 150,
+					"options": "currency",
+				}
 			)
 
 	return columns
