@@ -214,8 +214,12 @@ class AccountsController(TransactionBase):
 		if self.meta.get_field("currency") and self.meta.get_field("conversion_rate"):
 			live_exchange_rate = get_exchange_rate(self.currency, self.company_currency, transaction_date)
 			from math import isclose
-			if not isclose(live_exchange_rate, self.conversion_rate, abs_tol=2.5):
-				frappe.throw(_("The differenct between the exchange rate and the live exchange rate is greater than 2.5. Please check the value."))
+			if not live_exchange_rate == 0.0 and not isclose(live_exchange_rate, self.conversion_rate, abs_tol=2.5):
+				frappe.msgprint(
+					_(
+						"The differenct between the used exchange rate {0} and the live exchange rate {1} is greater than 2.5. Please check the value."
+					).format(self.conversion_rate,live_exchange_rate)
+				)
 		
 
 	def before_cancel(self):

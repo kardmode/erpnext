@@ -88,23 +88,44 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None, args=No
 
 		if not value:
 			import requests
-
 			settings = frappe.get_cached_doc("Currency Exchange Settings")
-			req_params = {
-				"transaction_date": transaction_date,
-				"from_currency": from_currency,
-				"to_currency": to_currency,
-			}
-			params = {}
-			for row in settings.req_params:
-				params[row.key] = format_ces_api(row.value, req_params)
-			response = requests.get(format_ces_api(settings.api_endpoint, req_params), params=params)
-			# expire in 6 hours
-			response.raise_for_status()
-			value = response.json()
-			for res_key in settings.result_key:
-				value = value[format_ces_api(str(res_key.key), req_params)]
-			cache.setex(name=key, time=21600, value=flt(value))
+
+			if "frankfurter" in settings.api_endpoint and to_currency.lower() == "aed":
+				req_params = {
+					"transaction_date": transaction_date,
+					"from_currency": from_currency,
+					"to_currency": "USD",
+				}
+				params = {}
+				for row in settings.req_params:
+					params[row.key] = format_ces_api(row.value, req_params)
+				response = requests.get(format_ces_api(settings.api_endpoint, req_params), params=params)
+
+				# expire in 6 hours
+				response.raise_for_status()
+				value = response.json()
+				for res_key in settings.result_key:
+					value = value[format_ces_api(str(res_key.key), req_params)]
+				value = value * 3.67
+				cache.setex(name=key, time=21600, value=flt(value))
+				
+			else:
+				req_params = {
+					"transaction_date": transaction_date,
+					"from_currency": from_currency,
+					"to_currency": to_currency,
+				}
+				params = {}
+				for row in settings.req_params:
+					params[row.key] = format_ces_api(row.value, req_params)
+				response = requests.get(format_ces_api(settings.api_endpoint, req_params), params=params)
+
+				# expire in 6 hours
+				response.raise_for_status()
+				value = response.json()
+				for res_key in settings.result_key:
+					value = value[format_ces_api(str(res_key.key), req_params)]
+				cache.setex(name=key, time=21600, value=flt(value))
 		return flt(value)
 	except Exception:
 		frappe.log_error("Unable to fetch exchange rate")

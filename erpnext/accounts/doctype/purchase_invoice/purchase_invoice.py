@@ -196,13 +196,13 @@ class PurchaseInvoice(BuyingController):
 				title=_("Invalid Account"),
 			)
 			
-		# if not self.currency == account.account_currency:
-			# frappe.throw(
-				# _(
-					# "Please ensure {} account {} has the same currency as the current document {}. Or create a new payable account with the same currency."
-				# ).format(frappe.bold("Credit To"), frappe.bold(self.credit_to),frappe.bold(self.currency)),
-				# title=_("Invalid Credit To Currency"),
-			# )
+		if not self.currency == account.account_currency:
+			frappe.throw(
+				_(
+					"Please ensure {} account {} has the same currency as the current document {}. Or create a new payable account with the same currency."
+				).format(frappe.bold("Credit To"), frappe.bold(self.credit_to),frappe.bold(self.currency)),
+				title=_("Invalid Credit To Currency"),
+			)
 
 		self.party_account_currency = account.account_currency
 
