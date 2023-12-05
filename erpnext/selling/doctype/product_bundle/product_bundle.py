@@ -86,6 +86,8 @@ class ProductBundle(Document):
 				frappe.throw(_("There is already a product bundle for this item and project").format(self.new_item_code,self.name,self.project))
 			
 
+		if frappe.db.get_value("Item", self.new_item_code, "is_fixed_asset"):
+			frappe.throw(_("Parent Item {0} must not be a Fixed Asset").format(self.new_item_code))
 
 	def validate_child_items(self):
 		total_qty = 0
@@ -94,7 +96,8 @@ class ProductBundle(Document):
 			item.amount = flt(item.rate) * flt(item.qty)
 			total += item.amount
 			total_qty += item.qty
-			if frappe.db.exists("Product Bundle", item.item_code):
+
+			if frappe.db.exists("Product Bundle", {"name": item.item_code, "disabled": 0}):
 				frappe.throw(
 					_(
 						"Row #{0}: Child Item should not be a Product Bundle. Please remove Item {1} and Save"
@@ -188,16 +191,24 @@ class ProductBundle(Document):
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_new_item_code(doctype, txt, searchfield, start, page_len, filters):
-	from erpnext.controllers.queries import get_match_cond	
-	return frappe.db.sql(
-		"""select name, item_name, description from tabItem
-		where is_stock_item=0 and name not in (select name from `tabProduct Bundle`)
-		and %s like %s %s limit %s offset %s"""
-		% (searchfield, "%s", get_match_cond(doctype), "%s", "%s"),
-		("%%%s%%" % txt, page_len, start),
+	product_bundles = frappe.db.get_list("Product Bundle", {"disabled": 0}, pluck="name")
+
+	item = frappe.qb.DocType("Item")
+	query = (
+		frappe.qb.from_(item)
+		.select(item.item_code, item.item_name)
+		.where(
+			(item.is_stock_item == 0) & (item.is_fixed_asset == 0) & (item[searchfield].like(f"%{txt}%"))
+		)
+		.limit(page_len)
+		.offset(start)
 	)
 
+	if product_bundles:
+		query = query.where(item.name.notin(product_bundles))
 
+	return query.run()
+	
 def has_product_bundle(item_code,project=None, item_row=None):
 	if item_row and item_row.get("product_bundle"):
 		return frappe.db.sql("""select name from `tabProduct Bundle`
