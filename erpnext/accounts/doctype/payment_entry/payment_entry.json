@@ -448,6 +448,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "bold": 1,
    "depends_on": "eval:(doc.paid_from && doc.paid_to)",
    "fieldname": "reference_date",
@@ -742,7 +743,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-06-19 11:38:04.387219",
+ "modified": "2023-11-24 23:25:29.529492",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Entry",
