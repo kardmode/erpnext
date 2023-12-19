@@ -237,11 +237,12 @@ class StatusUpdater(Document):
 					if hasattr(d, "item_code") and hasattr(d, "rate") and flt(d.rate) < 0:
 						frappe.throw(
 							_(
-								"For item {0}, rate must be a positive number. To Allow negative rates, enable {1} in {2}"
+								"For Doc {3} item {0}, rate must be a positive number. To Allow negative rates, enable {1} in {2}"
 							).format(
 								frappe.bold(d.item_code),
 								frappe.bold(_("`Allow Negative rates for Items`")),
 								get_link_to_form("Selling Settings", "Selling Settings"),
+								frappe.bold(self.name),
 							),
 						)
 

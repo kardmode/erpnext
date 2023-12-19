@@ -664,69 +664,6 @@ def make_inter_company_sales_order(source_name, target_doc=None):
 	return make_inter_company_transaction("Purchase Order", source_name, target_doc)
 	
 @frappe.whitelist()
-def auto_make_purchase_receipts(year = None,limit=500,submit=False):
-	if not year:
-		return None
-		
-	purchase_order_details = frappe.db.sql("""SELECT
-		t1.name,
-		t1.supplier,
-		t1.transaction_date,
-		t1.status
-	FROM
-		`tabPurchase Order` t1
-	WHERE
-		YEAR(t1.transaction_date) = %s AND
-		t1.docstatus = 1 AND
-		not exists(SELECT pr.name 
-			FROM `tabPurchase Receipt Item` pri, `tabPurchase Receipt` pr
-			WHERE
-				t1.name = pri.purchase_order AND
-				pri.parent = pr.name AND 
-				pr.docstatus = 1 
-			LIMIT 1)
-	ORDER BY
-		t1.transaction_date DESC
-	LIMIT
-		%s""", (year,cint(limit)), as_dict=True)
-			
-	prs_created = []
-	error_list = []
-	submit = cint(submit)
-	
-	for po_detail in purchase_order_details:
-		try:
-			if submit == 1:
-				po = frappe.get_doc("Purchase Order", po_detail.name)
-				po.update_status("Submitted")				
-				pr = make_purchase_receipt(po_detail.name)
-				pr.posting_date = po_detail.transaction_date
-				pr.insert()
-				pr.set_posting_time = 1
-				pr.posting_date = po_detail.transaction_date
-				pr.save()
-				pr.submit()
-				pr.update_status("Closed")	
-				po.update_status("Closed")
-				prs_created.append(po_detail.name)
-			else:
-				prs_created.append(_("PO {0} {1} {2}.").format(po_detail.name, po_detail.status, po_detail.transaction_date))
-
-		except Exception as error:
-			error_list.append(error)
-			break
-	
-	if len(error_list) > 0:
-		frappe.db.rollback()
-		return error_list
-	else:
-		frappe.db.commit()
-	
-	return prs_created
-
-
-
-@frappe.whitelist()
 def make_subcontracting_order(source_name, target_doc=None):
 	return get_mapped_subcontracting_order(source_name, target_doc)
 
@@ -788,3 +725,60 @@ def is_subcontracting_order_created(po_name) -> bool:
 		if frappe.db.exists("Subcontracting Order", {"purchase_order": po_name, "docstatus": ["=", 1]})
 		else False
 	)
+
+
+@frappe.whitelist()
+def mrp_auto_make_prs(year = None,limit=500,submit=False):
+	if not year:
+		return None
+		
+	purchase_order_details = frappe.db.sql("""SELECT
+		t1.name,
+		t1.supplier,
+		t1.transaction_date,
+		t1.status
+	FROM
+		`tabPurchase Order` t1
+	WHERE
+		YEAR(t1.transaction_date) = %s AND
+		t1.docstatus = 1 AND
+		not exists(SELECT pr.name 
+			FROM `tabPurchase Receipt Item` pri, `tabPurchase Receipt` pr
+			WHERE
+				t1.name = pri.purchase_order AND
+				pri.parent = pr.name AND 
+				pr.docstatus = 1 
+			LIMIT 1)
+	ORDER BY
+		t1.transaction_date ASC
+	LIMIT
+		%s""", (year,cint(limit)), as_dict=True)
+			
+	prs_created = []
+	error_list = []
+	submit = cint(submit)
+	
+	for po_detail in purchase_order_details:
+		try:
+			if submit == 1:
+				po = frappe.get_doc("Purchase Order", po_detail.name)
+				po.update_status("Submitted")				
+				pr = make_purchase_receipt(po_detail.name)
+				pr.posting_date = po_detail.transaction_date
+				pr.insert()
+				pr.set_posting_time = 1
+				pr.posting_date = po_detail.transaction_date
+				pr.save()
+				pr.submit()
+				pr.update_status("Closed")	
+				po.update_status("Closed")
+				prs_created.append(po_detail.name)
+			else:
+				prs_created.append(_("PO {0} {1} {2}.").format(po_detail.name, po_detail.status, po_detail.transaction_date))
+
+		except Exception as error:
+			error_list.append(error)
+	
+	frappe.db.commit()
+	
+	return prs_created

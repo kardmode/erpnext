@@ -158,7 +158,9 @@ class StockBalanceReport(object):
 		)
 		
 		# mrp
-		item_warehouse_map = filter_items_with_custom_filters(self.filters,item_warehouse_map)
+		item_warehouse_map = filter_items_with_custom_filters(
+			item_warehouse_map, self.filters, self.inventory_dimensions
+		)
 
 
 		return item_warehouse_map
@@ -629,31 +631,42 @@ def get_variants_attributes() -> List[str]:
 	"""Return all item variant attributes."""
 	return frappe.get_all("Item Attribute", pluck="name")
 
-def filter_items_with_custom_filters(filters,iwb_map):
-	for (company, item, warehouse) in sorted(iwb_map):
-		qty_dict = iwb_map[(company, item, warehouse)]
+def filter_items_with_custom_filters(iwb_map,filters,inventory_dimensions):
+	pop_keys = []
+	for group_by_key in iwb_map:
+		qty_dict = iwb_map[group_by_key]
+		no_transactions = False
+		warehouse = group_by_key[2]
 		
 		if filters.get("hide_disabled") == 1:
 			warehouse_details = frappe.db.get_value("Warehouse", warehouse , ["disabled"], as_dict=1)
 			if warehouse_details:
 				if warehouse_details.disabled == True:
-					iwb_map.pop((company, item, warehouse))
-					continue
+					no_transactions = True
 		
-		if filters.get("hide_positive_qty") == 1:
-			if qty_dict.bal_qty > 0:
-				iwb_map.pop((company, item, warehouse))
+		for key, val in qty_dict.items():
+			if inventory_dimensions and key in inventory_dimensions:
 				continue
-				
-		if filters.get("hide_negative_qty") == 1:
-			if qty_dict.bal_qty < 0:
-				iwb_map.pop((company, item, warehouse))
-				continue
-				
-		if filters.get("hide_zero_qty") == 1:
-			if qty_dict.bal_qty == 0:
-				iwb_map.pop((company, item, warehouse))
-				continue
+			
+			if filters.get("hide_positive_qty") == 1:
+				if qty_dict.bal_qty > 0:
+					no_transactions = True
+					
+			if filters.get("hide_negative_qty") == 1:
+				if qty_dict.bal_qty < 0:
+					no_transactions = True
+					
+			if filters.get("hide_zero_qty") == 1:
+				if qty_dict.bal_qty == 0:
+					no_transactions = True
 
+			
+
+		if no_transactions:
+			pop_keys.append(group_by_key)
+
+	for key in pop_keys:
+		iwb_map.pop(key)
+		
 	return iwb_map
 

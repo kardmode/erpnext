@@ -40,25 +40,6 @@ frappe.ui.form.on("Purchase Order", {
 			}
 		});
 	},
-
-	refresh: function(frm) {
-		/* if(frm.doc.docstatus === 1 && frm.doc.status !== 'Closed'
-			&& flt(frm.doc.per_received) < 100 && flt(frm.doc.per_billed) < 100) {
-			frm.add_custom_button(__('Update Items'), () => {
-				erpnext.utils.update_child_items({
-					frm: frm,
-					child_docname: "items",
-					child_doctype: "Purchase Order Detail",
-					cannot_add_row: false,
-				})
-			});
-		} */
-		
-		
-		frm.add_custom_button(__('Make OLD PR'), () => {
-			frm.trigger("auto_make_purchase_receipts");
-		});
-	},
 	
 	schedule_date: function(frm) {
 		for (var i in frm.doc.items) {
@@ -75,7 +56,7 @@ frappe.ui.form.on("Purchase Order", {
 	auto_make_purchase_receipts: function(){
 		var me = this;
 		var d = new frappe.ui.Dialog({
-			title: __('Auto Make Purchase Receipts For Old POs'),
+			title: __('Auto Make Purchase Receipts For POs'),
 			fields: [
 				{
 					fieldname: "year",
@@ -103,7 +84,7 @@ frappe.ui.form.on("Purchase Order", {
 			var data = d.get_values();
 			if(!data) return;
 			frappe.call({
-				method: "erpnext.buying.doctype.purchase_order.purchase_order.auto_make_purchase_receipts",
+				method: "erpnext.buying.doctype.purchase_order.purchase_order.mrp_auto_make_prs",
 				args: {
 					year: data.year,
 					limit: data.limit,
@@ -135,6 +116,24 @@ frappe.ui.form.on("Purchase Order", {
 				}
 			});
 		}
+		
+		/* if(frm.doc.docstatus === 1 && frm.doc.status !== 'Closed'
+			&& flt(frm.doc.per_received) < 100 && flt(frm.doc.per_billed) < 100) {
+			frm.add_custom_button(__('Update Items'), () => {
+				erpnext.utils.update_child_items({
+					frm: frm,
+					child_docname: "items",
+					child_doctype: "Purchase Order Detail",
+					cannot_add_row: false,
+				})
+			});
+		} */
+		
+		/* frm.add_custom_button(__('Make OLD PRs'), () => {
+			frm.trigger("auto_make_purchase_receipts");
+		}, __("Tools")); */
+		
+		
 	},
 
 	get_materials_from_supplier: function(frm) {

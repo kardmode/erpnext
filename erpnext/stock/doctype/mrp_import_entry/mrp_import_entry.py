@@ -157,8 +157,14 @@ class MRPImportEntry(Document):
 	
 	def validate_items(self,submit = False):
 		self.total = 0
+		items = self.get("items")
+		length = len(items) or 0
+		equal_share = 0
 		
-		for d in self.get("items"):
+		if length > 0:
+			equal_share = self.extra_landed_costs / length
+		
+		for d in items:
 		
 			d.stock_qty = math.fabs(flt(d.stock_qty))
 			
@@ -199,10 +205,21 @@ class MRPImportEntry(Document):
 				
 			d.amount = d.rate * d.qty
 			
+			d.landed_rate = d.base_rate + (equal_share / d.qty)
+			
 			self.total = self.total + d.amount
+			
+			
+			
+			
 		
-		self.grand_total = self.total
-		self.in_words = money_in_words(self.grand_total)
+		self.base_total = self.total * self.customs_exchange_rate
+		
+		self.grand_total = self.total 
+		
+		self.base_grand_total = self.grand_total * self.customs_exchange_rate
+
+		self.in_words = money_in_words(self.grand_total,self.currency)
 		
 		
 	def validate_duplicate_items(self,submit = False):
@@ -320,14 +337,14 @@ class MRPImportEntry(Document):
 		if purpose == "Purchase Receipt":
 			self.customs_entry_total = data["customs_entry_total"]
 			doc_items = frappe.db.sql("""
-					select t1.currency, t1.grand_total, t2.item_code,t2.qty,t2.uom,t2.base_rate, t2.rate,t2.amount, t2.stock_qty,t2.stock_uom, t2.item_name, t2.conversion_factor
+					select t1.currency,t1.conversion_rate, t1.grand_total, t2.item_code,t2.qty,t2.uom,t2.base_rate, t2.rate,t2.amount, t2.stock_qty,t2.stock_uom, t2.item_name, t2.conversion_factor
 					from `tabPurchase Receipt` t1,`tabPurchase Receipt Item` t2
 					where
 					t1.name = %s and t2.parent =  t1.name
 					""", (document), as_dict=True)
 		elif purpose == "Delivery Note":
 			doc_items = frappe.db.sql("""
-					select t2.item_code,t2.qty,t2.uom,t2.base_rate, t2.rate,t2.amount, t2.stock_qty,t2.stock_uom, t2.item_name, t2.conversion_factor
+					select t1.currency,t1.conversion_rate, t2.item_code,t2.qty,t2.uom,t2.base_rate, t2.rate,t2.amount, t2.stock_qty,t2.stock_uom, t2.item_name, t2.conversion_factor
 					from `tabDelivery Note` t1,`tabDelivery Note Item` t2
 					where
 					t1.name = %s and t2.parent =  t1.name
@@ -456,6 +473,12 @@ class MRPImportEntry(Document):
 				newd.import_bill = data["import_bill"]
 				newd.available_qty = get_total_qty_for_item(newd.import_bill,newd.item_code,d.item_alt,self.posting_date,self.posting_time)
 				newd.balance_qty = flt(newd.available_qty) + flt(newd.stock_qty)
+			
+			if d.get("currency"):
+				self.currency = d.currency
+			
+			if d.get("conversion_rate"):
+				self.conversion_rate = d.conversion_rate
 	
 	@frappe.whitelist()					
 	def set_import_bill_for(self,purpose,data=None):
@@ -542,8 +565,8 @@ def merge_items(dicts):
 def update_import_entry(stock_entry, method):
 	if stock_entry.doctype in ["Delivery Note","Purchase Receipt","MRP Production Order"]:
 		import_entries = frappe.get_list("MRP Import Entry", fields=("name"), filters={"transaction_type": stock_entry.doctype, "reference_name":stock_entry.name, "docstatus": 1})
-		if import_entries:
-			frappe.throw(_("{0} - {1} has a linked and submitted MRP Import Entry.").format(stock_entry.doctype,stock_entry.name))
+		# if import_entries:
+			# frappe.throw(_("{0} - {1} has a linked and submitted MRP Import Entry.").format(stock_entry.doctype,stock_entry.name))
 
 @frappe.whitelist()					
 def get_item_det(item_code,uom=None,item_alt=None,company=None,posting_date=None,posting_time=None):

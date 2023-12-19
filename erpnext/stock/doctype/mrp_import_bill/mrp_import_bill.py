@@ -369,6 +369,7 @@ def import_bill_query(doctype, txt, searchfield, start, page_len, filters):
 @frappe.whitelist()
 def get_item_rate_in_bill(import_bill,item_code,item_alt=None,uom = None, posting_date=None,posting_time=None):
 	rates = []
+	landed_rates = []
 	stock_details = []
 	
 	if not posting_date:
@@ -384,7 +385,7 @@ def get_item_rate_in_bill(import_bill,item_code,item_alt=None,uom = None, postin
 					t1.reference_number, t1.reference_date,
 					t2.item_alt, t2.stock_qty, t2.stock_uom,
 					t2.conversion_factor, t2.rate,
-					t2.customs_exit_rate
+					t2.customs_exit_rate, t2.landed_rate
 					from `tabMRP Import Entry` t1,`tabMRP Import Entry Item` t2
 					where t2.import_bill = %s and t2.item_code = %s and t2.stock_qty <> 0 
 					and t1.name = t2.parent and t1.docstatus = 1
@@ -406,29 +407,48 @@ def get_item_rate_in_bill(import_bill,item_code,item_alt=None,uom = None, postin
 					continue			
 			
 			rate_dict = {}
+			landed_rate_dict = {}
+			landed_rate = flt(item.landed_rate)
 			
-			stock_rate = flt(item.customs_exit_rate) * flt(item.conversion_factor)			
-
+			if landed_rate == None or landed_rate == 0.0:
+				landed_rate = flt(item.rate)
+			
+			customs_stock_rate = flt(item.customs_exit_rate) * flt(item.conversion_factor)			
+			landed_stock_rate = flt(landed_rate) * flt(item.conversion_factor)			
+			
 			if uom == None:
-				rate_dict["rate"] = stock_rate
+				rate_dict["rate"] = customs_stock_rate
+				landed_rate_dict["rate"] = landed_stock_rate
 			else:
 				conversion_factor = get_conversion_factor(item_code,uom).get("conversion_factor") or 1
-				rate_dict["rate"] = (flt(stock_rate) / flt(conversion_factor))
+				rate_dict["rate"] = (flt(customs_stock_rate) / flt(conversion_factor))
+				landed_rate_dict["rate"] = (flt(landed_stock_rate) / flt(conversion_factor))
 				
 			rates.append(rate_dict)
+			landed_rates.append(landed_rate_dict)
 	
 	else:
 		rates.append({'rate':0})
+		landed_rates.append({'rate':0})
 	
 	rate_summary = ''
+	landed_rate_summary = ''
+
 	for r in rates:
 		rate_text = str(r['rate'])
 		if rate_summary == '':
 			rate_summary = rate_text
 		else:
 			rate_summary = rate_summary + ', ' + rate_text
-		
-	return rates,rate_summary
+			
+	for r in landed_rates:
+		rate_text = str(r['rate'])
+		if landed_rate_summary == '':
+			landed_rate_summary = rate_text
+		else:
+			landed_rate_summary = landed_rate_summary + ', ' + rate_text
+	
+	return {'customs_rate':rates,'customs_rate_summary':rate_summary,'landed_rate':landed_rates,'landed_rate_summary':landed_rate_summary}
 
 def validate_ref_doc(transaction_type,reference_name):
 	if transaction_type in ["Purchase Receipt","Delivery Note","MRP Production Order"]:

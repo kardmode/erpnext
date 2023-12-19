@@ -34,16 +34,22 @@ def execute(filters=None):
 			item_group = d.item_group
 			for key in items:
 				item = items[key]
-				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+				item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"])
 				
-				row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+				customs_rate_summary = item_rates_dict['customs_rate_summary']
+				landed_rate_summary = item_rates_dict['landed_rate_summary']
+				
+				row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 				data.append(row)
 				
 				for key in item.item_alts:
 					item_alt = item.item_alts[key]
-					item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
+					item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
 					
-					row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+					customs_rate_summary = item_rates_dict['customs_rate_summary']
+					landed_rate_summary = item_rates_dict['landed_rate_summary']
+					
+					row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 					data.append(row)
 		
 	elif filters.get("item_code") and filters.get("import_bill"):
@@ -55,16 +61,22 @@ def execute(filters=None):
 				item = items[key]
 				
 				item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+				item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"])
 				
-				row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+				customs_rate_summary = item_rates_dict['customs_rate_summary']
+				landed_rate_summary = item_rates_dict['landed_rate_summary']
+				
+				row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 				data.append(row)
 				
 				for key in item.item_alts:
 					item_alt = item.item_alts[key]
-					item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
+					item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
 
-					row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+					customs_rate_summary = item_rates_dict['customs_rate_summary']
+					landed_rate_summary = item_rates_dict['landed_rate_summary']
+
+					row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 					data.append(row)
 			
 			
@@ -76,15 +88,22 @@ def execute(filters=None):
 			item = items[key]
 			
 			item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-			item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
-			row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+			item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+			
+			customs_rate_summary = item_rates_dict['customs_rate_summary']
+			landed_rate_summary = item_rates_dict['landed_rate_summary']
+			
+			row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 			data.append(row)
 			
 			for key in item.item_alts:
 				item_alt = item.item_alts[key]
-				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])	
+				item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])	
 
-				row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+				customs_rate_summary = item_rates_dict['customs_rate_summary']
+				landed_rate_summary = item_rates_dict['landed_rate_summary']
+
+				row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 				data.append(row)
 			
 			
@@ -96,16 +115,22 @@ def execute(filters=None):
 			item = items[key]
 			
 			item_group = frappe.db.get_value('Item', {'item_code': item["item_code"]},'item_group')
-			item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"])
+			item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"])
 			
-			row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,item_rate]
+			customs_rate_summary = item_rates_dict['customs_rate_summary']
+			landed_rate_summary = item_rates_dict['landed_rate_summary']
+			
+			row = [item["item_code"],item["item_name"],item["import_bill"],item["stock_uom"],item["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 			data.append(row)
 			
 			for key in item.item_alts:
 				item_alt = item.item_alts[key]
-				item_rates,item_rate = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
-	
-				row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,item_rate]
+				item_rates_dict = get_item_rate_in_bill(item["import_bill"],item["item_code"],item_alt["item_code"])					
+
+				customs_rate_summary = item_rates_dict['customs_rate_summary']
+				landed_rate_summary = item_rates_dict['landed_rate_summary']
+				
+				row = [item["item_code"],item_alt["item_code"],item["import_bill"],item["stock_uom"],item_alt["stock_qty"],item_group,customs_rate_summary,landed_rate_summary]
 				data.append(row)
 
 	
@@ -121,11 +146,12 @@ def get_columns():
 	columns = [
 		_("Item Code")+":Link/Item:200",
 		_("Item Entry Name")+"::200",
-		_("Import Bill")+":Link/MRP Import Bill:200",
+		_("Import Bill")+":Link/MRP Import Bill:100",
 		_("Stock UOM")+":Link/UOM:80",
-		_("Balance Qty")+":Float:150",
+		_("Balance Qty")+":Float:100",
 		_("Item Group")+":Link/Item Group:120",
-		_("Entry Info")+"::140",
+		_("Customs Rates")+"::120",
+		_("Landed Rates")+"::120",
 	]
 
 	return columns

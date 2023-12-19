@@ -14,16 +14,17 @@
   "qty",
   "column_break_6",
   "uom",
+  "landed_rate",
   "customs_exit_rate",
   "import_bill",
   "section_break_txfai",
   "stock_qty",
   "rate",
+  "amount",
   "column_break_dvniq",
   "stock_uom",
   "base_rate",
   "conversion_factor",
-  "amount",
   "section_break_13",
   "available_qty",
   "balance_qty"
@@ -72,7 +73,6 @@
    "columns": 1,
    "fieldname": "available_qty",
    "fieldtype": "Float",
-   "in_list_view": 1,
    "label": "Available Qty Before Transaction",
    "read_only": 1
   },
@@ -81,7 +81,6 @@
    "columns": 1,
    "fieldname": "balance_qty",
    "fieldtype": "Float",
-   "in_list_view": 1,
    "label": "Balance Qty After Transaction",
    "read_only": 1
   },
@@ -89,8 +88,11 @@
    "columns": 1,
    "fieldname": "rate",
    "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Rate",
-   "read_only": 1
+   "options": "currency",
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "columns": 1,
@@ -144,6 +146,7 @@
    "fieldname": "amount",
    "fieldtype": "Currency",
    "label": "Amount",
+   "options": "currency",
    "read_only": 1
   },
   {
@@ -170,11 +173,18 @@
   {
    "fieldname": "column_break_dvniq",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "landed_rate",
+   "fieldtype": "Currency",
+   "label": "Landed Rate",
+   "options": "Company:company:default_currency",
+   "read_only": 1
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2023-12-05 08:27:16.266989",
+ "modified": "2023-12-11 23:46:36.143989",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Entry Item",

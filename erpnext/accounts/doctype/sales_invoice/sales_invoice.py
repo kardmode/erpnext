@@ -844,7 +844,7 @@ class SalesInvoice(SellingController):
 			)
 			if not res:
 				pass
-				throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
+				# throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
 	def validate_pos(self):
 		if self.is_return:

@@ -22,14 +22,19 @@
   "reference_number",
   "reference_date",
   "section_break_9",
+  "currency",
   "customs_entry_total",
+  "extra_landed_costs",
   "column_break_11",
+  "conversion_rate",
   "customs_exchange_rate",
   "t_bill",
   "section_break_7",
   "items",
   "section_break_11",
   "total_transaction_qty",
+  "base_total",
+  "base_grand_total",
   "column_break_13",
   "total_balance_qty",
   "total",
@@ -67,7 +72,7 @@
   },
   {
    "fieldname": "reference_name",
-   "fieldtype": "Dynamic Link",
+   "fieldtype": "Data",
    "label": "Reference Name",
    "options": "transaction_type"
   },
@@ -165,12 +170,14 @@
    "fieldname": "total",
    "fieldtype": "Currency",
    "label": "Total",
+   "options": "currency",
    "read_only": 1
   },
   {
    "fieldname": "grand_total",
    "fieldtype": "Currency",
    "label": "Grand Total",
+   "options": "currency",
    "read_only": 1
   },
   {
@@ -219,11 +226,47 @@
    "fieldtype": "Long Text",
    "label": "Summary",
    "read_only": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "base_grand_total",
+   "fieldtype": "Currency",
+   "label": "Base Grand Total",
+   "options": "Company:company:default_currency",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.transaction_type == \"Purchase Receipt\";",
+   "fieldname": "extra_landed_costs",
+   "fieldtype": "Currency",
+   "label": "Extra Landed Costs",
+   "options": "Company:company:default_currency"
+  },
+  {
+   "default": "1",
+   "fieldname": "conversion_rate",
+   "fieldtype": "Currency",
+   "label": "Reference Exchange Rate",
+   "options": "Company:company:default_currency",
+   "precision": "5",
+   "read_only": 1
+  },
+  {
+   "fieldname": "base_total",
+   "fieldtype": "Currency",
+   "label": "Base Total",
+   "options": "Company:company:default_currency",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-08-27 09:50:32.620822",
+ "modified": "2023-12-10 05:09:19.748521",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Entry",

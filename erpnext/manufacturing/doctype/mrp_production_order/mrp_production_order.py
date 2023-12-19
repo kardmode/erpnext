@@ -42,30 +42,30 @@ class MRPProductionOrder(Document):
 			if doc_details:
 				frappe.throw(_("Production Order for {0} already exists. {1}").format(self.reference_name,get_link_to_form("MRP Production Order",doc_details[0].name)))
 
-	def on_update(self):
-		if self.workflow_state == "In Progress":
-			self.get_summary(submit = True)
-			# self.make_stock_entries()
-		elif self.workflow_state == "Completed":
-			pass
-		elif self.workflow_state in ["Draft"]:
-			self.delete_entries(True,True)
+	# def on_update(self):
+		# if self.workflow_state == "In Progress":
+			# self.get_summary(submit = True)
+			# # self.make_stock_entries()
+		# elif self.workflow_state == "Completed":
+			# pass
+		# elif self.workflow_state in ["Draft"]:
+			# self.delete_entries(True,True)
 			
 	def on_submit(self):
 		self.validate_duplicate_doc()
 		self.validate_items()
 		self.make_stock_entries(submit=True)
-		# self.submit_stock_entries()
 	
 	def on_cancel(self):
-		self.delete_entries(True,True)
+		self.ignore_linked_doctypes = ["Stock Entry"]
         
 	def on_update_after_submit(self):
 		pass
 		
 	def on_trash(self):
-		if not self.workflow_state in ["Draft","Cancelled"]:
-			frappe.throw(_("Cannot Delete Non Drafts"))
+		self.delete_entries(True,True)
+		# if not self.workflow_state in ["Draft","Cancelled"]:
+			# frappe.throw(_("Cannot Delete Non Drafts"))
 			
 
 	@frappe.whitelist()					

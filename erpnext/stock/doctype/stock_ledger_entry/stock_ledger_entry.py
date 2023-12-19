@@ -73,7 +73,8 @@ class StockLedgerEntry(Document):
 				"company": self.company,
 			}
 		)
-
+		frappe.msgprint(kwargs)
+		frappe.msgprint(extra_cond)
 		sle = get_previous_sle(kwargs, extra_cond=extra_cond)
 		if sle:
 			flt_precision = cint(frappe.db.get_default("float_precision")) or 2

@@ -250,6 +250,13 @@ class GLEntry(Document):
 		)
 
 		if company != self.company:
+			
+			# cost_center = frappe.get_cached_value(
+				# "Company", self.company, "cost_center"
+			# )
+			# if cost_center:
+				# self.cost_center = cost_center
+			# else:
 			frappe.throw(
 				_("{0} {1}: Cost Center {2} does not belong to Company {3}, Account {4}").format(
 					self.voucher_type, self.voucher_no, self.cost_center, self.company,self.account

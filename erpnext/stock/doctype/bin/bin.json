@@ -179,7 +179,7 @@
  "idx": 1,
  "in_create": 1,
  "links": [],
- "modified": "2023-11-01 15:35:51.722534",
+ "modified": "2023-12-09 15:49:29.669743",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Bin",
@@ -206,6 +206,18 @@
    "read": 1,
    "report": 1,
    "role": "Stock User"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
   }
  ],
  "quick_entry": 1,
