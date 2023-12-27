@@ -72,9 +72,8 @@
   },
   {
    "fieldname": "reference_name",
-   "fieldtype": "Dynamic Link",
-   "label": "Reference Name",
-   "options": "transaction_type"
+   "fieldtype": "Data",
+   "label": "Reference Name"
   },
   {
    "allow_on_submit": 1,
@@ -256,14 +255,15 @@
   },
   {
    "fieldname": "base_total",
-   "fieldtype": "Data",
+   "fieldtype": "Currency",
    "label": "Base Total",
+   "options": "Company:company:default_currency",
    "read_only": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-12-20 02:11:10.239564",
+ "modified": "2023-12-20 14:57:06.892480",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Import Entry",

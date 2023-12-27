@@ -44,17 +44,14 @@ class TransactionDeletionRecord(Document):
 		self.mrp_recalculate_bin_qty()
 	
 	@frappe.whitelist()
-	def mrp_test(self):
-		
-		if self.custom_mrp_debug_only:
-			self.delete_company_transactions()
-		else:
-			self.delete_bins()
-			self.delete_lead_addresses()
-			self.reset_company_values()
-			clear_notifications()
-			self.delete_company_transactions()
-			self.mrp_recalculate_bin_qty()
+	def mrp_run(self):
+		self.delete_bins()
+		self.delete_lead_addresses()
+		self.reset_company_values()
+		clear_notifications()
+		self.delete_company_transactions()
+		self.mrp_recalculate_bin_qty()
+			
 	
 	@frappe.whitelist()		
 	def second_step(self):
@@ -64,12 +61,36 @@ class TransactionDeletionRecord(Document):
 
 	@frappe.whitelist()
 	def mrp_recalculate_bin_qty(self):
-		reference_docs = frappe.get_all(
-			"Item", filters={}
-		)
-		
-		for r in reference_docs:
-			recalculate_bin_qty(r.name)
+		if not self.custom_mrp_debug_only:
+			# self.delete_bins()
+			
+			items = frappe.get_all(
+				"Item", filters={}
+			)
+			
+			from erpnext.stock.stock_balance import repost_stock
+			existing_allow_negative_stock = frappe.db.get_value(
+				"Stock Settings", None, "allow_negative_stock"
+			)
+			frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+			
+			for r in items:
+				new_name = r.name
+				
+				repost_stock_for_warehouses = frappe.get_all(
+					"Stock Ledger Entry",
+					"warehouse",
+					filters={"item_code": new_name,"company":self.company},
+					pluck="warehouse",
+					distinct=True,
+				)
+
+				for warehouse in repost_stock_for_warehouses:
+					repost_stock(new_name, warehouse)
+
+			frappe.db.set_single_value(
+				"Stock Settings", "allow_negative_stock", existing_allow_negative_stock
+			)
 	
 	
 	def populate_doctypes_to_be_ignored_table(self):
@@ -79,60 +100,63 @@ class TransactionDeletionRecord(Document):
 
 	@frappe.whitelist()
 	def delete_bins(self):
-		frappe.db.sql(
-			"""delete from `tabBin` where warehouse in
-				(select name from tabWarehouse where company=%s)""",
-			self.company,
-		)
-	
-		frappe.db.sql(
-			"""delete from `tabRepost Item Valuation` where company=%s""",
-			self.company,
-		)
-
-	def delete_lead_addresses(self):
-		"""Delete addresses to which leads are linked"""
-		leads = frappe.get_all("Lead", filters={"company": self.company})
-		leads = ["'%s'" % row.get("name") for row in leads]
-		addresses = []
-		if leads:
-			addresses = frappe.db.sql_list(
-				"""select parent from `tabDynamic Link` where link_name
-				in ({leads})""".format(
-					leads=",".join(leads)
-				)
+		if not self.custom_mrp_debug_only:
+			frappe.db.sql(
+				"""delete from `tabBin` where warehouse in
+					(select name from tabWarehouse where company=%s)""",
+				self.company,
+			)
+		
+			frappe.db.sql(
+				"""delete from `tabRepost Item Valuation` where company=%s""",
+				self.company,
 			)
 
-			if addresses:
-				addresses = ["%s" % frappe.db.escape(addr) for addr in addresses]
-
-				frappe.db.sql(
-					"""delete from `tabAddress` where name in ({addresses}) and
-					name not in (select distinct dl1.parent from `tabDynamic Link` dl1
-					inner join `tabDynamic Link` dl2 on dl1.parent=dl2.parent
-					and dl1.link_doctype<>dl2.link_doctype)""".format(
-						addresses=",".join(addresses)
-					)
-				)
-
-				frappe.db.sql(
-					"""delete from `tabDynamic Link` where link_doctype='Lead'
-					and parenttype='Address' and link_name in ({leads})""".format(
+	def delete_lead_addresses(self):
+		if not self.custom_mrp_debug_only:
+			"""Delete addresses to which leads are linked"""
+			leads = frappe.get_all("Lead", filters={"company": self.company})
+			leads = ["'%s'" % row.get("name") for row in leads]
+			addresses = []
+			if leads:
+				addresses = frappe.db.sql_list(
+					"""select parent from `tabDynamic Link` where link_name
+					in ({leads})""".format(
 						leads=",".join(leads)
 					)
 				)
 
-			frappe.db.sql(
-				"""update `tabCustomer` set lead_name=NULL where lead_name in ({leads})""".format(
-					leads=",".join(leads)
+				if addresses:
+					addresses = ["%s" % frappe.db.escape(addr) for addr in addresses]
+
+					frappe.db.sql(
+						"""delete from `tabAddress` where name in ({addresses}) and
+						name not in (select distinct dl1.parent from `tabDynamic Link` dl1
+						inner join `tabDynamic Link` dl2 on dl1.parent=dl2.parent
+						and dl1.link_doctype<>dl2.link_doctype)""".format(
+							addresses=",".join(addresses)
+						)
+					)
+
+					frappe.db.sql(
+						"""delete from `tabDynamic Link` where link_doctype='Lead'
+						and parenttype='Address' and link_name in ({leads})""".format(
+							leads=",".join(leads)
+						)
+					)
+
+				frappe.db.sql(
+					"""update `tabCustomer` set lead_name=NULL where lead_name in ({leads})""".format(
+						leads=",".join(leads)
+					)
 				)
-			)
 
 	def reset_company_values(self):
-		company_obj = frappe.get_doc("Company", self.company)
-		company_obj.total_monthly_sales = 0
-		company_obj.sales_monthly_history = None
-		company_obj.save()
+		if not self.custom_mrp_debug_only:
+			company_obj = frappe.get_doc("Company", self.company)
+			company_obj.total_monthly_sales = 0
+			company_obj.sales_monthly_history = None
+			company_obj.save()
 
 	@frappe.whitelist()
 	def delete_company_transactions(self):
@@ -222,17 +246,24 @@ class TransactionDeletionRecord(Document):
 	
 	@frappe.whitelist()
 	def mrp_delete_connections(self):
-		communications = qb.DocType("Communication")
-		qb.from_(communications).delete().where(
-				(communications.creation < self.custom_mrp_delete_before_date)
-			).run()
-			
-		comments = qb.DocType("Comment")
-		qb.from_(comments).delete().where(
-				(comments.creation < self.custom_mrp_delete_before_date)
-			).run()
-			
-		
+		if not self.custom_mrp_debug_only:
+			communications = qb.DocType("Communication")
+			qb.from_(communications).delete().where(
+					(communications.creation < self.custom_mrp_delete_before_date)
+				).run()
+				
+			comments = qb.DocType("Comment")
+			qb.from_(comments).delete().where(
+					(comments.creation < self.custom_mrp_delete_before_date)
+				).run()
+				
+	@frappe.whitelist()
+	def mrp_delete_comments(self):
+		if not self.custom_mrp_debug_only:
+			comments = qb.DocType("Comment")
+			qb.from_(comments).delete().where(
+					(comments.comment_type == "Deleted")
+				).run()		
 			
 
 	def delete_connections(self, doctype, company_fieldname, parent_docs_to_be_deleted):
@@ -415,7 +446,7 @@ def get_doctypes_to_be_ignored():
 	return doctypes_to_be_ignored
 	
 	
-def recalculate_bin_qty(new_name):
+def recalculate_bin_qty(new_name, company):
 	from erpnext.stock.stock_balance import repost_stock
 
 	existing_allow_negative_stock = frappe.db.get_value(
@@ -426,13 +457,14 @@ def recalculate_bin_qty(new_name):
 	repost_stock_for_warehouses = frappe.get_all(
 		"Stock Ledger Entry",
 		"warehouse",
-		filters={"item_code": new_name},
+		filters={"item_code": new_name,"company":company},
 		pluck="warehouse",
 		distinct=True,
 	)
 
 	# Delete all existing bins to avoid duplicate bins for the same item and warehouse
-	frappe.db.delete("Bin", {"item_code": new_name})
+	# Do step 1 instead - delete all bins for company
+	# frappe.db.delete("Bin", {"item_code": new_name})
 
 	for warehouse in repost_stock_for_warehouses:
 		repost_stock(new_name, warehouse)
@@ -958,7 +990,7 @@ def cancel_pis(year = None,limit=500,submit=False):
 	return prs_created
 	
 @frappe.whitelist()
-def delete_warehouses(parent_warehouse = None,limit=500,submit=False):
+def delete_warehouses(parent_warehouse = None,limit=500,submit=False, force=False):
 	if not parent_warehouse:
 		return None
 		
@@ -981,7 +1013,7 @@ def delete_warehouses(parent_warehouse = None,limit=500,submit=False):
 		try:
 			if submit:
 				po = frappe.get_doc("Warehouse", po_detail.name)
-				po.delete()
+				po.delete(force=force)
 				prs_created.append(_("Warehouse {0} {1}.").format(po_detail.name,po_detail.disabled))
 			else:
 				prs_created.append(_("Warehouse {0} {1}.").format(po_detail.name,po_detail.disabled))
@@ -1044,7 +1076,7 @@ def disable_warehouses(parent_warehouse = None,limit=500,submit=False):
 		`tabWarehouse` t1
 	WHERE
 		t1.parent_warehouse = %s AND
-		t1.disabled = 1
+		t1.disabled = 0
 	LIMIT
 		%s""", (parent_warehouse,cint(limit)), as_dict=True)
 			
@@ -1056,7 +1088,7 @@ def disable_warehouses(parent_warehouse = None,limit=500,submit=False):
 		try:
 			if submit:
 				po = frappe.get_doc("Warehouse", po_detail.name)
-				po.disabled = 0
+				po.disabled = 1
 				po.save()
 				prs_created.append(_("Warehouse {0} {1}.").format(po_detail.name,po_detail.disabled))
 			else:

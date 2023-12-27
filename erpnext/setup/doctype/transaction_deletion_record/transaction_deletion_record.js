@@ -25,9 +25,9 @@ frappe.ui.form.on('Transaction Deletion Record', {
 		frm.fields_dict['doctypes_to_be_ignored'].grid.set_column_disp('no_of_docs', false);
 		frm.refresh_field('doctypes_to_be_ignored');
 		
-		frm.add_custom_button(__('Run'), () => {
-			frm.trigger("mrp_test");
-		});
+		/* frm.add_custom_button(__('Run'), () => {
+			frm.trigger("mrp_run");
+		}); */
 		
 		frm.add_custom_button(__('1. Delete Bins'), () => {
 			frappe.call({
@@ -40,7 +40,7 @@ frappe.ui.form.on('Transaction Deletion Record', {
 			});
 		}, __("Steps"));
 		
-		frm.add_custom_button(__('2. Delete Misc'), () => {
+		frm.add_custom_button(__('2. Delete Leads/Company Values/Notifications'), () => {
 			frappe.call({
 				doc: frm.doc,
 				method: "second_step",
@@ -84,7 +84,7 @@ frappe.ui.form.on('Transaction Deletion Record', {
 			});
 		}, __("Steps"));
 		
-		frm.add_custom_button(__('Delete Connections'), () => {
+		frm.add_custom_button(__('6. Delete Communications and Comments By Date'), () => {
 			frappe.call({
 				doc: frm.doc,
 				method: "mrp_delete_connections",
@@ -93,10 +93,22 @@ frappe.ui.form.on('Transaction Deletion Record', {
 					cur_frm.dirty();
 				}
 			});
-		}, __("Tools"));
+		}, __("Steps"));
 		
 		
-		frm.add_custom_button(__('Re-open POs'), () => {
+		frm.add_custom_button(__('7. Delete Comments of type Deleted'), () => {
+			frappe.call({
+				doc: frm.doc,
+				method: "mrp_delete_comments",
+				freeze:true,
+				callback: function(r) {
+					cur_frm.dirty();
+				}
+			});
+		}, __("Steps"));
+		
+		
+		/* frm.add_custom_button(__('Re-open POs'), () => {
 			frm.trigger("reopen_pos");
 		}, __("Tools"));
 		
@@ -142,7 +154,7 @@ frappe.ui.form.on('Transaction Deletion Record', {
 		
 		frm.add_custom_button(__('Cancel JEs'), () => {
 			frm.trigger("cancel_jes");
-		}, __("Tools"));
+		}, __("Tools")); */
 		
 		frm.add_custom_button(__('Enable Warehouses'), () => {
 			frm.trigger("enable_warehouses");
@@ -152,16 +164,16 @@ frappe.ui.form.on('Transaction Deletion Record', {
 			frm.trigger("disable_warehouses");
 		}, __("Tools"));
 		
-		frm.add_custom_button(__('Disable Warehouses'), () => {
+		frm.add_custom_button(__('Delete Warehouses'), () => {
 			frm.trigger("delete_warehouses");
 		}, __("Tools"));
 		
 	},
-	mrp_test: function(frm){
+	mrp_run: function(frm){
 		
 		frappe.call({
 			doc: frm.doc,
-			method: "mrp_test",
+			method: "mrp_run",
 			freeze:true,
 			callback: function(r) {
 				cur_frm.refresh_field('custom_mrp_summary');
@@ -812,7 +824,7 @@ frappe.ui.form.on('Transaction Deletion Record', {
 	disable_warehouses: function(){
 		var me = this;
 		var d = new frappe.ui.Dialog({
-			title: __('Enable Warehouses'),
+			title: __('Disable Warehouses'),
 			fields: [
 				{
 					fieldname: "parent_warehouse",
@@ -836,11 +848,11 @@ frappe.ui.form.on('Transaction Deletion Record', {
 			],
 		});
 		
-		d.set_primary_action(__('Enable'), function() {
+		d.set_primary_action(__('Disable'), function() {
 			var data = d.get_values();
 			if(!data) return;
 			frappe.call({
-				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.enable_warehouses",
+				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.disable_warehouses",
 				args: {
 					parent_warehouse: data.parent_warehouse,
 					limit: data.limit,
@@ -861,7 +873,7 @@ frappe.ui.form.on('Transaction Deletion Record', {
 	delete_warehouses: function(){
 		var me = this;
 		var d = new frappe.ui.Dialog({
-			title: __('Enable Warehouses'),
+			title: __('Delete Warehouses'),
 			fields: [
 				{
 					fieldname: "parent_warehouse",
@@ -878,6 +890,11 @@ frappe.ui.form.on('Transaction Deletion Record', {
 					default:1
 				},
 				{
+					fieldname: "force",
+					fieldtype: "Check",
+					label:"Force"
+				},
+				{
 					fieldname: "submit",
 					fieldtype: "Check",
 					label:"Submit"
@@ -885,15 +902,16 @@ frappe.ui.form.on('Transaction Deletion Record', {
 			],
 		});
 		
-		d.set_primary_action(__('Enable'), function() {
+		d.set_primary_action(__('Delete'), function() {
 			var data = d.get_values();
 			if(!data) return;
 			frappe.call({
-				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.enable_warehouses",
+				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.delete_warehouses",
 				args: {
 					parent_warehouse: data.parent_warehouse,
 					limit: data.limit,
-					submit: cint(data.submit)
+					submit: cint(data.submit),
+					force: cint(data.force)
 				},
 				callback: function(r) {
 					if(!r.exc) {

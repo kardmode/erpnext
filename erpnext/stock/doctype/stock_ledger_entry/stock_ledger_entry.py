@@ -10,6 +10,11 @@ from frappe.core.doctype.role.role import get_users
 from frappe.model.document import Document
 from frappe.utils import add_days, cint, flt, formatdate, get_datetime, getdate
 
+from typing import Any, Dict, List, Optional, TypedDict
+from frappe.query_builder import Order
+from frappe.query_builder.functions import Coalesce, CombineDatetime
+from frappe.utils.nestedset import get_descendants_of
+
 from erpnext.accounts.utils import get_fiscal_year
 from erpnext.controllers.item_variant import ItemTemplateCannotHaveStock
 from erpnext.stock.doctype.inventory_dimension.inventory_dimension import get_inventory_dimensions
@@ -73,8 +78,7 @@ class StockLedgerEntry(Document):
 				"company": self.company,
 			}
 		)
-		frappe.msgprint(kwargs)
-		frappe.msgprint(extra_cond)
+
 		sle = get_previous_sle(kwargs, extra_cond=extra_cond)
 		if sle:
 			flt_precision = cint(frappe.db.get_default("float_precision")) or 2
@@ -82,7 +86,18 @@ class StockLedgerEntry(Document):
 			diff = flt(diff, flt_precision)
 			if diff < 0 and abs(diff) > 0.0001:
 				self.throw_validation_error(diff, dimensions)
-
+				
+		
+		dimension_balance = mrp_get_stock_balance_with_dimension(kwargs)
+		if dimension_balance:
+			flt_precision = cint(frappe.db.get_default("float_precision")) or 2
+			diff = dimension_balance.bal_qty + flt(self.actual_qty)
+			diff = flt(diff, flt_precision)
+			if diff < 0 and abs(diff) > 0.0001:
+				self.throw_validation_error_mrp(diff, dimension_balance.bal_qty, dimensions)
+		elif self.actual_qty < 0:
+			self.throw_validation_error_mrp(flt(self.actual_qty),0, dimensions)
+	
 	def throw_validation_error(self, diff, dimensions):
 		dimension_msg = _(", with the inventory {0}: {1}").format(
 			"dimensions" if len(dimensions) > 1 else "dimension",
@@ -99,6 +114,27 @@ class StockLedgerEntry(Document):
 			self.posting_date,
 			self.posting_time,
 			frappe.get_desk_link(self.voucher_type, self.voucher_no),
+		)
+
+		frappe.throw(msg, title=_("Inventory Dimension Negative Stock"))
+	
+	def throw_validation_error_mrp(self, diff, balance, dimensions):
+		dimension_msg = _(", with the inventory {0}: {1}").format(
+			"dimensions" if len(dimensions) > 1 else "dimension",
+			", ".join(f"{bold(d.doctype)} ({d.value})" for k, d in dimensions.items()),
+		)
+
+		msg = _(
+			"{0} units of {1} are required in {2}{3}, on {4} {5} for {6} to complete the transaction. Current Balance Is {7}"
+		).format(
+			abs(diff),
+			frappe.get_desk_link("Item", self.item_code),
+			frappe.get_desk_link("Warehouse", self.warehouse),
+			dimension_msg,
+			self.posting_date,
+			self.posting_time,
+			frappe.get_desk_link(self.voucher_type, self.voucher_no),
+			balance
 		)
 
 		frappe.throw(msg, title=_("Inventory Dimension Negative Stock"))
@@ -293,3 +329,349 @@ def on_doctype_update():
 	frappe.db.add_index("Stock Ledger Entry", ["voucher_no", "voucher_type"])
 	frappe.db.add_index("Stock Ledger Entry", ["batch_no", "item_code", "warehouse"])
 	frappe.db.add_index("Stock Ledger Entry", ["warehouse", "item_code"], "item_warehouse")
+
+
+def mrp_get_stock_balance_with_dimension(args):
+	to_date = getdate(args.get("posting_date"))
+	from_date = to_date
+	args["to_date"] = to_date
+	args["from_date"] = from_date
+	company = args.get("company")
+	args["float_precision"] = cint(frappe.db.get_default("float_precision")) or 3
+	args["inventory_dimensions"] = get_inventory_dimension_fields()
+	
+
+	start_from = None
+	args["start_from"] = start_from
+	
+	data = None
+	
+	from erpnext import get_company_currency
+	args["company_currency"] = get_company_currency(company)
+	
+			
+	sle_entries: List[SLEntry] = []
+	
+	opening_data = frappe._dict({})
+	closing_balance = get_closing_balance(args)
+	if closing_balance:
+		start_from = add_days(closing_balance[0].to_date, 1)
+		args["start_from"] = start_from
+
+		res = frappe.get_doc("Closing Stock Balance", closing_balance[0].name).get_prepared_data()
+
+		for entry in res.data:
+			entry = frappe._dict(entry)
+
+			group_by_key = get_group_by_key(args, entry)
+			if group_by_key not in opening_data:
+				opening_data.setdefault(group_by_key, entry)
+			
+	args["opening_data"] = opening_data
+	
+	sle_entries = prepare_stock_ledger_entries(args)
+	
+	if sle_entries:
+		item_warehouse_map = get_item_warehouse_map(args, sle_entries)
+		data = prepare_new_data(item_warehouse_map)
+	
+	if data and len(data)>0:
+		return data[0]
+	else:
+		return None
+	
+def get_inventory_dimension_fields():
+	return [dimension.fieldname for dimension in get_inventory_dimensions()]
+		
+def get_closing_balance(args) -> List[Dict[str, Any]]:
+	from_date = args.get("from_date")
+	company = args.get("company")
+	
+	
+	table = frappe.qb.DocType("Closing Stock Balance")
+
+	query = (
+		frappe.qb.from_(table)
+		.select(table.name, table.to_date)
+		.where(
+			(table.docstatus == 1)
+			& (table.company == company)
+			& ((table.to_date <= from_date))
+		)
+		.orderby(table.to_date, order=Order.desc)
+		.limit(1)
+	)
+
+	for fieldname in ["warehouse", "item_code", "item_group", "warehouse_type"]:
+		if args.get(fieldname):
+			query = query.where(table[fieldname] == args.get(fieldname))
+
+	return query.run(as_dict=True)
+	
+def get_group_by_key(args,row) -> tuple:
+	group_by_key = [row.company, row.item_code, row.warehouse]
+	inventory_dimensions = args.get("inventory_dimensions")
+	for fieldname in inventory_dimensions:
+		if args.get(fieldname):
+			group_by_key.append(row.get(fieldname))
+
+	return tuple(group_by_key)
+		
+def prepare_stock_ledger_entries(args):
+	sle = frappe.qb.DocType("Stock Ledger Entry")
+	item_table = frappe.qb.DocType("Item")
+
+	query = (
+		frappe.qb.from_(sle)
+		.inner_join(item_table)
+		.on(sle.item_code == item_table.name)
+		.select(
+			sle.item_code,
+			sle.warehouse,
+			sle.posting_date,
+			sle.actual_qty,
+			sle.valuation_rate,
+			sle.company,
+			sle.voucher_type,
+			sle.qty_after_transaction,
+			sle.stock_value_difference,
+			sle.item_code.as_("name"),
+			sle.voucher_no,
+			sle.stock_value,
+			sle.batch_no,
+			sle.serial_no,
+			item_table.item_group,
+			item_table.stock_uom,
+			item_table.item_name,
+		)
+		.where((sle.docstatus < 2) & (sle.is_cancelled == 0))
+		.orderby(CombineDatetime(sle.posting_date, sle.posting_time))
+		.orderby(sle.creation)
+		.orderby(sle.actual_qty)
+	)
+
+	query = apply_inventory_dimensions_filters(args, query, sle)
+	query = apply_warehouse_filters(args, query, sle)
+	query = apply_items_filters(args, query, item_table)
+	query = apply_date_filters(args, query, sle)
+	query = query.where(sle.company == args.get("company"))
+
+	return query.run(as_dict=True)
+	
+def apply_inventory_dimensions_filters(args, query, sle) -> str:
+	inventory_dimension_fields = get_inventory_dimension_fields()
+	if inventory_dimension_fields:
+		for fieldname in inventory_dimension_fields:
+			query = query.select(fieldname)
+			if args.get(fieldname):
+				query = query.where(sle[fieldname] == args.get(fieldname))
+
+	return query
+
+def apply_warehouse_filters(args, query, sle) -> str:
+	warehouse_table = frappe.qb.DocType("Warehouse")
+	from erpnext.stock.doctype.warehouse.warehouse import apply_warehouse_filter
+
+	if args.get("warehouse"):
+		query = apply_warehouse_filter(query, sle, args)
+	elif warehouse_type := args.get("warehouse_type"):
+		query = (
+			query.join(warehouse_table)
+			.on(warehouse_table.name == sle.warehouse)
+			.where(warehouse_table.warehouse_type == warehouse_type)
+		)
+
+	return query
+
+def apply_items_filters(args, query, item_table) -> str:
+	if item_group := args.get("item_group"):
+		children = get_descendants_of("Item Group", item_group, ignore_permissions=True)
+		query = query.where(item_table.item_group.isin(children + [item_group]))
+
+	for field in ["item_code", "brand"]:
+		if not args.get(field):
+			continue
+		elif field == "item_code":
+			query = query.where(item_table.name == args.get(field))
+		else:
+			query = query.where(item_table[field] == args.get(field))
+
+	return query
+
+def apply_date_filters(args, query, sle) -> str:
+	if not args.get("ignore_closing_balance") and args.get("start_from"):
+		query = query.where(sle.posting_date >= args.get("start_from"))
+
+	if args.get("to_date"):
+		query = query.where(sle.posting_date <= args.get("to_date"))
+
+	return query
+
+def prepare_new_data(item_warehouse_map):
+	data = []
+
+	variant_values = {}
+	for key, report_data in item_warehouse_map.items():
+		if variant_data := variant_values.get(report_data.item_code):
+			report_data.update(variant_data)
+
+		data.append(report_data)
+		
+	return data
+	
+def get_item_warehouse_map(args, sle_entries):
+	item_warehouse_map = {}
+	args["opening_vouchers"] = get_opening_vouchers(args)
+	inventory_dimensions = args.get("inventory_dimensions")
+	float_precision = args.get("float_precision")
+	opening_data = args["opening_data"]
+
+	for entry in sle_entries:
+		group_by_key = get_group_by_key(args, entry)
+		if group_by_key not in item_warehouse_map:
+			initialize_data(args,item_warehouse_map, group_by_key, entry)
+
+		prepare_item_warehouse_map(args,item_warehouse_map, entry, group_by_key)
+
+		if opening_data.get(group_by_key):
+			del opening_data[group_by_key]
+
+	for group_by_key, entry in opening_data.items():
+		if group_by_key not in item_warehouse_map:
+			initialize_data(args,item_warehouse_map, group_by_key, entry)
+
+	item_warehouse_map = filter_items_with_no_transactions(
+		item_warehouse_map, float_precision, inventory_dimensions
+	)
+
+	return item_warehouse_map
+	
+def prepare_item_warehouse_map(args, item_warehouse_map, entry, group_by_key):
+	inventory_dimensions = args.get("inventory_dimensions")
+	from_date = args.get("from_date")
+	float_precision = args.get("float_precision")
+	opening_vouchers = args.get("opening_vouchers")
+	to_date = args.get("to_date")
+
+	qty_dict = item_warehouse_map[group_by_key]
+	for field in inventory_dimensions:
+		qty_dict[field] = entry.get(field)
+
+	if entry.voucher_type == "Stock Reconciliation" and (not entry.batch_no or entry.serial_no):
+		qty_diff = flt(entry.qty_after_transaction) - flt(qty_dict.bal_qty)
+	else:
+		qty_diff = flt(entry.actual_qty)
+
+	value_diff = flt(entry.stock_value_difference)
+
+	if entry.posting_date < from_date or entry.voucher_no in opening_vouchers.get(
+		entry.voucher_type, []
+	):
+		qty_dict.opening_qty += qty_diff
+		qty_dict.opening_val += value_diff
+
+	elif entry.posting_date >= from_date and entry.posting_date <= to_date:
+
+		if flt(qty_diff, float_precision) >= 0:
+			qty_dict.in_qty += qty_diff
+			qty_dict.in_val += value_diff
+		else:
+			qty_dict.out_qty += abs(qty_diff)
+			qty_dict.out_val += abs(value_diff)
+
+	qty_dict.val_rate = entry.valuation_rate
+	qty_dict.bal_qty += qty_diff
+	qty_dict.bal_val += value_diff
+	
+def initialize_data(args, item_warehouse_map, group_by_key, entry):
+	opening_data = args["opening_data"].get(group_by_key, {})
+
+	item_warehouse_map[group_by_key] = frappe._dict(
+		{
+			"item_code": entry.item_code,
+			"warehouse": entry.warehouse,
+			"item_group": entry.item_group,
+			"company": entry.company,
+			"currency": args["company_currency"],
+			"stock_uom": entry.stock_uom,
+			"item_name": entry.item_name,
+			"opening_qty": opening_data.get("bal_qty") or 0.0,
+			"opening_val": opening_data.get("bal_val") or 0.0,
+			"opening_fifo_queue": opening_data.get("fifo_queue") or [],
+			"in_qty": 0.0,
+			"in_val": 0.0,
+			"out_qty": 0.0,
+			"out_val": 0.0,
+			"bal_qty": opening_data.get("bal_qty") or 0.0,
+			"bal_val": opening_data.get("bal_val") or 0.0,
+			"val_rate": 0.0,
+		}
+	)
+	
+def filter_items_with_no_transactions(
+	iwb_map, float_precision: float, inventory_dimensions: list = None
+):
+	pop_keys = []
+	for group_by_key in iwb_map:
+		qty_dict = iwb_map[group_by_key]
+
+		no_transactions = True
+		for key, val in qty_dict.items():
+			if inventory_dimensions and key in inventory_dimensions:
+				continue
+
+			if key in [
+				"item_code",
+				"warehouse",
+				"item_name",
+				"item_group",
+				"project",
+				"stock_uom",
+				"company",
+				"opening_fifo_queue",
+			]:
+				continue
+
+			val = flt(val, float_precision)
+			qty_dict[key] = val
+			if key != "val_rate" and val:
+				no_transactions = False
+
+		if no_transactions:
+			pop_keys.append(group_by_key)
+
+	for key in pop_keys:
+		iwb_map.pop(key)
+
+	return iwb_map
+	
+def get_opening_vouchers(args):
+	to_date = args.get("to_date")
+	
+	opening_vouchers = {"Stock Entry": [], "Stock Reconciliation": []}
+
+	se = frappe.qb.DocType("Stock Entry")
+	sr = frappe.qb.DocType("Stock Reconciliation")
+
+	vouchers_data = (
+		frappe.qb.from_(
+			(
+				frappe.qb.from_(se)
+				.select(se.name, Coalesce("Stock Entry").as_("voucher_type"))
+				.where((se.docstatus == 1) & (se.posting_date <= to_date) & (se.is_opening == "Yes"))
+			)
+			+ (
+				frappe.qb.from_(sr)
+				.select(sr.name, Coalesce("Stock Reconciliation").as_("voucher_type"))
+				.where(
+					(sr.docstatus == 1) & (sr.posting_date <= to_date) & (sr.purpose == "Opening Stock")
+				)
+			)
+		).select("voucher_type", "name")
+	).run(as_dict=True)
+
+	if vouchers_data:
+		for d in vouchers_data:
+			opening_vouchers[d.voucher_type].append(d.name)
+
+	return opening_vouchers
