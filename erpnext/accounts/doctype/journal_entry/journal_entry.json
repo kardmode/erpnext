@@ -161,6 +161,7 @@
    "fieldtype": "Section Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "cheque_no",
    "fieldtype": "Data",
    "in_global_search": 1,
@@ -173,6 +174,7 @@
    "search_index": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "cheque_date",
    "fieldtype": "Date",
    "label": "Reference Date",
@@ -557,7 +559,7 @@
    "table_fieldname": "payment_entries"
   }
  ],
- "modified": "2023-11-23 12:11:04.128015",
+ "modified": "2024-01-10 10:32:47.980642",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Journal Entry",

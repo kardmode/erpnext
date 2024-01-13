@@ -14,14 +14,15 @@ def get_data():
 		"internal_links": {
 			"Material Request": ["items", "material_request"],
 			"Purchase Order": ["items", "purchase_order"],
+			"Purchase Invoice": ["items", "purchase_invoice"],
 			"Project": ["items", "project"],
 			"Quality Inspection": ["items", "quality_inspection"],
 		},
 		"transactions": [
-			{"label": _("Related"), "items": ["Purchase Invoice", "Landed Cost Voucher", "Asset"]},
+			{"label": _("Related"), "items": [ "Landed Cost Voucher", "Asset"]},
 			{
 				"label": _("Reference"),
-				"items": ["Material Request", "Purchase Order", "Quality Inspection", "Project"],
+				"items": ["Material Request", "Purchase Order","Purchase Invoice", "Quality Inspection", "Project"],
 			},
 			{"label": _("Returns"), "items": ["Purchase Receipt"]},
 			{"label": _("Subscription"), "items": ["Auto Repeat"]},

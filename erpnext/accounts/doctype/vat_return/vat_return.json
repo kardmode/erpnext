@@ -41,6 +41,7 @@
    "fieldname": "company",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Company",
    "options": "Company",
    "reqd": 1
@@ -187,7 +188,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-07-30 09:55:45.237296",
+ "modified": "2024-01-10 10:20:55.222223",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "VAT Return",

@@ -1374,12 +1374,12 @@
    "depends_on": "eval:doc.update_stock && doc.is_internal_supplier",
    "fieldname": "set_from_warehouse",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Set From Warehouse",
    "no_copy": 1,
    "options": "Warehouse",
    "print_hide": 1,
    "print_width": "50px",
-   "ignore_user_permissions": 1,
    "width": "50px"
   },
   {
@@ -1596,7 +1596,7 @@
  "idx": 204,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-11-03 15:47:30.319200",
+ "modified": "2024-01-09 19:35:51.177580",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Purchase Invoice",

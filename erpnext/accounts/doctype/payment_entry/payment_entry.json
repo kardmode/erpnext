@@ -436,6 +436,7 @@
    "label": "Transaction ID"
   },
   {
+   "allow_on_submit": 1,
    "bold": 1,
    "depends_on": "eval:(doc.paid_from && doc.paid_to)",
    "fieldname": "reference_no",
@@ -751,7 +752,7 @@
    "table_fieldname": "payment_entries"
   }
  ],
- "modified": "2023-11-23 12:07:20.887885",
+ "modified": "2024-01-10 10:34:05.933746",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Payment Entry",
