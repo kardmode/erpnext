@@ -403,7 +403,7 @@ class StockBalanceReport(object):
 					"fieldname": "bal_val",
 					"fieldtype": "Currency",
 					"width": 100,
-					"options": "currency",
+					"options": "Company:company:default_currency",
 				},
 				{
 					"label": _("Opening Qty"),
@@ -417,7 +417,7 @@ class StockBalanceReport(object):
 					"fieldname": "opening_val",
 					"fieldtype": "Currency",
 					"width": 110,
-					"options": "currency",
+					"options": "Company:company:default_currency",
 				},
 				{
 					"label": _("In Qty"),

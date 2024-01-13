@@ -201,6 +201,10 @@ erpnext.selling.SellingController = class SellingController extends erpnext.Tran
 			item.serial_no = null;
 		}
 
+		if (doc.docstatus === 0 && doc.is_return && !doc.return_against) {
+			item.incoming_rate = 0.0;
+		}
+
 		var has_batch_no;
 		frappe.db.get_value('Item', {'item_code': item.item_code}, 'has_batch_no', (r) => {
 			has_batch_no = r && r.has_batch_no;
@@ -428,6 +432,11 @@ erpnext.selling.SellingController = class SellingController extends erpnext.Tran
 				}
 			})
 		}
+	}
+
+	coupon_code() {
+		this.frm.set_value("discount_amount", 0);
+		this.frm.set_value("additional_discount_percentage", 0);
 	}
 };
 
