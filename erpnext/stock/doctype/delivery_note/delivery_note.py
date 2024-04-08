@@ -135,6 +135,7 @@ class DeliveryNote(SellingController):
 	def validate(self):
 		self.validate_posting_time()
 		super(DeliveryNote, self).validate()
+		self.validate_references()
 		self.set_status()
 		self.so_required()
 		self.validate_proj_cust()
@@ -200,6 +201,58 @@ class DeliveryNote(SellingController):
 					["Sales Invoice", "against_sales_invoice", "si_detail"],
 				]
 			)
+
+	def validate_references(self):
+		self.validate_sales_order_references()
+		self.validate_sales_invoice_references()
+
+	def validate_sales_order_references(self):
+		err_msg = ""
+		for item in self.items:
+			if (item.against_sales_order and not item.so_detail) or (
+				not item.against_sales_order and item.so_detail
+			):
+				if not item.against_sales_order:
+					err_msg += (
+						_("'Sales Order' reference ({1}) is missing in row {0}").format(
+							frappe.bold(item.idx), frappe.bold("against_sales_order")
+						)
+						+ "<br>"
+					)
+				else:
+					err_msg += (
+						_("'Sales Order Item' reference ({1}) is missing in row {0}").format(
+							frappe.bold(item.idx), frappe.bold("so_detail")
+						)
+						+ "<br>"
+					)
+
+		if err_msg:
+			frappe.throw(err_msg, title=_("References to Sales Orders are Incomplete"))
+
+	def validate_sales_invoice_references(self):
+		err_msg = ""
+		for item in self.items:
+			if (item.against_sales_invoice and not item.si_detail) or (
+				not item.against_sales_invoice and item.si_detail
+			):
+				if not item.against_sales_invoice:
+					err_msg += (
+						_("'Sales Invoice' reference ({1}) is missing in row {0}").format(
+							frappe.bold(item.idx), frappe.bold("against_sales_invoice")
+						)
+						+ "<br>"
+					)
+				else:
+					err_msg += (
+						_("'Sales Invoice Item' reference ({1}) is missing in row {0}").format(
+							frappe.bold(item.idx), frappe.bold("si_detail")
+						)
+						+ "<br>"
+					)
+
+		if err_msg:
+			frappe.throw(err_msg, title=_("References to Sales Invoices are Incomplete"))
 
 	def validate_proj_cust(self):
 		"""check for does customer belong to same project as entered.."""
@@ -1162,6 +1215,9 @@ def make_inter_company_transaction(doctype, source_name, target_doc=None):
 			for tax in get_taxes_and_charges(master_doctype, target.get("taxes_and_charges")):
 				target.append("taxes", tax)
 
+		if not target.get("items"):
+			frappe.throw(_("All items have already been received"))
+
 	def update_details(source_doc, target_doc, source_parent):
 		target_doc.inter_company_invoice_reference = source_doc.name
 		if target_doc.doctype == "Purchase Receipt":
@@ -1217,6 +1273,10 @@ def make_inter_company_transaction(doctype, source_name, target_doc=None):
 				shipping_address_name=target_doc.shipping_address_name,
 			)
 
+	def update_item(source, target, source_parent):
+		if source_parent.doctype == "Delivery Note" and source.received_qty:
+			target.qty = flt(source.qty) + flt(source.returned_qty) - flt(source.received_qty)
+
 	doclist = get_mapped_doc(
 		doctype,
 		source_name,
@@ -1240,6 +1300,8 @@ def make_inter_company_transaction(doctype, source_name, target_doc=None):
 					"Material_request_item": "material_request_item",
 				},
 				"field_no_map": ["warehouse"],
+				"condition": lambda item: item.received_qty < item.qty + item.returned_qty,
+				"postprocess": update_item,
 			},
 		},
 		target_doc,

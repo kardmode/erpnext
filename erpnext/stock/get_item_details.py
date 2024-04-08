@@ -87,7 +87,8 @@ def get_item_details(args, doc=None, for_validate=False, overwrite_warehouse=Tru
 
 	get_party_item_code(args, item, out)
 
-	set_valuation_rate(out, args)
+	if args.get("doctype") in ["Sales Order", "Quotation"]:
+		set_valuation_rate(out, args)
 
 	update_party_blanket_order(args, out)
 
@@ -103,22 +104,8 @@ def get_item_details(args, doc=None, for_validate=False, overwrite_warehouse=Tru
 	if args.customer and cint(args.is_pos):
 		out.update(get_pos_profile_item_details(args.company, args, update_data=True))
 
-	if (
-		args.get("doctype") == "Material Request"
-		and args.get("material_request_type") == "Material Transfer"
-	):
-		out.update(get_bin_details(args.item_code, args.get("from_warehouse")))
-
-	elif out.get("warehouse"):
-		if doc and doc.get("doctype") == "Purchase Order":
-			# calculate company_total_stock only for po
-			bin_details = get_bin_details(
-				args.item_code, out.warehouse, args.company, include_child_warehouses=True
-			)
-		else:
-			bin_details = get_bin_details(args.item_code, out.warehouse, include_child_warehouses=True)
-
-		out.update(bin_details)
+	if item.is_stock_item:
+		update_bin_details(args, out, doc)
 
 	# update args with out, if key or value not exists
 	for key, value in out.items():
@@ -199,6 +186,24 @@ def set_valuation_rate(out, args):
 
 	else:
 		out.update(get_valuation_rate(args.item_code, args.company, out.get("warehouse")))
+
+
+def update_bin_details(args, out, doc):
+	if (
+		args.get("doctype") == "Material Request"
+		and args.get("material_request_type") == "Material Transfer"
+	):
+		out.update(get_bin_details(args.item_code, args.get("from_warehouse")))
+
+	elif out.get("warehouse"):
+		company = args.company if (doc and doc.get("doctype") == "Purchase Order") else None
+
+		# calculate company_total_stock only for po
+		bin_details = get_bin_details(
+			args.item_code, out.warehouse, company, include_child_warehouses=True
+		)
+
+		out.update(bin_details)
 
 
 def process_args(args):
@@ -303,7 +308,9 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 	if not item:
 		item = frappe.get_doc("Item", args.get("item_code"))
 
-	if item.variant_of and not item.taxes:
+	if (
+		item.variant_of and not item.taxes and frappe.db.exists("Item Tax", {"parent": item.variant_of})
+	):
 		item.update_template_tables()
 		
 	# from frappe.defaults import get_user_default_as_list
@@ -862,10 +869,14 @@ def get_price_list_rate(args, item_doc, out=None):
 			price_list_rate = get_price_list_rate_for(args, item_doc.variant_of)
 
 		# insert in database
-		if price_list_rate is None:
+		if price_list_rate is None or frappe.db.get_single_value(
+			"Stock Settings", "update_existing_price_list_rate"
+		):
 			if args.price_list and args.rate:
 				insert_item_price(args)
-			return out
+
+			if not price_list_rate:
+				return out
 
 		out.price_list_rate = (
 			flt(price_list_rate) * flt(args.plc_conversion_rate) / flt(args.conversion_rate)

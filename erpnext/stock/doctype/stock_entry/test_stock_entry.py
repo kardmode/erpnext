@@ -737,7 +737,7 @@ class TestStockEntry(FrappeTestCase):
 		self.assertEqual(batch_in_serial_no, None)
 
 		self.assertEqual(frappe.db.get_value("Serial No", serial_no, "status"), "Inactive")
-		self.assertEqual(frappe.db.exists("Batch", batch_no), None)
+		self.assertTrue(frappe.db.exists("Batch", batch_no))
 
 	def test_serial_batch_item_qty_deduction(self):
 		"""
@@ -1671,24 +1671,22 @@ class TestStockEntry(FrappeTestCase):
 		item_code = "Test Negative Item - 001"
 		item_doc = create_item(item_code=item_code, is_stock_item=1, valuation_rate=10)
 
-		make_stock_entry(
+		se1 = make_stock_entry(
 			item_code=item_code,
 			posting_date=add_days(today(), -3),
 			posting_time="00:00:00",
-			purpose="Material Receipt",
+			target="_Test Warehouse - _TC",
 			qty=10,
 			to_warehouse="_Test Warehouse - _TC",
-			do_not_save=True,
 		)
 
-		make_stock_entry(
+		se2 = make_stock_entry(
 			item_code=item_code,
 			posting_date=today(),
 			posting_time="00:00:00",
-			purpose="Material Receipt",
+			source="_Test Warehouse - _TC",
 			qty=8,
 			from_warehouse="_Test Warehouse - _TC",
-			do_not_save=True,
 		)
 
 		sr_doc = create_stock_reconciliation(
@@ -1704,35 +1702,47 @@ class TestStockEntry(FrappeTestCase):
 
 		self.assertRaises(frappe.ValidationError, sr_doc.submit)
 
-	def test_enqueue_action(self):
-		frappe.flags.in_test = False
-		item_code = "Test Enqueue Item - 001"
-		create_item(item_code=item_code, is_stock_item=1, valuation_rate=10)
+	def test_auto_reorder_level(self):
+		from erpnext.stock.reorder_item import reorder_item
 
-		doc = make_stock_entry(
-			item_code=item_code,
-			posting_date=add_to_date(today(), months=-7),
-			posting_time="00:00:00",
-			purpose="Material Receipt",
-			qty=10,
-			to_warehouse="_Test Warehouse - _TC",
-			do_not_submit=True,
+		item_doc = make_item(
+			"Test Auto Reorder Item - 001",
+			properties={"stock_uom": "Kg", "purchase_uom": "Nos", "is_stock_item": 1},
+			uoms=[{"uom": "Nos", "conversion_factor": 5}],
 		)
 
-		self.assertTrue(doc.is_enqueue_action())
+		if not frappe.db.exists("Item Reorder", {"parent": item_doc.name}):
+			item_doc.append(
+				"reorder_levels",
+				{
+					"warehouse_reorder_level": 0,
+					"warehouse_reorder_qty": 10,
+					"warehouse": "_Test Warehouse - _TC",
+					"material_request_type": "Purchase",
+				},
+			)
 
-		doc = make_stock_entry(
-			item_code=item_code,
-			posting_date=today(),
-			posting_time="00:00:00",
-			purpose="Material Receipt",
-			qty=10,
-			to_warehouse="_Test Warehouse - _TC",
-			do_not_submit=True,
+		item_doc.save(ignore_permissions=True)
+
+		frappe.db.set_single_value("Stock Settings", "auto_indent", 1)
+
+		mr_list = reorder_item()
+
+		frappe.db.set_single_value("Stock Settings", "auto_indent", 0)
+		mrs = frappe.get_all(
+			"Material Request Item",
+			fields=["qty", "stock_uom", "stock_qty"],
+			filters={"item_code": item_doc.name, "uom": "Nos"},
 		)
 
-		self.assertFalse(doc.is_enqueue_action())
-		frappe.flags.in_test = True
+		for mri in mrs:
+			self.assertEqual(mri.stock_uom, "Kg")
+			self.assertEqual(mri.stock_qty, 10)
+			self.assertEqual(mri.qty, 2)
+
+		for mr in mr_list:
+			mr.cancel()
+			mr.delete()
 
 
 def make_serialized_item(**args):

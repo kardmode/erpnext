@@ -95,7 +95,7 @@ class SalesInvoice(SellingController):
 		super(SalesInvoice, self).validate()
 		self.validate_auto_set_posting_time()
 
-		if not self.is_pos:
+		if not (self.is_pos or self.is_debit_note):
 			self.so_dn_required()
 
 		self.mrp_validate_items()
@@ -266,7 +266,8 @@ class SalesInvoice(SellingController):
 		self.calculate_taxes_and_totals()
 
 	def before_save(self):
-		set_account_for_mode_of_payment(self)
+		self.set_account_for_mode_of_payment()
+		self.set_paid_amount()
 
 	def on_submit(self):
 		self.validate_pos_paid_amount()
@@ -578,9 +579,6 @@ class SalesInvoice(SellingController):
 			):
 				data.sales_invoice = sales_invoice
 
-	def on_update(self):
-		self.set_paid_amount()
-
 	def on_update_after_submit(self):
 		if hasattr(self, "repost_required"):
 			fields_to_check = [
@@ -610,6 +608,11 @@ class SalesInvoice(SellingController):
 
 		self.paid_amount = paid_amount
 		self.base_paid_amount = base_paid_amount
+
+	def set_account_for_mode_of_payment(self):
+		for payment in self.payments:
+			if not payment.account:
+				payment.account = get_bank_cash_account(payment.mode_of_payment, self.company).get("account")
 
 	def validate_time_sheets_are_submitted(self):
 		for data in self.timesheets:
@@ -1099,6 +1102,10 @@ class SalesInvoice(SellingController):
 		)
 
 		if grand_total and not self.is_internal_transfer():
+			against_voucher = self.name
+			if self.is_return and self.return_against and not self.update_outstanding_for_self:
+				against_voucher = self.return_against
+
 			# Did not use base_grand_total to book rounding loss gle
 			gl_entries.append(
 				self.get_gl_dict(
@@ -1112,9 +1119,7 @@ class SalesInvoice(SellingController):
 						"debit_in_account_currency": base_grand_total
 						if self.party_account_currency == self.company_currency
 						else grand_total,
-						"against_voucher": self.return_against
-						if cint(self.is_return) and self.return_against
-						else self.name,
+						"against_voucher": against_voucher,
 						"against_voucher_type": self.doctype,
 						"cost_center": self.cost_center,
 						"project": self.project,
@@ -1335,9 +1340,7 @@ class SalesInvoice(SellingController):
 								"credit_in_account_currency": payment_mode.base_amount
 								if self.party_account_currency == self.company_currency
 								else payment_mode.amount,
-								"against_voucher": self.return_against
-								if cint(self.is_return) and self.return_against
-								else self.name,
+								"against_voucher": self.name,
 								"against_voucher_type": self.doctype,
 								"cost_center": self.cost_center,
 							},
@@ -1741,12 +1744,8 @@ class SalesInvoice(SellingController):
 				elif outstanding_amount > 0 and getdate(self.due_date) >= getdate():
 					self.status = "Unpaid"
 				# Check if outstanding amount is 0 due to credit note issued against invoice
-				elif (
-					outstanding_amount <= 0
-					and self.is_return == 0
-					and frappe.db.get_value(
-						"Sales Invoice", {"is_return": 1, "return_against": self.name, "docstatus": 1}
-					)
+				elif self.is_return == 0 and frappe.db.get_value(
+					"Sales Invoice", {"is_return": 1, "return_against": self.name, "docstatus": 1}
 				):
 					self.status = "Credit Note Issued"
 				elif self.is_return == 1:
@@ -1861,9 +1860,9 @@ def validate_inter_company_party(doctype, party, company, inter_company_referenc
 		companies = [d.company for d in companies]
 		if not company in companies:
 			frappe.throw(
-				_("{0} not allowed to transact with {1}. Please change the Company.").format(
-					partytype, company
-				)
+				_(
+					"{0} not allowed to transact with {1}. Please change the Company or add the Company in the 'Allowed To Transact With'-Section in the Customer record."
+				).format(_(partytype), company)
 			)
 
 
@@ -1994,24 +1993,18 @@ def make_sales_return(source_name, target_doc=None):
 
 	return make_return_doc("Sales Invoice", source_name, target_doc)
 
-
-def set_account_for_mode_of_payment(self):
-	for data in self.payments:
-		if not data.account:
-			data.account = get_bank_cash_account(data.mode_of_payment, self.company).get("account")
-
-
-def update_item(target_doc,source_doc,company,discount_percent=0):
-	factor = 1-flt(discount_percent)/100
-
-	for item in target_doc.items:
-		item.base_rate = factor * flt(item.base_rate)
-		item.rate = factor * flt(item.rate)
-		item.base_amount = item.qty * flt(item.base_rate)		
-		item.amount = item.qty * flt(item.rate)
-
 @frappe.whitelist()		
 def make_sales_invoice(data):
+
+	def update_item(target_doc,source_doc,company,discount_percent=0):
+		factor = 1-flt(discount_percent)/100
+
+		for item in target_doc.items:
+			item.base_rate = factor * flt(item.base_rate)
+			item.rate = factor * flt(item.rate)
+			item.base_amount = item.qty * flt(item.base_rate)		
+			item.amount = item.qty * flt(item.rate)
+
 		import json
 		args = json.loads(data)
 		
@@ -2068,7 +2061,6 @@ def make_sales_invoice(data):
 			can_read = True
 		# frappe.db.commit()
 		return target_doc, can_read
-
 
 def get_inter_company_details(doc, doctype):
 	if doctype in ["Sales Invoice", "Sales Order", "Delivery Note"]:

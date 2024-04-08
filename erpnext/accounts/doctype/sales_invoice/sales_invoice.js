@@ -11,8 +11,8 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 		super.setup(doc);
 	}
 	company() {
+		super.company();
 		erpnext.accounts.dimensions.update_dimension(this.frm, this.frm.doctype);
-
 		$.each(this.frm.doc.items || [], function(i, d) {
 			if(d.cost_center) {
 				frappe.model.set_value(d.doctype, d.name, "cost_center","");
@@ -97,8 +97,7 @@ erpnext.accounts.SalesInvoiceController = class SalesInvoiceController extends e
 
 		if(doc.update_stock) this.show_stock_ledger();
 
-		if (doc.docstatus == 1 && doc.outstanding_amount!=0
-			&& !(cint(doc.is_return) && doc.return_against)) {
+		if (doc.docstatus == 1 && doc.outstanding_amount!=0) {
 			this.frm.add_custom_button(
 				__('Payment'),
 				() => this.make_payment_entry(),

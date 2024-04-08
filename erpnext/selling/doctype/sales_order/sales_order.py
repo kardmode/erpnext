@@ -363,6 +363,9 @@ class SalesOrder(SellingController):
 	def on_update(self):
 		pass
 
+	def on_update_after_submit(self):
+		self.check_credit_limit()
+
 	def before_update_after_submit(self):
 		self.validate_po()
 		self.validate_drop_ship()
@@ -1302,7 +1305,11 @@ def create_pick_list(source_name, target_doc=None):
 		"Sales Order",
 		source_name,
 		{
-			"Sales Order": {"doctype": "Pick List", "validation": {"docstatus": ["=", 1]}},
+			"Sales Order": {
+				"doctype": "Pick List",
+				"field_map": {"set_warehouse": "parent_warehouse"},
+				"validation": {"docstatus": ["=", 1]},
+			},
 			"Sales Order Item": {
 				"doctype": "Pick List Item",
 				"field_map": {"parent": "sales_order", "name": "sales_order_item"},

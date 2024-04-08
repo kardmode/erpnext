@@ -151,7 +151,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		}
 
 		if(this.frm.fields_dict["items"]) {
-			this["items_remove"] = this.calculate_net_weight;
+			this["items_remove"] = this.process_item_removal;
 		}
 
 		if(this.frm.fields_dict["recurring_print_format"]) {
@@ -421,6 +421,19 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	scan_barcode() {
 		const barcode_scanner = new erpnext.utils.BarcodeScanner({frm:this.frm});
 		barcode_scanner.process_scan();
+	}
+
+	barcode(doc, cdt, cdn)  {
+		let row = locals[cdt][cdn];
+		if (row.barcode) {
+			erpnext.stock.utils.set_item_details_using_barcode(this.frm, row, (r) => {
+				debugger
+				frappe.model.set_value(cdt, cdn, {
+					"item_code": r.message.item_code,
+					"qty": 1,
+				});
+			});
+		}
 	}
 
 	validate_has_items () {
@@ -822,14 +835,14 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				}
 				let selling_doctypes_for_tc = ["Sales Invoice", "Quotation", "Sales Order", "Delivery Note"];
 				if (company_doc.default_selling_terms && frappe.meta.has_field(me.frm.doc.doctype, "tc_name") &&
-				selling_doctypes_for_tc.indexOf(me.frm.doc.doctype) != -1) {
+				selling_doctypes_for_tc.includes(me.frm.doc.doctype) && !me.frm.doc.tc_name) {
 					me.frm.set_value("tc_name", company_doc.default_selling_terms);
 				}
 				let buying_doctypes_for_tc = ["Request for Quotation", "Supplier Quotation", "Purchase Order",
 					"Material Request", "Purchase Receipt"];
 				// Purchase Invoice is excluded as per issue #3345
 				if (company_doc.default_buying_terms && frappe.meta.has_field(me.frm.doc.doctype, "tc_name") &&
-				buying_doctypes_for_tc.indexOf(me.frm.doc.doctype) != -1) {
+				buying_doctypes_for_tc.includes(me.frm.doc.doctype) && !me.frm.doc.tc_name) {
 					me.frm.set_value("tc_name", company_doc.default_buying_terms);
 				}
 
@@ -1291,6 +1304,11 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				}
 			})
 		}
+	}
+
+	process_item_removal() {
+		this.frm.trigger("calculate_taxes_and_totals");
+		this.frm.trigger("calculate_net_weight");
 	}
 
 	calculate_net_weight(){
@@ -2219,7 +2237,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		});
 
 		this.frm.doc.items.forEach(item => {
-			if (!item.quality_inspection) {
+			if (this.has_inspection_required(item)) {
 				let dialog_items = dialog.fields_dict.items;
 				dialog_items.df.data.push({
 					"docname": item.name,
@@ -2240,6 +2258,16 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 			frappe.msgprint(__("All items in this document already have a linked Quality Inspection."));
 		} else {
 			dialog.show();
+		}
+	}
+
+	has_inspection_required(item) {
+		if (this.frm.doc.doctype === "Stock Entry" && this.frm.doc.purpose == "Manufacture" ) {
+			if (item.is_finished_item && !item.quality_inspection) {
+				return true;
+			}
+		} else if (!item.quality_inspection) {
+			return true;
 		}
 	}
 
