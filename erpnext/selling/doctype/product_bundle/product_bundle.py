@@ -13,22 +13,6 @@ from erpnext.stock.get_item_details import get_conversion_factor, get_price_list
 
 class ProductBundle(Document):
 	# def autoname(self):
-		# names = frappe.db.sql_list("""select name from `tabBOM` where item=%s""", self.new_item_code)
-
-		# if names:
-			# # split by item
-			# names = [name.split(self.item, 1) for name in names]
-			# names = [d[-1][1:] for d in filter(lambda x: len(x) > 1 and x[-1], names)]
-
-			# # split by (-) if cancelled
-			# if names:
-				# names = [cint(name.split('-')[-1]) for name in names]
-				# idx = max(names) + 1
-			# else:
-				# idx = 1
-		# else:
-			# idx = 1
-
 		# self.name = 'PB-' + self.new_item_code + ('-%.3i' % idx)
 
 	def validate(self):

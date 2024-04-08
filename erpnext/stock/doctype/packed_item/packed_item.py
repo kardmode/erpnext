@@ -46,6 +46,9 @@ def make_packing_list(doc):
 				update_packed_item_stock_data(item_row, pi_row, bundle_item, item_data, doc)
 				update_packed_item_price_data(pi_row, item_data, doc)
 				update_packed_item_from_cancelled_doc(item_row, bundle_item, pi_row, doc)
+				
+				# MRP ADDED
+				pi_row.amount = pi_row.rate * pi_row.qty
 
 				if set_price_from_children:  # create/update bundle item wise price dict
 					update_product_bundle_rate(parent_items_price, pi_row, item_row)
@@ -213,7 +216,8 @@ def update_packed_item_price_data(pi_row, item_data, doc):
 	rate = get_price_list_rate(row_data, item_doc).get("price_list_rate")
 
 	pi_row.rate = rate or item_data.get("valuation_rate") or 0.0
-
+		
+	
 
 def update_packed_item_from_cancelled_doc(main_item_row, packing_item, pi_row, doc):
 	"Update packed item row details from cancelled doc into amended doc."

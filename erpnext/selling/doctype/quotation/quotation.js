@@ -34,6 +34,15 @@ frappe.ui.form.on('Quotation', {
 				}
 			};
 		});
+		
+		frm.set_query('project', function(doc, cdt, cdn) {
+			return {
+				query: "erpnext.controllers.queries.get_project_name",
+				filters: {
+					'company': doc.company
+				}
+			}
+		});
 	},
 
 	refresh: function(frm) {
@@ -175,7 +184,6 @@ erpnext.selling.QuotationController = class QuotationController extends erpnext.
 
 	toggle_reqd_lead_customer() {
 		var me = this;
-
 		// to overwrite the customer_filter trigger from queries.js
 		this.frm.toggle_reqd("party_name", this.frm.doc.quotation_to);
 		this.frm.set_query('customer_address', this.address_query);

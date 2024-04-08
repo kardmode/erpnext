@@ -70,6 +70,10 @@ frappe.ui.form.on("Item", {
 		frm.add_custom_button(__("Add Units"), function() {
 			frm.trigger('mrp_add_uom');
 		});
+		
+		frm.add_custom_button(__("Generate Random Barcode"), function() {
+			frm.trigger('mrp_add_barcode');
+		}, __("Actions"));
 
 
 		if (frm.doc.is_stock_item) {
@@ -305,7 +309,38 @@ frappe.ui.form.on("Item", {
 	has_variants: function(frm) {
 		erpnext.item.toggle_attributes(frm);
 	},
-	
+	mrp_add_barcode: function(frm) {
+		function generateEAN13() {
+			// Generate a random 12-digit number (excluding the check digit)
+			var randomNumber = Math.floor(Math.random() * 1000000000000); // Generate a random 12-digit number
+			var digits = randomNumber.toString().split('').map(Number); // Convert the number to an array of digits
+
+			// Calculate the check digit
+			var sumOdd = digits[0] + digits[2] + digits[4] + digits[6] + digits[8] + digits[10];
+			var sumEven = digits[1] + digits[3] + digits[5] + digits[7] + digits[9] + digits[11];
+			var total = sumOdd * 3 + sumEven;
+			var checkDigit = (10 - (total % 10)) % 10;
+
+			// Concatenate the generated number with the check digit to form the complete EAN-13 number
+			var ean = randomNumber.toString() + checkDigit.toString();
+			
+			return ean;
+		}
+		
+		function generateRandomCode() {
+			// Generate a random 12-digit number (excluding the check digit)
+			var randomNumber = Math.floor(Math.random() * 1000000000000); // Generate a random 12-digit number
+			var digits = randomNumber.toString().split('').map(Number); // Convert the number to an array of digits			
+			return randomNumber;
+		}
+
+		// Generate a random EAN-13 barcode number
+		var barcodeData = generateEAN13();
+
+		let row = frm.add_child('barcodes', {barcode:barcodeData,uom:frm.doc.stock_uom });
+		refresh_field("barcodes");
+		cur_frm.script_manager.trigger("barcode", row.doctype, row.name);	
+	},
 	mrp_add_uom: function(frm) {
 		var dialog = new frappe.ui.Dialog({
 			fields: [
@@ -364,6 +399,15 @@ frappe.ui.form.on("Item", {
 		dialog.show();
 	},
 });
+
+frappe.ui.form.on('Item Barcode', {
+	barcode: function(frm, cdt, cdn) {
+		var row = frappe.get_doc(cdt, cdn);
+		var barcode = row.barcode;
+		frappe.model.set_value(cdt, cdn, 'custom_display_barcode', barcode);
+		cur_frm.script_manager.trigger("custom_display_barcode", cdt, cdn);	
+	}
+})
 
 frappe.ui.form.on('Item Reorder', {
 	reorder_levels_add: function(frm, cdt, cdn) {

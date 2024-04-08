@@ -553,8 +553,7 @@
    "oldfieldname": "brand",
    "oldfieldtype": "Link",
    "options": "Brand",
-   "print_hide": 1,
-   "read_only": 1
+   "print_hide": 1
   },
   {
    "fieldname": "item_group",
@@ -875,7 +874,7 @@
  "idx": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-11-24 19:07:17.715231",
+ "modified": "2024-02-29 10:28:23.649759",
  "modified_by": "Administrator",
  "module": "Selling",
  "name": "Sales Order Item",

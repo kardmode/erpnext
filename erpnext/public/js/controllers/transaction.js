@@ -1648,18 +1648,18 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		for (const child of children) {
 			const existing_pricing_rule = frappe.model.get_value(child.doctype, child.name, "pricing_rules");
 			
-			console.log(child);
+			// console.log(child);
 
 			for (const [key, value] of Object.entries(child)) {
 				if (!["doctype", "name"].includes(key)) {
 					if (key === "price_list_rate") {
 						if(this.mrp_apply_price_list === true)
 						{
-							console.log("applying price list values");
+							// console.log("applying price list values");
 							frappe.model.set_value(child.doctype, child.name, "rate", value);							
 						}
 						else{
-							console.log("not applying price list values");
+							// console.log("not applying price list values");
 						}
 					}
 
@@ -1758,7 +1758,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	}
 
 	apply_price_list(item, reset_plc_conversion) {
-		console.log("apply price list");
+		// console.log("apply price list");
 		// We need to reset plc_conversion_rate sometimes because the call to
 		// `erpnext.stock.get_item_details.apply_price_list` is sensitive to its value
 		if (!reset_plc_conversion) {

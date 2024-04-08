@@ -103,9 +103,9 @@ frappe.ui.form.on("Sales Order", {
 
 		frm.set_query('project', function(doc, cdt, cdn) {
 			return {
-				query: "erpnext.controllers.queries.get_project_name",
+				// query: "erpnext.controllers.queries.get_project_name",
 				filters: {
-					'customer': doc.customer
+					'company': doc.company
 				}
 			}
 		});
@@ -134,7 +134,8 @@ frappe.ui.form.on("Sales Order", {
 
 	delivery_date: function(frm) {
 		$.each(frm.doc.items || [], function(i, d) {
-			if(!d.delivery_date) d.delivery_date = frm.doc.delivery_date;
+			// if(!d.delivery_date) d.delivery_date = frm.doc.delivery_date;
+			d.delivery_date = frm.doc.delivery_date;
 		});
 		refresh_field("items");
 	}

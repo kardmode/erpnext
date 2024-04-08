@@ -99,11 +99,12 @@ class SalesOrder(SellingController):
 				if cint(
 					frappe.db.get_single_value("Selling Settings", "allow_against_multiple_purchase_orders")
 				):
-					frappe.msgprint(
-						_("Warning: Sales Order {0} already exists against Customer's Purchase Order {1}").format(
-							frappe.bold(so[0][0]), frappe.bold(self.po_no)
-						)
-					)
+					pass
+					# frappe.msgprint(
+						# _("Warning: Sales Order {0} already exists against Customer's Purchase Order {1}").format(
+							# frappe.bold(so[0][0]), frappe.bold(self.po_no)
+						# )
+					# )
 				else:
 					frappe.throw(
 						_(
