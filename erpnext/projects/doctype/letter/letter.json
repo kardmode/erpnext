@@ -1,6 +1,7 @@
 {
+ "actions": [],
  "append_company_abbr_to_name": "0",
- "autoname": "COM.-LET-.PDY.#####",
+ "autoname": "format:LET-{#####}",
  "beta": 1,
  "creation": "2017-09-02 22:35:49.190911",
  "doctype": "DocType",
@@ -64,7 +65,8 @@
    "in_standard_filter": 1,
    "label": "Company",
    "options": "Company",
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "fieldname": "reference_doctype",
@@ -94,11 +96,13 @@
    "label": "Main Body"
   }
  ],
- "modified": "2020-06-17 22:52:23.929982",
+ "links": [],
+ "modified": "2024-04-25 03:45:56.133189",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Letter",
  "name_case": "Title Case",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -128,5 +132,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "title"
 }
