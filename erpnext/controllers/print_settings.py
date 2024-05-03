@@ -44,7 +44,7 @@ def set_print_templates_for_taxes(doc, settings):
 
 
 def format_columns(display_columns, compact_fields):
-	compact_fields = compact_fields + ["image", "item_code"]
+	compact_fields = [*compact_fields, "image", "item_code"]
 	final_columns = []
 	for column in display_columns:
 		if column not in compact_fields:
@@ -54,7 +54,7 @@ def format_columns(display_columns, compact_fields):
 
 # gets the more info from print format builder	
 def format_columns_custom(display_columns, compact_fields):
-	compact_fields = compact_fields + ["image", "item_code"]
+	compact_fields = [*compact_fields, "image", "item_code"]
 	final_columns = []
 	for column in display_columns:
 		if column.fieldname not in compact_fields:

@@ -157,7 +157,6 @@ def create_or_update_cheque_print_format(template_name):
 		"display_date":display_date,
 		"alignment":alignment
 	}
-
 	cheque_print.save(ignore_permissions=True)
 
 	frappe.db.set_value("Cheque Print Template", template_name, "has_print_format", 1)

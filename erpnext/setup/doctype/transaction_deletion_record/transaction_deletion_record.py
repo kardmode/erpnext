@@ -15,7 +15,7 @@ from frappe.utils.background_jobs import create_job_id, is_job_enqueued
 
 class TransactionDeletionRecord(Document):
 	def __init__(self, *args, **kwargs):
-		super(TransactionDeletionRecord, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.batch_size = 5000
 		# Tasks are listed by their execution order
 		self.task_to_internal_method_map = OrderedDict(
@@ -153,7 +153,7 @@ class TransactionDeletionRecord(Document):
 			if task := getattr(self, method, None):
 				try:
 					task()
-				except Exception as err:
+				except Exception:
 					frappe.db.rollback()
 					traceback = frappe.get_traceback(with_context=True)
 					if traceback:
@@ -224,7 +224,7 @@ class TransactionDeletionRecord(Document):
 	def delete_lead_addresses(self):
 		if not self.custom_mrp_debug_only:
 			"""Delete addresses to which leads are linked"""
-	def validate_running_task_for_doc(self, job_names: list = None):
+	def validate_running_task_for_doc(self, job_names: list | None = None):
 		# at most only one task should be runnning
 		running_tasks = []
 		for x in job_names:
@@ -273,9 +273,7 @@ class TransactionDeletionRecord(Document):
 			if leads:
 				addresses = frappe.db.sql_list(
 					"""select parent from `tabDynamic Link` where link_name
-					in ({leads})""".format(
-						leads=",".join(leads)
-					)
+					in ({leads})""".format(leads=",".join(leads))
 				)
 
 				if addresses:
@@ -285,16 +283,12 @@ class TransactionDeletionRecord(Document):
 						"""delete from `tabAddress` where name in ({addresses}) and
 						name not in (select distinct dl1.parent from `tabDynamic Link` dl1
 						inner join `tabDynamic Link` dl2 on dl1.parent=dl2.parent
-						and dl1.link_doctype<>dl2.link_doctype)""".format(
-							addresses=",".join(addresses)
-						)
+						and dl1.link_doctype<>dl2.link_doctype)""".format(addresses=",".join(addresses))
 					)
 
 					frappe.db.sql(
 						"""delete from `tabDynamic Link` where link_doctype='Lead'
-						and parenttype='Address' and link_name in ({leads})""".format(
-							leads=",".join(leads)
-						)
+						and parenttype='Address' and link_name in ({leads})""".format(leads=",".join(leads))
 					)
 
 				frappe.db.sql(
@@ -554,10 +548,8 @@ class TransactionDeletionRecord(Document):
 		else:
 			prefix, hashes = naming_series.rsplit("{", 1)
 		last = frappe.db.sql(
-			"""select max(name) from `tab{0}`
-						where name like %s""".format(
-				doctype_name
-			),
+			f"""select max(name) from `tab{doctype_name}`
+						where name like %s""",
 			prefix + "%",
 		)
 		if last and last[0][0]:
@@ -1388,12 +1380,7 @@ def is_deletion_doc_running(company: str | None = None, err_msg: str | None = No
 def check_for_running_deletion_job(doc, method=None):
 	# Check if DocType has 'company' field
 	df = qb.DocType("DocField")
-	if (
-		not_allowed := qb.from_(df)
-		.select(df.parent)
-		.where((df.fieldname == "company") & (df.parent == doc.doctype))
-		.run()
-	):
+	if qb.from_(df).select(df.parent).where((df.fieldname == "company") & (df.parent == doc.doctype)).run():
 		is_deletion_doc_running(
 			doc.company, _("Cannot make any transactions until the deletion job is completed")
 		)
