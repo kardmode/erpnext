@@ -1002,56 +1002,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "VAT",
-   "link_count": 4,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT Return",
-   "link_count": 0,
-   "link_to": "VAT Return",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT Return Adjustment",
-   "link_count": 0,
-   "link_to": "VAT Return Adjustment",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Purchase Invoice",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT Purchase Invoice",
-   "link_count": 0,
-   "link_to": "MRP VAT Purchase Invoice",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Sales Invoice",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP VAT Sales",
-   "link_count": 0,
-   "link_to": "MRP VAT Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Accounting Masters",
    "link_count": 8,
    "onboard": 0,
@@ -1143,9 +1093,70 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "VAT",
+   "link_count": 5,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "VAT Return",
+   "link_count": 0,
+   "link_to": "VAT Return",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "VAT Return Adjustment",
+   "link_count": 0,
+   "link_to": "VAT Return Adjustment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Purchase Invoice",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "VAT Purchase Invoice",
+   "link_count": 0,
+   "link_to": "MRP VAT Purchase Invoice",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Sales Invoice",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "MRP VAT Sales",
+   "link_count": 0,
+   "link_to": "MRP VAT Sales",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "MRP Corporate Tax",
+   "link_count": 0,
+   "link_to": "MRP Corporate Tax",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2023-09-27 08:12:47.317783",
+ "modified": "2024-07-02 04:18:18.932033",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Accounting",

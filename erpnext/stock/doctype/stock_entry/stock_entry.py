@@ -256,7 +256,7 @@ class StockEntry(StockController):
 
 	def validate_custom_production_order_status(self):
 		pro_doc = frappe.get_doc("MRP Production Order", self.custom_production_order)
-		if pro_doc.docstatus == 1:
+		if pro_doc.workflow_state == "Completed":
 			frappe.throw(_("Cannot cancel transaction for Completed Production Order."))
 
 	def validate_purpose(self):
@@ -354,7 +354,8 @@ class StockEntry(StockController):
 				)
 
 			if item.item_code not in stock_items:
-				frappe.throw(_("{0} is not a stock Item").format(item.item_code))
+				item_link = frappe.utils.get_link_to_form("Item",item.item_code)
+				frappe.throw(_("Item {0} is not a stock Item").format(item_link))
 
 			item_details = self.get_item_details(
 				frappe._dict(
@@ -1660,7 +1661,6 @@ class StockEntry(StockController):
 
 		self.set_scrap_items()
 		self.set_actual_qty()
-		self.update_items_for_process_loss()
 		self.validate_customer_provided_item()
 		self.calculate_rate_and_amount(raise_error_if_no_rate=False)
 
@@ -2748,6 +2748,14 @@ def get_warehouse_details(args):
 
 	ret = {}
 	if args.warehouse and args.item_code:
+		if not args.get("posting_date"):
+			frappe.throw(_("Posting Date is required."))
+
+		
+		if not args.get("posting_time"):
+			frappe.throw(_("Posting Time is required."))
+
+	
 		args.update(
 			{
 				"posting_date": args.posting_date,

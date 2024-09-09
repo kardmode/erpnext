@@ -687,46 +687,116 @@ def recalculate_bin_qty(new_name, company):
 	)
 	
 @frappe.whitelist()
-def reopen_pos(year = None,limit=500,submit=False):
-	if not year:
-		return None
+def get_receipts_without_invoice():
+
+	receipts = frappe.db.sql("""
+		SELECT
+			t1.name AS receipt_name,
+			t1.title,
+			t1.status,
+			t1.posting_date AS posting_date,
+			t2.purchase_order AS purchase_order
+		FROM
+			`tabPurchase Receipt` t1
+		LEFT JOIN
+			`tabPurchase Receipt Item` t2 ON t1.name = t2.parent
+		LEFT JOIN
+			`tabPurchase Invoice Item` t3 ON t2.purchase_order = t3.purchase_order
+		WHERE
+			t1.docstatus = 1
+			AND t1.status = "Closed"
+			AND t3.name IS NULL
+			AND t2.purchase_order IS NOT NULL
+		ORDER BY
+			t1.posting_date ASC
+	""", as_dict=True)
 		
-	purchase_order_details = frappe.db.sql("""SELECT
-		t1.name,
-		t1.supplier,
-		t1.transaction_date,
-		t1.status,
-		t1.title
-	FROM
-		`tabPurchase Order` t1
-	WHERE
-		YEAR(t1.transaction_date) = %s AND
-		t1.docstatus = 1 AND
-		t1.status = "Closed"
-	ORDER BY
-		t1.transaction_date ASC
-	LIMIT
-		%s""", (year,cint(limit)), as_dict=True)
-			
-	prs_created = []
-	error_list = []
-	submit = cint(submit)
+	docs_updated = []
+	errors = []
+	submit = False
 	
-	for po_detail in purchase_order_details:
+	for d_detail in receipts:
 		try:
+			doc = frappe.get_doc("Purchase Receipt", d_detail.receipt_name)
+			docs_updated.append(_("{0} {1} {2}.").format(doc.name, doc.status, doc.posting_date))
+
 			if submit:
-				po = frappe.get_doc("Purchase Order", po_detail.name)
-				po.update_status("Submitted")				
-				prs_created.append(_("PO {0} {1} {2} {3}.").format(po_detail.name, po_detail.status, po_detail.transaction_date,po_detail.title))
-			else:
-				prs_created.append(_("PO {0} {1} {2} {3}.").format(po_detail.name, po_detail.status, po_detail.transaction_date,po_detail.title))
+				doc.update_status("Submitted")				
 
 		except Exception as error:
-			error_list.append(error)
+			errors.append(error)
 	
-	frappe.db.commit()
+	if submit:
+		frappe.db.commit()
 
-	return prs_created
+	return {
+		"receipts": receipts,
+		"docs_updated": docs_updated,
+		"errors": errors
+	}
+
+@frappe.whitelist()
+def reopen_docs(date = None,limit=500,submit=False, doctype=None):
+	if not date or not doctype:
+		frappe.throw(_("Date and doctype are required parameters."))
+
+	# Ensure doctype is valid
+	if not frappe.db.exists("DocType", doctype):
+		frappe.throw(_("The doctype {0} does not exist.").format(doctype))
+	
+	from frappe.model.meta import get_meta
+
+	 # Get metadata for the doctype
+	meta = get_meta(doctype)
+
+	# Check if the doctype is submittable
+	if not meta.is_submittable:
+		frappe.throw(_("The doctype {0} is not submittable.").format(doctype))
+
+	# Check if the doctype has 'transaction_date' or 'posting_date'
+	if not meta.has_field("transaction_date") and not meta.has_field("posting_date"):
+		frappe.throw(_("The doctype {0} must have 'transaction_date' or 'posting_date'.").format(doctype))
+
+	# Ensure the doctype has 'status' field
+	if not meta.has_field("status"):
+		frappe.throw(_("The doctype {0} must have a 'status' field.").format(doctype))
+
+	# Determine which date field to use
+	date_field = 'transaction_date' if meta.has_field("transaction_date") else 'posting_date'
+
+    # Use frappe.get_list to fetch documents based on filters
+	filters = {
+		date_field: ['<=', date],
+		'docstatus': 1,
+		'status': 'Closed'
+	}
+    
+	fields = ['name', date_field, 'status']
+    
+	docs_details = frappe.get_list(doctype, filters=filters, fields=fields, limit=cint(limit), order_by=f'{date_field} ASC')
+			
+	docs_updated = []
+	errors = []
+	submit = cint(submit)
+	
+	for d_detail in docs_details:
+		try:
+			doc = frappe.get_doc(doctype, d_detail.name)
+			docs_updated.append(_("{0} {1} {2}.").format(doc.name, doc.status, d_detail.get(date_field)))
+
+			if submit:
+				doc.update_status("Submitted")				
+
+		except Exception as error:
+			errors.append(error)
+	
+	if submit:
+		frappe.db.commit()
+
+	return {
+		"docs_updated": docs_updated,
+		"errors": errors
+	}
 	
 @frappe.whitelist()
 def cancel_sis(year = None,limit=500,submit=False):

@@ -4,6 +4,7 @@
  "autoname": "naming_series:",
  "creation": "2022-01-25 10:29:57.771398",
  "doctype": "DocType",
+ "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "customer_section",
@@ -2185,7 +2186,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2024-03-22 17:50:34.395602",
+ "modified": "2024-09-06 11:30:16.443174",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",

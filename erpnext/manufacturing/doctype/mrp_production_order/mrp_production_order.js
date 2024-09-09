@@ -10,8 +10,8 @@ cur_frm.add_fetch("reference_name", "title", "reference_title");
 frappe.ui.form.on('MRP Production Order', {
 	onload: function(frm) {
 		if (frm.doc.__islocal) {
-				//frm.set_value("posting_date", frappe.datetime.nowdate());
-				//frm.set_value("posting_time", frappe.datetime.now_time());
+			//frm.set_value("posting_date", frappe.datetime.nowdate());
+			//frm.set_value("posting_time", frappe.datetime.now_time());
 		}
 		else
 		{
@@ -61,45 +61,29 @@ frappe.ui.form.on('MRP Production Order', {
 			frm.set_query('reference_name', function(doc) {
 			return {
 				filters: {
-				'company': doc.company,
-				'docstatus': ["<",2],
-				'status': ["in",["Draft","Open"]]
+					'company': doc.company,
+					'docstatus': ["<",2],
+					'status': ["in",["Draft","Open"]]
 				}
 			}
 			});
 		}
-		else{
+		else
+		{
 			frm.set_query('reference_name', function(doc) {
-			return {
-				filters: {
-				'company': doc.company,
-				'docstatus': ["<",2]
+				return {
+					filters: {
+					'company': doc.company,
+					'docstatus': ["<",2]
+					}
 				}
-			}
 			});
-			
 		}
 	},
-	refresh: function(frm) {
-		// frm.get_field("get_assembly_summary").$input.addClass("btn-primary");
-		
-		if(!frm.doc.__islocal)
-		{
-
-			/* frm.add_custom_button(__("Manufacture"), function() {
-				frm.trigger("make_entries");
-			});
-			
-			frm.add_custom_button(__("Submit Entries"), function() {
-				frm.trigger("submit_entries");
-			})
-			
-			frm.add_custom_button(__("Delete Entries"), function() {
-				frm.trigger("delete_entries");
-			}) */
-			
-			
-			if(frm.doc.docstatus < 1 && self.workflow_state == "Draft")
+	refresh: function(frm) {		
+		if(!frm.is_new())
+		{	
+			if(frm.doc.docstatus < 1 && frm.doc.workflow_state == "Draft")
 			{
 				frm.add_custom_button(__('Any Document'),
 				function() {
@@ -129,9 +113,7 @@ frappe.ui.form.on('MRP Production Order', {
 		
 	},
 	onload_post_render: function(frm) {
-	 		frm.get_field("items").grid.set_multiple_add("item_code", "qty");
-			
-			
+	 	frm.get_field("items").grid.set_multiple_add("item_code", "qty");
 	},
 	
 	reference_doctype: function(frm) {
@@ -152,22 +134,19 @@ frappe.ui.form.on('MRP Production Order', {
 		}
 		
 	},
-	
 	reference_name: function(frm) {
 		if (frm.doc.reference_name)
 		{
 			frm.trigger("get_items_from_reference");
-
 		}
-		else{
+		else
+		{
 			//frm.set_value("items",[]);
 			//frm.set_value("project","");
 			frm.set_value("remarks","");
 			//frm.set_value("reference_title","");
 		}
 	},
-	
-	
 	get_items_from_reference:function(frm) {
 		if (frm.doc.reference_name)
 		{
@@ -188,22 +167,19 @@ frappe.ui.form.on('MRP Production Order', {
 		}		
 	},
 	get_assembly_summary:function(frm) {
-		if(frm.doc.__islocal)
+		if(frm.is_new())
 		{
 			frappe.msgprint(__("Production Order Must Be Saved"));
 			return;
-			
 		}
 		frappe.call({
 				doc: cur_frm.doc,
 				method: "get_summary",
 				args:{
-					should_save:false
 				},
 				freeze: true,
 					freeze_message: "Please wait ..",
 				callback: function(r) {
-					console.log(r);
 					if(r.message == "True")
 					{
 						refresh_field("combined_summary");
@@ -216,15 +192,12 @@ frappe.ui.form.on('MRP Production Order', {
 						refresh_field("combined_summary");
 						refresh_field("per_item_summary");
 						cur_frm.dirty();
-						// frappe.msgprint(__("No items found in BOM"));
 					}
 				}
 			});
 	},
-	
-	
 	make_entries:function(frm) {
-		if(frm.doc.__islocal)
+		if(frm.is_new())
 		{
 			frappe.msgprint(__("Production Order Must Be Saved"));
 			return;
@@ -255,14 +228,10 @@ frappe.ui.form.on('MRP Production Order', {
 					}
 				});
 			}
-		);
-		
-		
-		
+		);		
 	},
-	
 	submit_entries:function(frm) {
-		if(frm.doc.__islocal)
+		if(frm.is_new())
 		{
 			frappe.msgprint(__("Production Order Must Be Saved"));
 			return;
@@ -298,7 +267,7 @@ frappe.ui.form.on('MRP Production Order', {
 	},
 	
 	delete_entries:function(frm) {
-		if(frm.doc.__islocal)
+		if(frm.is_new())
 		{
 			frappe.msgprint(__("Production Order Must Be Saved"));
 			return;

@@ -1,9 +1,10 @@
 {
+ "actions": [],
  "allow_rename": 1,
  "beta": 1,
  "creation": "2019-02-28 21:55:30.298878",
  "doctype": "DocType",
- "document_type": "Users",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -73,8 +74,9 @@
    "options": "attach_image_6"
   }
  ],
+ "links": [],
  "max_attachments": 1,
- "modified": "2020-03-24 16:52:22.190607",
+ "modified": "2024-09-09 09:04:34.983407",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "MRP Store Item",
@@ -119,6 +121,7 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "item_code",
  "track_changes": 1
 }

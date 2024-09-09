@@ -289,7 +289,7 @@ def get_best_bill(item_code=None,item_alt=None, item_qty = 0, order_by_least = F
 		return best_import_doc,enough_stock
 	
 	item_dict = get_bills_and_stock(item_code,company=company,posting_date = posting_date,posting_time = posting_time)
-
+	
 	highest_qty = 0
 	best_import_doc = None
 	
@@ -452,9 +452,14 @@ def get_item_rate_in_bill(import_bill,item_code,item_alt=None,uom = None, postin
 
 def validate_ref_doc(transaction_type,reference_name):
 	if transaction_type in ["Purchase Receipt","Delivery Note","MRP Production Order"]:
-		doc_details = frappe.get_doc(transaction_type,reference_name)
-		if doc_details.docstatus == 1:
-			return True
+		if frappe.db.exists(transaction_type, reference_name):
+			doc_details = frappe.get_doc(transaction_type,reference_name)
+			if not doc_details:
+				return False
+			if doc_details.docstatus == 1:
+				return True
+			else:
+				return False
 		else:
 			return False
 	else:

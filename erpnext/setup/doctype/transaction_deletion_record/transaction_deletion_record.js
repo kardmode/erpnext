@@ -20,9 +20,9 @@ frappe.ui.form.on("Transaction Deletion Record", {
 	},
 
 	refresh: function(frm) {
-		
 		if (frm.doc.docstatus == 1 && ["Queued", "Failed"].find((x) => x == frm.doc.status)) {
 			let execute_btn = frm.doc.status == "Queued" ? __("Start Deletion") : __("Retry");
+
 			frm.add_custom_button(execute_btn, () => {
 				// Entry point for chain of events
 				frm.call({
@@ -31,10 +31,7 @@ frappe.ui.form.on("Transaction Deletion Record", {
 				});
 			});
 		}
-		
-		frm.fields_dict['doctypes_to_be_ignored'].grid.set_column_disp('no_of_docs', false);
-		frm.refresh_field('doctypes_to_be_ignored');
-		
+
 		/* frm.add_custom_button(__('Run'), () => {
 			frm.trigger("mrp_run");
 		}); */
@@ -104,8 +101,7 @@ frappe.ui.form.on("Transaction Deletion Record", {
 				}
 			});
 		}, __("Steps"));
-		
-		
+			
 		frm.add_custom_button(__('7. Delete Comments of type Deleted'), () => {
 			frappe.call({
 				doc: frm.doc,
@@ -116,12 +112,18 @@ frappe.ui.form.on("Transaction Deletion Record", {
 				}
 			});
 		}, __("Steps"));
-		
-		
-		/* frm.add_custom_button(__('Re-open POs'), () => {
+			
+		frm.add_custom_button(__('Re-open Docs'), () => {
+			
 			frm.trigger("reopen_pos");
 		}, __("Tools"));
 		
+		frm.add_custom_button(__('find_receipts'), () => {
+			
+			frm.trigger("find_receipts");
+		}, __("Tools"));
+		
+		/*
 		frm.add_custom_button(__('Cancel Reposts'), () => {
 			frm.trigger("cancel_repos");
 		}, __("Tools"));
@@ -180,7 +182,6 @@ frappe.ui.form.on("Transaction Deletion Record", {
 		
 	},
 	mrp_run: function(frm){
-		
 		frappe.call({
 			doc: frm.doc,
 			method: "mrp_run",
@@ -191,20 +192,77 @@ frappe.ui.form.on("Transaction Deletion Record", {
 				cur_frm.dirty();
 			}
 		});
-		
 	},
-	
+	find_receipts: function(){
+		var me = this;
+		var d = new frappe.ui.Dialog({
+			title: __('Find PI'),
+			fields: [
+				{
+					fieldname: "date",
+					fieldtype: "Date",
+					label:"Before Date",
+					reqd: 1,
+				},
+				{
+					fieldname: "limit",
+					fieldtype: "Int",
+					label:"Limit",
+					reqd: 1,
+					default:1
+				},
+				{
+					fieldname: "submit",
+					fieldtype: "Check",
+					label:"Submit"
+				}
+			],
+		});
+		
+		d.set_primary_action(__('Find'), function() {
+			var data = d.get_values();
+			if(!data) return;
+			frappe.call({
+				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.get_receipts_without_invoice",
+				args: {
+				},
+				callback: function(r) {
+					// console.log(r)
+					d.hide();
+					frappe.msgprint(r.message.docs_updated.join("<br>"));
+
+					/* if(r.message && r.message.receipts.length > 0) {
+						var receiptsInfo = r.message.receipts.map(function(receipt) {
+							return `${receipt.receipt_name} - ${receipt.title}, ${receipt.posting_date}, ${receipt.status}`;
+						}).join("<br>");
+
+						frappe.msgprint(receiptsInfo);
+					} else {
+						frappe.msgprint("No receipts found without linked invoices.");
+					} */
+				}
+			});
+		})
+		
+		d.show();
+	},
 	reopen_pos: function(){
 		var me = this;
 		var d = new frappe.ui.Dialog({
-			title: __('Re-open closed POs'),
+			title: __('Re-open Docs'),
 			fields: [
 				{
-					fieldname: "year",
-					fieldtype: "Int",
-					label:"Year",
+					fieldname: "doctype",
+					fieldtype: "Link",
+					options:"DocType",
+					label:"DocType",
 					reqd: 1,
-					default:2017
+				},
+				{
+					fieldname: "date",
+					fieldtype: "Date",
+					label:"Before Date",
+					reqd: 1,
 				},
 				{
 					fieldname: "limit",
@@ -225,18 +283,17 @@ frappe.ui.form.on("Transaction Deletion Record", {
 			var data = d.get_values();
 			if(!data) return;
 			frappe.call({
-				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.reopen_pos",
+				method: "erpnext.setup.doctype.transaction_deletion_record.transaction_deletion_record.reopen_docs",
 				args: {
-					year: data.year,
+					doctype: data.doctype,
+					date: data.date,
 					limit: data.limit,
 					submit: cint(data.submit)
 				},
 				callback: function(r) {
-					if(!r.exc) {
-					}
-					console.log(r)
+					// console.log(r)
 					d.hide();
-					frappe.msgprint(r.message.join("<br>"));
+					frappe.msgprint(r.message.docs_updated.join("<br>"));
 				}
 			});
 		})

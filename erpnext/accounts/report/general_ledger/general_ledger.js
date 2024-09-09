@@ -199,6 +199,11 @@ frappe.query_reports["General Ledger"] = {
 			label: __("Ignore Exchange Rate Revaluation Journals"),
 			fieldtype: "Check",
 		},
+				{
+			fieldname: "show_more_accounts",
+			label: __("Show More Accounts"),
+			fieldtype: "Check",
+		},
 	],
 };
 

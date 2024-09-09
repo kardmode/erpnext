@@ -109,7 +109,7 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None, args=No
 				value = response.json()
 				for res_key in settings.result_key:
 					value = value[format_ces_api(str(res_key.key), req_params)]
-				value = value * 3.67
+				value = value * 3.68
 				cache.setex(name=key, time=21600, value=flt(value))
 				
 			else:
@@ -129,6 +129,8 @@ def get_exchange_rate(from_currency, to_currency, transaction_date=None, args=No
 				for res_key in settings.result_key:
 					value = value[format_ces_api(str(res_key.key), req_params)]
 				cache.setex(name=key, time=21600, value=flt(value))
+		
+		frappe.errprint(value)
 		return flt(value)
 	except Exception:
 		frappe.log_error("Unable to fetch exchange rate")

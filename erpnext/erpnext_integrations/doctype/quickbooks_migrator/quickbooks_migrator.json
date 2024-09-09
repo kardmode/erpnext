@@ -1,7 +1,9 @@
 {
+ "actions": [],
  "beta": 1,
  "creation": "2018-07-10 14:48:16.757030",
  "doctype": "DocType",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -190,7 +192,8 @@
   }
  ],
  "issingle": 1,
- "modified": "2019-08-07 15:26:00.653433",
+ "links": [],
+ "modified": "2024-09-09 09:03:35.199518",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "QuickBooks Migrator",
@@ -209,5 +212,6 @@
  ],
  "quick_entry": 1,
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "states": []
 }

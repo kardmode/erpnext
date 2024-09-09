@@ -12,11 +12,14 @@ from frappe.core.doctype.version.version import get_diff
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import cint, cstr, flt, today, ceil
 from frappe.website.website_generator import WebsiteGenerator
+from frappe.utils import get_link_to_form
 
 import erpnext
 from erpnext.setup.utils import get_exchange_rate
 from erpnext.stock.doctype.item.item import get_item_details
 from erpnext.stock.get_item_details import get_conversion_factor, get_price_list_rate
+
+from math import sqrt, pi, log10, floor, modf
 
 form_grid_templates = {"items": "templates/form_grid/item_grid.html"}
 
@@ -107,50 +110,48 @@ class BOM(WebsiteGenerator):
 	)
 
 	def autoname(self):
-		from frappe.model.naming import make_autoname
-
-		self.name = make_autoname(self.item + '-.###')
-		
 		# ignore amended documents while calculating current index
-		# existing_boms = frappe.get_all(
-			# "BOM", filters={"item": self.item, "amended_from": ["is", "not set"]}, pluck="name"
-		# )
 
-		# if existing_boms:
-			# index = self.get_next_version_index(existing_boms)
-		# else:
-			# index = 1
+		search_key = f"{self.doctype}-{self.item}%"
+		existing_boms = frappe.get_all(
+			"BOM", filters={"name": ("like", search_key), "amended_from": ["is", "not set"]}, pluck="name"
+		)
 
-		# prefix = self.doctype
-		# suffix = "%.3i" % index  # convert index to string (1 -> "001")
-		# bom_name = f"{prefix}-{self.item}-{suffix}"
+		if existing_boms:
+			index = self.get_next_version_index(existing_boms)
+		else:
+			index = 1
 
-		# if len(bom_name) <= 140:
-			# name = bom_name
-		# else:
-			# # since max characters for name is 140, remove enough characters from the
-			# # item name to fit the prefix, suffix and the separators
-			# truncated_length = 140 - (len(prefix) + len(suffix) + 2)
-			# truncated_item_name = self.item[:truncated_length]
-			# # if a partial word is found after truncate, remove the extra characters
-			# truncated_item_name = truncated_item_name.rsplit(" ", 1)[0]
-			# name = f"{prefix}-{truncated_item_name}-{suffix}"
+		prefix = self.doctype
+		suffix = "%.3i" % index  # convert index to string (1 -> "001")
+		bom_name = f"{prefix}-{self.item}-{suffix}"
 
-		# if frappe.db.exists("BOM", name):
-			# conflicting_bom = frappe.get_doc("BOM", name)
+		if len(bom_name) <= 140:
+			name = bom_name
+		else:
+			# since max characters for name is 140, remove enough characters from the
+			# item name to fit the prefix, suffix and the separators
+			truncated_length = 140 - (len(prefix) + len(suffix) + 2)
+			truncated_item_name = self.item[:truncated_length]
+			# if a partial word is found after truncate, remove the extra characters
+			truncated_item_name = truncated_item_name.rsplit(" ", 1)[0]
+			name = f"{prefix}-{truncated_item_name}-{suffix}"
 
-			# if conflicting_bom.item != self.item:
-				# msg = _("A BOM with name {0} already exists for item {1}.").format(
-					# frappe.bold(name), frappe.bold(conflicting_bom.item)
-				# )
+		if frappe.db.exists("BOM", name):
+			conflicting_bom = frappe.get_doc("BOM", name)
 
-				# frappe.throw(
-					# _("{0}{1} Did you rename the item? Please contact Administrator / Tech support").format(
-						# msg, "<br>"
-					# )
-				# )
+			if conflicting_bom.item != self.item:
+				msg = _("A BOM with name {0} already exists for item {1}.").format(
+					frappe.bold(name), frappe.bold(conflicting_bom.item)
+				)
 
-		# self.name = name
+				frappe.throw(
+					_("{0}{1} Did you rename the item? Please contact Administrator / Tech support").format(
+						msg, "<br>"
+					)
+				)
+
+		self.name = name
 
 	@staticmethod
 	def get_next_version_index(existing_boms: list[str]) -> int:
@@ -312,7 +313,7 @@ class BOM(WebsiteGenerator):
 			args = json.loads(args)
 
 		item = self.get_item_det(args["item_code"])
-
+		frappe.errprint(args)
 		args["bom_no"] = args["bom_no"] or item and cstr(item["default_bom"]) or ""
 		args["transfer_for_manufacture"] = (
 			cstr(args.get("include_item_in_manufacturing", ""))
@@ -584,7 +585,15 @@ class BOM(WebsiteGenerator):
 
 		
 	def update_builder_items(self):
-		builder_items = calculate_builder_items_dimensions(self.get("bomitems"),self.depth,self.depthunit,self.width,self.widthunit,self.height,self.heightunit)
+		dimensions = {}
+		dimensions['depth'] = self.depth
+		dimensions['depthunit'] = self.depthunit
+		dimensions['width'] = self.width
+		dimensions['widthunit'] = self.widthunit
+		dimensions['height'] = self.height
+		dimensions['heightunit'] = self.heightunit
+
+		builder_items = calculate_builder_items_dimensions(self.get("bomitems"),dimensions)
 		self.set('bomitems', builder_items)
 	
 	def validate_currency(self):
@@ -1113,35 +1122,34 @@ class BOM(WebsiteGenerator):
 		if not (bomitems):
 			frappe.throw(_("BOM Builder Items Table Is Empty"))
 		
-		depthOriginal = convert_units(self.depthunit,self.depth)
-		widthOriginal = convert_units(self.widthunit,self.width)
-		heightOriginal = convert_units(self.heightunit,self.height)
-		qtyOriginal = self.quantity or 1
+		dimensions = {}
+		dimensions['depthOriginal'] = convert_units(self.depthunit,self.depth)
+		dimensions['widthOriginal'] = convert_units(self.widthunit,self.width)
+		dimensions['heightOriginal'] = convert_units(self.heightunit,self.height)
 
-		merged,summary,final = build_bom_ext(bomitems,qtyOriginal,depthOriginal,widthOriginal,heightOriginal)
-		
-		self.update_bom_builder(merged)
+		unmerged,unmerged_dict = build_bom_ext(bomitems,self.quantity,self.quantity,dimensions)
+
+		merged = merge_bom_items(unmerged, as_dict=False)
+		summary = ''
+		if len(unmerged_dict['custom'])> 0 :
+			summary += str(create_condensed_table(unmerged_dict['custom']))	
+		if len(unmerged_dict['materials'])> 0 :
+			summary += str(summary) + str(create_materials_table(unmerged_dict['materials']))
 		self.summary = summary
 		
-	
-	def update_bom_builder(self,merged):
 		self.set('items', [])
 		
-		for key in merged:
-			
-			d = merged[key]
+		for d in merged:
 			newd = self.append('items')
 			newd.item_code = d["item_code"]
 			newd.stock_qty = flt(d["stock_qty"])
 			newd.qty = flt(d["qty"])
 			newd.stock_uom = d["stock_uom"]
 			newd.uom = d["uom"]
-			
-			bom_no = d["bom_no"] or get_default_bom(newd.item_code,self.project)
-			
+						
 			ret_item = self.get_bom_material_detail({
 				"item_code": newd.item_code,
-				"bom_no": bom_no,
+				"bom_no": d["bom_no"] or get_default_bom(newd.item_code,self.project),
 				"stock_qty": newd.stock_qty,
 				# "include_item_in_manufacturing": newd.include_item_in_manufacturing,
 				"qty": newd.qty,
@@ -1150,129 +1158,16 @@ class BOM(WebsiteGenerator):
 				# "conversion_factor": newd.conversion_factor
 			})
 			
-			
 			newd.rate = flt(ret_item["rate"])
 			newd.base_rate = flt(ret_item["base_rate"])
-			
 			newd.stock_rate = flt(ret_item["stock_rate"])
-			newd.base_stock_rate = flt(ret_item["base_stock_rate"])
-			
-			
+			newd.base_stock_rate = flt(ret_item["base_stock_rate"])			
 			newd.amount = flt(newd.rate)* flt(newd.stock_qty)
-			
 			newd.conversion_factor = ret_item["conversion_factor"]
 			newd.bom_no = ret_item["bom_no"]
 			newd.item_name = ret_item["item_name"]
-			newd.description = ret_item["description"]
-			
-		
-						
+			newd.description = ret_item["description"]			
 
-	def make_stock_entry(self,fg_item=None,bom=None,purpose=None,project=None,company=None,
-		sales_order_no=None,delivery_note_no=None,qty=None,
-		add_operating_costs=False,remarks=None,submit=False):
-
-		if purpose not in ["Manufacture","Material Issue"]:
-			return None
-			
-		if not company:
-			company = self.company
-			
-		if not qty or not fg_item:
-			return None
-			
-		if not self.quantity or self.quantity == 0:
-			return None
-			
-			
-		from erpnext.stock.stock_ledger import NegativeStockError
-		from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, DuplicateEntryForProductionOrderError, OperationsNotCompleteError
-		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
-	
-		try:	
-			stock_entry = frappe.new_doc("Stock Entry")
-			stock_entry.purpose = purpose
-			stock_entry.sales_order = sales_order_no
-			stock_entry.delivery_note_no = delivery_note_no
-			stock_entry.project = project
-			stock_entry.company = company
-			stock_entry.from_bom = 0
-			stock_entry.use_multi_level_bom = 0
-			stock_entry.remarks = remarks
-			
-			from frappe.utils import nowtime, nowdate
-			stock_entry.posting_date = nowdate()
-			stock_entry.posting_time = nowtime()
-			
-			from erpnext.stock.utils import get_default_warehouse
-			default_warehouses = get_default_warehouse(company = company)
-
-			stock_entry.from_warehouse = default_warehouses.get("source_warehouse")
-			stock_entry.to_warehouse = default_warehouses.get("fg_warehouse")
-						
-			for item in self.get("exploded_items"):
-				best_warehouse,enough_stock = get_best_warehouse(item.item_code,item.stock_qty,stock_entry.from_warehouse,company = company)
-
-				stock_entry.add_to_stock_entry_detail({
-					item.item_code: {
-						"to_warehouse": "",
-						"from_warehouse": best_warehouse,
-						"qty": item.stock_qty/self.quantity * qty,
-						"item_name": item.item_name,
-						"description": item.description,
-						"stock_uom": item.stock_uom,
-						"expense_account": None,
-						"cost_center": None
-					}
-				})
-			
-			item_dict = self.get_item_det(fg_item)[0]
-			
-				
-			stock_entry.add_to_stock_entry_detail({
-				fg_item: {
-					"to_warehouse": stock_entry.to_warehouse,
-					"from_warehouse": "",
-					"qty": qty,
-					"item_name": item_dict['item_name'],
-					"description": item_dict['description'],
-					"stock_uom": item_dict['stock_uom'],
-					"expense_account": None,
-					"cost_center": None,
-					"basic_rate" : self.raw_material_cost
-				}
-			})
-			
-			
-			additional_costs = []
-			if purpose=="Manufacture" and add_operating_costs:
-				
-				additional_costs.append({
-					"description": "Operating Cost as per Production Order / BOM",
-					"amount": self.operating_cost * flt(qty)
-				})
-				
-				stock_entry.set("additional_costs", additional_costs)	
-		
-
-			stock_entry.get_stock_and_rate()
-			# stock_entry.get_items()
-			stock_entry.insert()
-			
-			
-			
-			frappe.db.commit()
-			
-			if submit:
-				stock_entry.submit()
-			
-			return stock_entry.name
-		
-		except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
-			OperationsNotCompleteError):
-			frappe.db.rollback()
-			return None
-	
 	def set_process_loss_qty(self):
 		if self.process_loss_percentage:
 			self.process_loss_qty = flt(self.quantity) * flt(self.process_loss_percentage) / 100
@@ -1564,10 +1459,27 @@ def convert_units(unit,value):
 		finalvalue = flt(value) * flt(.0254)
 	else:
 		finalvalue = flt(value)
-	return finalvalue	
+	return finalvalue
 	
 @frappe.whitelist()		
-def merge_bom_items(dicts):
+def builder_merge_for_material_list(unmerged):
+	item_dict = {}
+	import copy
+	new_list = copy.deepcopy(unmerged)
+	for item in new_list:
+		item_code = item["item_code"]
+		bom_no = item["bom_no"]
+
+		if (item_code,bom_no) in item_dict:
+			item_dict[item_code,bom_no]["stock_qty"] += flt(item["stock_qty"])
+			item_dict[item_code,bom_no]["qty"] = flt(item_dict[item_code,bom_no]["stock_qty"]) * flt(item_dict[item_code,bom_no]["conversion_factor"])
+		else:
+			item_dict[item_code,bom_no] = item
+
+	return list(item_dict)
+	
+@frappe.whitelist()		
+def merge_bom_items(dicts,as_dict=True):
 	item_dict = {}
 	import copy
 	new_list = copy.deepcopy(dicts)
@@ -1580,8 +1492,11 @@ def merge_bom_items(dicts):
 			item_dict[item_code,bom_no]["qty"] = flt(item_dict[item_code,bom_no]["stock_qty"]) * flt(item_dict[item_code,bom_no]["conversion_factor"])
 		else:
 			item_dict[item_code,bom_no] = item
-
-	return item_dict
+	
+	if as_dict:
+		return item_dict
+	else:
+		return list(item_dict.values())  # Return the list of merged item dictionaries
 	
 @frappe.whitelist()
 def get_part_details(part=None,item_code=None):
@@ -1768,7 +1683,6 @@ def process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,
 		return None
 		
 def create_condensed_table(dict):
-	from frappe.utils import get_link_to_form
 	summary = ""
 	
 	joiningtext = """<table class="table table-bordered table-condensed">"""
@@ -1796,7 +1710,7 @@ def create_condensed_table(dict):
 	return summary
 	
 	
-def create_custom_table(dict):
+def create_materials_table(dict):
 	summary = ""
 	
 	joiningtext = """<table class="table table-bordered table-condensed">"""
@@ -1811,8 +1725,9 @@ def create_custom_table(dict):
 				<th width="20%">Stock Qty</th>
 				</tr></thead><tbody>"""	
 	for i, d in enumerate(dict):
-		d["stock_qty"] = round_decimal_sig(flt(d["stock_qty"]),3)
-		d["conversion_factor"] = round_decimal_sig(flt(d["conversion_factor"]),3)
+		d["stock_qty"] = round_decimal_sig(flt(d["stock_qty"]),4)
+		d["qty"] = round_decimal_sig(flt(d["qty"]),4)
+		d["conversion_factor"] = round_decimal_sig(flt(d["conversion_factor"]),4)
 		joiningtext += """<tr>
 					<td>""" + str(d["item_code"]) +"""</td>
 					<td>""" + str(d["side"]) +"""</td>
@@ -1836,15 +1751,13 @@ def get_default_bom(item_code,project=None):
 	return bom_no
 	
 def round_sig(x, sig=2):
-	from math import log10, floor
 	if x != 0:
 		return round(x, -int(floor(log10(abs(x))) - (sig - 1)))
 	else:
 		return 0  # Can't take the log of 0
 
 def round_decimal_sig(x, sig=2):
-	import math
-	frac, whole = math.modf(x)
+	frac, whole = modf(x)
 	final_num = whole + round_sig(frac,sig)
 	return flt(final_num)
 	
@@ -1876,137 +1789,174 @@ def get_boms_in_bottom_up_order(bom_no=None):
 	return bom_list
 
 @frappe.whitelist()
-def get_material_list(items,qty,qtyOriginal,using_exploded = True):
-	summary = ""
-	merged = []
-	final = []
+def mrp_generate_exploded(bom_no,qtyRequired,qtyOriginal,dimensions):
+	bom = frappe.get_doc("BOM", bom_no)
+	exploded_items = bom.get("exploded_items")
+	bombuilder_items = bom.get("bomitems")
+	scrap_items = bom.get("scrap_items")
 	
-	for d in items:
-		new_d = {}
-		new_d["stock_qty"] = d.stock_qty * qty/qtyOriginal
-		new_d["stock_uom"] = d.stock_uom
-		new_d["item_code"] = d.item_code
-		new_d["side"] = ""
+	merged = []
+	new_exploded_items = []
+	unmerged_exploded_items = []
+	
+	if bombuilder_items:
+		bomitems = calculate_builder_items_dimensions(bombuilder_items,dimensions)
+		unmerged,unmerged_dict = build_bom_ext(bomitems,qtyRequired,qtyOriginal,dimensions)
+		merged = merge_bom_items(unmerged, as_dict=False)
+
+		exploded_dict = {item.item_code: item for item in exploded_items}
 		
-		if using_exploded:
+		# todo should all same items from child boms have the same rate
+		for d in merged:
+			if d['bom_no']:
+				child_exploded_items = mrp_get_child_exploded_items(d['bom_no'], d['stock_qty'])
+				unmerged_exploded_items.append(child_exploded_items)
+			else:
+				unmerged_exploded_items.append(d)
+				
+		keys_to_extract = ['description','stock_rate','rate']
+
+		for item in unmerged_exploded_items:
+			item_code = item["item_code"]
+
+			if item_code in exploded_dict:
+				for k in keys_to_extract:
+					item[k] = getattr(exploded_dict[item_code], k, None)
+				
+				if not item.get("stock_rate"):
+					frappe.msgprint(_("Stock Rate 0.0 or not found for item {0} in BOM {1}").format(item_code,get_link_to_form("BOM", bom_no)))
+				
+				item["side"] = ""
+				item["qty"] = item["stock_qty"]
+				item["uom"] = item["stock_uom"]
+				item["conversion_factor"] = 1.0
+				item["bom_no"] = None
+			else:
+				frappe.throw(_("Item {0} not found in Exploded Table").format(item_code))
+
+
+		new_exploded_items = merge_bom_items(unmerged_exploded_items, as_dict=False)
+
+	else:
+		for d in exploded_items:
+			new_d = {}
+			new_d["stock_qty"] = d.stock_qty * (qtyRequired/qtyOriginal)
+			new_d["stock_uom"] = d.stock_uom
+			new_d["stock_rate"] = d.stock_rate
+			new_d["rate"] = d.stock_rate
+			new_d["item_code"] = d.item_code
+			new_d["side"] = ""
 			new_d["qty"] = new_d["stock_qty"]
 			new_d["uom"] = new_d["stock_uom"]
 			new_d["conversion_factor"] = 1.0
 			new_d["bom_no"] = None
-		else:
-			new_d["qty"] = d.qty * qty/qtyOriginal
-			new_d["uom"] = d.uom
-			new_d["conversion_factor"] = d.conversion_factor
-			new_d["bom_no"] = d.bom_no
-
-		
-		final.append(new_d)
+			new_exploded_items.append(new_d)
 	
-	summary = str(create_condensed_table(final))
+	new_exploded_items = add_scrap_to_exploded(new_exploded_items,scrap_items)
 
-	merged = merge_bom_items(final)
+	return new_exploded_items
 
-	
-	return merged,summary,final 
-	
 @frappe.whitelist()
-def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightOriginal=0):
+def add_scrap_to_exploded(items, scrap_items):
+	# Create a dictionary to map item_code to the item in items for easy lookup
+	item_dict = {item["item_code"]: item for item in items}
+
+	# Iterate through scrap_items and merge the quantities
+	for scrap_item in scrap_items:
+		item_code = scrap_item.item_code
+		if item_code in item_dict:
+			# Add the quantity from scrap_item to the corresponding item in items
+			item_dict[item_code]["stock_qty"] += scrap_item.stock_qty
+		else:
+			# Append the scrap_item as a dictionary to items
+			items.append({
+				"item_code": scrap_item.item_code,
+				"item_name": scrap_item.item_name,
+				"stock_qty": scrap_item.stock_qty,
+				"stock_uom": scrap_item.stock_uom,
+				"uom": scrap_item.stock_uom,
+				"rate": scrap_item.base_rate,
+				"stock_rate": scrap_item.base_rate,
+				"amount": scrap_item.base_amount,
+			})
+
+	return items
+
+@frappe.whitelist()
+def build_bom_ext(bomitems,qtyRequired,qtyOriginal,dimensions):
 	
-	summary = ""
-	merged = []
-	final = []
-	
+	unmerged = []
+	unmerged_dict = {}
+	depthOriginal=dimensions['depthOriginal']
+	widthOriginal=dimensions['widthOriginal']
+	heightOriginal=dimensions['heightOriginal']
+
 	if not (bomitems):
-		return merged,summary,final
+		return unmerged,unmerged_dict
 	
 	edgebanding = []
 	laminate = []
 	mdf = []
 	custom = []
-	
 	# glue = []
 	
 	for i, d in enumerate(bomitems):
-
 		length = flt(d.length) or 0
 		width = flt(d.width) or 0
 		height = flt(d.height) or 0
 		side = d.side
-		
 		perimeter = 2*flt(length)+2*flt(width)
 		farea = flt(length)*flt(width)
 		fvolume = flt(length)*flt(width)*flt(height)
 		bb_item = d.bb_item
 		bb_qty = 1
-		
-		if not bb_item:
-			frappe.throw(_("No item provided for item {0} in BOM Builder Table").format(i))
-
-		if not side:
-			frappe.throw(_("No part provided for item {0} in BOM Builder Table").format(bb_item))
-			
-
-		calculation = frappe.db.get_value("BOM Part", side,["calculation"])
-
-		if calculation in ["formula-int","formula-float"]:
-			if d.bb_qty:
-				bb_qty = flt(d.bb_qty)
-			else:
-				frappe.throw(_("No qty provided for item {0} in BOM Builder Table").format(bb_item))
-		else:
-			if d.bb_qty and is_number(d.bb_qty):
-				bb_qty = flt(d.bb_qty)*flt(qtyOriginal)
-			else:
-				frappe.throw(_("Qty is not valid for item {0} in BOM Builder Table").format(bb_item))
-		
 		required_qty = bb_qty
-		stock_qty = bb_qty
+		bom_no = d.bom
+		required_uom = d.requom
+
 		d_edging = d.edging
 		edging_sides = d.edgebanding
 		d_laminate = d.laminate
 		laminate_sides = d.laminate_sides
-				
-
-		item = frappe.db.sql("""select stock_uom,depth,depthunit,width,widthunit,height,heightunit from `tabItem` where name=%s""", bb_item, as_dict = 1)
-		if not item:
-			frappe.throw(_("Item {0} does not exist").format(bb_item))
-
-
-		stock_uom = item[0].stock_uom
-		required_uom = d.requom
-		
-		conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
-
-		
 		is_hardware = False
 		has_edging = False
 		has_laminate = False
 		
-		bom_no = d.bom
-		if calculation not in ["bom"]:
-			if bom_no:
-				frappe.msgprint(_("Item {0} does not need BOM entered in bom builder").format(bb_item))
+		if not bb_item:
+			frappe.throw(_("No item provided for row {0} in BOM Builder Table").format(i))
+		if not side:
+			frappe.throw(_("No part provided for item {0} in BOM Builder Table").format(bb_item))
+		if not d.bb_qty:
+			frappe.throw(_("Qty is not entered for item {0} in BOM Builder Table").format(bb_item))
+		
+		# Use quantity considering bom quantity and what's required to manufacture - for production
+		if is_number(d.bb_qty):
+			bb_qty = flt(d.bb_qty) * flt(qtyRequired/qtyOriginal)
+
+		item = frappe.db.sql("""select stock_uom,depth,depthunit,width,widthunit,height,heightunit from `tabItem` where name=%s""", bb_item, as_dict = 1)
+		if not item:
+			frappe.throw(_("Item {0} does not exist").format(bb_item))
+		stock_uom = item[0].stock_uom
+		conversion_factor = get_conversion_factor(bb_item, required_uom).get("conversion_factor")
+
+		calculation = frappe.db.get_value("BOM Part", side,["calculation"])		
+
+		if calculation not in ["bom"] and bom_no:
+			frappe.msgprint(_("Item {0} does not need BOM entered in bom builder").format(bb_item))
 
 		if calculation in ["nos"]:
 			required_qty = bb_qty
 			is_hardware = True
 			has_edging = False
 			has_laminate = False
-
-			
 		elif calculation in ["bom"]:
-
 			required_qty = bb_qty
 			is_hardware = True
 			has_edging = False
 			has_laminate = False
-
 			if not bom_no:
 				frappe.throw(_("Item {0} requires a BOM entered in bom builder").format(bb_item))
-		
 		elif calculation in ["formula-int","formula-float"]:
-			
-			
 			data = frappe._dict()
 			data["d"] = depthOriginal
 			data["w"] = widthOriginal
@@ -2014,21 +1964,18 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 			data["c1"] = length
 			data["c2"] = width
 			data["c3"] = height
-			
 			struct_row = frappe._dict()
 			struct_row["amount"] = 0
 			struct_row["condition"] = None
 			struct_row["formula"] = d.bb_qty
 			struct_row["amount_based_on_formula"] = True
-			
-			formula_qty = eval_condition_and_formula(struct_row, data)
-			required_qty = formula_qty * flt(qtyOriginal)
-			
-			
+			bb_qty = eval_condition_and_formula(struct_row, data)
 			if calculation == "formula-int":
-				from frappe.utils import ceil
-				required_qty = ceil(required_qty)
+				bb_qty = ceil(required_qty)
+				
+			bb_qty = flt(bb_qty) * flt(qtyRequired/qtyOriginal)
 			
+			required_qty = bb_qty
 			is_hardware = False
 			has_edging = False
 			has_laminate = False
@@ -2044,6 +1991,15 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 			is_hardware = False
 			has_edging = False
 			has_laminate = False
+		elif calculation in ["user-input-area-parallel-trap"]:
+			farea = parallel_base_trapezoid_area(length,width,height,height)
+			required_qty = farea * bb_qty
+			perimeter = length + width + height + height
+			
+			is_hardware = False
+			has_edging = True
+			has_laminate = True		
+			
 		elif calculation in ["user-input-area-rect-col12","user-input-area-tri-col12","user-input-area-circle-col1"]:
 			if calculation in ["user-input-area-rect-col12"]:
 				required_qty = length * width * bb_qty
@@ -2051,7 +2007,6 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 				required_qty = length * width * bb_qty / 2
 				farea = flt(length/2)*flt(width/2)
 			else:
-				from math import pi
 				required_qty = pi * flt(length/2)*flt(length/2) * bb_qty
 				perimeter = pi*flt(length)
 				farea = pi * flt(length/2)*flt(length/2)
@@ -2084,10 +2039,8 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 			is_hardware = False
 			has_edging = True
 			has_laminate = False
-			
 		
 		elif calculation in ["circle-perimeter"]:
-			from math import pi
 			perimeter = pi*flt(length)
 			required_qty = perimeter * bb_qty
 			
@@ -2096,44 +2049,31 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 			has_laminate = False
 		
 		elif calculation in ["circle-area"]:
-		
-			from math import pi
-
-		
 			perimeter = pi*flt(length)
 			farea = pi * flt(length/2)*flt(length/2)
-			
 			required_qty = farea * bb_qty
 			
 			is_hardware = False
 			has_edging = True
 			has_laminate = True
-
 			
 		elif calculation in ["area"]:
-
 			required_qty = farea * bb_qty
 			is_hardware = False
 			has_edging = True
 			has_laminate = True
 			
 		elif calculation in ["volume"]:
-			
 			required_qty = fvolume * bb_qty
 			is_hardware = False
 			has_edging = True
 			has_laminate = True
 			
-			
-			
 		if not conversion_factor:
 			frappe.throw(_("Item {0} has no conversion factor for {1}. Item Not Added").format(bb_item,required_uom))
 		else:
-		
 			conversion_factor = flt(1/conversion_factor)
-			
 			stock_qty = flt(required_qty)/flt(conversion_factor)
-			
 			newitem = {"side":side,"item_code":bb_item,"length":length,"width":width,"qty":required_qty,"stock_qty":stock_qty,"conversion_factor":conversion_factor,"stock_uom":stock_uom,"uom":required_uom,"bom_no":bom_no}
 			
 			if is_hardware:
@@ -2150,19 +2090,11 @@ def build_bom_ext(bomitems,qtyOriginal=1,depthOriginal=0,widthOriginal=0,heightO
 				if new_edging:
 					edgebanding.append(new_edging)
 		
+	unmerged_dict['custom']= custom
+	unmerged_dict['materials'] = mdf + laminate + edgebanding
+	unmerged = custom + mdf + laminate + edgebanding
 	
-	if len(custom)> 0 :
-		summary = str(create_condensed_table(custom))
-			
-	materials = mdf + laminate + edgebanding
-	if len(materials)> 0 :
-		summary = str(summary) + str(create_custom_table(materials))
-		
-		
-	final = custom + mdf + laminate + edgebanding
-	merged = merge_bom_items(final)
-	
-	return merged,summary,final
+	return unmerged,unmerged_dict
 	
 	
 def eval_condition_and_formula(d, data):
@@ -2197,18 +2129,17 @@ def is_number(s):
 		
 
 @frappe.whitelist()
-def calculate_builder_items_dimensions(bomitems,depth,depthunit,width,widthunit,height,heightunit):
+def calculate_builder_items_dimensions(bomitems,dimensions):
 	for item in bomitems:
-		
-		item.length,item.width,item.height,item.requom = calculate_builder_dimensions(depth,depthunit,width,widthunit,height,heightunit,item)
-		
+		item.length,item.width,item.height,item.requom = calculate_builder_dimensions(dimensions,item)
 	return bomitems
 	
-def calculate_builder_dimensions(depthOriginal,depthunit,widthOriginal,widthunit,heightOriginal,heightunit,d):
+def calculate_builder_dimensions(dimensions,d):
 	length = 0
 	width = 0
 	height = 0
 	required_uom = ''
+	
 	
 	if not d.side or not d.bb_item:
 		return length,width,height,required_uom
@@ -2216,6 +2147,12 @@ def calculate_builder_dimensions(depthOriginal,depthunit,widthOriginal,widthunit
 	side = d.side
 	required_uom = d.requom
 
+	depthOriginal = dimensions['depth']
+	depthunit= dimensions['depthunit']
+	widthOriginal= dimensions['width']
+	widthunit= dimensions['widthunit']
+	heightOriginal= dimensions['height']
+	heightunit= dimensions['heightunit']
 	depthOriginal = convert_units(depthunit,depthOriginal)
 	widthOriginal = convert_units(widthunit,widthOriginal)
 	heightOriginal = convert_units(heightunit,heightOriginal)
@@ -2241,7 +2178,6 @@ def calculate_builder_dimensions(depthOriginal,depthunit,widthOriginal,widthunit
 		length = d.length
 		width = d.width
 		height = d.height
-	
 	
 	return length,width,height,required_uom
 
@@ -2533,3 +2469,63 @@ def get_scrap_items_from_sub_assemblies(bom_no, company, qty, scrap_items=None):
 		get_scrap_items_from_sub_assemblies(row.bom_no, company, qty, scrap_items)
 
 	return scrap_items
+
+
+def parallel_base_trapezoid_area(bs, bl, sl, sr):
+	"""Calculate the area of a trapezoid with parallel bases."""
+	hsquared = ((bl + sl - bs + sr) * (-bl + sl + bs + sr) * (bl - sl - bs + sr) * (bl + sl - bs - sr)) / (4 * ((bl - bs) ** 2))
+	area = 0.5 * (bl + bs) * sqrt(hsquared)
+	return area
+	
+def mrp_get_child_exploded_items(bom_no, stock_qty):
+	"""Add all items from Flat BOM of child BOM"""
+	# Did not use qty_consumed_per_unit in the query, as it leads to rounding loss
+	child_fb_items = frappe.db.sql(
+		"""
+		SELECT
+			bom_item.item_code,
+			bom_item.item_name,
+			bom_item.description,
+			bom_item.source_warehouse,
+			bom_item.operation,
+			bom_item.stock_uom,
+			bom_item.stock_qty,
+			bom_item.stock_rate,
+			bom_item.rate,
+			bom_item.include_item_in_manufacturing,
+			bom_item.sourced_by_supplier,
+			bom_item.stock_qty / ifnull(bom.quantity, 1) AS qty_consumed_per_unit
+		FROM `tabBOM Explosion Item` bom_item, `tabBOM` bom
+		WHERE
+			bom_item.parent = bom.name
+			AND bom.name = %s
+			AND bom.docstatus < 2
+	""",
+		bom_no,
+		as_dict=1,
+	)
+	
+	exploded_items = []
+	
+	for d in child_fb_items:
+		newd = {
+			"item_code": d["item_code"],
+			"item_name": d["item_name"],
+			"source_warehouse": d["source_warehouse"],
+			"operation": d["operation"],
+			"description": d["description"],
+			"stock_uom": d["stock_uom"],
+			"stock_qty": d["qty_consumed_per_unit"] * stock_qty,
+			"rate": flt(d["rate"]),
+			"include_item_in_manufacturing": d.get("include_item_in_manufacturing", 0),
+			"sourced_by_supplier": d.get("sourced_by_supplier", 0),
+			"stock_rate":flt(d["stock_rate"]),
+			"required_uom":d["stock_uom"],
+			"required_qty":d["qty_consumed_per_unit"] * stock_qty,
+		}
+		
+		exploded_items.append(newd)
+		
+	return exploded_items
+
+		

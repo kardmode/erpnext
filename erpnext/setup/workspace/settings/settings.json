@@ -10,6 +10,26 @@
  "icon": "setting",
  "idx": 0,
  "is_hidden": 0,
+ "kard_menu": [
+  {
+   "doc_view": "",
+   "label": "Users",
+   "link_to": "User",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Permission Manager",
+   "link_to": "permission-manager",
+   "type": "Page"
+  },
+  {
+   "doc_view": "",
+   "label": "Roles",
+   "link_to": "Role",
+   "type": "DocType"
+  }
+ ],
  "label": "Settings",
  "links": [
   {
@@ -437,7 +457,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-08-31 16:11:23.931633",
+ "modified": "2024-05-09 12:34:12.061534",
  "modified_by": "Administrator",
  "module": "Setup",
  "name": "Settings",

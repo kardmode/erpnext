@@ -496,7 +496,7 @@ def get_account_type_map(company):
 def get_result_as_list(data, filters):
 	balance, _balance_in_account_currency = 0, 0
 	inv_details = get_supplier_invoice_details()
-
+	
 	for d in data:
 		if not d.get("posting_date"):
 			balance, _balance_in_account_currency = 0, 0
@@ -506,7 +506,12 @@ def get_result_as_list(data, filters):
 
 		d["account_currency"] = filters.account_currency
 		d["bill_no"] = inv_details.get(d.get("against_voucher"), "")
-
+		
+		if filters.get("show_more_accounts"):
+			d['more_accounts'] = ''
+			if d.get("voucher_type") and d.get("voucher_no"):
+				if d["voucher_type"] == "Payment Entry":
+					d['more_accounts'],d['more_refs'] = process_payment_entry(d.get('voucher_no'))
 	return data
 
 
@@ -585,6 +590,11 @@ def get_columns(filters):
 		{"label": _("Party"), "fieldname": "party", "width": 100},
 		{"label": _("Project"), "options": "Project", "fieldname": "project", "width": 100},
 	]
+	
+	if filters.get("show_more_accounts"):
+		columns.extend([{"label": _("References"), "fieldname": "more_refs", "width": 200}])
+		columns.extend([{"label": _("More Accounts"), "fieldname": "more_accounts", "width": 300}])
+
 
 	if filters.get("include_dimensions"):
 		for dim in get_accounting_dimensions(as_list=False):
@@ -612,4 +622,55 @@ def get_columns(filters):
 	if filters.get("show_remarks"):
 		columns.extend([{"label": _("Remarks"), "fieldname": "remarks", "width": 400}])
 
+	
+
 	return columns
+
+
+# Function to process the Payment Entry and fetch related Purchase Invoices
+def process_payment_entry(voucher_no):
+	payment_entry = frappe.get_doc('Payment Entry', voucher_no)
+
+	# Initialize a dictionary to store summary information by invoice
+	summary_dict = {}
+	
+	# Iterate through each reference in the Payment Entry
+	for reference in payment_entry.references:
+		# Check if the reference is a Purchase Invoice
+		if reference.reference_doctype == 'Purchase Invoice':
+			# Fetch the Purchase Invoice document
+			purchase_invoice = frappe.get_doc('Purchase Invoice', reference.reference_name)
+
+			# Initialize the list of items for this invoice in the dictionary
+			summary_dict[reference.reference_name] = []
+
+			# Check for the custom remark field
+			remarks = getattr(purchase_invoice, 'remarks', 'No remark')  # Default to 'No remark' if field doesn't exist
+
+			# Process the Purchase Invoice to get items and expense accounts
+			for item in purchase_invoice.items:
+				# Fetch the item details
+				item_name = item.item_name
+				expense_account = frappe.utils.get_link_to_form('Account', item.expense_account)
+				
+				# Append item details to the invoice's list in the dictionary
+				# summary_dict[reference.reference_name].append(f"  - Item: {item_name}, Expense Account: {expense_account}")
+				summary_dict[reference.reference_name].append(expense_account)
+
+			# Add the remark at the beginning of the invoice's list
+			# summary_dict[reference.reference_name].insert(0, f"Remarks: {remarks}")
+
+	# Convert the dictionary into a formatted string
+	summary_lines = []
+	ref_lines = []
+	for invoice, items in summary_dict.items():
+	
+		# Create a link to the Purchase Invoice
+		invoice_link = frappe.utils.get_link_to_form('Purchase Invoice', invoice)
+           
+	
+		ref_lines.append(invoice_link)
+		summary_lines.extend(items)
+
+	# Join the summary information into a single string separated by new lines
+	return '|'.join(summary_lines), '|'.join(ref_lines)

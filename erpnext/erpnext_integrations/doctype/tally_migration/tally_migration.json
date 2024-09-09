@@ -3,6 +3,7 @@
  "beta": 1,
  "creation": "2019-02-01 14:27:09.485238",
  "doctype": "DocType",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -254,7 +255,7 @@
   }
  ],
  "links": [],
- "modified": "2020-04-28 00:29:18.039826",
+ "modified": "2024-09-09 09:03:33.182786",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "Tally Migration",
@@ -275,5 +276,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

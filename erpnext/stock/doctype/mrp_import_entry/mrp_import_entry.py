@@ -161,6 +161,10 @@ class MRPImportEntry(Document):
 		length = len(items) or 0
 		equal_share = 0
 		
+		
+		if not self.extra_landed_costs:
+			self.extra_landed_costs = 0
+			
 		if length > 0:
 			equal_share = self.extra_landed_costs / length
 		

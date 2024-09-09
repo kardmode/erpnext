@@ -126,10 +126,6 @@ frappe.ui.form.on("BOM", {
 				};
 				frappe.set_route("Tree", "BOM");
 			});
-			
-			// frm.add_custom_button(__("Make"), function() {
-				// frm.trigger("show_manufacture_dialog");
-			// });
 		}
 
 		if (!frm.is_new() && !frm.doc.docstatus == 0) {
@@ -453,48 +449,6 @@ frappe.ui.form.on("BOM", {
 				},
 			});
 		}
-	},
-	show_manufacture_dialog(frm) {
-		var me=this;
-		var dialog = new frappe.ui.Dialog({
-			title: __("Make Stock Entry For Item Using Current BOM"),
-			fields: [
-				{fieldname:'item', fieldtype:'Link', options: 'Item',label: __('Item'),reqd:1},
-				{fieldname:'qty', fieldtype:'Float', label: __('Quantity'),default:1,reqd:1},
-				{fieldname:'delivery_note', fieldtype:'Link', options: 'Delivery Note', label: __('Delivery Note')},
-				{fieldname:'project', fieldtype:'Link', options: 'Project', label: __('Project')},
-				{fieldname:'add_operating_costs', fieldtype:'Check', label: __('Add Operating Costs'),default:0},
-				// {fieldname:'submit', fieldtype:'Check', label: __('Submit'),default:0},
-				{fieldname:'base_variable', fieldtype:'Section Break'},
-				{fieldname:'remarks', fieldtype:'Small Text',label: __('Remarks')},
-			]
-		});
-		dialog.set_primary_action(__("Make"), function() {
-		
-			var filters = dialog.get_values();
-			
-			frappe.call({
-				doc: frm.doc,
-				args:{
-					fg_item:filters.item,
-					project: filters.project,
-					qty:filters.qty,
-					purpose:"Manufacture",
-					add_operating_costs:filters.add_operating_costs,
-					remarks:filters.remarks
-				},
-				method: "make_stock_entry",
-				callback: function(r) {
-					console.log(r);
-					dialog.hide();
-					frappe.set_route("Form", "Stock Entry", r.message);
-					
-				}
-			});
-
-		
-		});
-		dialog.show();
 	},
 	item(frm) {
 		frm.events.use_manufacturing_template(frm);
@@ -902,13 +856,6 @@ frappe.ui.form.on('BOM Operation', {
 		erpnext.bom.calculate_total(frm.doc);
 	},
 });
-
-
-frappe.ui.form.on("BOM Item", {
-	do_not_explode: function(frm, cdt, cdn) {
-		get_bom_material_detail(frm.doc, cdt, cdn, false);
-	}
-})
 
 frappe.ui.form.on("BOM Item", {
 	do_not_explode: function (frm, cdt, cdn) {

@@ -3,6 +3,7 @@
  "beta": 1,
  "creation": "2021-03-23 16:47:26.542226",
  "doctype": "DocType",
+ "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -87,7 +88,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2021-08-10 12:08:58.119691",
+ "modified": "2024-09-09 09:03:48.415275",
  "modified_by": "Administrator",
  "module": "E-commerce",
  "name": "Item Review",
@@ -130,5 +131,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }
