@@ -20,7 +20,7 @@ from erpnext.accounts.doctype.payment_entry.payment_entry import (
 )
 from erpnext.accounts.doctype.subscription_plan.subscription_plan import get_plan_rate
 from erpnext.accounts.party import get_party_account, get_party_bank_account
-from erpnext.accounts.utils import get_account_currency
+from erpnext.accounts.utils import get_account_currency, get_currency_precision
 from erpnext.erpnext_integrations.stripe_integration import create_stripe_subscription
 from erpnext.utilities import payment_app_import_guard
 
@@ -299,6 +299,17 @@ class PaymentRequest(Document):
 
 		payment_entry.received_amount = amount
 		payment_entry.get("references")[0].allocated_amount = amount
+
+		# Update 'Paid Amount' on Forex transactions
+		if self.currency != ref_doc.company_currency:
+			if (
+				self.payment_request_type == "Outward"
+				and payment_entry.paid_from_account_currency == ref_doc.company_currency
+				and payment_entry.paid_from_account_currency != payment_entry.paid_to_account_currency
+			):
+				payment_entry.paid_amount = payment_entry.base_paid_amount = (
+					payment_entry.target_exchange_rate * payment_entry.received_amount
+				)
 
 		for dimension in get_accounting_dimensions():
 			payment_entry.update({dimension: self.get(dimension)})
@@ -591,7 +602,7 @@ def get_amount(ref_doc, payment_account=None):
 		grand_total = ref_doc.outstanding_amount
 
 	if grand_total > 0:
-		return grand_total
+		return flt(grand_total, get_currency_precision())
 	else:
 		frappe.throw(_("Payment Entry is already created"))
 	
@@ -725,7 +736,11 @@ def update_payment_req_status(doc, method):
 
 		if payment_request_name:
 			ref_details = get_reference_details(
-				ref.reference_doctype, ref.reference_name, doc.party_account_currency
+				ref.reference_doctype,
+				ref.reference_name,
+				doc.party_account_currency,
+				doc.party_type,
+				doc.party,
 			)
 			pay_req_doc = frappe.get_doc("Payment Request", payment_request_name)
 			status = pay_req_doc.status

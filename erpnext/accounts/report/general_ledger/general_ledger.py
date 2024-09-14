@@ -211,7 +211,8 @@ def get_conditions(filters):
 
 	if filters.get("account"):
 		filters.account = get_accounts_with_children(filters.account)
-		conditions.append("account in %(account)s")
+		if filters.account:
+			conditions.append("account in %(account)s")
 
 	if filters.get("cost_center"):
 		filters.cost_center = get_cost_centers_with_children(filters.cost_center)
@@ -232,6 +233,23 @@ def get_conditions(filters):
 		)
 		if err_journals:
 			filters.update({"voucher_no_not_in": [x[0] for x in err_journals]})
+
+	if filters.get("ignore_cr_dr_notes"):
+		system_generated_cr_dr_journals = frappe.db.get_all(
+			"Journal Entry",
+			filters={
+				"company": filters.get("company"),
+				"docstatus": 1,
+				"voucher_type": ("in", ["Credit Note", "Debit Note"]),
+				"is_system_generated": 1,
+			},
+			as_list=True,
+		)
+		if system_generated_cr_dr_journals:
+			vouchers_to_ignore = (filters.get("voucher_no_not_in") or []) + [
+				x[0] for x in system_generated_cr_dr_journals
+			]
+			filters.update({"voucher_no_not_in": vouchers_to_ignore})
 
 	if filters.get("voucher_no_not_in"):
 		conditions.append("voucher_no not in %(voucher_no_not_in)s")
@@ -316,7 +334,7 @@ def get_accounts_with_children(accounts):
 		else:
 			frappe.throw(_("Account: {0} does not exist").format(d))
 
-	return list(set(all_accounts))
+	return list(set(all_accounts)) if all_accounts else None
 
 
 def get_data_with_opening_closing(filters, account_details, accounting_dimensions, gl_entries):

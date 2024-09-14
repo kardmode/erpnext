@@ -68,7 +68,7 @@ def get_party_details(
 	pos_profile=None,
 ):
 	if not party:
-		return {}
+		return frappe._dict()
 	if not frappe.db.exists(party_type, party):
 		frappe.throw(_("{0}: {1} does not exists").format(party_type, party))
 	return _get_party_details(
@@ -188,7 +188,9 @@ def set_address_details(
 	*,
 	ignore_permissions=False,
 ):
-	billing_address_field = "customer_address" if party_type == "Lead" else party_type.lower() + "_address"
+	billing_address_field = (
+		"customer_address" if party_type in ["Lead", "Prospect"] else party_type.lower() + "_address"
+	)
 	party_details[billing_address_field] = party_address or get_default_address(party_type, party.name)
 	if doctype:
 		party_details.update(

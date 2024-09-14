@@ -9,8 +9,7 @@ import frappe
 from frappe import ValidationError, _, qb, scrub, throw
 from frappe.utils import cint, comma_or, flt, getdate, nowdate
 from frappe.utils.data import comma_and, fmt_money
-from pypika import Case
-from pypika.functions import Coalesce, Sum
+from pypika.functions import Sum
 
 import erpnext
 from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import get_dimensions
@@ -75,7 +74,6 @@ class PaymentEntry(AccountsController):
 		self.set_exchange_rate()
 		self.validate_mandatory()
 		self.validate_reference_documents()
-		self.set_tax_withholding()
 		self.set_amounts()
 		self.validate_amounts()
 		self.apply_taxes()
@@ -90,6 +88,7 @@ class PaymentEntry(AccountsController):
 		self.validate_allocated_amount()
 		self.validate_paid_invoices()
 		self.ensure_supplier_is_not_blocked()
+		self.set_tax_withholding()
 		self.set_status()
 
 	def on_submit(self):
@@ -348,7 +347,11 @@ class PaymentEntry(AccountsController):
 					continue
 
 				ref_details = get_reference_details(
-					d.reference_doctype, d.reference_name, self.party_account_currency
+					d.reference_doctype,
+					d.reference_name,
+					self.party_account_currency,
+					self.party_type,
+					self.party,
 				)
 
 				# Only update exchange rate when the reference is Journal Entry
@@ -715,9 +718,7 @@ class PaymentEntry(AccountsController):
 		if not self.apply_tax_withholding_amount:
 			return
 
-		order_amount = self.get_order_net_total()
-
-		net_total = flt(order_amount) + flt(self.unallocated_amount)
+		net_total = self.calculate_tax_withholding_net_total()
 
 		# Adding args as purchase invoice to get TDS amount
 		args = frappe._dict(
@@ -761,7 +762,26 @@ class PaymentEntry(AccountsController):
 		for d in to_remove:
 			self.remove(d)
 
-	def get_order_net_total(self):
+	def calculate_tax_withholding_net_total(self):
+		net_total = 0
+		order_details = self.get_order_wise_tax_withholding_net_total()
+
+		for d in self.references:
+			tax_withholding_net_total = order_details.get(d.reference_name)
+			if not tax_withholding_net_total:
+				continue
+
+			net_taxable_outstanding = max(
+				0, d.outstanding_amount - (d.total_amount - tax_withholding_net_total)
+			)
+
+			net_total += min(net_taxable_outstanding, d.allocated_amount)
+
+		net_total += self.unallocated_amount
+
+		return net_total
+
+	def get_order_wise_tax_withholding_net_total(self):
 		if self.party_type == "Supplier":
 			doctype = "Purchase Order"
 		else:
@@ -769,11 +789,14 @@ class PaymentEntry(AccountsController):
 
 		docnames = [d.reference_name for d in self.references if d.reference_doctype == doctype]
 
-		tax_withholding_net_total = frappe.db.get_value(
-			doctype, {"name": ["in", docnames]}, ["sum(base_tax_withholding_net_total)"]
+		return frappe._dict(
+			frappe.db.get_all(
+				doctype,
+				filters={"name": ["in", docnames]},
+				fields=["name", "base_tax_withholding_net_total"],
+				as_list=True,
+			)
 		)
-
-		return tax_withholding_net_total
 
 	def apply_taxes(self):
 		self.initialize_taxes()
@@ -1584,7 +1607,7 @@ def get_outstanding_reference_documents(args):
 				d["bill_no"] = frappe.db.get_value(d.voucher_type, d.voucher_no, "bill_no")
 
 		# Get negative outstanding sales /purchase invoices
-		if args.get("party_type") != "Employee" and not args.get("voucher_no"):
+		if args.get("party_type") != "Employee":
 			negative_outstanding_invoices = get_negative_outstanding_invoices(
 				args.get("party_type"),
 				args.get("party"),
@@ -1929,33 +1952,42 @@ def get_company_defaults(company):
 	return frappe.get_cached_value("Company", company, fields, as_dict=1)
 
 
-def get_outstanding_on_journal_entry(name):
-	gl = frappe.qb.DocType("GL Entry")
-	res = (
-		frappe.qb.from_(gl)
-		.select(
-			Case()
-			.when(
-				gl.party_type == "Customer",
-				Coalesce(Sum(gl.debit_in_account_currency - gl.credit_in_account_currency), 0),
-			)
-			.else_(Coalesce(Sum(gl.credit_in_account_currency - gl.debit_in_account_currency), 0))
-			.as_("outstanding_amount")
-		)
+def get_outstanding_on_journal_entry(voucher_no, party_type, party):
+	ple = frappe.qb.DocType("Payment Ledger Entry")
+
+	outstanding = (
+		frappe.qb.from_(ple)
+		.select(Sum(ple.amount_in_account_currency))
 		.where(
-			(Coalesce(gl.party_type, "") != "")
-			& (gl.is_cancelled == 0)
-			& ((gl.voucher_no == name) | (gl.against_voucher == name))
+			(ple.against_voucher_no == voucher_no)
+			& (ple.party_type == party_type)
+			& (ple.party == party)
+			& (ple.delinked == 0)
 		)
-	).run(as_dict=True)
+	).run()
 
-	outstanding_amount = res[0].get("outstanding_amount", 0) if res else 0
+	outstanding_amount = outstanding[0][0] if outstanding else 0
 
-	return outstanding_amount
+	total = (
+		frappe.qb.from_(ple)
+		.select(Sum(ple.amount_in_account_currency))
+		.where(
+			(ple.voucher_no == voucher_no)
+			& (ple.party_type == party_type)
+			& (ple.party == party)
+			& (ple.delinked == 0)
+		)
+	).run()
+
+	total_amount = total[0][0] if total else 0
+
+	return outstanding_amount, total_amount
 
 
 @frappe.whitelist()
-def get_reference_details(reference_doctype, reference_name, party_account_currency):
+def get_reference_details(
+	reference_doctype, reference_name, party_account_currency, party_type=None, party=None
+):
 	total_amount = outstanding_amount = exchange_rate = None
 
 	ref_doc = frappe.get_doc(reference_doctype, reference_name)
@@ -1966,12 +1998,13 @@ def get_reference_details(reference_doctype, reference_name, party_account_curre
 		exchange_rate = 1
 
 	elif reference_doctype == "Journal Entry" and ref_doc.docstatus == 1:
-		total_amount = ref_doc.get("total_amount")
 		if ref_doc.multi_currency:
 			exchange_rate = get_exchange_rate(party_account_currency, company_currency, ref_doc.posting_date)
 		else:
 			exchange_rate = 1
-			outstanding_amount = get_outstanding_on_journal_entry(reference_name)
+			outstanding_amount, total_amount = get_outstanding_on_journal_entry(
+				reference_name, party_type, party
+			)
 
 	elif reference_doctype != "Journal Entry":
 		if not total_amount:

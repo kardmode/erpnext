@@ -79,6 +79,9 @@ def get_statement_dict(doc, get_statement_dict=False):
 		if doc.ignore_exchange_rate_revaluation_journals:
 			filters.update({"ignore_err": True})
 
+		if doc.ignore_cr_dr_notes:
+			filters.update({"ignore_cr_dr_notes": True})
+
 		if doc.report == "General Ledger":
 			filters.update(get_gl_filters(doc, entry, tax_id, presentation_currency))
 			col, res = get_soa(filters)
@@ -104,7 +107,7 @@ def set_ageing(doc, entry):
 	ageing_filters = frappe._dict(
 		{
 			"company": doc.company,
-			"report_date": doc.to_date,
+			"report_date": doc.posting_date,
 			"ageing_based_on": doc.ageing_based_on,
 			"range1": 30,
 			"range2": 60,

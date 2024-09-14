@@ -45,7 +45,7 @@ class RepostItemValuation(Document):
 
 	def validate_period_closing_voucher(self):
 		# Period Closing Voucher
-		year_end_date = self.get_max_year_end_date(self.company)
+		year_end_date = self.get_max_period_closing_date(self.company)
 		if year_end_date and getdate(self.posting_date) <= getdate(year_end_date):
 			date = frappe.format(year_end_date, "Date")
 			msg = f"Due to period closing, you cannot repost item valuation before {date}"
@@ -88,24 +88,16 @@ class RepostItemValuation(Document):
 		return frappe.get_all("Closing Stock Balance", fields=["name", "to_date"], filters=filters)
 
 	@staticmethod
-	def get_max_year_end_date(company):
-		data = frappe.get_all(
-			"Period Closing Voucher", fields=["fiscal_year"], filters={"docstatus": 1, "company": company}
-		)
-
-		if not data:
-			return
-
-		fiscal_years = [d.fiscal_year for d in data]
-		table = frappe.qb.DocType("Fiscal Year")
+	def get_max_period_closing_date(company):
+		table = frappe.qb.DocType("Period Closing Voucher")
 
 		query = (
 			frappe.qb.from_(table)
-			.select(Max(table.year_end_date))
-			.where((table.name.isin(fiscal_years)) & (table.disabled == 0))
+			.select(Max(table.posting_date))
+			.where((table.company == company) & (table.docstatus == 1))
 		).run()
 
-		return query[0][0] if query else None
+		return query[0][0] if query and query[0][0] else None
 
 	def validate_accounts_freeze(self):
 		acc_settings = frappe.db.get_value(
@@ -245,9 +237,23 @@ def repost(doc):
 		doc.log_error("Unable to repost item valuation")
 
 		message = frappe.message_log.pop() if frappe.message_log else ""
+
+		status = "Failed"
+		# If failed because of timeout, set status to In Progress
+		if traceback and "timeout" in traceback.lower():
+			status = "In Progress"
+
 		if traceback:
 			message += "<br>" + "Traceback: <br>" + traceback
-		frappe.db.set_value(doc.doctype, doc.name, "error_log", message)
+
+		frappe.db.set_value(
+			doc.doctype,
+			doc.name,
+			{
+				"error_log": message,
+				"status": status,
+			},
+		)
 
 		outgoing_email_account = frappe.get_cached_value(
 			"Email Account", {"default_outgoing": 1, "enable_outgoing": 1}, "name"
@@ -255,7 +261,6 @@ def repost(doc):
 
 		if outgoing_email_account and not isinstance(e, RecoverableErrors):
 			notify_error_to_stock_managers(doc, message)
-			doc.set_status("Failed")
 	finally:
 		if not frappe.flags.in_test:
 			frappe.db.commit()

@@ -694,7 +694,8 @@ class GrossProfitGenerator:
 
 	def get_average_buying_rate(self, row, item_code):
 		args = row
-		if item_code not in self.average_buying_rate:
+		key = (item_code, row.warehouse)
+		if key not in self.average_buying_rate:
 			args.update(
 				{
 					"voucher_type": row.parenttype,
@@ -705,9 +706,9 @@ class GrossProfitGenerator:
 			)
 
 			average_buying_rate = get_incoming_rate(args)
-			self.average_buying_rate[item_code] = flt(average_buying_rate)
+			self.average_buying_rate[key] = flt(average_buying_rate)
 
-		return self.average_buying_rate[item_code]
+		return self.average_buying_rate[key]
 
 	def get_last_purchase_rate(self, item_code, row):
 		purchase_invoice = frappe.qb.DocType("Purchase Invoice")
@@ -717,20 +718,22 @@ class GrossProfitGenerator:
 			frappe.qb.from_(purchase_invoice_item)
 			.inner_join(purchase_invoice)
 			.on(purchase_invoice.name == purchase_invoice_item.parent)
-			.select(purchase_invoice_item.base_rate / purchase_invoice_item.conversion_factor)
+			.select(
+				purchase_invoice.name,
+				purchase_invoice_item.base_rate / purchase_invoice_item.conversion_factor,
+			)
 			.where(purchase_invoice.docstatus == 1)
 			.where(purchase_invoice.posting_date <= self.filters.to_date)
 			.where(purchase_invoice_item.item_code == item_code)
 		)
 
 		if row.project:
-			query.where(purchase_invoice_item.project == row.project)
+			query = query.where(purchase_invoice_item.project == row.project)
 
 		if row.cost_center:
-			query.where(purchase_invoice_item.cost_center == row.cost_center)
+			query = query.where(purchase_invoice_item.cost_center == row.cost_center)
 
-		query.orderby(purchase_invoice.posting_date, order=frappe.qb.desc)
-		query.limit(1)
+		query = query.orderby(purchase_invoice.posting_date, order=frappe.qb.desc).limit(1)
 		last_purchase_rate = query.run()
 
 		return flt(last_purchase_rate[0][0]) if last_purchase_rate else 0

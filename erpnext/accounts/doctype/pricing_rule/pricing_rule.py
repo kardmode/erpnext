@@ -31,6 +31,7 @@ class PricingRule(Document):
 		self.validate_price_list_with_currency()
 		self.validate_dates()
 		self.validate_condition()
+		self.validate_mixed_with_recursion()
 
 		if not self.margin_type:
 			self.margin_rate_or_amount = 0.0
@@ -47,6 +48,12 @@ class PricingRule(Document):
 				frappe.throw(_("Duplicate {0} found in the table").format(self.apply_on))
 
 	def validate_mandatory(self):
+		if self.has_priority and not self.priority:
+			throw(_("Priority is mandatory"), frappe.MandatoryError, _("Please Set Priority"))
+
+		if self.priority and not self.has_priority:
+			self.has_priority = 1
+
 		for apply_on, field in apply_on_dict.items():
 			if self.apply_on == apply_on and len(self.get(field) or []) < 1:
 				throw(_("{0} is not added in the table").format(apply_on), frappe.MandatoryError)
@@ -194,6 +201,10 @@ class PricingRule(Document):
 			and re.match(r'[\w\.:_]+\s*={1}\s*[\w\.@\'"]+', self.condition)
 		):
 			frappe.throw(_("Invalid condition expression"))
+
+	def validate_mixed_with_recursion(self):
+		if self.mixed_conditions and self.is_recursive:
+			frappe.throw(_("Recursive Discounts with Mixed condition is not supported by the system"))
 
 
 # --------------------------------------------------------------------------------

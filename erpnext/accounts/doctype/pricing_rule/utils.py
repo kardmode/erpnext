@@ -6,6 +6,7 @@
 
 import copy
 import json
+import math
 
 import frappe
 from frappe import _, bold
@@ -32,6 +33,9 @@ def get_pricing_rules(args, doc=None):
 
 	for apply_on in ["Item Code", "Item Group", "Brand"]:
 		pricing_rules.extend(_get_pricing_rules(apply_on, args, values))
+		if pricing_rules and pricing_rules[0].has_priority:
+			continue
+
 		if pricing_rules and not apply_multiple_pricing_rules(pricing_rules):
 			break
 
@@ -481,7 +485,7 @@ def get_qty_and_rate_for_other_item(doc, pr_doc, pricing_rules, row_item):
 				continue
 
 			stock_qty = row.get("qty") * (row.get("conversion_factor") or 1.0)
-			amount = stock_qty * (row.get("price_list_rate") or row.get("rate"))
+			amount = stock_qty * (flt(row.get("price_list_rate")) or flt(row.get("rate")))
 			pricing_rules = filter_pricing_rules_for_qty_amount(stock_qty, amount, pricing_rules, row)
 
 			if pricing_rules and pricing_rules[0]:
@@ -638,7 +642,7 @@ def get_product_discount_rule(pricing_rule, item_details, args=None, doc=None):
 		if transaction_qty:
 			qty = flt(transaction_qty) * qty / pricing_rule.recurse_for
 			if pricing_rule.round_free_qty:
-				qty = round(qty)
+				qty = math.floor(qty)
 
 	free_item_data_args = {
 		"item_code": free_item,
