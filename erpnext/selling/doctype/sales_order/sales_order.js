@@ -123,22 +123,21 @@ frappe.ui.form.on("Sales Order", {
 		if (!frm.doc.transaction_date){
 			frm.set_value('transaction_date', frappe.datetime.get_today())
 		}
+		
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
+			return erpnext.queries.warehouse(frm.doc);
+		});
+		erpnext.queries.setup_warehouse_query(frm);
+
+		frm.set_query('project', function(doc) {
 			return {
 				filters: [
-					["Warehouse", "company", "in", ["", cstr(frm.doc.company)]],
-				]
-			};
-		});
-
-		frm.set_query('project', function(doc, cdt, cdn) {
-			return {
-				// query: "erpnext.controllers.queries.get_project_name",
-				filters: {
-					'company': doc.company
-				}
+						['Project', 'customer', '=', doc.customer],
+						['Project', 'status', 'in', ['Open']],
+						['Project', 'company', '=', doc.company],
+					]
 			}
-		});
+		})
 
 		frm.set_query('warehouse', 'items', function(doc, cdt, cdn) {
 			let row  = locals[cdt][cdn];

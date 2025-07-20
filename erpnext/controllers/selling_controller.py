@@ -424,6 +424,12 @@ class SellingController(StockController):
 	def set_incoming_rate(self):
 		if self.doctype not in ("Delivery Note", "Sales Invoice"):
 			return
+			
+		allow_at_arms_length_price = True
+		
+		# allow_at_arms_length_price = frappe.get_cached_value(
+			# "Stock Settings", None, "allow_internal_transfer_at_arms_length_price"
+		# )
 
 		items = self.get("items") + (self.get("packed_items") or [])
 		for d in items:
@@ -467,6 +473,10 @@ class SellingController(StockController):
 							if d.incoming_rate != incoming_rate:
 								d.incoming_rate = incoming_rate
 						else:
+							if allow_at_arms_length_price:
+								continue
+							
+							
 							rate = flt(
 								flt(d.incoming_rate, d.precision("incoming_rate")) * d.conversion_factor,
 								d.precision("rate"),
@@ -475,7 +485,7 @@ class SellingController(StockController):
 								d.rate = rate
 								frappe.msgprint(
 									_(
-										"Row {0}: Item rate has been updated as per valuation rate since its an internal stock transfer"
+										"Row {0}: Item rate has been updated as per incoming rate since its an internal stock transfer"
 									).format(d.idx),
 									alert=1,
 								)

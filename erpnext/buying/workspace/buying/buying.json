@@ -5,7 +5,7 @@
    "label": "Purchase Order Trends"
   }
  ],
- "content": "[{\"id\":\"lSwxPfdi80\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Purchase Order Trends\",\"col\":12}},{\"id\":\"NB_Y50Wuy-\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"IorPj9UedU\",\"type\":\"header\",\"data\":{\"text\":\"<span style=\\\"font-size: 18px;\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"jPwEnUUgzZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"D25qB0ly3W\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"GZhuFJjv9X\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order\",\"col\":3}},{\"id\":\"lJb7noJYMX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Analytics\",\"col\":3}},{\"id\":\"lTCm9OlTey\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order Analysis\",\"col\":3}},{\"id\":\"FlGOdCc2mv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"CD0dbDdDcm\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"20ltvlBLvZ\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"5KEOOlQqcO\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying\",\"col\":4}},{\"id\":\"BWyRiGqURJ\",\"type\":\"card\",\"data\":{\"card_name\":\"Items & Pricing\",\"col\":4}},{\"id\":\"LHwPfKR6Aa\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"dRoCioyN9c\",\"type\":\"card\",\"data\":{\"card_name\":\"Supplier\",\"col\":4}}]",
+ "content": "[{\"id\":\"lSwxPfdi80\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Purchase Order Trends\",\"col\":12}},{\"id\":\"NB_Y50Wuy-\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"jPwEnUUgzZ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"D25qB0ly3W\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"GZhuFJjv9X\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order\",\"col\":3}},{\"id\":\"lJb7noJYMX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Analytics\",\"col\":3}},{\"id\":\"lTCm9OlTey\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Order Analysis\",\"col\":3}},{\"id\":\"FlGOdCc2mv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"CD0dbDdDcm\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"5KEOOlQqcO\",\"type\":\"card\",\"data\":{\"card_name\":\"Buying\",\"col\":4}},{\"id\":\"BWyRiGqURJ\",\"type\":\"card\",\"data\":{\"card_name\":\"Items & Pricing\",\"col\":4}},{\"id\":\"LHwPfKR6Aa\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"dRoCioyN9c\",\"type\":\"card\",\"data\":{\"card_name\":\"Supplier\",\"col\":4}}]",
  "creation": "2020-01-28 11:50:26.195467",
  "custom_blocks": [],
  "docstatus": 0,
@@ -15,7 +15,14 @@
  "icon": "buying",
  "idx": 0,
  "is_hidden": 0,
- "kard_menu": [],
+ "kard_menu": [
+  {
+   "doc_view": "List",
+   "label": "Material Request",
+   "link_to": "Material Request",
+   "type": "DocType"
+  }
+ ],
  "kard_theme_color": "#39E4A5",
  "label": "Buying",
  "links": [
@@ -212,7 +219,8 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Supplier",
-   "link_count": 0,
+   "link_count": 4,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
   },
@@ -259,229 +267,9 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Supplier Scorecard",
-   "link_count": 0,
-   "link_to": "Supplier Scorecard",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Supplier Scorecard Variable",
-   "link_count": 0,
-   "link_to": "Supplier Scorecard Variable",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Supplier Scorecard Criteria",
-   "link_count": 0,
-   "link_to": "Supplier Scorecard Criteria",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Supplier Scorecard Standing",
-   "link_count": 0,
-   "link_to": "Supplier Scorecard Standing",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Analytics",
-   "link_count": 0,
-   "link_to": "Purchase Analytics",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Order Analysis",
-   "link_count": 0,
-   "link_to": "Purchase Order Analysis",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Supplier-Wise Sales Analytics",
-   "link_count": 0,
-   "link_to": "Supplier-Wise Sales Analytics",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Items to Order and Receive",
-   "link_count": 0,
-   "link_to": "Requested Items to Order and Receive",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Order Trends",
-   "link_count": 0,
-   "link_to": "Purchase Order Trends",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Procurement Tracker",
-   "link_count": 0,
-   "link_to": "Procurement Tracker",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Items To Be Requested",
-   "link_count": 0,
-   "link_to": "Items To Be Requested",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Item-wise Purchase History",
-   "link_count": 0,
-   "link_to": "Item-wise Purchase History",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Receipt Trends",
-   "link_count": 0,
-   "link_to": "Purchase Receipt Trends",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Invoice Trends",
-   "link_count": 0,
-   "link_to": "Purchase Invoice Trends",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Subcontracted Raw Materials To Be Transferred",
-   "link_count": 0,
-   "link_to": "Subcontracted Raw Materials To Be Transferred",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Subcontracted Item To Be Received",
-   "link_count": 0,
-   "link_to": "Subcontracted Item To Be Received",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Supplier Quotation Comparison",
-   "link_count": 0,
-   "link_to": "Supplier Quotation Comparison",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Material Requests for which Supplier Quotations are not created",
-   "link_count": 0,
-   "link_to": "Material Requests for which Supplier Quotations are not created",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Supplier Addresses And Contacts",
-   "link_count": 0,
-   "link_to": "Address And Contacts",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Import Supplier Invoice",
-   "link_count": 0,
-   "link_to": "Import Supplier Invoice",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2024-09-06 06:51:16.959142",
+ "modified": "2024-12-22 13:13:22.236774",
  "modified_by": "Administrator",
  "module": "Buying",
  "name": "Buying",

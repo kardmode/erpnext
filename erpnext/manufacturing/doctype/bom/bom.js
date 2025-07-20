@@ -190,8 +190,7 @@ frappe.ui.form.on("BOM", {
 			}
 		}
 		
-		if (frm.doc.docstatus<1)
-		{
+		if (frm.doc.docstatus<1){
 			frm.get_field("build_bom").$input.addClass("btn-primary");
 		}
 		

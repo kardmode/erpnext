@@ -137,8 +137,8 @@ $.extend(erpnext.queries, {
 	
 	project:function(doc) {
 		var filters = {
-			'status': ["in",["Open"]]
-			// 'company': doc.company
+			// 'status': ["in",["Open"]]
+			'company': doc.company
 		};
 
 		return {
@@ -240,13 +240,10 @@ erpnext.queries.setup_project_query = function(frm){
 		})
 			
 	}
-	
-	
 };
 
 
 erpnext.queries.setup_product_bundle_query = function(frm){
-	
 	if(frm.fields_dict["items"].grid.get_field('product_bundle')) {
 		frm.set_query('product_bundle', 'items', function(doc, cdt, cdn) {
 			var d  = locals[cdt][cdn];
@@ -262,7 +259,5 @@ erpnext.queries.setup_product_bundle_query = function(frm){
 			return filters;
 		});
 	}
-
-	
 };
 

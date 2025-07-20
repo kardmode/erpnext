@@ -249,7 +249,16 @@ class AccountsController(TransactionBase):
 		if self.doctype != "Material Request" and not self.ignore_pricing_rule:
 			apply_pricing_rule_on_transaction(self)
 			
+		self.mrp_validate_project()
 		self.mrp_validate_exchange_rate()
+		
+	def mrp_validate_project(self):
+		if self.meta.get_field("project") and self.meta.get_field("company"):
+			if self.project and self.company:
+				project_company = frappe.db.get_value("Project", self.project, "company")
+				if project_company and project_company != self.company:
+					frappe.throw(f"Project {self.project} belongs to {project_company}, not {self.company}.")
+					
 		
 	def mrp_validate_exchange_rate(self):
 	
@@ -911,7 +920,7 @@ class AccountsController(TransactionBase):
 				tax_account_company = frappe.get_cached_value("Account", d.account_head, "company")
 				if tax_account_company != self.company:
 					frappe.throw(
-						_("Row #{0}: Account {1} does not belong to company {2}").format(
+						_("Row #{0} in Taxes: Account {1} does not belong to company {2}").format(
 							d.idx, d.account_head, self.company
 						)
 					)
@@ -1144,7 +1153,7 @@ class AccountsController(TransactionBase):
 				if not advance_entries_against_si or d.reference_name not in advance_entries_against_si:
 					frappe.msgprint(
 						_(
-							"Payment Entry {0} is linked against Order {1}, check if it should be pulled as advance in this invoice."
+							"Payment Entry {0} is linked against Order {1}, Press Get Advances Paid under Advance Payments."
 						).format(d.reference_name, d.against_order)
 					)
 
@@ -2549,7 +2558,7 @@ def validate_cost_center(tax, doc):
 
 	if company != doc.company:
 		frappe.throw(
-			_("Row {0}: Cost Center {1} does not belong to Company {2}").format(
+			_("Row {0} in Taxes: Cost Center {1} does not belong to Company {2}").format(
 				tax.idx, frappe.bold(tax.cost_center), frappe.bold(doc.company)
 			),
 			title=_("Invalid Cost Center"),

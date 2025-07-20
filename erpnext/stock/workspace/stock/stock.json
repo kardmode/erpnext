@@ -5,7 +5,7 @@
    "label": "Delivery Trends"
   }
  ],
- "content": "[{\"id\":\"oXiMIsr0WN\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Delivery Trends\",\"col\":12}},{\"id\":\"QVj6STNGy9\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"83lIo6RrYR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"BoJAZfVhrr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Import Item Alt\",\"col\":3}},{\"id\":\"q8tPoQ93k4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"uzV3N0WWQc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"qSrE6CthhQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"It3hvOQmIB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"8RasH2Prcj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"KkLtmVFlIS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"mOf1X1FMgk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"MWahF3xQsC\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"5pi1oaFw3r\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"EGsuzLWP3s\",\"type\":\"card\",\"data\":{\"card_name\":\"Items and Pricing\",\"col\":4}},{\"id\":\"iAStlXhF86\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"id\":\"Whlj67YlQY\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Reports\",\"col\":4}},{\"id\":\"3i8i-70R46\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"nJVSGAZrhf\",\"type\":\"card\",\"data\":{\"card_name\":\"Serial No and Batch\",\"col\":4}},{\"id\":\"ymU5gphoXy\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}}]",
+ "content": "[{\"id\":\"oXiMIsr0WN\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Delivery Trends\",\"col\":12}},{\"id\":\"QVj6STNGy9\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"83lIo6RrYR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"BoJAZfVhrr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Import Item Alt\",\"col\":3}},{\"id\":\"q8tPoQ93k4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"uzV3N0WWQc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"qSrE6CthhQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"It3hvOQmIB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"8RasH2Prcj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"KkLtmVFlIS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"ucO-yZuBtS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Delivery\",\"col\":3}},{\"id\":\"5n9zC41Br9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Sale\",\"col\":3}},{\"id\":\"MWahF3xQsC\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"5pi1oaFw3r\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"EGsuzLWP3s\",\"type\":\"card\",\"data\":{\"card_name\":\"Items and Pricing\",\"col\":4}},{\"id\":\"iAStlXhF86\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"id\":\"3i8i-70R46\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
  "creation": "2020-03-02 15:43:10.096528",
  "custom_blocks": [],
  "docstatus": 0,
@@ -15,7 +15,20 @@
  "icon": "stock",
  "idx": 0,
  "is_hidden": 0,
- "kard_menu": [],
+ "kard_menu": [
+  {
+   "doc_view": "",
+   "label": "Cross Company Delivery",
+   "link_to": "Cross Company Delivery",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Cross Company Sale",
+   "link_to": "Cross Company Sale",
+   "type": "DocType"
+  }
+ ],
  "kard_theme_color": "#ECAD4B",
  "label": "Stock",
  "links": [
@@ -297,14 +310,6 @@
    "type": "Link"
   },
   {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Serial No and Batch",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
    "dependencies": "Item",
    "hidden": 0,
    "is_query_report": 0,
@@ -369,14 +374,6 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Tools",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
   },
   {
    "dependencies": "",
@@ -619,113 +616,9 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Stock Reports",
-   "link_count": 9,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Ledger",
-   "link_count": 0,
-   "link_to": "Stock Ledger",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Balance",
-   "link_count": 0,
-   "link_to": "Stock Balance",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Projected Qty",
-   "link_count": 0,
-   "link_to": "Stock Projected Qty",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Stock Summary",
-   "link_count": 0,
-   "link_to": "stock-balance",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Ageing",
-   "link_count": 0,
-   "link_to": "Stock Ageing",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Item Price Stock",
-   "link_count": 0,
-   "link_to": "Item Price Stock",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Warehouse Wise Stock Balance",
-   "link_count": 0,
-   "link_to": "Warehouse Wise Stock Balance",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Balance By Group",
-   "link_count": 0,
-   "link_to": "Stock Balance By Group",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Balance By Group 2",
-   "link_count": 0,
-   "link_to": "Stock Balance By Group 2",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2024-09-06 11:42:37.277561",
+ "modified": "2025-03-17 02:52:21.658864",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock",
@@ -751,6 +644,22 @@
    "label": "Item",
    "link_to": "Item",
    "stats_filter": "{\n    \"disabled\" : 0\n}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Cross Company Sale",
+   "link_to": "Cross Company Sale",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Cross Company Delivery",
+   "link_to": "Cross Company Delivery",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {
@@ -791,11 +700,6 @@
    "label": "Stock Balance",
    "link_to": "Stock Balance",
    "type": "Report"
-  },
-  {
-   "label": "Dashboard",
-   "link_to": "Stock",
-   "type": "Dashboard"
   }
  ],
  "title": "Stock"

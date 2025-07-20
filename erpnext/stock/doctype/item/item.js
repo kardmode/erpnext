@@ -607,15 +607,16 @@ $.extend(erpnext.item, {
 			return { query: "erpnext.controllers.queries.supplier_query" };
 		};
 
-		/* frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
+		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
 			const row = locals[cdt][cdn];
 			return {
 				filters: {
 					"is_group": 0,
-					"company": row.company
+					"company": row.company,
+					disabled:0
 				}
 			}
-		} */
+		}
 		
 		frm.fields_dict['opening_warehouse'].get_query = function(doc) {
 			return {

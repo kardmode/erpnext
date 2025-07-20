@@ -1,6 +1,6 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
-
+import frappe
 
 def set_print_templates_for_item_table(doc, settings):
 	doc.print_templates = {
@@ -21,7 +21,23 @@ def set_print_templates_for_item_table(doc, settings):
 			"item_name"
 		] = "templates/print_formats/includes/custom_item_table_description.html"
 		
-		doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount","total_weight","net_weight","remarks"]
+		# doc.flags.compact_item_fields = ["item_name", "qty", "rate", "amount","tax_rate","tax_amount","total_amount","total_weight","net_weight","remarks"]
+
+		fields = frappe.get_all(
+			"MRP Compact Item Field",
+			filters={"enabled": 1},
+			fields=["fieldname", "doctype_name"]
+		)
+
+		# Global fields (doctype is empty)
+		global_fields = [f.fieldname for f in fields if not f.doctype_name]
+
+		# Specific fields for current doc.doctype
+		specific_fields = [f.fieldname for f in fields if f.doctype_name == doc.doctype]
+
+		# Combine, avoiding duplicates
+		doc.flags.compact_item_fields = list(dict.fromkeys(global_fields + specific_fields))
+				
 		doc.flags.format_columns = format_columns
 
 	doc.flags.format_columns_custom = format_columns_custom

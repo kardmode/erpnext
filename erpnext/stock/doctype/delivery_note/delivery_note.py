@@ -254,10 +254,10 @@ class DeliveryNote(SellingController):
 					ifnull(customer,'')='')""",
 				(self.project, self.customer),
 			)
-			# if not res:
-				# frappe.throw(
-					# _("Customer {0} does not belong to project {1}").format(self.customer, self.project)
-				# )
+			if not res:
+				frappe.msgprint(
+					_("Customer {0} does not belong to project {1}").format(self.customer, self.project)
+				)
 
 	def validate_warehouse(self):
 		super().validate_warehouse()
@@ -285,7 +285,6 @@ class DeliveryNote(SellingController):
 					d.projected_qty = flt(bin_qty.projected_qty)
 
 	def on_submit(self):
-	
 		self.validate_packed_qty()
 		self.update_pick_list_status()
 
@@ -302,11 +301,16 @@ class DeliveryNote(SellingController):
 			self.check_credit_limit()
 		elif self.issue_credit_note:
 			self.make_return_invoice()
-		# Updating stock ledger should always be called after updating prevdoc status,
-		# because updating reserved qty in bin depends upon updated delivered qty in SO
-		self.update_stock_ledger()
-		self.make_gl_entries()
+
+		# Conditionally update stock ledger and make GL entries
+		if not (getattr(self, "custom_mrp_skip_stock_update", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.update_stock_ledger()
+
+		if not (getattr(self, "custom_mrp_skip_accounting_entries", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.make_gl_entries()
+
 		self.repost_future_sle_and_gle()
+
 
 	def on_cancel(self):
 		super().on_cancel()
@@ -317,13 +321,16 @@ class DeliveryNote(SellingController):
 		self.update_prevdoc_status()
 		self.update_billing_status()
 
-		# Updating stock ledger should always be called after updating prevdoc status,
-		# because updating reserved qty in bin depends upon updated delivered qty in SO
-		self.update_stock_ledger()
+		# Conditionally update stock ledger
+		if not (getattr(self, "custom_mrp_skip_stock_update", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.update_stock_ledger()
 
 		self.cancel_packing_slips()
 
-		self.make_gl_entries_on_cancel()
+		# Conditionally cancel GL entries
+		if not (getattr(self, "custom_mrp_skip_accounting_entries", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.make_gl_entries_on_cancel()
+
 		self.repost_future_sle_and_gle()
 		self.ignore_linked_doctypes = ("GL Entry", "Stock Ledger Entry", "Repost Item Valuation")
 

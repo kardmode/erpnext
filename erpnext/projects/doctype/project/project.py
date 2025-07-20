@@ -17,13 +17,13 @@ from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
 
 class Project(Document):
 
-	def autoname(self):
-		if self.company:
-			prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
-			if not self.project_name.startswith(prefix):
-				self.name = prefix + self.project_name
-		else:
-			self.name = self.project_name
+	# def autoname(self):
+		# if self.company:
+			# prefix = frappe.db.get_value("Company", self.company, "abbr") + " - "
+			# if not self.project_name.startswith(prefix):
+				# self.name = prefix + self.project_name
+		# else:
+			# self.name = self.project_name
 	
 	def get_feed(self):
 		return f"{_(self.status)}: {frappe.safe_decode(self.project_name)}"
@@ -49,6 +49,14 @@ class Project(Document):
 	def validate(self):
 		if not self.is_new():
 			self.copy_from_template()
+		else:
+			if self.project_name and self.company:
+				company_abbr = frappe.get_cached_value("Company", self.company, "abbr")
+				new_name = f"{company_abbr}-{self.project_name}"
+				if not self.project_name.startswith(f"{company_abbr}-"):
+					self.project_name = new_name
+
+			
 		self.send_welcome_email()
 		self.update_costing()
 		self.update_percent_complete()
@@ -309,8 +317,36 @@ class Project(Document):
 		if self.status != 'Open':
 			self.validate_child_status()
 
+		# if self.project_name and self.company:
+			# company_abbr = frappe.get_cached_value("Company", self.company, "abbr")
+			# new_name = f"{company_abbr}-{self.project_name}"
+			# if self.name != new_name:
+				# if frappe.session.user == "Administrator" or frappe.has_role("Project Manager"):
+					# frappe.rename_doc("Project", self.name, new_name, force=1)
+
+
 		self.update_nsm_model()
 		
+	def before_rename(self, old, new, merge=False):
+		# Get the company abbreviation and ensure it's uppercase
+		company_abbr = frappe.get_cached_value("Company", self.company, "abbr").upper()
+
+		# Ensure the abbreviation is at the start of the name, if not already
+		if not new.upper().startswith(f"{company_abbr}-"):
+			# If abbreviation is not at the beginning, prepend it
+			new = f"{company_abbr}-{new}"
+		else:
+			# If abbreviation is already at the start, ensure no duplicate
+			new_parts = new.split("-")
+			if new_parts[0].upper() != company_abbr:
+				# If abbreviation isn't the first part (case-insensitive), prepend it
+				new = f"{company_abbr}-{new}"
+			else:
+				# Otherwise, just keep it as it is, correcting the case if needed
+				new = f"{company_abbr}-" + "-".join(new_parts[1:])
+
+		return new
+
 	def validate_parent_status(self):
 		if self.parent_project:
 			if frappe.db.sql("""select name from `tabProject` where name = %s and is_group = 0 limit 1""", self.name):

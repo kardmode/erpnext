@@ -859,8 +859,7 @@ class SalesInvoice(SellingController):
 				(self.project, self.customer),
 			)
 			if not res:
-				pass
-				# throw(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
+				msgprint(_("Customer {0} does not belong to project {1}").format(self.customer, self.project))
 
 	def validate_pos(self):
 		if self.is_return:
@@ -2011,75 +2010,6 @@ def make_sales_return(source_name, target_doc=None):
 
 	return make_return_doc("Sales Invoice", source_name, target_doc)
 
-@frappe.whitelist()		
-def make_sales_invoice(data):
-
-	def update_item(target_doc,source_doc,company,discount_percent=0):
-		factor = 1-flt(discount_percent)/100
-
-		for item in target_doc.items:
-			item.base_rate = factor * flt(item.base_rate)
-			item.rate = factor * flt(item.rate)
-			item.base_amount = item.qty * flt(item.base_rate)		
-			item.amount = item.qty * flt(item.rate)
-
-		import json
-		args = json.loads(data)
-		
-		source_name = args["source_name"]
-		project_discount_percent = args["project_discount_percent"]
-		per_item_discount_percent = args["per_item_discount_percent"]
-		company= args["company"]
-		project= args["project"]
-		taxes_and_charges= args["taxes_and_charges"]
-		tc_name= args["tc_name"]
-		customer= args["customer"]
-		
-		source_doc = frappe.get_doc("Sales Invoice", source_name)
-		target_doc = frappe.copy_doc(source_doc, ignore_no_copy=False)
-		target_doc.customer = customer
-
-		target_doc.naming_series = source_doc.naming_series
-		target_doc.posting_date = source_doc.posting_date
-		target_doc.due_date = source_doc.due_date
-		target_doc.company = company
-		target_doc.project = project
-		target_doc.taxes_and_charges = taxes_and_charges
-		target_doc.tc_name = tc_name
-		
-
-		target_doc.taxes = []
-		target_doc.terms = ""
-		
-		# fetch terms
-		if target_doc.tc_name and not target_doc.terms:
-			target_doc.terms = frappe.db.get_value("Terms and Conditions", target_doc.tc_name, "terms")
-
-		# fetch charges
-		if target_doc.taxes_and_charges and not len(target_doc.get("taxes")):
-			target_doc.set_taxes()
-
-		
-		
-		target_doc.ignore_pricing_rule = 1
-		target_doc.run_method("set_missing_values")
-		target_doc.run_method("calculate_taxes_and_totals")
-		
-		update_item(target_doc,source_doc,company,per_item_discount_percent)
-		
-
-		factor = 1-flt(project_discount_percent)/100
-		target_doc.project_total = factor * flt(source_doc.project_total)
-
-		# target_doc.insert(ignore_permissions=True)
-
-		
-		can_read = False
-		if target_doc.has_permission('read'):
-			can_read = True
-		# frappe.db.commit()
-		return target_doc, can_read
-
 def get_inter_company_details(doc, doctype):
 	if doctype in ["Sales Invoice", "Sales Order", "Delivery Note"]:
 		parties = frappe.db.get_all(
@@ -2319,7 +2249,6 @@ def make_inter_company_transaction(doctype, source_name, target_doc=None):
 	)
 
 	return doclist
-
 
 def get_received_items(reference_name, doctype, reference_fieldname):
 	reference_field = "inter_company_invoice_reference"
@@ -2701,3 +2630,119 @@ def check_if_return_invoice_linked_with_payment_entry(self):
 			message += " " + ", ".join(payment_entries_link) + " "
 			message += _("to unallocate the amount of this Return Invoice before cancelling it.")
 			frappe.throw(message)
+
+@frappe.whitelist()		
+def mrp_duplicate_sales_invoice(data):
+	company_field_no_map = ["taxes", "taxes_and_charges", "customer_address", "shipping_address_name"]
+	item_field_no_map = ["income_account", "expense_account", "cost_center", "warehouse"]
+	
+	import json
+	args = json.loads(data)
+	doctype = target_doctype = 'Sales Invoice'
+	source_name = args["source_name"]
+	
+	def set_missing_values(source, target):
+		target.run_method("set_missing_values")
+		target.run_method("calculate_taxes_and_totals")
+		
+	def update_details(source_doc, target_doc, source_parent):
+		currency = frappe.db.get_value("Customer", args.get("customer"), "default_currency")
+		if currency:
+			target_doc.currency = currency
+		
+		target_doc.company = args.get("company")
+		target_doc.customer = args.get("customer")
+
+	
+	def update_details_too(source_doc,target_doc):
+		project_percent = flt(args["project_percent"])/100 or 1.0
+		sales_invoice_percent = flt(args["sales_invoice_percent"])/100 or 1.0
+		
+		target_doc.naming_series = source_doc.naming_series
+		target_doc.posting_date = source_doc.posting_date
+		target_doc.posting_time = source_doc.posting_time
+		target_doc.due_date = source_doc.due_date
+		target_doc.ignore_pricing_rule = 1
+		target_doc.customer = args["customer"]
+		target_doc.company = args["company"]
+		target_doc.project = args["project"]
+		target_doc.taxes_and_charges = args["taxes_and_charges"]
+		target_doc.tc_name = args.get("tc_name")
+		target_doc.taxes = []
+		target_doc.terms = ''
+		target_doc.debit_to = None
+		target_doc.vat_emirate = None
+		target_doc.po_no = None
+		target_doc.po_date = None
+		target_doc.sales_partner = None
+		target_doc.commision_rate = 0
+		target_doc.company_address = None
+		target_doc.company_address_display = ''
+		target_doc.customer_address = None
+		target_doc.address_display = ''
+		target_doc.contact_person = None
+		target_doc.contact_display = ''
+		target_doc.shipping_address_name = None
+		target_doc.shipping_address = ''
+		target_doc.dispatch_address_name = None
+		target_doc.dispatch_address = ''
+		target_doc.project_total = project_percent * flt(source_doc.project_total)
+
+		for item in target_doc.items:
+			item.base_rate = sales_invoice_percent * flt(item.base_rate)
+			item.rate = sales_invoice_percent * flt(item.rate)
+			item.base_amount = item.qty * flt(item.base_rate)		
+			item.amount = item.qty * flt(item.rate)
+			item.expense_account = frappe.db.get_value("Company", target_doc.company, "default_expense_account")
+			item.income_account = frappe.db.get_value("Company", target_doc.company, "default_income_account")
+			item.cost_center = frappe.db.get_value("Company", target_doc.company, "cost_center")
+
+		# fetch terms
+		if target_doc.tc_name:
+			target_doc.terms = frappe.db.get_value("Terms and Conditions", target_doc.tc_name, "terms")
+
+		# fetch charges
+		if target_doc.taxes_and_charges and not len(target_doc.get("taxes")):
+			target_doc.set_taxes()
+
+		
+	if args.get('use_mapped') and args.get('use_mapped') == True:
+		item_field_map = {
+			"doctype": target_doctype + " Item",
+			"field_no_map": item_field_no_map,
+			"field_map": {
+				"rate": "rate",
+			},
+		}
+		
+		doclist = get_mapped_doc(
+			doctype,
+			source_name,
+			{
+				doctype: {
+					"doctype": target_doctype,
+					"postprocess": update_details,
+					"field_no_map": company_field_no_map,
+				},
+				doctype + " Item": item_field_map,
+			},
+			None,
+			set_missing_values,
+		)
+		doclist.save()
+		can_read = doclist.has_permission('read')
+		return doclist, can_read
+		
+		
+	else:
+		source_doc = frappe.get_doc("Sales Invoice", source_name)
+		target_doc = frappe.copy_doc(source_doc, ignore_no_copy=False)
+		update_details_too(source_doc, target_doc)
+		set_missing_values(source_doc, target_doc)
+		target_doc.save()
+		can_read = target_doc.has_permission('read')
+		return target_doc, can_read
+	
+
+
+	

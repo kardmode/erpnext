@@ -4,20 +4,18 @@
 
 from __future__ import unicode_literals
 import frappe, erpnext
-from frappe.utils import cstr, flt, cint,nowtime, nowdate, add_days, comma_and, getdate,get_link_to_form
-from frappe import msgprint, _
+from frappe import _
+from frappe.utils import cstr, flt, cint, nowtime, nowdate, add_days, comma_and, getdate,get_link_to_form
 from frappe.model.document import Document
 from erpnext.manufacturing.doctype.bom.bom import validate_bom_no, get_default_bom, mrp_generate_exploded, \
 	calculate_builder_items_dimensions, convert_units, get_valuation_rate, merge_bom_items
 from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle
 from erpnext.stock.doctype.packed_item.packed_item import get_product_bundle_items
 from erpnext.stock.utils import get_default_warehouse
-
 from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
 	DuplicateEntryForWorkOrderError, OperationsNotCompleteError, get_best_warehouse
 from erpnext.stock.get_item_details import get_conversion_factor_between_two_units,get_conversion_factor
 from operator import itemgetter
-
 from frappe.desk import query_report
 
 class MRPProductionOrder(Document):
@@ -29,7 +27,13 @@ class MRPProductionOrder(Document):
 	def validate_items(self):
 		if not self.get("items"):
 			frappe.throw(_("Items Table Cannot Be Empty"))
-
+		else:
+			for i, d in enumerate(self.get("items"), start=1):
+				if d.bom:
+					bom_status = frappe.db.get_value("BOM", d.bom, "docstatus")
+					if bom_status == 2:
+						frappe.throw(_("Error in Row {0}: BOM {1} is Cancelled.").format(i, d.bom))
+					
 	def validate_duplicate_doc(self):
 		if self.reference_name:
 			doc_details = frappe.db.sql("""
@@ -92,40 +96,45 @@ class MRPProductionOrder(Document):
 				ch.height = item_dict.height
 				ch.heightunit = item_dict.heightunit
 
-				ch.bom = item.get('bom_no') or get_default_bom(item.item_code, self.project) or None
-			
+				ch.bom = item.get('bom_no') or get_default_bom(item.item_code, self.project)
+					
+					
+				
 	@frappe.whitelist()										
 	def get_summary(self,submit = False, should_save = False):
 		final_unmerged_items =[]
 		final_per_item_summary = ""
-		
-		for fg_item in self.get("items"):
+
+		for i, fg_item in enumerate(self.get("items")):	
 			merged = []
 			unmerged = []
 			summary = ''
-            
+			bom = None
+
 			if not fg_item.depth and not fg_item.width and not fg_item.height:
 				if submit:
 					frappe.throw(_("Item {0} needs all dimensions").format(fg_item.item_code))
 				else:
 					frappe.msgprint(_("Item {0} needs all dimensions").format(fg_item.item_code))
-					
+					continue
+
 			if not fg_item.bom:
 				if submit:
 					frappe.throw(_("Item {0} has missing bom").format(fg_item.item_code))
 				else:
 					frappe.msgprint(_("Item {0} has missing bom").format(fg_item.item_code))
-
+					continue
+					
 			if not fg_item.uom:
 				if submit:
 					frappe.throw(_("Item {0} has missing uom").format(fg_item.item_code))
 				else:
 					frappe.msgprint(_("Item {0} has missing uom").format(fg_item.item_code))
-			
+					continue
+
 			bom = frappe.get_doc("BOM", fg_item.bom)
-			
 			if not bom:
-				frappe.throw(_("BOM {0} not found").format(fg_item.bom))
+				frappe.throw(_("Item {0} BOM {1} not found").format(fg_item.item_code, fg_item.bom))
 			
 			qtyRequired = fg_item.qty
 			if not fg_item.uom == bom.uom:
@@ -193,17 +202,14 @@ class MRPProductionOrder(Document):
 				
 			if not fg_item.depth or not fg_item.width or not fg_item.height:
 				link = ['Item {0} requires all dimensions'.format(fg_item.item_code)]
-				error_list.append(link)
 				frappe.throw(link)
 				
 			if not fg_item.bom:
 				link = ['Item {0} has missing bom.'.format(fg_item.item_code)]
-				error_list.append(link)
 				frappe.throw(link)
 			
 			if not fg_item.uom:
 				link = ['Item {0} has missing uom.'.format(fg_item.item_code)]
-				error_list.append(link)
 				frappe.throw(link)
 				
 			if submit==False:
@@ -211,14 +217,19 @@ class MRPProductionOrder(Document):
 				
 				if len(prev_stock_entries) > 0:
 					link = ['Row {0} - Item {1} has more than one stock entry'.format(i,fg_item.item_code)]
-					error_list.append(link)
 					frappe.throw(link)
 			else:
 				self.delete_entries(True,True)
+		
+		default_warehouses = get_default_warehouse(company = self.company)
 
 		for i, fg_item in enumerate(self.get("items")):	
 			bom = frappe.get_doc("BOM", fg_item.bom)
-			default_warehouses = get_default_warehouse(company = self.company)
+			
+			bom = frappe.get_doc("BOM", fg_item.bom)
+			if not bom:
+				frappe.throw(_("Item {0} BOM {1} not found").format(fg_item.item_code, fg_item.bom))
+			
 
 			try:	
 				stock_entry = frappe.new_doc("Stock Entry")
@@ -315,6 +326,38 @@ class MRPProductionOrder(Document):
 						}
 					})
 
+				if i == len(self.get("items")) - 1:
+					has_scrap = False
+
+					for row in self.get("scrap_items"):
+						if row.stock_qty <= 0:
+							continue
+						
+						has_scrap = True
+						stock_entry.add_to_stock_entry_detail({
+						row.item_code: {
+								"to_warehouse": default_warehouses.get("scrap_warehouse"),
+								"from_warehouse": "",
+								"qty": row.stock_qty,
+								"item_name": row.item_name,
+								"description": "",
+								"stock_uom": row.stock_uom,
+								"uom": row.stock_uom,
+								"expense_account": None,
+								"cost_center": None,
+								"basic_rate" : row.rate,
+								"is_finished_item" : 0,
+								"is_scrap_item" : 1,
+								"converison_factor": 1,
+								"allow_zero_valuation_rate": 1,
+							}
+						})
+					
+					# Update the title if scrap items were added
+					if has_scrap:
+						stock_entry.title += ' (with Scrap)'	
+						stock_entry.remarks += ' (with Scrap)'
+						
 				stock_entry.get_stock_and_rate()
 				stock_entry.insert()
 				
@@ -325,7 +368,49 @@ class MRPProductionOrder(Document):
 				link = ['Row {0} - Item {1} has an error - {2}.'.format(i,fg_item.item_code,error)]
 				error_list.append(link)
 				break
+		
+		# if len(error_list) == 0 and len(self.get("items")) > 0 and len(self.get("scrap_items")) > 0:
+			# try:	
+				# stock_entry = frappe.new_doc("Stock Entry")
+				# stock_entry.stock_entry_type = "Material Issue"
+				# stock_entry.project = self.project
+				# stock_entry.company = self.company
+				# stock_entry.custom_production_order = self.name
+				# # stock_entry.remarks = ' '.join(filter(None, [self.remarks, self.name]))
+				# stock_entry.posting_date = self.posting_date
+				# stock_entry.posting_time = self.posting_time or nowtime()
+				# stock_entry.set_posting_time = 1
+				# stock_entry.from_warehouse = default_warehouses.get("source_warehouse")
+				# stock_entry.to_warehouse = default_warehouses.get("scrap_warehouse")
+				# # stock_entry.title = 'Scrap Items for {0}'.format(self.name)
+				
+				# for row in self.get("scrap_items"):
+					# if row.stock_qty <= 0:
+						# continue
 
+					# stock_entry.add_to_stock_entry_detail({
+						# row.item_code: {
+							# "to_warehouse": default_warehouses.get("scrap_warehouse"),
+							# "from_warehouse": "",
+							# "qty": row.stock_qty,
+							# "item_name": row.item_name,
+							# "description": "",
+							# "stock_uom": row.stock_uom,
+							# "uom": row.stock_uom,
+							# "expense_account": None,
+							# "cost_center": None,
+							# "basic_rate" : row.rate,
+							# "is_finished_item" : 0,
+							# "is_scrap_item" : 1,
+							# "converison_factor": 1,
+							# "allow_zero_valuation_rate": 1,
+						# }
+					# })
+					
+			# except Exception as error:
+				# link = ['Row {0} - Item {1} has an error - {2}.'.format(i,fg_item.item_code,error)]
+				# error_list.append(link)
+				# break
 				
 		if len(error_list) > 0:
 			err_msg = ""
@@ -334,6 +419,7 @@ class MRPProductionOrder(Document):
 				
 			self.delete_entries(True,True)
 			frappe.throw(_("{0}").format(err_msg))
+		
 	
 	def delete_entries(self,delete_submitted=False,delete_draft=True):
 		success = False
@@ -371,7 +457,7 @@ def get_item_det(item_code,uom=None):
 		from `tabItem` where name=%s""", item_code, as_dict = 1)
 	
 	if not item:
-		frappe.throw(_("Item: {0} does not exist in the system").format(item_code))
+		frappe.throw(_("Item: {0} does not exist").format(item_code))
 	
 	details = item[0]
 	details.uom = uom or details.stock_uom

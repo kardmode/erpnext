@@ -80,7 +80,6 @@ erpnext.selling.SellingController = class SellingController extends erpnext.Tran
 				return me.set_query_for_item_tax_template(doc, cdt, cdn)
 			});
 		}
-
 	}
 
 	refresh() {

@@ -1,22 +1,10 @@
 // Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
-cur_frm.cscript.onload = function(doc) {
-	cur_frm.set_value("company", frappe.defaults.get_default("Company"))
-}
-
 cur_frm.add_fetch("reference_name", "project", "project");
 cur_frm.add_fetch("reference_name", "title", "reference_title");
 
 frappe.ui.form.on('MRP Production Order', {
 	onload: function(frm) {
-		if (frm.doc.__islocal) {
-			//frm.set_value("posting_date", frappe.datetime.nowdate());
-			//frm.set_value("posting_time", frappe.datetime.now_time());
-		}
-		else
-		{
-		
-		}
 	},
 	setup: function(frm) {
 		frm.set_query("item_code", "items", function() {
@@ -108,7 +96,7 @@ frappe.ui.form.on('MRP Production Order', {
 		else
 		{
 			// frm.set_value("posting_date", frappe.datetime.nowdate());
-			// frm.set_value("posting_time", frappe.datetime.now_time());
+			frm.set_value("posting_time", frappe.datetime.now_time());
 		}
 		
 	},
@@ -445,6 +433,53 @@ frappe.ui.form.on("MRP Production Plan Item",{
 					frappe.model.set_value(d.doctype, d.name, "bom", r.message.default_bom);
 				}
 			});
+		}
+		
+	},
+});
+
+frappe.ui.form.on("BOM Scrap Item",{
+	item_code:function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		
+		if(d.item_code) {
+			return frappe.call({
+				
+				method:'erpnext.manufacturing.doctype.mrp_production_order.mrp_production_order.get_item_det',
+				args: {
+					item_code: d.item_code
+				},
+				callback: function(r) {
+					frappe.model.set_value(d.doctype, d.name, "item_name", r.message.item_name);
+					frappe.model.set_value(d.doctype, d.name, "stock_uom", r.message.stock_uom);
+					frappe.model.set_value(d.doctype, d.name, "rate", r.message.last_purchase_rate);
+					
+					if(!d.stock_qty)
+						frappe.model.set_value(d.doctype, d.name, "stock_qty", 1);
+					
+					let amount = float(r.message.last_purchase_rate) * float(1);
+					frappe.model.set_value(d.doctype, d.name, "amount", amount);
+
+				}
+			});
+		}
+		
+	},
+	stock_qty:function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		if(d.stock_qty && d.rate)
+		{
+			let amount = d.rate * d.stock_qty;
+			frappe.model.set_value(d.doctype, d.name, "amount", amount);
+		}
+		
+	},
+	rate:function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		if(d.stock_qty && d.rate)
+		{
+			let amount = d.rate * d.stock_qty;
+			frappe.model.set_value(d.doctype, d.name, "amount", amount);
 		}
 		
 	},

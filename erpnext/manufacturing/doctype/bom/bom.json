@@ -1,7 +1,6 @@
 {
  "actions": [],
  "allow_import": 1,
- "allow_rename": 1,
  "creation": "2013-01-22 15:11:38",
  "doctype": "DocType",
  "document_type": "Setup",
@@ -204,7 +203,8 @@
    "label": "Company",
    "options": "Company",
    "remember_last_selected_value": 1,
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "default": "Work Order",
@@ -608,7 +608,7 @@
  "image_field": "image",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-07-28 16:11:29.861746",
+ "modified": "2025-01-21 20:27:35.788249",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",

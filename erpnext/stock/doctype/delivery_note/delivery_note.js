@@ -24,12 +24,12 @@ frappe.ui.form.on("Delivery Note", {
 			});
 
 
-		// erpnext.queries.setup_queries(frm, "Warehouse", function() {
-			// return erpnext.queries.warehouse(frm.doc);
-		// });
-		// erpnext.queries.setup_warehouse_query(frm);
+		erpnext.queries.setup_queries(frm, "Warehouse", function() {
+			return erpnext.queries.warehouse(frm.doc);
+		});
+		erpnext.queries.setup_warehouse_query(frm);
 
-		/* frm.set_query('project', function(doc) {
+		frm.set_query('project', function(doc) {
 			return {
 				filters: [
 						['Project', 'customer', '=', doc.customer],
@@ -37,7 +37,7 @@ frappe.ui.form.on("Delivery Note", {
 						['Project', 'company', '=', doc.company],
 					]
 			}
-		}) */
+		})
 
 		frm.set_query('transporter', function() {
 			return {

@@ -418,19 +418,30 @@ def is_group_warehouse(warehouse):
 		frappe.throw(_("Group node warehouse is not allowed to select for transactions"))
 
 @frappe.whitelist()
-def get_default_warehouse(company = None):
-	if company:
-		source_warehouse = (frappe.db.get_value('Company', company, 'stock_stores') or frappe.db.get_single_value("Stock Settings","default_warehouse"))
-		wip_warehouse = (frappe.db.get_value('Company', company, 'wip_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse"))
-		fg_warehouse = (frappe.db.get_value('Company', company, 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
-		scrap_warehouse = (frappe.db.get_value('Company', company, 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))	
-	else:
-		from erpnext import get_default_company
-		source_warehouse = (frappe.db.get_value('Company', get_default_company(), 'stock_stores') or frappe.db.get_single_value("Stock Settings","default_warehouse"))
-		wip_warehouse = (frappe.db.get_value('Company', get_default_company(), 'wip_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_wip_warehouse"))
-		fg_warehouse = (frappe.db.get_value('Company', get_default_company(), 'fg_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_fg_warehouse"))
-		scrap_warehouse = (frappe.db.get_value('Company', get_default_company(), 'scrap_warehouse') or frappe.db.get_single_value("Manufacturing Settings","default_scrap_warehouse"))
-	return {"wip_warehouse": wip_warehouse, "fg_warehouse": fg_warehouse,"source_warehouse": source_warehouse,"scrap_warehouse": scrap_warehouse}
+def get_default_warehouse(company=None):
+	from erpnext import get_default_company
+	company = company or get_default_company()
+
+	# Helper function to get warehouse values with field existence check
+	def get_warehouse_value(field, default_setting, setting_type="Manufacturing Settings"):
+		if frappe.get_meta("Company").has_field(field):
+			value = frappe.db.get_value("Company", company, field)
+			if value:
+				return value
+		
+		# error_msg = f"Warehouse: {str(field)} not set or doesn't exist for company {str(company)}"
+		# frappe.log_error(error_msg)
+		# raise frappe.ValidationError(error_msg)  # More explicit exception raising
+	
+		# Fallback to global default settings
+		return frappe.db.get_single_value(setting_type, default_setting)
+
+	return {
+		"source_warehouse": get_warehouse_value("stock_stores", "default_warehouse", "Stock Settings"),
+		"wip_warehouse": get_warehouse_value("wip_warehouse", "default_wip_warehouse"),
+		"fg_warehouse": get_warehouse_value("fg_warehouse", "default_fg_warehouse"),
+		"scrap_warehouse": get_warehouse_value("scrap_warehouse", "default_scrap_warehouse"),
+	}
 
 
 def validate_disabled_warehouse(warehouse):

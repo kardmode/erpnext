@@ -1085,21 +1085,21 @@ var duplicate_invoice = function(frm){
 		var dialog = new frappe.ui.Dialog({
 			title: "Copy Invoice",
 			fields: [
-				{"fieldtype": "Percent", "label": __("Project Total Discount Percent"), "fieldname": "project_discount_percent",default:'0',reqd:'1'},
-				{"fieldtype": "Percent", "label": __("Per Item Discount Percent"), "fieldname": "per_item_discount_percent",default:'0',reqd:'1'},
+				{"fieldtype": "Percent", "label": __("Project Total Percent"), "fieldname": "project_percent",default:'100',reqd:'1'},
+				{"fieldtype": "Percent", "label": __("Sales Invoice Percent"), "fieldname": "sales_invoice_percent",default:'100',reqd:'1'},
 				{"fieldtype": "Section Break", "fieldname": "sec"},
 				{"fieldtype": "Link", "label": __("Company"), "fieldname": "company","options":"Company",reqd:'1'},
-								{"fieldtype": "Column Break", "fieldname": "col"},
-
+				{"fieldtype": "Column Break", "fieldname": "col"},
 				{"fieldtype": "Link", "label": __("Customer"), "fieldname": "customer","options":"Customer",reqd:'1'},
-								{"fieldtype": "Section Break", "fieldname": "sec"},
+				{"fieldtype": "Section Break", "fieldname": "sec"},
 				{"fieldtype": "Link", "label": __("Project"), "fieldname": "project","options":"Project",reqd:'1'},
-								{"fieldtype": "Section Break", "fieldname": "sec"},
-
-				{"fieldtype": "Link", "label": __("Taxes And Charges"), "fieldname": "taxes_and_charges","options":"Sales Taxes and Charges Template"},
-												{"fieldtype": "Column Break", "fieldname": "col"},
-
+				{"fieldtype": "Section Break", "fieldname": "sec"},
+				{"fieldtype": "Link", "label": __("Taxes And Charges"), "fieldname": "taxes_and_charges","options":"Sales Taxes and Charges Template",reqd:'1'},
+				{"fieldtype": "Column Break", "fieldname": "col"},
 				{"fieldtype": "Link", "label": __("Terms"), "fieldname": "tc_name","options":"Terms and Conditions"},
+				//{"fieldtype": "Section Break", "fieldname": "sec"},
+				//{"fieldtype": "Check", "fieldname": "use_mapped", "label": __("Use Mapped")},
+
 			]
 		});
 		
@@ -1121,14 +1121,13 @@ var duplicate_invoice = function(frm){
 		};
 		
 		
-		
 		dialog.set_primary_action(__("Copy"), function() {
-			args = dialog.get_values();
-			if(!args) return;
+			var args = dialog.get_values();
+			if (!args) return;
 			args["source_name"] = doc.name;
 			
 			frappe.call({
-				method: "erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_invoice",
+				method: "erpnext.accounts.doctype.sales_invoice.sales_invoice.mrp_duplicate_sales_invoice",
 				args: {
 					"data": JSON.stringify(args),
 				},
@@ -1136,10 +1135,6 @@ var duplicate_invoice = function(frm){
 					if(!r.exc) {
 						var new_doc = r.message[0];
 						var can_read = r.message[1];
-						frappe.model.sync(new_doc);
-						// if(opts.run_link_triggers) {
-						 frappe.get_doc(new_doc.doctype, new_doc.name).__run_link_triggers = true;
-						// }
 						if(can_read)
 							frappe.set_route("Form", new_doc.doctype, new_doc.name);
 					}
@@ -1187,8 +1182,8 @@ var make_advance_payment_invoice = function(frm){
 		};
 		
 		dialog.set_primary_action(__("Modify"), function() {
-			args = dialog.get_values();
-			if(!args) return;
+			var args = dialog.get_values();
+			if (!args) return;
 			
 			var advance_payment_percent = args.advance_payment_percent;
 			var project_percent = args.project_percent;

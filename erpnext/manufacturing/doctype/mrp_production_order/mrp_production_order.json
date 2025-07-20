@@ -1,4 +1,5 @@
 {
+ "actions": [],
  "add_company_abbr_to_name": 1,
  "autoname": "CPRO-.#####",
  "beta": 1,
@@ -16,9 +17,10 @@
   "company",
   "project",
   "remarks",
-  "section_break_18",
   "section_break_10",
   "items",
+  "section_break_18",
+  "scrap_items",
   "section_break_13",
   "combined_summary",
   "section_break_19",
@@ -76,8 +78,10 @@
    "label": "Remarks"
   },
   {
+   "collapsible": 1,
    "fieldname": "section_break_18",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Scrap"
   },
   {
    "fieldname": "section_break_10",
@@ -128,14 +132,22 @@
    "fieldtype": "Time",
    "label": "Posting Time",
    "reqd": 1
+  },
+  {
+   "fieldname": "scrap_items",
+   "fieldtype": "Table",
+   "label": "Scrap Items",
+   "options": "BOM Scrap Item"
   }
  ],
  "icon": "fa fa-cogs",
  "is_submittable": 1,
- "modified": "2020-05-21 22:21:40.333191",
+ "links": [],
+ "modified": "2025-01-10 00:28:39.635013",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "MRP Production Order",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -177,5 +189,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "ASC",
+ "states": [],
  "title_field": "reference_title"
 }

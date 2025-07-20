@@ -111,8 +111,9 @@ class BOM(WebsiteGenerator):
 
 	def autoname(self):
 		# ignore amended documents while calculating current index
-
-		search_key = f"{self.doctype}-{self.item}%"
+		company_abbr = frappe.get_cached_value("Company", self.company, "abbr")
+		prefix = f"{company_abbr}-{self.doctype}"
+		search_key = f"{prefix}-{self.item}%"
 		existing_boms = frappe.get_all(
 			"BOM", filters={"name": ("like", search_key), "amended_from": ["is", "not set"]}, pluck="name"
 		)
@@ -122,10 +123,9 @@ class BOM(WebsiteGenerator):
 		else:
 			index = 1
 
-		prefix = self.doctype
 		suffix = "%.3i" % index  # convert index to string (1 -> "001")
 		bom_name = f"{prefix}-{self.item}-{suffix}"
-
+		
 		if len(bom_name) <= 140:
 			name = bom_name
 		else:
@@ -150,8 +150,26 @@ class BOM(WebsiteGenerator):
 						msg, "<br>"
 					)
 				)
+		
+		if not self.custom_title:
+			title_prefix = company_abbr
+			title = f"{title_prefix}-{self.item}-{suffix}"
 
+			if len(title) <= 140:
+				self.custom_title = title
+			else:
+				# since max characters for name is 140, remove enough characters from the
+				# item name to fit the prefix, suffix and the separators
+				truncated_length = 140 - (len(title_prefix) + len(suffix) + 2)
+				truncated_item_name = self.item[:truncated_length]
+				# if a partial word is found after truncate, remove the extra characters
+				truncated_item_name = truncated_item_name.rsplit(" ", 1)[0]
+				title = f"{title_prefix}-{truncated_item_name}-{suffix}"
+			
+			self.custom_title = title
+		
 		self.name = name
+			
 
 	@staticmethod
 	def get_next_version_index(existing_boms: list[str]) -> int:
@@ -313,7 +331,7 @@ class BOM(WebsiteGenerator):
 			args = json.loads(args)
 
 		item = self.get_item_det(args["item_code"])
-		frappe.errprint(args)
+
 		args["bom_no"] = args["bom_no"] or item and cstr(item["default_bom"]) or ""
 		args["transfer_for_manufacture"] = (
 			cstr(args.get("include_item_in_manufacturing", ""))
@@ -1742,13 +1760,36 @@ def create_materials_table(dict):
 	return summary
 
 @frappe.whitelist()	
-def get_default_bom(item_code,project=None):
-	bom_no = ""
-	if project:
-		bom_no = frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "project": project}) or frappe.db.get_value("BOM", filters={"item": item_code, "is_active": 1,"docstatus": 1, "is_default": 1})
-	else:
-		bom_no = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "is_default": 1})
-	return bom_no
+def get_default_bom(item_code, project=None):
+	def _get_bom(item_code, project=None, allow_non_defaults=False):
+		bom_name = None
+		if project:
+			bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "docstatus": 1, "project": project}) 
+			if not bom_name:
+				bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "project": project})
+		
+		if not bom_name:
+			bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "docstatus": 1, "is_default": 1})
+			if not bom_name:
+				bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "is_default": 1})
+		
+		if not bom_name and allow_non_defaults:
+			bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "docstatus": 1})
+			if not bom_name:
+				bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1})
+		
+		return bom_name
+		
+	if not item_code:
+		return
+
+	bom_name = _get_bom(item_code,project)
+	template_item = frappe.db.get_value("Item", item_code, "variant_of")
+	if not bom_name and template_item:
+		bom_name = _get_bom(template_item, project)
+
+	return bom_name
+
 	
 def round_sig(x, sig=2):
 	if x != 0:
@@ -1789,8 +1830,9 @@ def get_boms_in_bottom_up_order(bom_no=None):
 	return bom_list
 
 @frappe.whitelist()
-def mrp_generate_exploded(bom_no,qtyRequired,qtyOriginal,dimensions):
+def mrp_generate_exploded(bom_no, qtyRequired, qtyOriginal, dimensions):
 	bom = frappe.get_doc("BOM", bom_no)
+		
 	exploded_items = bom.get("exploded_items")
 	bombuilder_items = bom.get("bomitems")
 	scrap_items = bom.get("scrap_items")
@@ -1810,7 +1852,7 @@ def mrp_generate_exploded(bom_no,qtyRequired,qtyOriginal,dimensions):
 		for d in merged:
 			if d['bom_no']:
 				child_exploded_items = mrp_get_child_exploded_items(d['bom_no'], d['stock_qty'])
-				unmerged_exploded_items.append(child_exploded_items)
+				unmerged_exploded_items.extend(child_exploded_items)
 			else:
 				unmerged_exploded_items.append(d)
 				
@@ -1832,7 +1874,8 @@ def mrp_generate_exploded(bom_no,qtyRequired,qtyOriginal,dimensions):
 				item["conversion_factor"] = 1.0
 				item["bom_no"] = None
 			else:
-				frappe.throw(_("Item {0} not found in Exploded Table").format(item_code))
+				bom_link = get_link_to_form("BOM", bom_no)			
+				frappe.throw(_("Item {0} not found in Exploded Items of BOM {1}. BOM Builder does not match.").format(item_code, bom_link))
 
 
 		new_exploded_items = merge_bom_items(unmerged_exploded_items, as_dict=False)

@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "naming_series:",
+ "autoname": "format:{COM}-{project_name}",
  "creation": "2013-03-07 11:55:07",
  "doctype": "DocType",
  "document_type": "Setup",
@@ -290,7 +290,8 @@
    "label": "Company",
    "options": "Company",
    "remember_last_selected_value": 1,
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "fieldname": "column_break_28",
@@ -452,11 +453,11 @@
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 4,
- "modified": "2024-04-24 10:56:16.001032",
+ "modified": "2025-04-03 22:13:31.839160",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Project",
- "naming_rule": "By \"Naming Series\" field",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

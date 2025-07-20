@@ -179,10 +179,6 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				};
 			});
 		}
-		
-		// TODO Project query and product bundle
-		erpnext.queries.setup_project_query(this.frm);
-		erpnext.queries.setup_product_bundle_query(this.frm);
 
 		if (this.frm.fields_dict["items"].grid.get_field("cost_center")) {
 			this.frm.set_query("cost_center", "items", function(doc) {
@@ -383,14 +379,21 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	refresh() {
 		erpnext.toggle_naming_series();
 		erpnext.hide_company();
-		this.mrp_setup_custom_buttons();
+		this.mrp_setup_custom();
 		
 		this.set_dynamic_labels();
 		// this.setup_sms();
 		this.setup_quality_inspection();
 		this.validate_has_items();
 	}
-	mrp_setup_custom_buttons(){
+	
+	mrp_setup_custom(){
+		
+		// TODO Project query and product bundle
+		erpnext.queries.setup_project_query(this.frm);
+		erpnext.queries.setup_product_bundle_query(this.frm);
+		
+		
 		if (this.frm.doc.docstatus==0) {
 			// cur_frm.add_custom_button(__('CSV'),
 				// function() {
@@ -812,11 +815,57 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	company() {
 		var me = this;
 		
-		$.each(this.frm.doc.items || [], function(i, d) {
-			if(d.cost_center) {
-				frappe.model.set_value(d.doctype, d.name, "cost_center","");
+		if(me.frm.doc.company)
+		{
+			$.each(me.frm.doc.items || [], function(i, d) {
+				const itemFieldsToClear = ['cost_center', 'income_account', 'expense_account'];
+
+				itemFieldsToClear.forEach((field) => {
+					if (field in d && d[field]) {
+						d[field] = null;
+					}
+				});
+				
+			});
+			
+			if ('items' in me.frm.doc && me.frm.doc.items && me.frm.doc.items.length > 0) {
+				let first_row = me.frm.doc.items[0];
+				if (first_row.item_code)
+				{
+					let rows_to_modify = me.frm.doc.items.slice(1);
+					const itemFieldsToClear = ['cost_center', 'income_account', 'expense_account'];
+
+					frappe.run_serially([
+						() => me.frm.script_manager.trigger("item_code", first_row.doctype, first_row.name),
+						() => {
+							rows_to_modify.forEach(row => {
+								me.frm.script_manager.copy_from_first_row("items", row, itemFieldsToClear);
+							});
+						},
+						() => me.frm.refresh_field('items')
+					]);
+				}
+				
+				
 			}
-		});
+			
+			
+			const fieldsToClear = {
+				project: null,
+				cost_center: null,
+				taxes_and_charges: null,
+				taxes: []
+			};
+
+			for (const [field, value] of Object.entries(fieldsToClear)) {
+				if (field in me.frm.doc) {
+					me.frm.doc[field] = value;
+					me.frm.refresh_field(field);
+				}
+			}
+		}
+		
+		
 		
 		
 		var set_pricing = function() {

@@ -11,7 +11,7 @@ def get_data():
 				"label": _("Project"),
 				"items": ["Task", "Timesheet", "Issue", "Project Update"],
 			},
-			{"label": _("Material"), "items": ["Material Request", "BOM", "Stock Entry"]},
+			{"label": _("Material"), "items": ["Material Request", "BOM", "Stock Entry", "MRP Production Order"]},
 			{"label": _("Sales"), "items": ["Sales Order", "Delivery Note", "Sales Invoice"]},
 			{"label": _("Purchase"), "items": ["Purchase Order", "Purchase Receipt", "Purchase Invoice"]},
 		],

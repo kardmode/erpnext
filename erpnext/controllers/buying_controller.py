@@ -17,6 +17,7 @@ from erpnext.controllers.subcontracting_controller import SubcontractingControll
 from erpnext.stock.get_item_details import get_conversion_factor
 from erpnext.stock.stock_ledger import get_previous_sle
 from erpnext.stock.utils import get_incoming_rate, get_valuation_method
+from erpnext.controllers.accounts_controller import get_taxes_and_charges
 
 
 class QtyMismatchError(ValidationError):
@@ -118,6 +119,12 @@ class BuyingController(SubcontractingController):
 					ignore_permissions=self.flags.ignore_permissions,
 				)
 			)
+			
+		# Handle taxes for Purchase transactions
+		if self.get("taxes_and_charges") and not self.get("taxes") and not for_validate:
+			taxes = get_taxes_and_charges("Purchase Taxes and Charges Template", self.taxes_and_charges)
+			for tax in taxes:
+				self.append("taxes", tax)
 
 		self.set_missing_item_details(for_validate)
 
@@ -313,6 +320,13 @@ class BuyingController(SubcontractingController):
 			return
 
 		if not self.is_internal_transfer():
+			return
+		
+		allow_at_arms_length_price = True
+		# allow_at_arms_length_price = frappe.get_cached_value(
+			# "Stock Settings", None, "allow_internal_transfer_at_arms_length_price"
+		# )
+		if allow_at_arms_length_price:
 			return
 
 		ref_doctype_map = {

@@ -27,17 +27,20 @@
 			{% if doc.get(fieldname) and doc.in_format_data(fieldname) -%}
 				{% if fieldname == "description"  -%}
 					{% if not (doc.item_code == doc.item_name == doc.description) -%}
-						<div data-fieldname="description">
-							{{ doc.get_formatted(fieldname, translated=True)  }}
-						</div>
-					{% endif %}
-				{% else  -%}
-					<div data-fieldname="{{fieldname}}">
+						<div data-fieldname="{{fieldname}}">
 						{% if field.print_label  -%}
 							<strong>{{ _(field.print_label) }}:</strong>
 						{% endif %}
 						{{ doc.get_formatted(fieldname, translated=True)  }}
-					</div>
+						</div>
+					{% endif %}
+				{% else  -%}
+						<div data-fieldname="{{fieldname}}">
+							{% if field.print_label  -%}
+								<strong>{{ _(field.print_label) }}:</strong>
+							{% endif %}
+							{{ doc.get_formatted(fieldname, translated=True)  }}
+						</div>
 				{% endif %}
 			{% endif %}
 		{%- endfor -%}

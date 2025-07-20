@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_import": 1,
+ "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2022-01-25 10:29:57.771398",
  "doctype": "DocType",
@@ -214,7 +215,8 @@
   "is_internal_customer",
   "is_discounted",
   "remarks",
-  "connections_tab"
+  "connections_tab",
+  "repost_required"
  ],
  "fields": [
   {
@@ -351,7 +353,8 @@
    "options": "Company",
    "print_hide": 1,
    "remember_last_selected_value": 1,
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "fieldname": "cost_center",
@@ -2185,7 +2188,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2024-07-18 15:30:39.428519",
+ "modified": "2025-07-08 00:08:44.769984",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",
