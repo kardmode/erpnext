@@ -1296,37 +1296,36 @@ def get_SI_units(type = "length"):
 		return SI_Mass
 	else:
 		return SI_Length + SI_Mass
-		
+
 @frappe.whitelist()
 def convert_SI(val, unit_in, unit_out):
-	
-	in_dict = out_dict = None
-	
-	if unit_in in get_SI_units(type ='length'):
-		if unit_out in get_SI_units(type ='length'):
-			in_dict = out_dict = get_SI_units(type ='length')
+	# Normalize
+	unit_in = (unit_in or "").strip().lower()
+	unit_out = (unit_out or "").strip().lower()
 
-	elif unit_in in get_SI_units(type ='mass'):
-		if unit_out in get_SI_units(type ='mass'):
-			in_dict = out_dict = get_SI_units(type ='mass')
+	length_units = get_SI_units(type='length')
+	mass_units = get_SI_units(type='mass')
 
-	
-	if not in_dict or not out_dict:
+	if unit_in in length_units and unit_out in length_units:
+		in_dict = out_dict = length_units
+	elif unit_in in mass_units and unit_out in mass_units:
+		in_dict = out_dict = mass_units
+	else:
+		frappe.log_error(f"convert_SI: Unsupported unit conversion from '{unit_in}' to '{unit_out}'")
 		return None
-	
-	in_rate = in_dict[unit_in]
-	if not in_rate:
+
+	in_rate = in_dict.get(unit_in)
+	out_rate = out_dict.get(unit_out)
+
+	if in_rate is None or out_rate is None:
+		frappe.log_error(f"convert_SI: Unit rates not found for '{unit_in}' or '{unit_out}'")
 		return None
-	
 
-	out_rate = out_dict[unit_out]
-	if not out_rate:
+	try:
+		return flt(val) * in_rate / out_rate
+	except Exception as e:
+		frappe.log_error(f"convert_SI error: {e}")
 		return None
-		
-	return val*in_rate/out_rate
-
-
-
 
 
 @frappe.whitelist()

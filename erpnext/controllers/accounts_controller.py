@@ -2308,7 +2308,7 @@ class AccountsController(TransactionBase):
 		else:
 			return False
 
-		if self.get(internal_party_field) and (self.represents_company == self.company):
+		if self.get(internal_party_field) and ((self.represents_company == self.company) or getattr(self, "custom_is_subcontract_transfer", False)):
 			return True
 
 		return False

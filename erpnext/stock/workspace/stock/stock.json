@@ -5,7 +5,7 @@
    "label": "Delivery Trends"
   }
  ],
- "content": "[{\"id\":\"oXiMIsr0WN\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Delivery Trends\",\"col\":12}},{\"id\":\"QVj6STNGy9\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"83lIo6RrYR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"BoJAZfVhrr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Import Item Alt\",\"col\":3}},{\"id\":\"q8tPoQ93k4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"uzV3N0WWQc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"qSrE6CthhQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"It3hvOQmIB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"8RasH2Prcj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"KkLtmVFlIS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"ucO-yZuBtS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Delivery\",\"col\":3}},{\"id\":\"5n9zC41Br9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Sale\",\"col\":3}},{\"id\":\"MWahF3xQsC\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"5pi1oaFw3r\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"EGsuzLWP3s\",\"type\":\"card\",\"data\":{\"card_name\":\"Items and Pricing\",\"col\":4}},{\"id\":\"iAStlXhF86\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"id\":\"3i8i-70R46\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
+ "content": "[{\"id\":\"oXiMIsr0WN\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Delivery Trends\",\"col\":12}},{\"id\":\"QVj6STNGy9\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"83lIo6RrYR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"JQoBjkcgCU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Reconciliation\",\"col\":3}},{\"id\":\"BoJAZfVhrr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Import Item Alt\",\"col\":3}},{\"id\":\"q8tPoQ93k4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"uzV3N0WWQc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"qSrE6CthhQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"It3hvOQmIB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"8RasH2Prcj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"KkLtmVFlIS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"ucO-yZuBtS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Delivery\",\"col\":3}},{\"id\":\"5n9zC41Br9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Sale\",\"col\":3}},{\"id\":\"MWahF3xQsC\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"5pi1oaFw3r\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"EGsuzLWP3s\",\"type\":\"card\",\"data\":{\"card_name\":\"Items and Pricing\",\"col\":4}},{\"id\":\"iAStlXhF86\",\"type\":\"card\",\"data\":{\"card_name\":\"Stock Transactions\",\"col\":4}},{\"id\":\"3i8i-70R46\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
  "creation": "2020-03-02 15:43:10.096528",
  "custom_blocks": [],
  "docstatus": 0,
@@ -228,7 +228,8 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Settings",
-   "link_count": 0,
+   "link_count": 15,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
   },
@@ -332,50 +333,6 @@
    "type": "Link"
   },
   {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Installation Note",
-   "link_count": 0,
-   "link_to": "Installation Note",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Serial No",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Serial No Service Contract Expiry",
-   "link_count": 0,
-   "link_to": "Serial No Service Contract Expiry",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Serial No",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Serial No Status",
-   "link_count": 0,
-   "link_to": "Serial No Status",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Serial No",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Serial No Warranty Expiry",
-   "link_count": 0,
-   "link_to": "Serial No Warranty Expiry",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
@@ -412,28 +369,6 @@
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Quality Inspection",
-   "link_count": 0,
-   "link_to": "Quality Inspection",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Quality Inspection Template",
-   "link_count": 0,
-   "link_to": "Quality Inspection Template",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Quick Stock Balance",
    "link_count": 0,
    "link_to": "Quick Stock Balance",
@@ -453,116 +388,6 @@
    "type": "Link"
   },
   {
-   "dependencies": "Stock Entry",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Analytics",
-   "link_count": 0,
-   "link_to": "Stock Analytics",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Stock Qty vs Serial No Count",
-   "link_count": 0,
-   "link_to": "Stock Qty vs Serial No Count",
-   "link_type": "Report",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Delivery Note",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Delivery Note Trends",
-   "link_count": 0,
-   "link_to": "Delivery Note Trends",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Purchase Receipt",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Receipt Trends",
-   "link_count": 0,
-   "link_to": "Purchase Receipt Trends",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Sales Order",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Sales Order Analysis",
-   "link_count": 0,
-   "link_to": "Sales Order Analysis",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Purchase Order",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Purchase Order Analysis",
-   "link_count": 0,
-   "link_to": "Purchase Order Analysis",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Bin",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Item Shortage Report",
-   "link_count": 0,
-   "link_to": "Item Shortage Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Batch",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Batch-Wise Balance History",
-   "link_count": 0,
-   "link_to": "Batch-Wise Balance History",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Material Request",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Requested Items To Be Transferred",
-   "link_count": 0,
-   "link_to": "Requested Items To Be Transferred",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Stock Ledger Entry",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Batch Item Expiry Status",
-   "link_count": 0,
-   "link_to": "Batch Item Expiry Status",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
    "dependencies": "Price List",
    "hidden": 0,
    "is_query_report": 1,
@@ -572,53 +397,9 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Itemwise Recommended Reorder Level",
-   "link_count": 0,
-   "link_to": "Itemwise Recommended Reorder Level",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Item Variant Details",
-   "link_count": 0,
-   "link_to": "Item Variant Details",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Purchase Order",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Subcontracted Raw Materials To Be Transferred",
-   "link_count": 0,
-   "link_to": "Subcontracted Raw Materials To Be Transferred",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Purchase Order",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Subcontracted Item To Be Received",
-   "link_count": 0,
-   "link_to": "Subcontracted Item To Be Received",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2025-03-17 02:52:21.658864",
+ "modified": "2025-09-02 19:26:38.296045",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock",
@@ -644,6 +425,14 @@
    "label": "Item",
    "link_to": "Item",
    "stats_filter": "{\n    \"disabled\" : 0\n}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Stock Reconciliation",
+   "link_to": "Stock Reconciliation",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {

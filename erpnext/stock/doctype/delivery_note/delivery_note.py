@@ -303,10 +303,10 @@ class DeliveryNote(SellingController):
 			self.make_return_invoice()
 
 		# Conditionally update stock ledger and make GL entries
-		if not (getattr(self, "custom_mrp_skip_stock_update", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
 			self.update_stock_ledger()
 
-		if not (getattr(self, "custom_mrp_skip_accounting_entries", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
 			self.make_gl_entries()
 
 		self.repost_future_sle_and_gle()
@@ -322,13 +322,13 @@ class DeliveryNote(SellingController):
 		self.update_billing_status()
 
 		# Conditionally update stock ledger
-		if not (getattr(self, "custom_mrp_skip_stock_update", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
 			self.update_stock_ledger()
 
 		self.cancel_packing_slips()
 
 		# Conditionally cancel GL entries
-		if not (getattr(self, "custom_mrp_skip_accounting_entries", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
 			self.make_gl_entries_on_cancel()
 
 		self.repost_future_sle_and_gle()
@@ -422,16 +422,16 @@ class DeliveryNote(SellingController):
 			frappe.msgprint(_("Packing Slip(s) cancelled"))
 
 	def update_status(self, status):
-		if status == "Closed":
-			doc_details = frappe.db.sql("""
-						select name
-						from `tabMRP Import Entry`where
-						transaction_type = "Delivery Note"
-						and reference_name = %s
-						""", (self.name), as_dict=True)
+		# if status == "Closed":
+			# doc_details = frappe.db.sql("""
+						# select name
+						# from `tabMRP Import Entry`where
+						# transaction_type = "Delivery Note"
+						# and reference_name = %s
+						# """, (self.name), as_dict=True)
 			
-			if not doc_details:
-				frappe.msgprint(_("Import Entry for delivery note {0} does not exist.").format(self.name))
+			# if not doc_details:
+				# frappe.msgprint(_("Import Entry for delivery note {0} does not exist.").format(self.name))
 			
 		self.set_status(update=True, status=status)
 		self.notify_update()

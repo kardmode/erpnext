@@ -46,6 +46,7 @@ def execute(filters=None):
 		ignore_closing_entries=True,
 		ignore_accumulated_values_for_fy=True,
 	)
+	
 
 	net_profit_loss = get_net_profit_loss(
 		income, expense, period_list, filters.company, filters.presentation_currency
@@ -75,7 +76,8 @@ def get_report_summary(
 	period_list, periodicity, income, expense, net_profit_loss, currency, filters, consolidated=False
 ):
 	net_income, net_expense, net_profit = 0.0, 0.0, 0.0
-
+	gross_income,cogs_total, gross_profit, indirec_income = 0.0, 0.0, 0.0, 0.0
+	
 	# from consolidated financial statement
 	if filters.get("accumulated_in_group_company"):
 		period_list = get_filtered_list_for_consolidated_report(filters, period_list)
@@ -84,21 +86,83 @@ def get_report_summary(
 		key = period if consolidated else period.key
 		if income:
 			net_income += income[-2].get(key)
+			
+			# calculate gross_income
+			for row in income:
+				if row.get("include_in_gross") == 1 and row.get("is_group") != 1:
+					gross_income += row.get(key, 0)
+				
+			
 		if expense:
 			net_expense += expense[-2].get(key)
+			
+			# calculate COGS
+			for row in expense:
+				if row.get("account_type") == "Cost of Goods Sold" and row.get("is_group") != 1:
+					cogs_total += row.get(key, 0)
+			
 		if net_profit_loss:
 			net_profit += net_profit_loss.get(key)
 
 	if len(period_list) == 1 and periodicity == "Yearly":
-		profit_label = _("Profit This Year")
+		profit_label = _("Net Profit This Year")
 		income_label = _("Total Income This Year")
 		expense_label = _("Total Expense This Year")
 	else:
 		profit_label = _("Net Profit")
 		income_label = _("Total Income")
 		expense_label = _("Total Expense")
-
+	
+	gross_income_label = _("Direct Income")
+	indirect_income_label = _("Indirect Income")
+	cogs_label = _("Cost Of Goods Sold")
+	gross_profit_label = _("Gross Profit")
+	indirect_income = net_income - gross_income
+	gross_profit = gross_income - cogs_total
+	remaining_expenses = net_expense - cogs_total
 	return [
+		{"value": gross_income, "label": gross_income_label, "datatype": "Currency", "currency": currency},
+		{"type": "separator", "value": "-"},
+		{"value": cogs_total, "label": cogs_label, "datatype": "Currency", "currency": currency},
+		{"type": "separator", "value": "=", "color": "blue"},
+		{
+			"value": gross_profit,
+			"indicator": "Green" if gross_profit > 0 else "Red",
+			"label": gross_profit_label,
+			"datatype": "Currency",
+			"currency": currency,
+		},
+		# New formula line: Gross Profit - Remaining Expenses = Net Profit
+		# {
+			# "value": gross_profit,
+			# "label": "Gross Profit",
+			# "datatype": "Currency",
+			# "currency": currency,
+		# },
+		# {"type": "separator", "value": "-"},
+		# {
+			# "value": remaining_expenses,
+			# "label": "Other Expenses",
+			# "datatype": "Currency",
+			# "currency": currency,
+		# },
+		# {"type": "separator", "value": "+"},
+		# {
+			# "value": indirect_income,
+			# "label": indirect_income_label,
+			# "datatype": "Currency",
+			# "currency": currency,
+		# },
+		# {"type": "separator", "value": "=", "color": "blue"},
+		# {
+			# "value": net_profit,
+			# "indicator": "Green" if net_profit > 0 else "Red",
+			# "label": profit_label,
+			# "datatype": "Currency",
+			# "currency": currency,
+		# },
+
+		
 		{"value": net_income, "label": income_label, "datatype": "Currency", "currency": currency},
 		{"type": "separator", "value": "-"},
 		{"value": net_expense, "label": expense_label, "datatype": "Currency", "currency": currency},

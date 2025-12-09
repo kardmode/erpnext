@@ -48,6 +48,10 @@ frappe.ui.form.on("Stock Reconciliation", {
 			frm.add_custom_button(__("Fetch Items from Warehouse"), function () {
 				frm.events.get_items(frm);
 			});
+			
+			frm.add_custom_button(__("MRP Get Items"), function () {
+				frm.events.mrp_get_items(frm);
+			});
 		}
 
 		if (frm.doc.company) {
@@ -183,8 +187,8 @@ frappe.ui.form.on("Stock Reconciliation", {
 					const row = frappe.model.get_doc(cdt, cdn);
 					if (!frm.doc.scan_mode) {
 						frappe.model.set_value(cdt, cdn, "qty", r.message.qty);
+						frappe.model.set_value(cdt, cdn, "valuation_rate", r.message.rate);
 					}
-					frappe.model.set_value(cdt, cdn, "valuation_rate", r.message.rate);
 					frappe.model.set_value(cdt, cdn, "current_qty", r.message.qty);
 					frappe.model.set_value(cdt, cdn, "current_valuation_rate", r.message.rate);
 					frappe.model.set_value(cdt, cdn, "current_amount", r.message.rate * r.message.qty);
@@ -235,6 +239,144 @@ frappe.ui.form.on("Stock Reconciliation", {
 			});
 		}
 	},
+	
+	mrp_get_items: function (frm) {
+		let fields = [
+			{
+				label: "Warehouse",
+				fieldname: "warehouse",
+				fieldtype: "Link",
+				options: "Warehouse",
+				reqd: 1,
+				get_query: function () {
+					return {
+						filters: {
+							company: frm.doc.company,
+							disabled:0
+						},
+					};
+				},
+			},{
+				fieldtype: "Column Break",
+			},
+			{
+				label: "Item Group",
+				fieldname: "item_group",
+				fieldtype: "Link",
+				options: "Item Group",
+				reqd: 1
+			},
+			{
+				fieldtype: "Section Break",
+			},
+			{
+				label: "On Date",
+				fieldname: "posting_date",
+				fieldtype: "Date",
+				default:frappe.datetime.now_date(),
+				reqd: 1
+			},
+			{
+				fieldtype: "Column Break",
+			},
+			{
+				label: "On Time",
+				fieldname: "posting_time",
+				fieldtype: "Time",
+				default:frappe.datetime.now_time(),
+				reqd: 1
+			},
+			{
+				fieldtype: "Section Break",
+			},
+			{
+				label: __("Ignore Empty Stock"),
+				fieldname: "ignore_empty_stock",
+				fieldtype: "Check",
+				default:1
+			},
+			{
+				fieldtype: "Section Break",
+			},
+			{
+				label: __("Ignore Positive Stock"),
+				fieldname: "ignore_positive_stock",
+				fieldtype: "Check",
+				default:1
+			},
+			{
+				fieldtype: "Column Break",
+			},
+			{
+				label: __("Flip Positive Stock"),
+				fieldname: "flip_positive_stock",
+				fieldtype: "Check",
+				default:0
+			},
+			{
+				fieldtype: "Section Break",
+			},
+			{
+				label: __("Ignore Negative Stock"),
+				fieldname: "ignore_negative_stock",
+				fieldtype: "Check",
+			},
+			{
+				fieldtype: "Column Break",
+			},
+			{
+				label: __("Flip Negative Stock"),
+				fieldname: "flip_negative_stock",
+				fieldtype: "Check",
+				default:1
+			},
+		];
+
+		frappe.prompt(
+			fields,
+			function (data) {
+				frappe.call({
+					method: "erpnext.stock.doctype.stock_reconciliation.stock_reconciliation.mrp_get_items",
+					args: {
+						warehouse: data.warehouse,
+						posting_date: data.posting_date,
+						posting_time: data.posting_time,
+						company: frm.doc.company,
+						item_group: data.item_group,
+						ignore_empty_stock: data.ignore_empty_stock,
+						ignore_positive_stock: data.ignore_positive_stock,
+						ignore_negative_stock: data.ignore_negative_stock,
+					},
+					callback: function (r) {
+						if (r.exc || !r.message || !r.message.length) return;
+
+						frm.clear_table("items");
+
+						r.message.forEach((row) => {
+							let item = frm.add_child("items");
+							$.extend(item, row);
+
+							item.qty = item.qty || 0;
+							if(data.flip_negative_stock === 1 && item.qty < 0)
+								item.qty = -1*item.qty;
+							else if(data.flip_positive_stock === 1 && item.qty > 0)
+								item.qty = -1*item.qty;
+							
+							item.valuation_rate = item.valuation_rate || 0;
+							item.use_serial_batch_fields = cint(
+								frappe.user_defaults?.use_serial_batch_fields
+							);
+						});
+						frm.set_value("custom_title",data.item_group);
+						frm.refresh_field("items");
+					},
+				});
+			},
+			__("Get Items & Qty"),
+			__("Update")
+		);
+	},
+
 });
 
 frappe.ui.form.on("Stock Reconciliation Item", {

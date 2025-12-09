@@ -184,6 +184,12 @@ def get_gl_entries(filters, accounting_dimensions):
 	if accounting_dimensions:
 		dimension_fields = ", ".join(accounting_dimensions) + ","
 
+	# Build conditions dynamically
+	conditions = f"company=%(company)s {get_conditions(filters)}"
+	if filters.get("voucher_type"):
+		# Use tuple for SQL IN clause
+		conditions += " and voucher_type in %(voucher_type)s"
+
 	gl_entries = frappe.db.sql(
 		f"""
 		select
@@ -193,7 +199,7 @@ def get_gl_entries(filters, accounting_dimensions):
 			against_voucher_type, against_voucher, account_currency,
 			against, is_opening, creation {select_fields}
 		from `tabGL Entry`
-		where company=%(company)s {get_conditions(filters)}
+		where {conditions}
 		{order_by_statement}
 	""",
 		filters,

@@ -345,6 +345,7 @@ class BOM(WebsiteGenerator):
 		args['conversion_factor'] = conversion_factor
 		rate = self.get_rm_rate(args)
 		stock_rate = rate / conversion_factor
+		
 		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
 		best_warehouse,enough_stock = get_best_warehouse(args["item_code"],args.get("stock_qty") or args.get("qty") or 1,company = self.company)
 
@@ -411,6 +412,7 @@ class BOM(WebsiteGenerator):
 								_("{0} not found for item {1}").format(self.rm_cost_as_per, arg["item_code"]),
 								alert=True,
 							)
+				
 		return flt(rate) * flt(self.plc_conversion_rate or 1) / (self.conversion_rate or 1)
 
 	
@@ -750,7 +752,12 @@ class BOM(WebsiteGenerator):
 		dutible = 0.0
 		non_dutible = 0.0
 		mrp_total_production_overhead = 0.0
+		custom_total_weight = 0.0
+		
 		for d in self.get('exploded_items'):
+			if hasattr(d, 'custom_unit_weight'):
+				custom_total_weight += (flt(d.stock_qty) * flt(d.custom_unit_weight))
+			
 			if d.dutible == 1:
 				dutible = dutible + flt(d.amount)
 			else:
@@ -777,6 +784,8 @@ class BOM(WebsiteGenerator):
 		self.mrp_final_price_plus_profit = self.mrp_factory_price + (self.mrp_factory_price * (self.mrp_profit_percent/100))
 		self.mrp_base_final_price_plus_profit = flt(self.mrp_final_price_plus_profit) * flt(self.conversion_rate)
 		
+		if hasattr(self, 'custom_total_weight'):
+			self.custom_total_weight = custom_total_weight
 
 	def calculate_op_cost(self, update_hour_rate=False):
 		"""Update workstation rate and calculates totals"""
@@ -1039,6 +1048,7 @@ class BOM(WebsiteGenerator):
 			frappe.db.sql("""delete from `tabBOM Explosion Item` where parent=%s""", self.name)
 
 		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse_with_qty
+		from erpnext.stock.get_item_details import convert_SI
 
 		for d in sorted(self.cur_exploded_items, key=itemgetter(0)):
 			ch = self.append("exploded_items", {})
@@ -1052,6 +1062,27 @@ class BOM(WebsiteGenerator):
 			ch.qty_consumed_per_unit = flt(ch.stock_qty) / flt(self.quantity)
 			if exploded_items.get(ch.item_code):
 				ch.dutible = exploded_items[ch.item_code].dutible
+			
+			
+			# Fetch custom_unit_weight from Item doctype if field exists
+			if hasattr(ch, 'custom_unit_weight'):
+				kg_weight = 0.0
+				
+				# Fetch weight_per_unit and weight_uom from tabItem
+				weight_data = frappe.db.sql("""
+					SELECT weight_per_unit, weight_uom FROM `tabItem` WHERE name = %s
+					""", ch.item_code, as_dict=True)
+					
+				if weight_data and weight_data[0].weight_per_unit and weight_data[0].weight_uom:
+					kg_weight = convert_SI(
+						flt(weight_data[0].weight_per_unit),
+						weight_data[0].weight_uom.lower(),
+						'kg'
+					)
+					
+				ch.custom_unit_weight = kg_weight if kg_weight else 0.0
+					
+			
 			ch.docstatus = self.docstatus
 
 			# if not ch.source_warehouse:
@@ -1169,11 +1200,9 @@ class BOM(WebsiteGenerator):
 				"item_code": newd.item_code,
 				"bom_no": d["bom_no"] or get_default_bom(newd.item_code,self.project),
 				"stock_qty": newd.stock_qty,
-				# "include_item_in_manufacturing": newd.include_item_in_manufacturing,
 				"qty": newd.qty,
 				"uom": newd.uom,
 				"stock_uom": newd.stock_uom,
-				# "conversion_factor": newd.conversion_factor
 			})
 			
 			newd.rate = flt(ret_item["rate"])

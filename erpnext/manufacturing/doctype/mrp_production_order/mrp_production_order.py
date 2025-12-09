@@ -201,22 +201,22 @@ class MRPProductionOrder(Document):
 		for i, fg_item in enumerate(self.get("items")):
 				
 			if not fg_item.depth or not fg_item.width or not fg_item.height:
-				link = ['Item {0} requires all dimensions'.format(fg_item.item_code)]
+				link = "Item {0} needs all dimensions".format(fg_item.item_code)
 				frappe.throw(link)
 				
 			if not fg_item.bom:
-				link = ['Item {0} has missing bom.'.format(fg_item.item_code)]
+				link = "Item {0} has missing bom.".format(fg_item.item_code)
 				frappe.throw(link)
 			
 			if not fg_item.uom:
-				link = ['Item {0} has missing uom.'.format(fg_item.item_code)]
+				link = "Item {0} has missing uom.".format(fg_item.item_code)
 				frappe.throw(link)
 				
 			if submit==False:
 				prev_stock_entries = frappe.db.sql("""select name,docstatus from `tabStock Entry` where custom_production_order=%s and manufactured_item=%s and docstatus < 2 and fg_completed_qty = %s""", (self.name,fg_item.item_code, fg_item.qty), as_dict = 1)
 				
 				if len(prev_stock_entries) > 0:
-					link = ['Row {0} - Item {1} has more than one stock entry'.format(i,fg_item.item_code)]
+					link = "Row {0} - Item {1} has more than one stock entry".format(i, fg_item.item_code)
 					frappe.throw(link)
 			else:
 				self.delete_entries(True,True)
@@ -365,7 +365,7 @@ class MRPProductionOrder(Document):
 					stock_entry.submit()
 			
 			except Exception as error:
-				link = ['Row {0} - Item {1} has an error - {2}.'.format(i,fg_item.item_code,error)]
+				link = "Row {0} - Item {1} has an error - {2}.".format(i, fg_item.item_code, error)
 				error_list.append(link)
 				break
 		
@@ -408,15 +408,12 @@ class MRPProductionOrder(Document):
 					# })
 					
 			# except Exception as error:
-				# link = ['Row {0} - Item {1} has an error - {2}.'.format(i,fg_item.item_code,error)]
+				# link = "Row {0} - Item {1} has an error - {2}.".format(i, fg_item.item_code, error)
 				# error_list.append(link)
 				# break
 				
 		if len(error_list) > 0:
-			err_msg = ""
-			for err in error_list:
-				err_msg = err_msg + str(err) + '<br>'
-				
+			err_msg = "<br>".join(error_list)	
 			self.delete_entries(True,True)
 			frappe.throw(_("{0}").format(err_msg))
 		

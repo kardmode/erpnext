@@ -59,11 +59,10 @@ frappe.ui.form.on("Delivery Note", {
 		frm.set_query('expense_account', 'items', function(doc, cdt, cdn) {
 			if (erpnext.is_perpetual_inventory_enabled(doc.company)) {
 				return {
-					filters: {
-						"report_type": "Profit and Loss",
-						"company": doc.company,
-						"is_group": 0
-					}
+					filters: [
+						['Account', 'is_group', '=', 0],
+						['Account', 'company', '=', doc.company],
+					]
 				}
 			}
 		});
@@ -82,7 +81,6 @@ frappe.ui.form.on("Delivery Note", {
 		frm.set_df_property('packed_items', 'cannot_add_rows', true);
 		frm.set_df_property('packed_items', 'cannot_delete_rows', true);
 	},
-
 	print_without_amount: function(frm) {
 		erpnext.stock.delivery_note.set_print_hide(frm.doc);
 	},

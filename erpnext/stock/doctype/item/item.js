@@ -68,9 +68,13 @@ frappe.ui.form.on("Item", {
 			
 		}
 		
+		frm.add_custom_button(__("Add Weight"), function() {
+			frm.trigger('mrp_add_weight');
+		}, __("Actions"));
+		
 		frm.add_custom_button(__("Add Units"), function() {
 			frm.trigger('mrp_add_uom');
-		});
+		}, __("Actions"));
 		
 		frm.add_custom_button(__("Generate Random Barcode"), function() {
 			frm.trigger('mrp_add_barcode');
@@ -439,7 +443,119 @@ frappe.ui.form.on("Item", {
 
 		dialog.show();
 	},
+
+	mrp_add_weight: function(frm) {
+	let dialog = new frappe.ui.Dialog({
+		title: __('Calculate Item Weight'),
+		fields: [
+			{fieldname:'profile_shape', fieldtype:'Select', default:"Rectangle", options:['Circle','Rectangle'], label:'Profile Shape', reqd:1},
+			{fieldname:'profile_direction', fieldtype:'Select', label:'Profile Direction',
+				options:['Length','Width','Height'], default:'Length'
+			},
+			{fieldtype:'Column Break'},
+			{fieldname:'is_hollow', fieldtype:'Check', label:'Is Hollow', default:0},
+			{fieldtype:'Section Break'},
+			{fieldname:'profile_length', fieldtype:'Float', label:'Depth / Length', reqd:1, default: frm.doc.depth || 0, read_only:1},
+			{fieldname:'profile_width', fieldtype:'Float', label:'Width / Diameter', reqd:1, default: frm.doc.width || 0, read_only:1},
+			{fieldname:'profile_height', fieldtype:'Float', label:'Height / Diameter', reqd:1, default: frm.doc.height || 0, read_only:1},
+			{fieldname:'profile_thickness', fieldtype:'Float', label:'Thickness', default:0,
+				depends_on:'eval:doc.is_hollow'
+			},			
+			{fieldname:'density', fieldtype:'Float', label:'Density (kg/m³)', reqd:1, default:0},
+			
+			{fieldtype:'Column Break'},
+			
+			{fieldname:'profile_length_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Length Unit', default: frm.doc.depthunit || 'm', read_only:1},
+			{fieldname:'profile_width_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Width Unit', default: frm.doc.widthunit || 'm', read_only:1},
+			
+			{fieldname:'profile_height_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Height Unit', default: frm.doc.heightunit || 'm', read_only:1},
+			
+			{fieldname:'profile_thickness_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Thickness Unit', default:'mm',
+				depends_on:'eval:doc.is_hollow'
+			},
+			{fieldname:'calculated_weight', fieldtype:'Float', label:'Weight (Kg)', read_only:1}
+			
+		]
+	});
+	
+	function update_weight_preview(add_to_form = false) {
+		let d = dialog.get_values();
+		if(!d) return;
+
+		let length_m = frappe.mrp.convert_units(d.profile_length_units, d.profile_length);
+		let width_m = frappe.mrp.convert_units(d.profile_width_units, d.profile_width);
+		let height_m = frappe.mrp.convert_units(d.profile_height_units, d.profile_height);
+		let thickness_m = frappe.mrp.convert_units(d.profile_thickness_units, d.profile_thickness);
+
+		let fvolume = 0;
+
+		switch(d.profile_shape){
+			case "Circle":
+				let radius, cyl_height;
+				switch(d.profile_direction){
+					case 'Length': radius=width_m/2; cyl_height=length_m; break;
+					case 'Height': radius=width_m/2; cyl_height=height_m; break;
+					case 'Width': radius=length_m/2; cyl_height=width_m; break;
+				}
+				fvolume = Math.PI * Math.pow(radius,2) * cyl_height;
+				if(d.is_hollow && thickness_m>0){
+					let inner_r = radius - thickness_m;
+					if(inner_r>0) fvolume -= Math.PI * Math.pow(inner_r,2) * cyl_height;
+				}
+				break;
+			case "Rectangle":
+				fvolume = width_m * height_m * length_m;
+
+				if(d.is_hollow && thickness_m>0){
+					let inner_w = width_m;
+					let inner_h = height_m;
+					let inner_l = length_m;
+
+					switch(d.profile_direction){
+						case 'Length': inner_w -= 2*thickness_m; inner_h -= 2*thickness_m; break;
+						case 'Width': inner_l -= 2*thickness_m; inner_h -= 2*thickness_m; break;
+						case 'Height': inner_l -= 2*thickness_m; inner_w -= 2*thickness_m; break;
+					}
+
+					if(inner_w>0 && inner_h>0 && inner_l>0) 
+						fvolume -= inner_w * inner_h * inner_l;
+				}
+				break;
+
+		}
+
+		let weight_kg = d.density * fvolume;
+		
+		if (add_to_form){
+			frm.set_value('weight_per_unit', weight_kg);
+			frm.set_value('weight_uom', 'Kg');
+			frappe.msgprint(__('Added weight: {0} Kg', [weight_kg.toFixed(3)]));
+			dialog.hide();
+		}
+		else
+			dialog.set_value('calculated_weight', weight_kg.toFixed(3));
+}
+	
+	// Attach change handlers for all relevant fields
+	['profile_length','profile_width','profile_height','profile_thickness','density','profile_direction','profile_shape','is_hollow'].forEach(fn => {
+		dialog.fields_dict[fn].df.change = () => update_weight_preview(false);
+	});
+
+	// Primary action
+	dialog.set_primary_action(__('Add'), function() {
+		update_weight_preview(true);
+	});
+
+	dialog.show();
+}
+
 });
+
+
+
+
+
+
 
 frappe.ui.form.on('Item Barcode', {
 	barcode: function(frm, cdt, cdn) {

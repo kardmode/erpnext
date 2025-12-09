@@ -54,6 +54,10 @@ frappe.ui.form.on("Purchase Receipt", {
 			return erpnext.queries.warehouse(frm.doc);
 		});
 	},
+	
+	is_subcontracted: function(frm) {
+		frm.set_value("is_old_subcontracting_flow", frm.doc.is_subcontracted)
+	},
 
 	refresh: function(frm) {
 		if(frm.doc.company) {
