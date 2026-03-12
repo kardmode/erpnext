@@ -753,6 +753,14 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 		if target.get("allocate_advances_automatically"):
 			target.set_advances()
 
+		target.update({"project": source.project})
+
+		if hasattr(target, "project_total"):
+			target.update({"project_total": source.base_grand_total})
+
+		if hasattr(target, "custom_sales_order"):
+			target.update({"custom_sales_order": source.name})
+
 	def set_missing_values(source, target):
 		target.flags.ignore_permissions = True
 		target.run_method("set_missing_values")
@@ -792,6 +800,9 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 
 			if cost_center:
 				target.cost_center = cost_center
+
+		# MRP FIXED 
+		target.project = getattr(source_parent, "project", None)
 
 	doclist = get_mapped_doc(
 		"Sales Order",

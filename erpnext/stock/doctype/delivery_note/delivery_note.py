@@ -309,7 +309,8 @@ class DeliveryNote(SellingController):
 		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
 			self.make_gl_entries()
 
-		self.repost_future_sle_and_gle()
+		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.repost_future_sle_and_gle()
 
 
 	def on_cancel(self):
@@ -331,7 +332,9 @@ class DeliveryNote(SellingController):
 		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
 			self.make_gl_entries_on_cancel()
 
-		self.repost_future_sle_and_gle()
+		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.repost_future_sle_and_gle()
+		
 		self.ignore_linked_doctypes = ("GL Entry", "Stock Ledger Entry", "Repost Item Valuation")
 
 	def check_credit_limit(self):

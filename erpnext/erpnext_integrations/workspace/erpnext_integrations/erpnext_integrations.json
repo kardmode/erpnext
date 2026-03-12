@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"e88ADOJ7WC\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Integrations</b></span>\",\"col\":12}},{\"id\":\"G0tyx9WOfm\",\"type\":\"card\",\"data\":{\"card_name\":\"Backup\",\"col\":4}},{\"id\":\"nu4oSjH5Rd\",\"type\":\"card\",\"data\":{\"card_name\":\"Authentication\",\"col\":4}},{\"id\":\"nG8cdkpzoc\",\"type\":\"card\",\"data\":{\"card_name\":\"Google Services\",\"col\":4}},{\"id\":\"4hwuQn6E95\",\"type\":\"card\",\"data\":{\"card_name\":\"Communication Channels\",\"col\":4}},{\"id\":\"sEGAzTJRmq\",\"type\":\"card\",\"data\":{\"card_name\":\"Payments\",\"col\":4}},{\"id\":\"ZC6xu-cLBR\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
+ "content": "[{\"id\":\"G0tyx9WOfm\",\"type\":\"card\",\"data\":{\"card_name\":\"Backup\",\"col\":4}},{\"id\":\"nu4oSjH5Rd\",\"type\":\"card\",\"data\":{\"card_name\":\"Authentication\",\"col\":4}},{\"id\":\"nG8cdkpzoc\",\"type\":\"card\",\"data\":{\"card_name\":\"Google Services\",\"col\":4}},{\"id\":\"4hwuQn6E95\",\"type\":\"card\",\"data\":{\"card_name\":\"Communication Channels\",\"col\":4}},{\"id\":\"sEGAzTJRmq\",\"type\":\"card\",\"data\":{\"card_name\":\"Payments\",\"col\":4}},{\"id\":\"ZC6xu-cLBR\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
  "creation": "2020-08-20 19:30:48.138801",
  "custom_blocks": [],
  "docstatus": 0,
@@ -253,7 +253,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-09-16 13:13:21.396944",
+ "modified": "2025-12-17 21:54:33.015237",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "ERPNext Integrations",

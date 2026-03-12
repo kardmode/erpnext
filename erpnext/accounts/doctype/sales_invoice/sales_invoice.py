@@ -292,15 +292,19 @@ class SalesInvoice(SellingController):
 		# Updating stock ledger should always be called after updating prevdoc status,
 		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		if self.update_stock == 1:
-			self.update_stock_ledger()
+			# Conditionally update stock ledger and make GL entries
+			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+				self.update_stock_ledger()
 		if self.is_return and self.update_stock:
 			update_serial_nos_after_submit(self, "items")
 
-		# this sequence because outstanding may get -ve
-		self.make_gl_entries()
+		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			# this sequence because outstanding may get -ve
+			self.make_gl_entries()
 
 		if self.update_stock == 1:
-			self.repost_future_sle_and_gle()
+			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+				self.repost_future_sle_and_gle()
 
 		if not self.is_return:
 			self.update_billing_status_for_zero_amount_refdoc("Delivery Note")
@@ -418,12 +422,17 @@ class SalesInvoice(SellingController):
 		# Updating stock ledger should always be called after updating prevdoc status,
 		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		if self.update_stock == 1:
-			self.update_stock_ledger()
+			# Conditionally update stock ledger
+			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+				self.update_stock_ledger()
 
-		self.make_gl_entries_on_cancel()
+		# Conditionally cancel GL entries
+		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+			self.make_gl_entries_on_cancel()
 
 		if self.update_stock == 1:
-			self.repost_future_sle_and_gle()
+			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
+				self.repost_future_sle_and_gle()
 
 		self.db_set("status", "Cancelled")
 

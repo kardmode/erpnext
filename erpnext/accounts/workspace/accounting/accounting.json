@@ -1,11 +1,6 @@
 {
- "charts": [
-  {
-   "chart_name": "Profit and Loss",
-   "label": "Profit and Loss"
-  }
- ],
- "content": "[{\"id\":\"i0EtSjDAXq\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Profit and Loss\",\"col\":12}},{\"id\":\"vikWSkNm6_\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"pMywM0nhlj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Chart of Accounts\",\"col\":3}},{\"id\":\"_pRdD6kqUG\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"B2cMsP8dzi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Proforma\",\"col\":3}},{\"id\":\"G984SgVRJN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"1ArNvt9qhz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Journal Entry\",\"col\":3}},{\"id\":\"F9f4I1viNr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"4IBBOIxfqW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"El2anpPaFY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"1nwcM9upJo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trial Balance\",\"col\":3}},{\"id\":\"OF9WOi1Ppc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Dashboard\",\"col\":3}},{\"id\":\"B7-uxs8tkU\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"tHb3yxthkR\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"DnNtsmxpty\",\"type\":\"card\",\"data\":{\"card_name\":\"Accounting Masters\",\"col\":4}},{\"id\":\"NDKzKnn0sd\",\"type\":\"card\",\"data\":{\"card_name\":\"VAT\",\"col\":4}}]",
+ "charts": [],
+ "content": "[{\"id\":\"pMywM0nhlj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Chart of Accounts\",\"col\":3}},{\"id\":\"_pRdD6kqUG\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"B2cMsP8dzi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Proforma Invoice\",\"col\":3}},{\"id\":\"G984SgVRJN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"1ArNvt9qhz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Journal Entry\",\"col\":3}},{\"id\":\"F9f4I1viNr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"4IBBOIxfqW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"El2anpPaFY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"1nwcM9upJo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trial Balance\",\"col\":3}},{\"id\":\"k0WQEK3lIT\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":3}},{\"id\":\"JLQz-w-f2E\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Licenses\",\"col\":3}},{\"id\":\"HPRkeiZnOC\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"B7-uxs8tkU\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-1SpyBw2xL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vat Return\",\"col\":3}},{\"id\":\"LtLZSro-_s\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vat Return Adjustment\",\"col\":3}},{\"id\":\"FXOvgzS_Xb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Vat Purchase Invoice\",\"col\":3}},{\"id\":\"LuQEibPuTA\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Vat Sales\",\"col\":3}},{\"id\":\"7jRxYphFiw\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Corporate Tax\",\"col\":3}},{\"id\":\"_WX2aOtnlz\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"HSmLEvNBha\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Sales Invoices\",\"col\":6}},{\"id\":\"SFUzkE0oNC\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Purchase Invoices\",\"col\":6}},{\"id\":\"6TokUI_JrN\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Sales Invoice\",\"col\":6}},{\"id\":\"lH7-LX0XN_\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Purchase Invoice\",\"col\":6}}]",
  "creation": "2020-03-02 15:41:59.515192",
  "custom_blocks": [],
  "docstatus": 0,
@@ -20,6 +15,24 @@
    "doc_view": "List",
    "label": "MRP Proforma",
    "link_to": "MRP Proforma",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "VAT Return",
+   "link_to": "VAT Return",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "VAT Return Adjustment",
+   "link_to": "VAT Return Adjustment",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "MRP Corporate Tax",
+   "link_to": "MRP Corporate Tax",
    "type": "DocType"
   }
  ],
@@ -894,173 +907,37 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Accounting Masters",
-   "link_count": 8,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Company",
-   "link_count": 0,
-   "link_to": "Company",
-   "link_type": "DocType",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Company Licenses",
-   "link_count": 0,
-   "link_to": "Company Licenses",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Accounts Settings",
-   "link_count": 0,
-   "link_to": "Accounts Settings",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Fiscal Year",
-   "link_count": 0,
-   "link_to": "Fiscal Year",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Accounting Dimension",
-   "link_count": 0,
-   "link_to": "Accounting Dimension",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Finance Book",
-   "link_count": 0,
-   "link_to": "Finance Book",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Accounting Period",
-   "link_count": 0,
-   "link_to": "Accounting Period",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Payment Term",
-   "link_count": 0,
-   "link_to": "Payment Term",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT",
-   "link_count": 5,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT Return",
-   "link_count": 0,
-   "link_to": "VAT Return",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT Return Adjustment",
-   "link_count": 0,
-   "link_to": "VAT Return Adjustment",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Purchase Invoice",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "VAT Purchase Invoice",
-   "link_count": 0,
-   "link_to": "MRP VAT Purchase Invoice",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Sales Invoice",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP VAT Sales",
-   "link_count": 0,
-   "link_to": "MRP VAT Sales",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Corporate Tax",
-   "link_count": 0,
-   "link_to": "MRP Corporate Tax",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2025-04-21 02:15:44.609979",
+ "modified": "2025-12-24 06:46:38.837569",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Accounting",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Active Sales Invoices",
+   "number_card_name": "Active Sales Invoices"
+  },
+  {
+   "label": "Active Purchase Invoices",
+   "number_card_name": "Active Purchase Invoices"
+  }
+ ],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
- "quick_lists": [],
+ "quick_lists": [
+  {
+   "document_type": "Purchase Invoice",
+   "label": "Purchase Invoice",
+   "quick_list_filter": "[[\"Purchase Invoice\",\"status\",\"not in\",[\"Return\",\"Debit Note Issued\",\"Paid\",\"Cancelled\",null],false]]"
+  },
+  {
+   "document_type": "Sales Invoice",
+   "label": "Sales Invoice",
+   "quick_list_filter": "[[\"Sales Invoice\",\"status\",\"not in\",[\"Return\",\"Credit Note Issued\",\"Paid\",\"Cancelled\",null],false]]"
+  }
+ ],
  "restrict_to_domain": "",
  "roles": [],
  "sequence_id": 2.0,
@@ -1068,14 +945,93 @@
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "Mrp Proforma",
-   "link_to": "MRP Proforma",
+   "label": "Vat Return",
+   "link_to": "VAT Return",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {
-   "label": "Accounts Dashboard",
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Vat Purchase Invoice",
+   "link_to": "MRP VAT Purchase Invoice",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Vat Sales",
+   "link_to": "MRP VAT Sales",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Company",
+   "link_to": "Company",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Payment Entry",
+   "link_to": "Payment Entry",
+   "stats_filter": "[[\"Payment Entry\",\"status\",\"=\",\"Draft\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Proforma Invoice",
+   "link_to": "MRP Proforma",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Dashboard",
    "link_to": "Accounts",
    "type": "Dashboard"
+  },
+  {
+   "doc_view": "",
+   "label": "Sales Invoice",
+   "link_to": "Sales Invoice",
+   "stats_filter": "[[\"Sales Invoice\",\"status\",\"=\",\"Draft\",false]]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Purchase Invoice",
+   "link_to": "Purchase Invoice",
+   "stats_filter": "[[\"Purchase Invoice\",\"status\",\"=\",\"Draft\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Vat Return Adjustment",
+   "link_to": "VAT Return Adjustment",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Corporate Tax",
+   "link_to": "MRP Corporate Tax",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Company Licenses",
+   "link_to": "Company Licenses",
+   "stats_filter": "[]",
+   "type": "DocType"
   },
   {
    "color": "Green",
@@ -1085,23 +1041,8 @@
    "type": "DocType"
   },
   {
-   "label": "Sales Invoice",
-   "link_to": "Sales Invoice",
-   "type": "DocType"
-  },
-  {
-   "label": "Purchase Invoice",
-   "link_to": "Purchase Invoice",
-   "type": "DocType"
-  },
-  {
    "label": "Journal Entry",
    "link_to": "Journal Entry",
-   "type": "DocType"
-  },
-  {
-   "label": "Payment Entry",
-   "link_to": "Payment Entry",
    "type": "DocType"
   },
   {

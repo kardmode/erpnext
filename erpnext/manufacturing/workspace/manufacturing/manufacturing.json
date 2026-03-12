@@ -1,11 +1,6 @@
 {
- "charts": [
-  {
-   "chart_name": "MRP Produced Quantity",
-   "label": "Production Orders"
-  }
- ],
- "content": "[{\"id\":\"nrr43X4Rlp\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Production Orders\",\"col\":12}},{\"id\":\"bN_6tHS-Ct\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"JmV4jcOj6r\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"oL2gPuHUb2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"BOM\",\"col\":3}},{\"id\":\"yVEFZMqVwd\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"rwrmsTI58-\",\"type\":\"card\",\"data\":{\"card_name\":\"Production\",\"col\":4}},{\"id\":\"8RRiQeYr0G\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}}]",
+ "charts": [],
+ "content": "[{\"id\":\"oL2gPuHUb2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"BOM\",\"col\":3}},{\"id\":\"I9R-N1kHaR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Production Order\",\"col\":3}},{\"id\":\"1a2yIQNTlm\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Production Estimator\",\"col\":3}},{\"id\":\"IXwluZj2Za\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Customs Approval\",\"col\":3}},{\"id\":\"KHCOieBOEv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Job Order\",\"col\":3}},{\"id\":\"tG8ApqSeI9\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"k1wy0--ZKh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sheet Calculator\",\"col\":3}},{\"id\":\"yk7TEciPpn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Profile Calculator\",\"col\":3}},{\"id\":\"8zj7UPrbKC\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Frame Calculator\",\"col\":3}},{\"id\":\"03A852j8pU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Bom Update Tool\",\"col\":3}},{\"id\":\"C7AD7Udnx5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"BOM Comparison Tool\",\"col\":3}},{\"id\":\"Lb6TzLH75e\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"YYU-jpUx63\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"BOM\",\"col\":4}},{\"id\":\"84pSZTvnVP\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"MRP Production Order\",\"col\":4}},{\"id\":\"xfD-usrGCq\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"MRP Customs Approval\",\"col\":4}}]",
  "creation": "2020-03-02 17:11:37.032604",
  "custom_blocks": [],
  "docstatus": 0,
@@ -15,7 +10,26 @@
  "icon": "organization",
  "idx": 0,
  "is_hidden": 0,
- "kard_menu": [],
+ "kard_menu": [
+  {
+   "doc_view": "",
+   "label": "Frame Calculator",
+   "link_to": "Frame Calculator",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Profile Calculator",
+   "link_to": "Profile Calculator",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Sheet Calculator",
+   "link_to": "Sheet Calculator",
+   "type": "DocType"
+  }
+ ],
  "kard_theme_color": "#B4CD29",
  "label": "Manufacturing",
  "links": [
@@ -29,149 +43,9 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Production",
-   "link_count": 7,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "BOM",
-   "link_count": 0,
-   "link_to": "BOM",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "Item",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Stock Entry",
-   "link_count": 0,
-   "link_to": "Stock Entry",
-   "link_type": "DocType",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Production Order",
-   "link_count": 0,
-   "link_to": "MRP Production Order",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Production Estimator",
-   "link_count": 0,
-   "link_to": "MRP Production Estimator",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Job Order",
-   "link_count": 0,
-   "link_to": "MRP Job Order",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "MRP Customs Approval",
-   "link_count": 0,
-   "link_to": "MRP Customs Approval",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Operating Cost Type",
-   "link_count": 0,
-   "link_to": "Operating Cost Type",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Tools",
-   "link_count": 5,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "BOM Update Tool",
-   "link_count": 0,
-   "link_to": "BOM Update Tool",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "BOM Comparison Tool",
-   "link_count": 0,
-   "link_to": "bom-comparison-tool",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Sheet Calculator",
-   "link_count": 0,
-   "link_to": "Sheet Calculator",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Profile Calculator",
-   "link_count": 0,
-   "link_to": "Profile Calculator",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Frame Calculator",
-   "link_count": 0,
-   "link_to": "Frame Calculator",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2024-09-09 09:16:46.458401",
+ "modified": "2025-12-24 23:37:51.000875",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "Manufacturing",
@@ -179,7 +53,23 @@
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
- "quick_lists": [],
+ "quick_lists": [
+  {
+   "document_type": "BOM",
+   "label": "BOM",
+   "quick_list_filter": "[[\"BOM\",\"is_active\",\"=\",1,false]]"
+  },
+  {
+   "document_type": "MRP Customs Approval",
+   "label": "MRP Customs Approval",
+   "quick_list_filter": "[]"
+  },
+  {
+   "document_type": "MRP Production Order",
+   "label": "MRP Production Order",
+   "quick_list_filter": "[[\"MRP Production Order\",\"docstatus\",\"=\",\"0\",false]]"
+  }
+ ],
  "restrict_to_domain": "",
  "roles": [],
  "sequence_id": 8.0,
@@ -190,6 +80,72 @@
    "label": "BOM",
    "link_to": "BOM",
    "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Production Estimator",
+   "link_to": "MRP Production Estimator",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Customs Approval",
+   "link_to": "MRP Customs Approval",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Sheet Calculator",
+   "link_to": "Sheet Calculator",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Bom Update Tool",
+   "link_to": "BOM Update Tool",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Production Order",
+   "link_to": "MRP Production Order",
+   "stats_filter": "[[\"MRP Production Order\",\"docstatus\",\"=\",\"0\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Mrp Job Order",
+   "link_to": "MRP Job Order",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Profile Calculator",
+   "link_to": "Profile Calculator",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "BOM Comparison Tool",
+   "link_to": "bom-comparison-tool",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Frame Calculator",
+   "link_to": "Frame Calculator",
    "type": "DocType"
   }
  ],

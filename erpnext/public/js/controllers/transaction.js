@@ -812,62 +812,115 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		}
 	}
 
-	company() {
+	mrp_extra_validation() {
 		var me = this;
-		
-		if(me.frm.doc.company)
-		{
+	
+		if('custom_sales_order' in me.frm.doc && me.frm.doc.custom_sales_order) 
+			return;
+	
+		if(me.frm.doc.company) {
+			const itemFieldsToClear = ['cost_center', 'income_account', 'expense_account'];
+	
 			$.each(me.frm.doc.items || [], function(i, d) {
-				const itemFieldsToClear = ['cost_center', 'income_account', 'expense_account'];
-
 				itemFieldsToClear.forEach((field) => {
 					if (field in d && d[field]) {
 						d[field] = null;
 					}
 				});
-				
 			});
-			
-			if ('items' in me.frm.doc && me.frm.doc.items && me.frm.doc.items.length > 0) {
-				let first_row = me.frm.doc.items[0];
-				if (first_row.item_code)
-				{
-					let rows_to_modify = me.frm.doc.items.slice(1);
-					const itemFieldsToClear = ['cost_center', 'income_account', 'expense_account'];
-
-					frappe.run_serially([
-						() => me.frm.script_manager.trigger("item_code", first_row.doctype, first_row.name),
-						() => {
-							rows_to_modify.forEach(row => {
-								me.frm.script_manager.copy_from_first_row("items", row, itemFieldsToClear);
-							});
-						},
-						() => me.frm.refresh_field('items')
-					]);
-				}
-				
-				
+	
+			if (me.frm.doc.items && me.frm.doc.items.length > 0) {
+				frappe.db.get_value(
+					'Company',
+					me.frm.doc.company,
+					['cost_center', 'default_income_account', 'default_expense_account']
+				).then(r => {
+					const company = r.message || {};
+	
+					me.frm.doc.items.forEach(row => {
+						if (frappe.meta.has_field(row.doctype, 'cost_center')) {
+							frappe.model.set_value(row.doctype, row.name, 'cost_center', company.cost_center || null);
+						}
+	
+						if (me.frm.doc.doctype === "Sales Invoice") {
+							if (company.default_income_account && frappe.meta.has_field(row.doctype, 'income_account')) {
+								frappe.model.set_value(row.doctype, row.name, 'income_account', company.default_income_account);
+							}
+						} else if (me.frm.doc.doctype === "Purchase Invoice") {
+							if (company.default_expense_account && frappe.meta.has_field(row.doctype, 'expense_account')) {
+								frappe.model.set_value(row.doctype, row.name, 'expense_account', company.default_expense_account);
+							}
+						}
+					});
+	
+					me.frm.refresh_field('items');
+				});
 			}
-			
-			
-			const fieldsToClear = {
+	
+			const parentFieldsToClear = {
 				project: null,
 				cost_center: null,
 				taxes_and_charges: null,
 				taxes: []
 			};
-
-			for (const [field, value] of Object.entries(fieldsToClear)) {
-				if (field in me.frm.doc) {
-					me.frm.doc[field] = value;
-					me.frm.refresh_field(field);
+	
+			for (const [field, value] of Object.entries(parentFieldsToClear)) {
+				if (frappe.meta.has_field(me.frm.doc.doctype, field)) {
+					me.frm.set_value(field, value);
 				}
-			}
+			}	
 		}
+	}
+	
+	mrp_extra_validation2() {
+		var me = this;
+		if(me.frm.doc.company) {
+	
+			frappe.call({
+				method: "mrp.mrp.utils.extra_validation",
+				args: {
+					"doc": me.frm.doc,
+					"doctype": me.frm.doc.doctype
+				},
+				callback: function(r, rt) {
+					if(r.message) {
+						let itemFields = r.message.itemFields || {};
+						let parentFields = r.message.parentFields || {};
+	
+						frappe.run_serially([
+							() => {
+								if (me.frm.doc.items && me.frm.doc.items.length > 0) {
+									me.frm.doc.items.forEach(row => {
+										for (const [field, value] of Object.entries(itemFields)) {
+											if (frappe.meta.has_field(row.doctype, field)) {
+												row[field] = value;
+											}
+										}
+									});
+									me.frm.refresh_field('items');
+								}
+							},
+							() => {
+								for (const [field, value] of Object.entries(parentFields)) {
+									if (frappe.meta.has_field(me.frm.doc.doctype, field)) {
+										me.frm.set_value(field, value);
+									}
+								}
+							},
+							() => { me.frm.refresh_fields(); }
+						]);
+					}
+				}
+			});
+		}
+	}
+	
+
+	company() {
+		var me = this;
 		
-		
-		
-		
+		this.mrp_extra_validation2();
+
 		var set_pricing = function() {
 			if(me.frm.doc.company && me.frm.fields_dict.currency) {
 				var company_currency = me.get_company_currency();
@@ -954,6 +1007,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 		} else {
 			set_party_account(set_pricing);
 		}
+
 
 		if(this.frm.doc.company) {
 			erpnext.last_selected_company = this.frm.doc.company;

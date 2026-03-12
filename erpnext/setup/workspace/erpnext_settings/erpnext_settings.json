@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"NO5yYHJopc\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"CDxIM-WuZ9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"System Settings\",\"col\":3}},{\"id\":\"-Uh7DKJNJX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Settings\",\"col\":3}},{\"id\":\"K9ST9xcDXh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Settings\",\"col\":3}},{\"id\":\"27IdVHVQMb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Selling Settings\",\"col\":3}},{\"id\":\"Rwp5zff88b\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Buying Settings\",\"col\":3}},{\"id\":\"hkfnQ2sevf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Global Defaults\",\"col\":3}},{\"id\":\"jjxI_PDawD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Print Settings\",\"col\":3}},{\"id\":\"R3CoYYFXye\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"yynbm1J_VO\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Settings</b></span>\",\"col\":12}},{\"id\":\"KDCv2MvSg3\",\"type\":\"card\",\"data\":{\"card_name\":\"Module Settings\",\"col\":4}},{\"id\":\"Q0_bqT7cxQ\",\"type\":\"card\",\"data\":{\"card_name\":\"Email / Notifications\",\"col\":4}},{\"id\":\"UnqK5haBnh\",\"type\":\"card\",\"data\":{\"card_name\":\"Website\",\"col\":4}},{\"id\":\"kp7u1H5hCd\",\"type\":\"card\",\"data\":{\"card_name\":\"Core\",\"col\":4}},{\"id\":\"Ufc3jycgy9\",\"type\":\"card\",\"data\":{\"card_name\":\"Printing\",\"col\":4}},{\"id\":\"89bSNzv3Yh\",\"type\":\"card\",\"data\":{\"card_name\":\"Workflow\",\"col\":4}}]",
+ "content": "[{\"id\":\"CDxIM-WuZ9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"System Settings\",\"col\":3}},{\"id\":\"-Uh7DKJNJX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Settings\",\"col\":3}},{\"id\":\"K9ST9xcDXh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Settings\",\"col\":3}},{\"id\":\"27IdVHVQMb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Selling Settings\",\"col\":3}},{\"id\":\"Rwp5zff88b\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Buying Settings\",\"col\":3}},{\"id\":\"hkfnQ2sevf\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Global Defaults\",\"col\":3}},{\"id\":\"jjxI_PDawD\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Print Settings\",\"col\":3}},{\"id\":\"R3CoYYFXye\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"KDCv2MvSg3\",\"type\":\"card\",\"data\":{\"card_name\":\"Module Settings\",\"col\":4}},{\"id\":\"Q0_bqT7cxQ\",\"type\":\"card\",\"data\":{\"card_name\":\"Email / Notifications\",\"col\":4}},{\"id\":\"UnqK5haBnh\",\"type\":\"card\",\"data\":{\"card_name\":\"Website\",\"col\":4}},{\"id\":\"kp7u1H5hCd\",\"type\":\"card\",\"data\":{\"card_name\":\"Core\",\"col\":4}},{\"id\":\"Ufc3jycgy9\",\"type\":\"card\",\"data\":{\"card_name\":\"Printing\",\"col\":4}},{\"id\":\"89bSNzv3Yh\",\"type\":\"card\",\"data\":{\"card_name\":\"Workflow\",\"col\":4}}]",
  "creation": "2022-01-27 13:14:47.349433",
  "custom_blocks": [],
  "docstatus": 0,
@@ -439,7 +439,7 @@
    "type": "Link"
   }
  ],
- "modified": "2023-09-16 13:12:52.035965",
+ "modified": "2025-12-17 21:55:04.468227",
  "modified_by": "Administrator",
  "module": "Setup",
  "name": "ERPNext Settings",

@@ -1175,15 +1175,14 @@ class BOM(WebsiteGenerator):
 		dimensions['depthOriginal'] = convert_units(self.depthunit,self.depth)
 		dimensions['widthOriginal'] = convert_units(self.widthunit,self.width)
 		dimensions['heightOriginal'] = convert_units(self.heightunit,self.height)
-
 		unmerged,unmerged_dict = build_bom_ext(bomitems,self.quantity,self.quantity,dimensions)
-
 		merged = merge_bom_items(unmerged, as_dict=False)
+		
 		summary = ''
-		if len(unmerged_dict['custom'])> 0 :
+		if len(unmerged_dict['custom']) > 0 :
 			summary += str(create_condensed_table(unmerged_dict['custom']))	
-		if len(unmerged_dict['materials'])> 0 :
-			summary += str(summary) + str(create_materials_table(unmerged_dict['materials']))
+		if len(unmerged_dict['materials']) > 0 :
+			summary += str(create_materials_table(unmerged_dict['materials']))
 		self.summary = summary
 		
 		self.set('items', [])
@@ -1729,9 +1728,7 @@ def process_laminate(bb_item,bb_qty,side,d_laminate,laminate_sides,length,width,
 	else:
 		return None
 		
-def create_condensed_table(dict):
-	summary = ""
-	
+def create_condensed_table(dict):	
 	joiningtext = """<table class="table table-bordered table-condensed">"""
 	joiningtext += """<thead>
 			<tr style>
@@ -1753,13 +1750,10 @@ def create_condensed_table(dict):
 					<td>""" + str(d["stock_qty"]) + " " +str(d["stock_uom"])+"""</td>
 					</tr>"""
 	joiningtext += """</tbody></table>"""
-	summary += joiningtext
-	return summary
+	return joiningtext
 	
 	
-def create_materials_table(dict):
-	summary = ""
-	
+def create_materials_table(dict):	
 	joiningtext = """<table class="table table-bordered table-condensed">"""
 	joiningtext += """<thead>
 			<tr style>
@@ -1785,8 +1779,7 @@ def create_materials_table(dict):
 					<td>""" + str(d["stock_qty"]) + " " +str(d["stock_uom"])+"""</td>
 					</tr>"""
 	joiningtext += """</tbody></table>"""
-	summary += joiningtext
-	return summary
+	return joiningtext
 
 @frappe.whitelist()	
 def get_default_bom(item_code, project=None):
@@ -1861,56 +1854,68 @@ def get_boms_in_bottom_up_order(bom_no=None):
 @frappe.whitelist()
 def mrp_generate_exploded(bom_no, qtyRequired, qtyOriginal, dimensions):
 	bom = frappe.get_doc("BOM", bom_no)
-		
-	exploded_items = bom.get("exploded_items")
-	bombuilder_items = bom.get("bomitems")
-	scrap_items = bom.get("scrap_items")
-	
-	merged = []
+	original_exploded_items = bom.get("exploded_items")
+	original_bom_builder_items = bom.get("bomitems")
+	original_items = bom.get("items")
+	original_scrap_items = bom.get("scrap_items")
+	bom_link = get_link_to_form("BOM", bom_no)
 	new_exploded_items = []
-	unmerged_exploded_items = []
 	
-	if bombuilder_items:
-		bomitems = calculate_builder_items_dimensions(bombuilder_items,dimensions)
-		unmerged,unmerged_dict = build_bom_ext(bomitems,qtyRequired,qtyOriginal,dimensions)
+	if original_bom_builder_items:
+		new_bom_builder_items = calculate_builder_items_dimensions(original_bom_builder_items,dimensions)
+		unmerged,unmerged_dict = build_bom_ext(new_bom_builder_items,qtyRequired,qtyOriginal,dimensions)
 		merged = merge_bom_items(unmerged, as_dict=False)
+		merged_dict = {item['item_code']: item for item in merged}
+		original_exploded_dict = {item.item_code: item for item in original_exploded_items}
+		unmerged_exploded_items = []			
 
-		exploded_dict = {item.item_code: item for item in exploded_items}
-		
-		# todo should all same items from child boms have the same rate
-		for d in merged:
-			if d['bom_no']:
-				child_exploded_items = mrp_get_child_exploded_items(d['bom_no'], d['stock_qty'])
+		for d in original_items:
+			item_code = d.item_code
+			item_link = get_link_to_form("Item", item_code)
+			if d.item_code not in merged_dict:
+				frappe.throw(_("Raw Materials Table doesn't match with BOM Builder Table. Item {0} not found in BOM Builder Items of BOM {1}.").format(item_link, bom_link))
+			
+			new_d = {}
+			new_d["stock_qty"] = merged_dict[d.item_code].get("stock_qty")
+			new_d["stock_uom"] = d.stock_uom
+			new_d["stock_rate"] = d.stock_rate
+			new_d["rate"] = d.stock_rate
+			new_d["item_code"] = d.item_code
+			new_d["side"] = ""
+			new_d["qty"] = new_d["stock_qty"]
+			new_d["uom"] = new_d["stock_uom"]
+			new_d["conversion_factor"] = d.conversion_factor
+			new_d["bom_no"] = d.bom_no
+			if new_d['bom_no']:
+				child_exploded_items = mrp_get_child_exploded_items(new_d['bom_no'], new_d['stock_qty'])
 				unmerged_exploded_items.extend(child_exploded_items)
 			else:
-				unmerged_exploded_items.append(d)
+				unmerged_exploded_items.append(new_d)
 				
 		keys_to_extract = ['description','stock_rate','rate']
 
-		for item in unmerged_exploded_items:
-			item_code = item["item_code"]
+		for d in unmerged_exploded_items:
+			item_code = d["item_code"]
+			item_link = get_link_to_form("Item", item_code)
 
-			if item_code in exploded_dict:
+			if item_code in original_exploded_dict:
 				for k in keys_to_extract:
-					item[k] = getattr(exploded_dict[item_code], k, None)
+					d[k] = getattr(original_exploded_dict[item_code], k, None)
 				
-				if not item.get("stock_rate"):
-					frappe.msgprint(_("Stock Rate 0.0 or not found for item {0} in BOM {1}").format(item_code,get_link_to_form("BOM", bom_no)))
+				if not d.get("stock_rate"):
+					frappe.msgprint(_("Stock Rate 0.0 or not found for item {0} in BOM {1}").format(item_link, bom_link))
 				
-				item["side"] = ""
-				item["qty"] = item["stock_qty"]
-				item["uom"] = item["stock_uom"]
-				item["conversion_factor"] = 1.0
-				item["bom_no"] = None
-			else:
-				bom_link = get_link_to_form("BOM", bom_no)			
-				frappe.throw(_("Item {0} not found in Exploded Items of BOM {1}. BOM Builder does not match.").format(item_code, bom_link))
-
+				d["side"] = ""
+				d["qty"] = d["stock_qty"]
+				d["uom"] = d["stock_uom"]
+				d["conversion_factor"] = 1.0
+				d["bom_no"] = None
+			else:		
+				frappe.throw(_("Item {0} not found in Exploded Items of BOM {1}. BOM Builder does not match.").format(item_link, bom_link))
 
 		new_exploded_items = merge_bom_items(unmerged_exploded_items, as_dict=False)
-
 	else:
-		for d in exploded_items:
+		for d in original_exploded_items:
 			new_d = {}
 			new_d["stock_qty"] = d.stock_qty * (qtyRequired/qtyOriginal)
 			new_d["stock_uom"] = d.stock_uom
@@ -1924,7 +1929,7 @@ def mrp_generate_exploded(bom_no, qtyRequired, qtyOriginal, dimensions):
 			new_d["bom_no"] = None
 			new_exploded_items.append(new_d)
 	
-	new_exploded_items = add_scrap_to_exploded(new_exploded_items,scrap_items)
+	new_exploded_items = add_scrap_to_exploded(new_exploded_items, original_scrap_items)
 
 	return new_exploded_items
 
@@ -2021,13 +2026,6 @@ def build_bom_ext(bomitems,qtyRequired,qtyOriginal,dimensions):
 			is_hardware = True
 			has_edging = False
 			has_laminate = False
-		elif calculation in ["bom"]:
-			required_qty = bb_qty
-			is_hardware = True
-			has_edging = False
-			has_laminate = False
-			if not bom_no:
-				frappe.throw(_("Item {0} requires a BOM entered in bom builder").format(bb_item))
 		elif calculation in ["formula-int","formula-float"]:
 			data = frappe._dict()
 			data["d"] = depthOriginal
@@ -2599,5 +2597,3 @@ def mrp_get_child_exploded_items(bom_no, stock_qty):
 		exploded_items.append(newd)
 		
 	return exploded_items
-
-		

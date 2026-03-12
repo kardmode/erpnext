@@ -1,0 +1,44 @@
+{
+ "chart_name": "PL3",
+ "chart_type": "Report",
+ "creation": "2025-12-17 21:42:03.762424",
+ "custom_options": "{\"x_field\": \"account\", \"chart_type\": \"Bar\", \"y_axis_fields\": [{\"idx\": 1, \"__islocal\": true, \"y_field\": \"mar_2025\", \"name\": \"row 1\"}, {\"idx\": 2, \"__islocal\": true, \"y_field\": \"jun_2025\", \"name\": \"row 2\"}, {\"idx\": 3, \"__islocal\": true, \"y_field\": \"sep_2025\", \"name\": \"row 3\"}, {\"idx\": 4, \"__islocal\": true, \"y_field\": \"dec_2025\", \"name\": \"row 4\"}, {\"idx\": 5, \"__islocal\": true, \"y_field\": \"total\", \"name\": \"row 5\"}], \"y_fields\": [\"mar_2025\", \"jun_2025\", \"sep_2025\", \"dec_2025\", \"total\"], \"colors\": [null, null, null, null, null]}",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart",
+ "filters_json": "{\"company\":\"Science Lab Inc\",\"filter_based_on\":\"Fiscal Year\",\"period_start_date\":\"2025-01-01\",\"period_end_date\":\"2025-12-31\",\"from_fiscal_year\":\"2025\",\"to_fiscal_year\":\"2025\",\"periodicity\":\"Quarterly\",\"cost_center\":[],\"project\":[],\"selected_view\":\"Report\",\"include_default_book_entries\":1}",
+ "group_by_type": "Count",
+ "idx": 0,
+ "is_public": 0,
+ "is_standard": 1,
+ "modified": "2025-12-17 21:42:03.797679",
+ "modified_by": "Administrator",
+ "module": "Accounts",
+ "name": "PL3",
+ "number_of_groups": 0,
+ "owner": "Administrator",
+ "report_name": "Profit and Loss Statement",
+ "roles": [],
+ "time_interval": "Yearly",
+ "timeseries": 0,
+ "timespan": "Last Year",
+ "type": "Bar",
+ "use_report_chart": 0,
+ "x_field": "account",
+ "y_axis": [
+  {
+   "y_field": "mar_2025"
+  },
+  {
+   "y_field": "jun_2025"
+  },
+  {
+   "y_field": "sep_2025"
+  },
+  {
+   "y_field": "dec_2025"
+  },
+  {
+   "y_field": "total"
+  }
+ ]
+}
