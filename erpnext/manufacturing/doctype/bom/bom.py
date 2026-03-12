@@ -1884,7 +1884,7 @@ def mrp_generate_exploded(bom_no, qtyRequired, qtyOriginal, dimensions):
 			new_d["side"] = ""
 			new_d["qty"] = new_d["stock_qty"]
 			new_d["uom"] = new_d["stock_uom"]
-			new_d["conversion_factor"] = d.conversion_factor
+			new_d["conversion_factor"] = 1.0
 			new_d["bom_no"] = d.bom_no
 			if new_d['bom_no']:
 				child_exploded_items = mrp_get_child_exploded_items(new_d['bom_no'], new_d['stock_qty'])
