@@ -32,15 +32,20 @@ class PeriodClosingVoucher(AccountsController):
 
 	def on_cancel(self):
 		self.validate_future_closing_vouchers()
+		self.ignore_linked_doctypes = (
+			"GL Entry",
+			"Stock Ledger Entry",
+			"Payment Ledger Entry",
+			"Account Closing Balance",
+		)
 		self.db_set("gle_processing_status", "In Progress")
-		self.ignore_linked_doctypes = ("GL Entry", "Stock Ledger Entry", "Payment Ledger Entry")
 		gle_count = frappe.db.count(
 			"GL Entry",
 			{"voucher_type": "Period Closing Voucher", "voucher_no": self.name, "is_cancelled": 0},
 		)
 		if gle_count > 5000:
 			frappe.enqueue(
-				make_reverse_gl_entries,
+				process_cancellation,
 				voucher_type="Period Closing Voucher",
 				voucher_no=self.name,
 				queue="long",
@@ -51,9 +56,7 @@ class PeriodClosingVoucher(AccountsController):
 				alert=True,
 			)
 		else:
-			make_reverse_gl_entries(voucher_type="Period Closing Voucher", voucher_no=self.name)
-
-		self.delete_closing_entries()
+			process_cancellation(voucher_type="Period Closing Voucher", voucher_no=self.name)
 
 	def validate_future_closing_vouchers(self):
 		if frappe.db.exists(
@@ -65,12 +68,6 @@ class PeriodClosingVoucher(AccountsController):
 					"You can not cancel this Period Closing Voucher, please cancel the future Period Closing Vouchers first"
 				)
 			)
-
-	def delete_closing_entries(self):
-		closing_balance = frappe.qb.DocType("Account Closing Balance")
-		frappe.qb.from_(closing_balance).delete().where(
-			closing_balance.period_closing_voucher == self.name
-		).run()
 
 	def validate_account_head(self):
 		closing_account_type = frappe.get_cached_value("Account", self.closing_account_head, "root_type")
@@ -136,14 +133,7 @@ class PeriodClosingVoucher(AccountsController):
 		closing_entries = self.get_grouped_gl_entries(get_opening_entries=get_opening_entries)
 		if len(gl_entries + closing_entries) > 3000:
 			frappe.enqueue(
-				process_gl_entries,
-				gl_entries=gl_entries,
-				voucher_name=self.name,
-				timeout=3000,
-			)
-
-			frappe.enqueue(
-				process_closing_entries,
+				process_gl_and_closing_entries,
 				gl_entries=gl_entries,
 				closing_entries=closing_entries,
 				voucher_name=self.name,
@@ -157,8 +147,9 @@ class PeriodClosingVoucher(AccountsController):
 				alert=True,
 			)
 		else:
-			process_gl_entries(gl_entries, self.name)
-			process_closing_entries(gl_entries, closing_entries, self.name, self.company, self.posting_date)
+			process_gl_and_closing_entries(
+				gl_entries, closing_entries, self.name, self.company, self.posting_date
+			)
 
 	def get_grouped_gl_entries(self, get_opening_entries=False):
 		closing_entries = []
@@ -215,6 +206,9 @@ class PeriodClosingVoucher(AccountsController):
 		return gl_entry
 
 	def get_gle_for_closing_account(self, acc):
+		debit = abs(flt(acc.bal_in_company_currency)) if flt(acc.bal_in_company_currency) > 0 else 0
+		credit = abs(flt(acc.bal_in_company_currency)) if flt(acc.bal_in_company_currency) < 0 else 0
+
 		gl_entry = self.get_gl_dict(
 			{
 				"company": self.company,
@@ -223,16 +217,10 @@ class PeriodClosingVoucher(AccountsController):
 				"cost_center": acc.cost_center,
 				"finance_book": acc.finance_book,
 				"account_currency": acc.account_currency,
-				"debit_in_account_currency": abs(flt(acc.bal_in_account_currency))
-				if flt(acc.bal_in_account_currency) > 0
-				else 0,
-				"debit": abs(flt(acc.bal_in_company_currency)) if flt(acc.bal_in_company_currency) > 0 else 0,
-				"credit_in_account_currency": abs(flt(acc.bal_in_account_currency))
-				if flt(acc.bal_in_account_currency) < 0
-				else 0,
-				"credit": abs(flt(acc.bal_in_company_currency))
-				if flt(acc.bal_in_company_currency) < 0
-				else 0,
+				"debit_in_account_currency": debit,
+				"debit": debit,
+				"credit_in_account_currency": credit,
+				"credit": credit,
 				"is_period_closing_voucher_entry": 1,
 			},
 			item=acc,
@@ -323,9 +311,10 @@ class PeriodClosingVoucher(AccountsController):
 
 		if get_opening_entries:
 			query = query.where(
-				gl_entry.posting_date.between(self.get("year_start_date"), self.posting_date)
-				| gl_entry.is_opening
-				== "Yes"
+				(  # noqa: UP034
+					(gl_entry.posting_date.between(self.get("year_start_date"), self.posting_date))
+					| (gl_entry.is_opening == "Yes")
+				)
 			)
 		else:
 			query = query.where(
@@ -343,12 +332,16 @@ class PeriodClosingVoucher(AccountsController):
 		return query.run(as_dict=1)
 
 
-def process_gl_entries(gl_entries, voucher_name):
+def process_gl_and_closing_entries(gl_entries, closing_entries, voucher_name, company, closing_date):
+	from erpnext.accounts.doctype.account_closing_balance.account_closing_balance import (
+		make_closing_entries,
+	)
 	from erpnext.accounts.general_ledger import make_gl_entries
 
 	try:
 		if gl_entries:
 			make_gl_entries(gl_entries, merge_entries=False)
+		make_closing_entries(gl_entries + closing_entries, voucher_name, company, closing_date)
 		frappe.db.set_value("Period Closing Voucher", voucher_name, "gle_processing_status", "Completed")
 	except Exception as e:
 		frappe.db.rollback()
@@ -356,26 +349,21 @@ def process_gl_entries(gl_entries, voucher_name):
 		frappe.db.set_value("Period Closing Voucher", voucher_name, "gle_processing_status", "Failed")
 
 
-def process_closing_entries(gl_entries, closing_entries, voucher_name, company, closing_date):
-	from erpnext.accounts.doctype.account_closing_balance.account_closing_balance import (
-		make_closing_entries,
-	)
-
-	try:
-		if gl_entries + closing_entries:
-			make_closing_entries(gl_entries + closing_entries, voucher_name, company, closing_date)
-	except Exception as e:
-		frappe.db.rollback()
-		frappe.log_error(e)
-
-
-def make_reverse_gl_entries(voucher_type, voucher_no):
+def process_cancellation(voucher_type, voucher_no):
 	from erpnext.accounts.general_ledger import make_reverse_gl_entries
 
 	try:
 		make_reverse_gl_entries(voucher_type=voucher_type, voucher_no=voucher_no)
+		delete_closing_entries(voucher_no)
 		frappe.db.set_value("Period Closing Voucher", voucher_no, "gle_processing_status", "Completed")
 	except Exception as e:
 		frappe.db.rollback()
 		frappe.log_error(e)
 		frappe.db.set_value("Period Closing Voucher", voucher_no, "gle_processing_status", "Failed")
+
+
+def delete_closing_entries(voucher_no):
+	closing_balance = frappe.qb.DocType("Account Closing Balance")
+	frappe.qb.from_(closing_balance).delete().where(
+		closing_balance.period_closing_voucher == voucher_no
+	).run()

@@ -379,7 +379,7 @@ class POSInvoice(SalesInvoice):
 			if self.is_return and entry.amount > 0:
 				frappe.throw(_("Row #{0} (Payment Table): Amount must be negative").format(entry.idx))
 
-		if self.is_return:
+		if self.is_return and self.docstatus != 0:
 			invoice_total = self.rounded_total or self.grand_total
 			if total_amount_in_payments and total_amount_in_payments < invoice_total:
 				frappe.throw(_("Total payments amount can't be greater than {}").format(-invoice_total))
@@ -560,7 +560,13 @@ class POSInvoice(SalesInvoice):
 				"Account", self.debit_to, "account_currency", cache=True
 			)
 		if not self.due_date and self.customer:
-			self.due_date = get_due_date(self.posting_date, "Customer", self.customer, self.company)
+			self.due_date = get_due_date(
+				self.posting_date,
+				"Customer",
+				self.customer,
+				self.company,
+				template_name=self.payment_terms_template,
+			)
 
 		super(SalesInvoice, self).set_missing_values(for_validate)
 

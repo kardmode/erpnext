@@ -7,7 +7,7 @@ import unittest
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.tests.utils import FrappeTestCase, change_settings
-from frappe.utils import add_days, today
+from frappe.utils import add_days, add_months, today
 
 from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 from erpnext.accounts.utils import get_fiscal_year
@@ -121,6 +121,85 @@ class TestTaxWithholdingCategory(FrappeTestCase):
 		for d in reversed(invoices):
 			d.cancel()
 
+	def test_cumulative_threshold_with_party_ledger_amount_on_net_total(self):
+		invoices = []
+		frappe.db.set_value(
+			"Supplier", "Test TDS Supplier3", "tax_withholding_category", "Advance TDS Category"
+		)
+
+		# Invoice with tax and without exceeding single and cumulative thresholds
+		for _ in range(2):
+			pi = create_purchase_invoice(supplier="Test TDS Supplier3", rate=1000, do_not_save=True)
+			pi.apply_tds = 1
+			pi.append(
+				"taxes",
+				{
+					"category": "Total",
+					"charge_type": "Actual",
+					"account_head": "_Test Account VAT - _TC",
+					"cost_center": "Main - _TC",
+					"tax_amount": 500,
+					"description": "Test",
+					"add_deduct_tax": "Add",
+				},
+			)
+			pi.save()
+			pi.submit()
+			invoices.append(pi)
+
+		# Third Invoice exceeds single threshold and not exceeding cumulative threshold
+		pi1 = create_purchase_invoice(supplier="Test TDS Supplier3", rate=6000)
+		pi1.apply_tds = 1
+		pi1.save()
+		pi1.submit()
+		invoices.append(pi1)
+
+		# Cumulative threshold is 10,000
+		# Threshold calculation should be only on the third invoice
+		self.assertEqual(pi1.taxes[0].tax_amount, 800)
+
+		for d in reversed(invoices):
+			d.cancel()
+
+	def test_cumulative_threshold_with_tax_on_excess_amount(self):
+		invoices = []
+		frappe.db.set_value("Supplier", "Test TDS Supplier3", "tax_withholding_category", "New TDS Category")
+
+		# Invoice with tax and without exceeding single and cumulative thresholds
+		for _ in range(2):
+			pi = create_purchase_invoice(supplier="Test TDS Supplier3", rate=10000, do_not_save=True)
+			pi.apply_tds = 1
+			pi.append(
+				"taxes",
+				{
+					"category": "Total",
+					"charge_type": "Actual",
+					"account_head": "_Test Account VAT - _TC",
+					"cost_center": "Main - _TC",
+					"tax_amount": 500,
+					"description": "Test",
+					"add_deduct_tax": "Add",
+				},
+			)
+			pi.save()
+			pi.submit()
+			invoices.append(pi)
+
+		# Third Invoice exceeds single threshold and not exceeding cumulative threshold
+		pi1 = create_purchase_invoice(supplier="Test TDS Supplier3", rate=20000)
+		pi1.apply_tds = 1
+		pi1.save()
+		pi1.submit()
+		invoices.append(pi1)
+
+		# Cumulative threshold is 10,000
+		# Threshold calculation should be only on the third invoice
+		self.assertTrue(len(pi1.taxes) > 0)
+		self.assertEqual(pi1.taxes[0].tax_amount, 1000)
+
+		for d in reversed(invoices):
+			d.cancel()
+
 	def test_cumulative_threshold_tcs(self):
 		frappe.db.set_value(
 			"Customer", "Test TCS Customer", "tax_withholding_category", "Cumulative Threshold TCS"
@@ -164,17 +243,18 @@ class TestTaxWithholdingCategory(FrappeTestCase):
 		frappe.db.set_value(
 			"Customer", "Test TCS Customer", "tax_withholding_category", "Cumulative Threshold TCS"
 		)
+		fiscal_year = get_fiscal_year(today(), company="_Test Company")
 
 		vouchers = []
 
 		# create advance payment
-		pe = create_payment_entry(
+		pe1 = create_payment_entry(
 			payment_type="Receive", party_type="Customer", party="Test TCS Customer", paid_amount=20000
 		)
-		pe.paid_from = "Debtors - _TC"
-		pe.paid_to = "Cash - _TC"
-		pe.submit()
-		vouchers.append(pe)
+		pe1.paid_from = "Debtors - _TC"
+		pe1.paid_to = "Cash - _TC"
+		pe1.submit()
+		vouchers.append(pe1)
 
 		# create invoice
 		si1 = create_sales_invoice(customer="Test TCS Customer", rate=5000)
@@ -196,6 +276,17 @@ class TestTaxWithholdingCategory(FrappeTestCase):
 		# make another invoice
 		# sum of unallocated amount from payment entry and this sales invoice will breach cumulative threashold
 		# TDS should be calculated
+
+		# this payment should not be considered for TCS calculation as it is outside of fiscal year
+		pe2 = create_payment_entry(
+			payment_type="Receive", party_type="Customer", party="Test TCS Customer", paid_amount=10000
+		)
+		pe2.paid_from = "Debtors - _TC"
+		pe2.paid_to = "Cash - _TC"
+		pe2.posting_date = add_days(fiscal_year[1], -10)
+		pe2.submit()
+		vouchers.append(pe2)
+
 		si2 = create_sales_invoice(customer="Test TCS Customer", rate=15000)
 		si2.submit()
 		vouchers.append(si2)
@@ -208,6 +299,50 @@ class TestTaxWithholdingCategory(FrappeTestCase):
 		tcs_charged = sum([d.base_tax_amount for d in si2.taxes if d.account_head == "TCS - _TC"])
 		tcs_charged += sum([d.base_tax_amount for d in si3.taxes if d.account_head == "TCS - _TC"])
 		self.assertEqual(tcs_charged, 1500)
+
+		# cancel invoice and payments to avoid clashing
+		for d in reversed(vouchers):
+			d.reload()
+			d.cancel()
+
+	@change_settings(
+		"Accounts Settings",
+		{"unlink_payment_on_cancellation_of_invoice": 1},
+	)
+	def test_tcs_on_allocated_advance_payments(self):
+		frappe.db.set_value(
+			"Customer", "Test TCS Customer", "tax_withholding_category", "Cumulative Threshold TCS"
+		)
+
+		vouchers = []
+
+		# create advance payment
+		pe = create_payment_entry(
+			payment_type="Receive", party_type="Customer", party="Test TCS Customer", paid_amount=30000
+		)
+		pe.paid_from = "Debtors - _TC"
+		pe.paid_to = "Cash - _TC"
+		pe.submit()
+		vouchers.append(pe)
+
+		si = create_sales_invoice(customer="Test TCS Customer", rate=50000)
+		advances = si.get_advance_entries()
+		si.append(
+			"advances",
+			{
+				"reference_type": advances[0].reference_type,
+				"reference_name": advances[0].reference_name,
+				"advance_amount": advances[0].amount,
+				"allocated_amount": 30000,
+			},
+		)
+		si.submit()
+		vouchers.append(si)
+
+		# assert tax collection on total invoice ,advance payment adjusted should be excluded.
+		tcs_charged = sum([d.base_tax_amount for d in si.taxes if d.account_head == "TCS - _TC"])
+		# tcs = (inv amt)50000+(adv amt)30000-(adv adj) 30000 - threshold(30000) * rate 10%
+		self.assertEqual(tcs_charged, 2000)
 
 		# cancel invoice and payments to avoid clashing
 		for d in reversed(vouchers):
@@ -491,6 +626,49 @@ class TestTaxWithholdingCategory(FrappeTestCase):
 		pi2.cancel()
 		pi3.cancel()
 
+	def test_ldc_at_0_rate(self):
+		frappe.db.set_value(
+			"Supplier",
+			"Test LDC Supplier",
+			{
+				"tax_withholding_category": "Test Service Category",
+				"pan": "ABCTY1234D",
+			},
+		)
+
+		fiscal_year = get_fiscal_year(today(), company="_Test Company")
+		valid_from = fiscal_year[1]
+		valid_upto = add_months(valid_from, 1)
+		create_lower_deduction_certificate(
+			supplier="Test LDC Supplier",
+			certificate_no="1AE0423AAJ",
+			tax_withholding_category="Test Service Category",
+			tax_rate=0,
+			limit=50000,
+			valid_from=valid_from,
+			valid_upto=valid_upto,
+		)
+
+		pi1 = create_purchase_invoice(
+			supplier="Test LDC Supplier", rate=35000, posting_date=valid_from, set_posting_time=True
+		)
+		pi1.submit()
+		self.assertEqual(pi1.taxes, [])
+
+		pi2 = create_purchase_invoice(
+			supplier="Test LDC Supplier",
+			rate=35000,
+			posting_date=add_days(valid_upto, 1),
+			set_posting_time=True,
+		)
+		pi2.submit()
+		self.assertEqual(len(pi2.taxes), 1)
+		# pi1 net total shouldn't be included as it lies within LDC at rate of '0'
+		self.assertEqual(pi2.taxes[0].tax_amount, 3500)
+
+		pi1.cancel()
+		pi2.cancel()
+
 	def set_previous_fy_and_tax_category(self):
 		test_company = "_Test Company"
 		category = "Cumulative Threshold TDS"
@@ -648,7 +826,8 @@ def create_purchase_invoice(**args):
 	pi = frappe.get_doc(
 		{
 			"doctype": "Purchase Invoice",
-			"posting_date": today(),
+			"set_posting_time": args.set_posting_time or False,
+			"posting_date": args.posting_date or today(),
 			"apply_tds": 0 if args.do_not_apply_tds else 1,
 			"supplier": args.supplier,
 			"company": "_Test Company",
@@ -976,7 +1155,9 @@ def create_tax_withholding_category(
 		).insert()
 
 
-def create_lower_deduction_certificate(supplier, tax_withholding_category, tax_rate, certificate_no, limit):
+def create_lower_deduction_certificate(
+	supplier, tax_withholding_category, tax_rate, certificate_no, limit, valid_from=None, valid_upto=None
+):
 	fiscal_year = get_fiscal_year(today(), company="_Test Company")
 	if not frappe.db.exists("Lower Deduction Certificate", certificate_no):
 		frappe.get_doc(
@@ -987,8 +1168,8 @@ def create_lower_deduction_certificate(supplier, tax_withholding_category, tax_r
 				"certificate_no": certificate_no,
 				"tax_withholding_category": tax_withholding_category,
 				"fiscal_year": fiscal_year[0],
-				"valid_from": fiscal_year[1],
-				"valid_upto": fiscal_year[2],
+				"valid_from": valid_from or fiscal_year[1],
+				"valid_upto": valid_upto or fiscal_year[2],
 				"rate": tax_rate,
 				"certificate_limit": limit,
 			}

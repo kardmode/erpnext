@@ -900,15 +900,19 @@ def get_billed_amount_against_po(po_items):
 	if not po_items:
 		return {}
 
+	purchase_invoice = frappe.qb.DocType("Purchase Invoice")
 	purchase_invoice_item = frappe.qb.DocType("Purchase Invoice Item")
 
 	query = (
 		frappe.qb.from_(purchase_invoice_item)
+		.inner_join(purchase_invoice)
+		.on(purchase_invoice_item.parent == purchase_invoice.name)
 		.select(fn.Sum(purchase_invoice_item.amount).as_("billed_amt"), purchase_invoice_item.po_detail)
 		.where(
 			(purchase_invoice_item.po_detail.isin(po_items))
-			& (purchase_invoice_item.docstatus == 1)
+			& (purchase_invoice.docstatus == 1)
 			& (purchase_invoice_item.pr_detail.isnull())
+			& (purchase_invoice.update_stock == 0)
 		)
 		.groupby(purchase_invoice_item.po_detail)
 	).run(as_dict=1)
@@ -918,6 +922,8 @@ def get_billed_amount_against_po(po_items):
 
 def update_billing_percentage(pr_doc, update_modified=True, adjust_incoming_rate=False):
 	# Update Billing % based on pending accepted qty
+	buying_settings = frappe.get_single("Buying Settings")
+
 	total_amount, total_billed_amount = 0, 0
 	item_wise_returned_qty = get_item_wise_returned_qty(pr_doc)
 
@@ -925,17 +931,22 @@ def update_billing_percentage(pr_doc, update_modified=True, adjust_incoming_rate
 		returned_qty = flt(item_wise_returned_qty.get(item.name))
 		returned_amount = flt(returned_qty) * flt(item.rate)
 		pending_amount = flt(item.amount) - returned_amount
-		total_billable_amount = pending_amount if item.billed_amt <= pending_amount else item.billed_amt
+		if buying_settings.bill_for_rejected_quantity_in_purchase_invoice:
+			pending_amount = flt(item.amount)
+
+		total_billable_amount = abs(flt(item.amount))
+		if pending_amount > 0:
+			total_billable_amount = pending_amount if item.billed_amt <= pending_amount else item.billed_amt
 
 		total_amount += total_billable_amount
-		total_billed_amount += flt(item.billed_amt)
+		total_billed_amount += abs(flt(item.billed_amt))
 
 		if pr_doc.get("is_return") and not total_amount and total_billed_amount:
 			total_amount = total_billed_amount
 
 		if adjust_incoming_rate:
 			adjusted_amt = 0.0
-			if item.billed_amt and item.amount:
+			if item.billed_amt is not None and item.amount is not None:
 				adjusted_amt = flt(item.billed_amt) - flt(item.amount)
 
 			item.db_set("rate_difference_with_purchase_invoice", adjusted_amt, update_modified=False)
@@ -1230,26 +1241,25 @@ def get_item_account_wise_additional_cost(purchase_document):
 		for item in landed_cost_voucher_doc.items:
 			if item.receipt_document == purchase_document:
 				for account in landed_cost_voucher_doc.taxes:
+					exchange_rate = account.exchange_rate or 1
 					item_account_wise_cost.setdefault((item.item_code, item.purchase_receipt_item), {})
 					item_account_wise_cost[(item.item_code, item.purchase_receipt_item)].setdefault(
 						account.expense_account, {"amount": 0.0, "base_amount": 0.0}
 					)
 
-					if total_item_cost > 0:
-						item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][
-							account.expense_account
-						]["amount"] += account.amount * item.get(based_on_field) / total_item_cost
+					item_row = item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][
+						account.expense_account
+					]
 
-						item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][
-							account.expense_account
-						]["base_amount"] += account.base_amount * item.get(based_on_field) / total_item_cost
+					if total_item_cost > 0:
+						item_row["amount"] += account.amount * item.get(based_on_field) / total_item_cost
+
+						item_row["base_amount"] += (
+							account.base_amount * item.get(based_on_field) / total_item_cost
+						)
 					else:
-						item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][
-							account.expense_account
-						]["amount"] += item.applicable_charges
-						item_account_wise_cost[(item.item_code, item.purchase_receipt_item)][
-							account.expense_account
-						]["base_amount"] += item.applicable_charges
+						item_row["amount"] += item.applicable_charges / exchange_rate
+						item_row["base_amount"] += item.applicable_charges
 
 	return item_account_wise_cost
 

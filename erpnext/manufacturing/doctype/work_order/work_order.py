@@ -89,9 +89,17 @@ class WorkOrder(Document):
 		self.status = self.get_status()
 		self.validate_workstation_type()
 
-		validate_uom_is_integer(self, "stock_uom", ["qty", "produced_qty"])
+		if self.source_warehouse:
+			self.set_warehouses()
+
+		validate_uom_is_integer(self, "stock_uom", ["required_qty"])
 
 		self.set_required_items(reset_only_qty=len(self.get("required_items")))
+
+	def set_warehouses(self):
+		for row in self.required_items:
+			if not row.source_warehouse:
+				row.source_warehouse = self.source_warehouse
 
 	def validate_workstation_type(self):
 		for row in self.operations:
@@ -1314,19 +1322,19 @@ def stop_unstop(work_order, status):
 
 
 @frappe.whitelist()
-def query_sales_order(production_item):
-	out = frappe.db.sql_list(
-		"""
-		select distinct so.name from `tabSales Order` so, `tabSales Order Item` so_item
-		where so_item.parent=so.name and so_item.item_code=%s and so.docstatus=1
-	union
-		select distinct so.name from `tabSales Order` so, `tabPacked Item` pi_item
-		where pi_item.parent=so.name and pi_item.item_code=%s and so.docstatus=1
-	""",
-		(production_item, production_item),
+def query_sales_order(production_item: str) -> list[str]:
+	return frappe.get_list(
+		"Sales Order",
+		filters=[
+			["Sales Order", "docstatus", "=", 1],
+		],
+		or_filters=[
+			["Sales Order Item", "item_code", "=", production_item],
+			["Packed Item", "item_code", "=", production_item],
+		],
+		pluck="name",
+		distinct=True,
 	)
-
-	return out
 
 
 @frappe.whitelist()

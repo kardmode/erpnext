@@ -15,7 +15,7 @@ from erpnext.setup.doctype.incoterm.incoterm import create_incoterms
 from .default_success_action import get_default_success_action
 
 default_mail_footer = """<div style="padding: 7px; text-align: right; color: #888"><small>Sent via
-	<a style="color: #888" href="http://erpnext.org">ERPNext</a></div>"""
+	<a style="color: #888" href="http://frappe.io/erpnext">ERPNext</a></div>"""
 
 
 def after_install():
@@ -80,7 +80,7 @@ def setup_currency_exchange():
 		ces.set("result_key", [])
 		ces.set("req_params", [])
 
-		ces.api_endpoint = "https://frankfurter.app/{transaction_date}"
+		ces.api_endpoint = "https://api.frankfurter.dev/v1/{transaction_date}"
 		ces.append("result_key", {"key": "rates"})
 		ces.append("result_key", {"key": "{to_currency}"})
 		ces.append("req_params", {"key": "base", "value": "{from_currency}"})

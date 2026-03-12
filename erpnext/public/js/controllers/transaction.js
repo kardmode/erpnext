@@ -329,7 +329,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 			let d = locals[cdt][cdn];
 			return {
 				filters: {
-					docstatus: 1,
+					docstatus: ["<", 2],
 					inspection_type: inspection_type,
 					reference_name: doc.name,
 					item_code: d.item_code
@@ -492,7 +492,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	setup_sms() {
 		var me = this;
 		let blacklist = ['Purchase Invoice', 'BOM'];
-		if(this.frm.doc.docstatus===1 && !["Lost", "Stopped", "Closed"].includes(this.frm.doc.status)
+		if(frappe.boot.sms_gateway_enabled && this.frm.doc.docstatus===1 && !["Lost", "Stopped", "Closed"].includes(this.frm.doc.status)
 			&& !blacklist.includes(this.frm.doctype)) {
 			this.frm.page.add_menu_item(__('Send SMS'), function() { me.send_sms(); });
 		}
@@ -509,6 +509,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 
 		item.weight_per_unit = 0;
 		item.weight_uom = '';
+		item.uom = null // make UOM blank to update the existing UOM when item changes
 		item.conversion_factor = 0;
 
 		if(['Sales Invoice'].includes(this.frm.doc.doctype)) {
@@ -1000,9 +1001,14 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 
 		if (frappe.meta.get_docfield(this.frm.doctype, "shipping_address") &&
 			['Purchase Order', 'Purchase Receipt', 'Purchase Invoice'].includes(this.frm.doctype)) {
-			erpnext.utils.get_shipping_address(this.frm, function() {
-				set_party_account(set_pricing);
-			});
+				let is_drop_ship = me.frm.doc.items.some(item => item.delivered_by_supplier);
+
+				if (!is_drop_ship) {
+					console.log('get_shipping_address');
+					erpnext.utils.get_shipping_address(this.frm, function() {
+						set_party_account(set_pricing);
+					});
+				}
 
 		} else {
 			set_party_account(set_pricing);
@@ -1049,6 +1055,15 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				frappe.ui.form.trigger(me.frm.doc.doctype, "currency");
 			}
 		}
+	}
+
+	discount_date(doc, cdt, cdn) {
+		// Remove fields as discount_date is auto-managed by payment terms
+		const row = locals[cdt][cdn];
+		["discount_validity", "discount_validity_based_on"].forEach((field) => {
+			row[field] = "";
+		});
+		this.frm.refresh_field("payment_schedule");
 	}
 
 	due_date() {
@@ -1190,7 +1205,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 
 	apply_discount_on_item(doc, cdt, cdn, field) {
 		var item = frappe.get_doc(cdt, cdn);
-		if(!item.price_list_rate) {
+		if(item && !item.price_list_rate) {
 			item[field] = 0.0;
 		} else {
 			this.price_list_rate(doc, cdt, cdn);
@@ -1278,9 +1293,12 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	plc_conversion_rate() {
 		if(this.frm.doc.price_list_currency === this.get_company_currency()) {
 			this.frm.set_value("plc_conversion_rate", 1.0);
-		} else if(this.frm.doc.price_list_currency === this.frm.doc.currency
-			&& this.frm.doc.plc_conversion_rate && cint(this.frm.doc.plc_conversion_rate) != 1 &&
-			cint(this.frm.doc.plc_conversion_rate) != cint(this.frm.doc.conversion_rate)) {
+		} else if (
+			this.frm.doc.price_list_currency === this.frm.doc.currency &&
+			this.frm.doc.plc_conversion_rate &&
+			flt(this.frm.doc.plc_conversion_rate) != 1 &&
+			flt(this.frm.doc.plc_conversion_rate) != flt(this.frm.doc.conversion_rate)
+		) {
 			this.frm.set_value("conversion_rate", this.frm.doc.plc_conversion_rate);
 		}
 
@@ -1303,6 +1321,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				callback: function(r) {
 					if(!r.exc) {
 						frappe.model.set_value(cdt, cdn, 'conversion_factor', r.message.conversion_factor);
+						me.apply_price_list(item, true);
 					}
 				}
 			});
@@ -1751,7 +1770,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 					"serial_no": d.serial_no,
 					"batch_no": d.batch_no,
 					"price_list_rate": d.price_list_rate,
-					"conversion_factor": d.conversion_factor || 1.0
+					"conversion_factor": d.conversion_factor || 1.0,
 				});
 
 				// if doctype is Quotation Item / Sales Order Iten then add Margin Type and rate in item_list
@@ -2448,6 +2467,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 				'item_code': item.item_code,
 				'valid_from': ["<=", doc.transaction_date || doc.bill_date || doc.posting_date],
 				'item_group': item.item_group,
+				'disabled': 0,
 			}
 
 			if (doc.tax_category)
@@ -2465,7 +2485,7 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	payment_terms_template() {
 		var me = this;
 		const doc = this.frm.doc;
-		if(doc.payment_terms_template && doc.doctype !== 'Delivery Note') {
+		if(doc.payment_terms_template && doc.doctype !== 'Delivery Note' && !doc.is_return) {
 			var posting_date = doc.posting_date || doc.transaction_date;
 			frappe.call({
 				method: "erpnext.controllers.accounts_controller.get_payment_terms",
@@ -2490,7 +2510,18 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 	payment_term(doc, cdt, cdn) {
 		const me = this;
 		var row = locals[cdt][cdn];
-		if(row.payment_term) {
+		// empty date condition fields
+		[
+			"due_date_based_on",
+			"credit_days",
+			"credit_months",
+			"discount_validity",
+			"discount_validity_based_on",
+		].forEach(function (field) {
+			row[field] = "";
+		});
+
+		if (row.payment_term) {
 			frappe.call({
 				method: "erpnext.controllers.accounts_controller.get_payment_term_details",
 				args: {
@@ -2500,16 +2531,19 @@ erpnext.TransactionController = class TransactionController extends erpnext.taxe
 					grand_total: this.frm.doc.rounded_total || this.frm.doc.grand_total,
 					base_grand_total: this.frm.doc.base_rounded_total || this.frm.doc.base_grand_total
 				},
-				callback: function(r) {
-					if(r.message && !r.exc) {
-						for (var d in r.message) {
-							frappe.model.set_value(cdt, cdn, d, r.message[d]);
-							const company_currency = me.get_company_currency();
-							me.update_payment_schedule_grid_labels(company_currency);
+				callback: function (r) {
+					if (r.message && !r.exc) {
+						const company_currency = me.get_company_currency();
+						for (let d in r.message) {
+							row[d] = r.message[d];
 						}
+						me.update_payment_schedule_grid_labels(company_currency);
+						me.frm.refresh_field("payment_schedule");
 					}
-				}
-			})
+				},
+			});
+		} else {
+			me.frm.refresh_field("payment_schedule");
 		}
 	}
 	

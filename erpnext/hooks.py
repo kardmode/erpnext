@@ -4,7 +4,7 @@ app_publisher = "Frappe Technologies Pvt. Ltd."
 app_description = """ERP made simple"""
 app_icon = "fa fa-th"
 app_color = "#e74c3c"
-app_email = "info@erpnext.com"
+app_email = "hello@frappe.io"
 app_license = "GNU General Public License (v3)"
 source_link = "https://github.com/frappe/erpnext"
 app_logo_url = "/assets/erpnext/images/erpnext-logo.svg"
@@ -24,6 +24,14 @@ doctype_js = {
 	"Event": "public/js/event.js",
 	"Newsletter": "public/js/newsletter.js",
 	"Contact": "public/js/contact.js",
+}
+doctype_list_js = {
+	"Code List": [
+		"edi/doctype/code_list/code_list_import.js",
+	],
+	"Common Code": [
+		"edi/doctype/code_list/code_list_import.js",
+	],
 }
 
 override_doctype_class = {"Address": "erpnext.accounts.custom.address.ERPNextAddress"}
@@ -354,7 +362,6 @@ doc_events = {
 	"Payment Entry": {
 		"on_submit": [
 			"erpnext.regional.create_transaction_log",
-			"erpnext.accounts.doctype.payment_request.payment_request.update_payment_req_status",
 			"erpnext.accounts.doctype.dunning.dunning.resolve_dunning",
 		],
 		"on_trash": "erpnext.regional.check_deletion_permission",
@@ -472,7 +479,7 @@ email_brand_image = "assets/erpnext/images/erpnext-logo.jpg"
 default_mail_footer = """
 	<span>
 		Sent via
-		<a class="text-muted" href="https://erpnext.com?source=via_email_footer" target="_blank">
+		<a class="text-muted" href="https://frappe.io/erpnext?source=via_email_footer" target="_blank">
 			ERPNext
 		</a>
 	</span>

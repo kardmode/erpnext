@@ -10,7 +10,6 @@ from frappe.utils import cint, cstr, flt, formatdate, get_link_to_form, getdate,
 
 import erpnext
 from erpnext.accounts.deferred_revenue import validate_service_stop_date
-from erpnext.accounts.doctype.gl_entry.gl_entry import update_outstanding_amt
 from erpnext.accounts.doctype.repost_accounting_ledger.repost_accounting_ledger import (
 	validate_docs_for_deferred_accounting,
 	validate_docs_for_voucher_types,
@@ -33,7 +32,7 @@ from erpnext.accounts.general_ledger import (
 	merge_similar_entries,
 )
 from erpnext.accounts.party import get_due_date, get_party_account
-from erpnext.accounts.utils import get_account_currency, get_fiscal_year
+from erpnext.accounts.utils import get_account_currency, get_fiscal_year, update_voucher_outstanding
 from erpnext.assets.doctype.asset.asset import is_cwip_accounting_enabled
 from erpnext.assets.doctype.asset_category.asset_category import get_asset_category_account
 from erpnext.buying.utils import check_on_hold_or_closed_status
@@ -174,7 +173,12 @@ class PurchaseInvoice(BuyingController):
 			)
 		if not self.due_date:
 			self.due_date = get_due_date(
-				self.posting_date, "Supplier", self.supplier, self.company, self.bill_date
+				self.posting_date,
+				"Supplier",
+				self.supplier,
+				self.company,
+				self.bill_date,
+				template_name=self.payment_terms_template,
 			)
 			
 		tds_category = frappe.db.get_value("Supplier", self.supplier, "tax_withholding_category")
@@ -669,12 +673,12 @@ class PurchaseInvoice(BuyingController):
 
 	def update_supplier_outstanding(self, update_outstanding):
 		if update_outstanding == "No":
-			update_outstanding_amt(
-				self.credit_to,
-				"Supplier",
-				self.supplier,
-				self.doctype,
-				self.return_against if cint(self.is_return) and self.return_against else self.name,
+			update_voucher_outstanding(
+				voucher_type=self.doctype,
+				voucher_no=self.return_against if cint(self.is_return) and self.return_against else self.name,
+				account=self.credit_to,
+				party_type="Supplier",
+				party=self.supplier,
 			)
 
 	def get_gl_entries(self, warehouse_account=None):
@@ -790,7 +794,7 @@ class PurchaseInvoice(BuyingController):
 			self.get_provisional_accounts()
 
 		for item in self.get("items"):
-			if flt(item.base_net_amount):
+			if flt(item.base_net_amount) or (self.get("update_stock") and item.valuation_rate):
 				account_currency = get_account_currency(item.expense_account)
 				if item.item_code:
 					frappe.get_cached_value("Item", item.item_code, "asset_category")
@@ -1025,6 +1029,9 @@ class PurchaseInvoice(BuyingController):
 	def get_provisional_accounts(self):
 		self.provisional_accounts = frappe._dict()
 		linked_purchase_receipts = set([d.purchase_receipt for d in self.items if d.purchase_receipt])
+		if not linked_purchase_receipts:
+			return
+
 		pr_items = frappe.get_all(
 			"Purchase Receipt Item",
 			filters={"parent": ("in", linked_purchase_receipts)},
@@ -1132,6 +1139,30 @@ class PurchaseInvoice(BuyingController):
 			)
 
 			warehouse_debit_amount = stock_amount
+
+		elif self.is_return and self.update_stock and (self.is_internal_supplier or not self.return_against):
+			net_rate = item.base_net_amount
+			stock_amount = net_rate + item.item_tax_amount + flt(item.landed_cost_voucher_amount)
+
+			if flt(stock_amount, net_amt_precision) != flt(warehouse_debit_amount, net_amt_precision):
+				cost_of_goods_sold_account = self.get_company_default("default_expense_account")
+				stock_adjustment_amt = stock_amount - warehouse_debit_amount
+
+				gl_entries.append(
+					self.get_gl_dict(
+						{
+							"account": cost_of_goods_sold_account,
+							"against": item.expense_account,
+							"debit": stock_adjustment_amt,
+							"debit_in_transaction_currency": stock_adjustment_amt / self.conversion_rate,
+							"remarks": self.get("remarks") or _("Stock Adjustment"),
+							"cost_center": item.cost_center,
+							"project": item.project or self.project,
+						},
+						account_currency,
+						item=item,
+					)
+				)
 
 		return warehouse_debit_amount
 
@@ -1451,7 +1482,12 @@ class PurchaseInvoice(BuyingController):
 
 				if pi:
 					pi = pi[0][0]
-					frappe.throw(_("Supplier Invoice No exists in Purchase Invoice {0}").format(pi))
+
+					frappe.throw(
+						_("Supplier Invoice No exists in Purchase Invoice {0}").format(
+							get_link_to_form("Purchase Invoice", pi)
+						)
+					)
 
 	def update_billing_status_in_pr(self, update_modified=True):
 		if self.is_return and not self.update_billed_amount_in_purchase_receipt:

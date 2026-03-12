@@ -46,16 +46,13 @@ class BankClearance(Document):
 			as_dict=1,
 		)
 
-		if self.bank_account:
-			condition += "and bank_account = %(bank_account)s"
-
 		payment_entries = frappe.db.sql(
 			f"""
 			select
 				"Payment Entry" as payment_document, name as payment_entry,
 				reference_no as cheque_number, reference_date as cheque_date,
 				if(paid_from=%(account)s, paid_amount + total_taxes_and_charges, 0) as credit,
-				if(paid_from=%(account)s, 0, received_amount) as debit,
+				if(paid_from=%(account)s, 0, received_amount + total_taxes_and_charges) as debit,
 				posting_date, ifnull(party,if(paid_from=%(account)s,paid_to,paid_from)) as against_account, clearance_date,
 				if(paid_to=%(account)s, paid_to_account_currency, paid_from_account_currency) as account_currency
 			from `tabPayment Entry`
@@ -70,7 +67,6 @@ class BankClearance(Document):
 				"account": self.account,
 				"from": self.from_date,
 				"to": self.to_date,
-				"bank_account": self.bank_account,
 			},
 			as_dict=1,
 		)
@@ -93,7 +89,7 @@ class BankClearance(Document):
 			.where(loan_disbursement.docstatus == 1)
 			.where(loan_disbursement.disbursement_date >= self.from_date)
 			.where(loan_disbursement.disbursement_date <= self.to_date)
-			.where(loan_disbursement.disbursement_account.isin([self.bank_account, self.account]))
+			.where(loan_disbursement.disbursement_account == self.account)
 			.orderby(loan_disbursement.disbursement_date)
 			.orderby(loan_disbursement.name, order=frappe.qb.desc)
 		)
@@ -121,7 +117,7 @@ class BankClearance(Document):
 			.where(loan_repayment.docstatus == 1)
 			.where(loan_repayment.posting_date >= self.from_date)
 			.where(loan_repayment.posting_date <= self.to_date)
-			.where(loan_repayment.payment_account.isin([self.bank_account, self.account]))
+			.where(loan_repayment.payment_account == self.account)
 		)
 
 		if not self.include_reconciled_entries:

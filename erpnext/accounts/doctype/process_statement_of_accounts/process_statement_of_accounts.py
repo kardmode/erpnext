@@ -132,6 +132,7 @@ def get_common_filters(doc):
 			"finance_book": doc.finance_book if doc.finance_book else None,
 			"account": [doc.account] if doc.account else None,
 			"cost_center": [cc.cost_center_name for cc in doc.cost_center],
+			"show_remarks": doc.show_remarks,
 		}
 	)
 
@@ -144,7 +145,7 @@ def get_gl_filters(doc, entry, tax_id, presentation_currency):
 		"party": [entry.customer],
 		"party_name": [entry.customer_name] if entry.customer_name else None,
 		"presentation_currency": presentation_currency,
-		"group_by": doc.group_by,
+		"categorize_by": doc.categorize_by,
 		"currency": doc.currency,
 		"project": [p.project_name for p in doc.project],
 		"show_opening_entries": 0,
@@ -176,17 +177,21 @@ def get_ar_filters(doc, entry):
 
 def get_html(doc, filters, entry, col, res, ageing):
 	base_template_path = "frappe/www/printview.html"
-	template_path = (
-		"erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts.html"
-		if doc.report == "General Ledger"
-		else "erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts_accounts_receivable.html"
-	)
+	template_path = "erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts_accounts_receivable.html"
+	if doc.report == "General Ledger":
+		template_path = (
+			"erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts.html"
+		)
+
+	process_soa_html = frappe.get_hooks("process_soa_html")
+	# fetching custom print format for Process Statement of Accounts
+	if process_soa_html and process_soa_html.get(doc.report):
+		template_path = process_soa_html[doc.report][-1]
 
 	if doc.letter_head:
 		from frappe.www.printview import get_letter_head
 
 		letter_head = get_letter_head(doc, 0)
-
 	html = frappe.render_template(
 		template_path,
 		{
@@ -202,7 +207,6 @@ def get_html(doc, filters, entry, col, res, ageing):
 			else None,
 		},
 	)
-
 	html = frappe.render_template(
 		base_template_path,
 		{"body": html, "css": get_print_style(), "title": "Statement For " + entry.customer},
@@ -261,9 +265,12 @@ def get_recipients_and_cc(customer, doc):
 	recipients = []
 	for clist in doc.customers:
 		if clist.customer == customer:
-			recipients.append(clist.billing_email)
+			if clist.billing_email:
+				for email in clist.billing_email.split(","):
+					recipients.append(email.strip())
 			if doc.primary_mandatory and clist.primary_email:
-				recipients.append(clist.primary_email)
+				for email in clist.primary_email.split(","):
+					recipients.append(email.strip())
 	cc = []
 	if doc.cc_to != "":
 		try:
@@ -442,7 +449,7 @@ def send_auto_email():
 	selected = frappe.get_list(
 		"Process Statement Of Accounts",
 		filters={"enable_auto_email": 1},
-		or_filters={"to_date": format_date(today()), "posting_date": format_date(today())},
+		or_filters={"to_date": today(), "posting_date": today()},
 	)
 	for entry in selected:
 		send_emails(entry.name, from_scheduler=True)

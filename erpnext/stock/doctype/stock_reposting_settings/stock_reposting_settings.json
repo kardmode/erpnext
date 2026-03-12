@@ -4,7 +4,6 @@
  "beta": 1,
  "creation": "2021-10-01 10:56:30.814787",
  "doctype": "DocType",
- "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -14,7 +13,6 @@
   "end_time",
   "limits_dont_apply_on",
   "item_based_reposting",
-  "do_reposting_for_each_stock_transaction",
   "errors_notification_section",
   "notify_reposting_error_to_role"
  ],
@@ -67,18 +65,12 @@
    "fieldname": "errors_notification_section",
    "fieldtype": "Section Break",
    "label": "Errors Notification"
-  },
-  {
-   "default": "0",
-   "fieldname": "do_reposting_for_each_stock_transaction",
-   "fieldtype": "Check",
-   "label": "Do reposting for each Stock Transaction"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-09-09 09:05:02.136054",
+ "modified": "2025-07-08 11:27:46.659056",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock Reposting Settings",

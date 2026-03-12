@@ -68,19 +68,13 @@ class SellingController(StockController):
 		if customer:
 			from erpnext.accounts.party import _get_party_details
 
-			fetch_payment_terms_template = False
-			if self.get("__islocal") or self.company != frappe.db.get_value(
-				self.doctype, self.name, "company"
-			):
-				fetch_payment_terms_template = True
-
 			party_details = _get_party_details(
 				customer,
 				ignore_permissions=self.flags.ignore_permissions,
 				doctype=self.doctype,
 				company=self.company,
 				posting_date=self.get("posting_date"),
-				fetch_payment_terms_template=fetch_payment_terms_template,
+				fetch_payment_terms_template=self.has_value_changed("company"),
 				party_address=self.customer_address,
 				shipping_address=self.shipping_address_name,
 				company_address=self.get("company_address"),
@@ -167,6 +161,9 @@ class SellingController(StockController):
 
 		total = 0.0
 		sales_team = self.get("sales_team")
+
+		self.validate_sales_team(sales_team)
+
 		for sales_person in sales_team:
 			self.round_floats_in(sales_person)
 
@@ -185,6 +182,20 @@ class SellingController(StockController):
 
 		if sales_team and total != 100.0:
 			throw(_("Total allocated percentage for sales team should be 100"))
+
+	def validate_sales_team(self, sales_team):
+		sales_persons = [d.sales_person for d in sales_team]
+
+		if not sales_persons:
+			return
+
+		sales_person_status = frappe.db.get_all(
+			"Sales Person", filters={"name": ["in", sales_persons]}, fields=["name", "enabled"]
+		)
+
+		for row in sales_person_status:
+			if not row.enabled:
+				frappe.throw(_("Sales Person <b>{0}</b> is disabled.").format(row.name))
 
 	def validate_max_discount(self):
 		for d in self.get("items"):
@@ -348,12 +359,32 @@ class SellingController(StockController):
 		return il
 
 	def has_product_bundle(self, item_code):
-		product_bundle = frappe.qb.DocType("Product Bundle")
-		return (
-			frappe.qb.from_(product_bundle)
-			.select(product_bundle.name)
-			.where((product_bundle.new_item_code == item_code) & (product_bundle.disabled == 0))
-		).run()
+		product_bundle_items = getattr(self, "_product_bundle_items", None)
+		if product_bundle_items is None:
+			self._product_bundle_items = product_bundle_items = {}
+
+		if item_code not in product_bundle_items:
+			self._fetch_product_bundle_items(item_code)
+
+		return product_bundle_items[item_code]
+
+	def _fetch_product_bundle_items(self, item_code):
+		product_bundle_items = self._product_bundle_items
+		items_to_fetch = {row.item_code for row in self.items if row.item_code not in product_bundle_items}
+		# fetch for requisite item_code even if it is not in items
+		items_to_fetch.add(item_code)
+
+		items_with_product_bundle = {
+			row.new_item_code
+			for row in frappe.get_all(
+				"Product Bundle",
+				filters={"new_item_code": ("in", items_to_fetch), "disabled": 0},
+				fields="new_item_code",
+			)
+		}
+
+		for item_code in items_to_fetch:
+			product_bundle_items[item_code] = item_code in items_with_product_bundle
 
 	def get_already_delivered_qty(self, current_docname, so, so_detail):
 		delivered_via_dn = frappe.db.sql(
@@ -460,6 +491,16 @@ class SellingController(StockController):
 							"allow_zero_valuation": d.get("allow_zero_valuation"),
 						},
 						raise_error_if_no_rate=False,
+					)
+
+				if (
+					not d.incoming_rate
+					and self.get("return_against")
+					and self.get("is_return")
+					and get_valuation_method(d.item_code) == "Moving Average"
+				):
+					d.incoming_rate = get_rate_for_return(
+						self.doctype, self.name, d.item_code, self.return_against, item_row=d
 					)
 
 				# For internal transfers use incoming rate as the valuation rate
@@ -601,7 +642,7 @@ class SellingController(StockController):
 		if self.doctype in ["Sales Order", "Quotation"]:
 			for item in self.items:
 				item.gross_profit = flt(
-					((item.base_rate - flt(item.valuation_rate)) * item.stock_qty),
+					((flt(item.stock_uom_rate) - flt(item.valuation_rate)) * item.stock_qty),
 					self.precision("amount", item),
 				)
 
@@ -697,7 +738,16 @@ class SellingController(StockController):
 
 
 def set_default_income_account_for_item(obj):
-	for d in obj.get("items"):
-		if d.item_code:
-			if getattr(d, "income_account", None):
-				set_item_default(d.item_code, obj.company, "income_account", d.income_account)
+	"""Set income account as default for items in the transaction.
+
+	Updates the item default income account for each item in the transaction
+	if it differs from the company's default income account.
+
+	Args:
+	    obj: Transaction document containing items table with income_account field
+	"""
+	company_default = frappe.get_cached_value("Company", obj.company, "default_income_account")
+	for d in obj.get("items", default=[]):
+		income_account = getattr(d, "income_account", None)
+		if d.item_code and income_account and income_account != company_default:
+			set_item_default(d.item_code, obj.company, "income_account", income_account)

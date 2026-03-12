@@ -23,7 +23,11 @@ from erpnext.accounts.doctype.tax_withholding_category.tax_withholding_category 
 )
 from erpnext.accounts.general_ledger import get_round_off_account_and_cost_center
 from erpnext.accounts.party import get_due_date, get_party_account, get_party_details
-from erpnext.accounts.utils import cancel_exchange_gain_loss_journal, get_account_currency
+from erpnext.accounts.utils import (
+	cancel_exchange_gain_loss_journal,
+	get_account_currency,
+	update_voucher_outstanding,
+)
 from erpnext.assets.doctype.asset.depreciation import (
 	depreciate_asset,
 	get_disposal_account_and_cost_center,
@@ -92,8 +96,8 @@ class SalesInvoice(SellingController):
 		self.total_qty = total_qty
 
 	def validate(self):
-		super().validate()
 		self.validate_auto_set_posting_time()
+		super().validate()
 
 		if not (self.is_pos or self.is_debit_note):
 			self.so_dn_required()
@@ -178,6 +182,7 @@ class SalesInvoice(SellingController):
 		):
 			validate_loyalty_points(self, self.loyalty_points)
 
+		self.allow_write_off_only_on_pos()
 		self.reset_default_field_value("set_warehouse", "items", "warehouse")
 
 	def mrp_validate_items(self):
@@ -543,7 +548,13 @@ class SalesInvoice(SellingController):
 				"Account", self.debit_to, "account_currency", cache=True
 			)
 		if not self.due_date and self.customer:
-			self.due_date = get_due_date(self.posting_date, "Customer", self.customer, self.company)
+			self.due_date = get_due_date(
+				self.posting_date,
+				"Customer",
+				self.customer,
+				self.company,
+				template_name=self.payment_terms_template,
+			)
 
 		super().set_missing_values(for_validate)
 
@@ -902,6 +913,10 @@ class SalesInvoice(SellingController):
 					raise_exception=1,
 				)
 
+	def allow_write_off_only_on_pos(self):
+		if not self.is_pos and self.write_off_account:
+			self.write_off_account = None
+
 	def validate_write_off_account(self):
 		if flt(self.write_off_amount) and not self.write_off_account:
 			self.write_off_account = frappe.get_cached_value("Company", self.company, "write_off_account")
@@ -1062,18 +1077,17 @@ class SalesInvoice(SellingController):
 
 				self.make_exchange_gain_loss_journal()
 			elif self.docstatus == 2:
-				cancel_exchange_gain_loss_journal(frappe._dict(doctype=self.doctype, name=self.name))
 				make_reverse_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
 
 			if update_outstanding == "No":
-				from erpnext.accounts.doctype.gl_entry.gl_entry import update_outstanding_amt
-
-				update_outstanding_amt(
-					self.debit_to,
-					"Customer",
-					self.customer,
-					self.doctype,
-					self.return_against if cint(self.is_return) and self.return_against else self.name,
+				update_voucher_outstanding(
+					voucher_type=self.doctype,
+					voucher_no=self.return_against
+					if cint(self.is_return) and self.return_against
+					else self.name,
+					account=self.debit_to,
+					party_type="Customer",
+					party=self.customer,
 				)
 
 		elif self.docstatus == 2 and cint(self.update_stock) and cint(auto_accounting_for_stock):
@@ -1603,8 +1617,12 @@ class SalesInvoice(SellingController):
 				)
 
 	def update_project(self):
-		if self.project:
-			project = frappe.get_doc("Project", self.project)
+		unique_projects = list(set([d.project for d in self.get("items") if d.project]))
+		if self.project and self.project not in unique_projects:
+			unique_projects.append(self.project)
+
+		for p in unique_projects:
+			project = frappe.get_doc("Project", p)
 			project.update_billed_amount()
 			project.db_update()
 

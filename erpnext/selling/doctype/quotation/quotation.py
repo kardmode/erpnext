@@ -322,7 +322,11 @@ def _make_sales_order(source_name, target_doc=None, ignore_permissions=False):
 		2. If selections: Is Alternative Item/Has Alternative Item: Map if selected and adequate qty
 		3. If selections: Simple row: Map if adequate qty
 		"""
-		has_qty = item.qty > 0
+		balance_qty = item.qty - ordered_items.get(item.item_code, 0.0)
+		if balance_qty <= 0:
+			return False
+
+		has_qty = balance_qty
 
 		if not selected_rows:
 			return not item.is_alternative
@@ -455,7 +459,9 @@ def _make_customer(source_name, ignore_permissions=False):
 						raise
 				except frappe.MandatoryError as e:
 					mandatory_fields = e.args[0].split(":")[1].split(",")
-					mandatory_fields = [customer.meta.get_label(field.strip()) for field in mandatory_fields]
+					mandatory_fields = [
+						_(customer.meta.get_label(field.strip())) for field in mandatory_fields
+					]
 
 					frappe.local.message_log = []
 					lead_link = frappe.utils.get_link_to_form("Lead", lead_name)

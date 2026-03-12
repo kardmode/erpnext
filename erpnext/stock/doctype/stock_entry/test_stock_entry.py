@@ -1727,6 +1727,46 @@ class TestStockEntry(FrappeTestCase):
 			mr.cancel()
 			mr.delete()
 
+	def test_auto_reorder_level_with_lead_time_days(self):
+		from erpnext.stock.reorder_item import reorder_item
+
+		item_doc = make_item(
+			"Test Auto Reorder Item - 002",
+			properties={"stock_uom": "Kg", "purchase_uom": "Nos", "is_stock_item": 1, "lead_time_days": 2},
+			uoms=[{"uom": "Nos", "conversion_factor": 5}],
+		)
+
+		if not frappe.db.exists("Item Reorder", {"parent": item_doc.name}):
+			item_doc.append(
+				"reorder_levels",
+				{
+					"warehouse_reorder_level": 0,
+					"warehouse_reorder_qty": 10,
+					"warehouse": "_Test Warehouse - _TC",
+					"material_request_type": "Purchase",
+				},
+			)
+
+		item_doc.save(ignore_permissions=True)
+
+		frappe.db.set_single_value("Stock Settings", "auto_indent", 1)
+
+		mr_list = reorder_item()
+
+		frappe.db.set_single_value("Stock Settings", "auto_indent", 0)
+		mrs = frappe.get_all(
+			"Material Request Item",
+			fields=["schedule_date"],
+			filters={"item_code": item_doc.name, "uom": "Nos"},
+		)
+
+		for mri in mrs:
+			self.assertEqual(getdate(mri.schedule_date), getdate(add_days(today(), 2)))
+
+		for mr in mr_list:
+			mr.cancel()
+			mr.delete()
+
 	def test_stock_entry_for_same_posting_date_and_time(self):
 		warehouse = "_Test Warehouse - _TC"
 		item_code = "Test Stock Entry For Same Posting Datetime 1"
@@ -1794,6 +1834,59 @@ class TestStockEntry(FrappeTestCase):
 			self.assertEqual(sle.incoming_rate, 100)
 			self.assertEqual(sle.stock_value_difference, 100)
 			self.assertEqual(sle.stock_value, 100 * i)
+
+	def test_stock_entry_amount(self):
+		warehouse = "_Test Warehouse - _TC"
+		rm_item_code = "Test Stock Entry Amount 1"
+		make_item(rm_item_code, {"is_stock_item": 1})
+
+		fg_item_code = "Test Repack Stock Entry Amount 1"
+		make_item(fg_item_code, {"is_stock_item": 1})
+
+		make_stock_entry(
+			item_code=rm_item_code,
+			qty=1,
+			to_warehouse=warehouse,
+			basic_rate=200,
+			posting_date=nowdate(),
+		)
+
+		se = make_stock_entry(
+			item_code=rm_item_code,
+			qty=1,
+			purpose="Repack",
+			basic_rate=100,
+			do_not_save=True,
+		)
+
+		se.items[0].s_warehouse = warehouse
+		se.append(
+			"items",
+			{
+				"item_code": fg_item_code,
+				"qty": 1,
+				"t_warehouse": warehouse,
+				"uom": "Nos",
+				"conversion_factor": 1.0,
+			},
+		)
+		se.set_stock_entry_type()
+		se.submit()
+
+		self.assertEqual(se.items[0].amount, 200)
+		self.assertEqual(se.items[0].basic_amount, 200)
+
+		make_stock_entry(
+			item_code=rm_item_code,
+			qty=1,
+			to_warehouse=warehouse,
+			basic_rate=300,
+			posting_date=add_days(nowdate(), -1),
+		)
+
+		se.reload()
+		self.assertEqual(se.items[0].amount, 300)
+		self.assertEqual(se.items[0].basic_amount, 300)
 
 
 def make_serialized_item(**args):

@@ -50,6 +50,21 @@ class StockController(AccountsController):
 		self.set_rate_of_stock_uom()
 		self.validate_internal_transfer()
 		self.validate_putaway_capacity()
+		self.reset_conversion_factor()
+
+	def reset_conversion_factor(self):
+		for row in self.get("items"):
+			if row.uom != row.stock_uom:
+				continue
+
+			if row.conversion_factor != 1.0:
+				row.conversion_factor = 1.0
+				frappe.msgprint(
+					_(
+						"Conversion factor for item {0} has been reset to 1.0 as the uom {1} is same as stock uom {2}."
+					).format(bold(row.item_code), bold(row.uom), bold(row.stock_uom)),
+					alert=True,
+				)
 
 	def make_gl_entries(self, gl_entries=None, from_repost=False, via_landed_cost_voucher=False):
 		if self.docstatus == 2:
@@ -505,8 +520,9 @@ class StockController(AccountsController):
 
 		make_sl_entries(sl_entries, allow_negative_stock, via_landed_cost_voucher)
 
-	def make_gl_entries_on_cancel(self):
-		cancel_exchange_gain_loss_journal(frappe._dict(doctype=self.doctype, name=self.name))
+	def make_gl_entries_on_cancel(self, from_repost=False):
+		if not from_repost:
+			cancel_exchange_gain_loss_journal(frappe._dict(doctype=self.doctype, name=self.name))
 		if frappe.db.sql(
 			"""select name from `tabGL Entry` where voucher_type=%s
 			and voucher_no=%s""",
@@ -786,7 +802,7 @@ class StockController(AccountsController):
 				child_tab.item_code,
 				child_tab.qty,
 			)
-			.where(parent_tab.docstatus < 2)
+			.where(parent_tab.docstatus == 1)
 		)
 
 		if self.doctype == "Purchase Invoice":
@@ -1012,12 +1028,7 @@ def is_reposting_pending():
 	)
 
 
-def future_sle_exists(args, sl_entries=None, allow_force_reposting=True):
-	if allow_force_reposting and frappe.db.get_single_value(
-		"Stock Reposting Settings", "do_reposting_for_each_stock_transaction"
-	):
-		return True
-
+def future_sle_exists(args, sl_entries=None):
 	key = (args.voucher_type, args.voucher_no)
 	if not hasattr(frappe.local, "future_sle"):
 		frappe.local.future_sle = {}

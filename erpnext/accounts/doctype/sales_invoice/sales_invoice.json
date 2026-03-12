@@ -1,11 +1,9 @@
 {
  "actions": [],
  "allow_import": 1,
- "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2022-01-25 10:29:57.771398",
  "doctype": "DocType",
- "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "customer_section",
@@ -162,8 +160,9 @@
   "dispatch_address",
   "company_address_section",
   "company_address",
-  "company_addr_col_break",
   "company_address_display",
+  "company_addr_col_break",
+  "company_contact_person",
   "terms_tab",
   "payment_schedule_section",
   "ignore_default_payment_terms_template",
@@ -215,8 +214,7 @@
   "is_internal_customer",
   "is_discounted",
   "remarks",
-  "connections_tab",
-  "repost_required"
+  "connections_tab"
  ],
  "fields": [
   {
@@ -353,8 +351,7 @@
    "options": "Company",
    "print_hide": 1,
    "remember_last_selected_value": 1,
-   "reqd": 1,
-   "set_only_once": 1
+   "reqd": 1
   },
   {
    "fieldname": "cost_center",
@@ -2139,7 +2136,6 @@
    "read_only": 1
   },
   {
-   "default": "0",
    "depends_on": "allocate_advances_automatically",
    "description": "Advance payments allocated against orders will only be fetched",
    "fieldname": "only_include_allocated_payments",
@@ -2176,6 +2172,13 @@
    "label": "Update Outstanding for Self",
    "no_copy": 1,
    "print_hide": 1
+  },
+  {
+   "fieldname": "company_contact_person",
+   "fieldtype": "Link",
+   "label": "Company Contact Person",
+   "options": "Contact",
+   "print_hide": 1
   }
  ],
  "icon": "fa fa-file-text",
@@ -2188,7 +2191,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2025-07-08 00:08:44.769984",
+ "modified": "2024-11-26 12:34:09.110690",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",

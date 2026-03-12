@@ -366,3 +366,15 @@ execute:frappe.db.set_single_value('E Commerce Settings', 'show_actual_qty', 1)
 erpnext.patches.v14_0.delete_orphaned_asset_movement_item_records
 erpnext.patches.v14_0.remove_cancelled_asset_capitalization_from_asset
 erpnext.patches.v14_0.enable_set_priority_for_pricing_rules #1
+erpnext.patches.v14_0.update_currency_exchange_settings_for_frankfurter
+erpnext.patches.v14_0.update_stock_uom_in_work_order_item
+erpnext.patches.v14_0.disable_add_row_in_gross_profit
+execute:frappe.db.set_single_value("Accounts Settings", "exchange_gain_loss_posting_date", "Payment")
+erpnext.patches.v14_0.update_posting_datetime
+erpnext.stock.doctype.stock_ledger_entry.patches.ensure_sle_indexes
+erpnext.patches.v14_0.rename_group_by_to_categorize_by
+execute:frappe.db.set_single_value("Accounts Settings", "receivable_payable_fetch_method", "Buffered Cursor")
+erpnext.patches.v14_0.set_update_price_list_based_on
+erpnext.patches.v14_0.rename_group_by_to_categorize_by_in_custom_reports
+erpnext.patches.v14_0.update_full_name_in_contract
+erpnext.patches.v16_0.update_currency_exchange_settings_for_frankfurter #2025-12-11

@@ -4,7 +4,7 @@ import json
 from collections import defaultdict
 
 import frappe
-from frappe import _
+from frappe import _, bold
 from frappe.model.mapper import get_mapped_doc
 from frappe.query_builder.functions import Sum
 from frappe.utils import (
@@ -14,10 +14,9 @@ from frappe.utils import (
 	flt,
 	format_time,
 	formatdate,
-	getdate,
-	month_diff,
-	nowdate,
 	get_link_to_form,
+	getdate,
+	nowdate,
 )
 
 import erpnext
@@ -122,7 +121,6 @@ class StockEntry(StockController):
 		self.validate_purpose()
 		self.validate_item()
 		self.validate_customer_provided_item()
-		self.validate_qty()
 		self.set_transfer_qty()
 		self.validate_uom_is_integer("uom", "qty")
 		self.validate_uom_is_integer("stock_uom", "transfer_qty")
@@ -404,40 +402,6 @@ class StockEntry(StockController):
 					frappe.MandatoryError,
 				)
 
-	def validate_qty(self):
-		manufacture_purpose = ["Manufacture", "Material Consumption for Manufacture"]
-
-		if self.purpose in manufacture_purpose and self.work_order:
-			if not frappe.get_value("Work Order", self.work_order, "skip_transfer"):
-				item_code = []
-				for item in self.items:
-					if cstr(item.t_warehouse) == "":
-						req_items = frappe.get_all(
-							"Work Order Item",
-							filters={"parent": self.work_order, "item_code": item.item_code},
-							fields=["item_code"],
-						)
-
-						transferred_materials = frappe.db.sql(
-							"""
-									select
-										sum(sed.qty) as qty
-									from `tabStock Entry` se,`tabStock Entry Detail` sed
-									where
-										se.name = sed.parent and se.docstatus=1 and
-										(se.purpose='Material Transfer for Manufacture' or se.purpose='Manufacture')
-										and sed.item_code=%s and se.work_order= %s and ifnull(sed.t_warehouse, '') != ''
-								""",
-							(item.item_code, self.work_order),
-							as_dict=1,
-						)
-
-						stock_qty = flt(item.qty)
-						trans_qty = flt(transferred_materials[0].qty)
-						if req_items:
-							if stock_qty > trans_qty:
-								item_code.append(item.item_code)
-
 	def validate_fg_completed_qty(self):
 		if self.purpose != "Manufacture":
 			return
@@ -484,15 +448,37 @@ class StockEntry(StockController):
 					).format(frappe.bold(self.company))
 				)
 
-			elif (
-				self.is_opening == "Yes"
-				and frappe.db.get_value("Account", d.expense_account, "report_type") == "Profit and Loss"
-			):
+			acc_details = frappe.get_cached_value(
+				"Account",
+				d.expense_account,
+				["account_type", "report_type"],
+				as_dict=True,
+			)
+
+			if self.is_opening == "Yes" and acc_details.report_type == "Profit and Loss":
 				frappe.throw(
 					_(
-						"Difference Account must be a Asset/Liability type account, since this Stock Entry is an Opening Entry"
+						"Difference Account must be a Asset/Liability type account (Temporary Opening), since this Stock Entry is an Opening Entry"
 					),
 					OpeningEntryAccountError,
+				)
+
+			if acc_details.account_type == "Stock":
+				frappe.throw(
+					_(
+						"At row #{0}: the Difference Account must not be a Stock type account, please change the Account Type for the account {1} or select a different account"
+					).format(d.idx, get_link_to_form("Account", d.expense_account)),
+					title=_("Difference Account in Items Table"),
+				)
+
+			if self.purpose != "Material Issue" and acc_details.account_type == "Cost of Goods Sold":
+				frappe.msgprint(
+					_(
+						"At row #{0}: you have selected the Difference Account {1}, which is a Cost of Goods Sold type account. Please select a different account"
+					).format(d.idx, bold(get_link_to_form("Account", d.expense_account))),
+					title=_("Cost of Goods Sold Account in Items Table"),
+					indicator="orange",
+					alert=1,
 				)
 
 	def validate_warehouse(self):
@@ -1412,17 +1398,38 @@ class StockEntry(StockController):
 
 	@frappe.whitelist()
 	def get_item_details(self, args=None, for_update=False):
-		item = frappe.db.sql(
-			"""select i.name, i.stock_uom, i.description, i.image, i.item_name, i.item_group,
-				i.has_batch_no, i.sample_quantity, i.has_serial_no, i.allow_alternative_item,
-				id.expense_account, id.buying_cost_center
-			from `tabItem` i LEFT JOIN `tabItem Default` id ON i.name=id.parent and id.company=%s
-			where i.name=%s
-				and i.disabled=0
-				and (i.end_of_life is null or i.end_of_life<'1900-01-01' or i.end_of_life > %s)""",
-			(self.company, args.get("item_code"), nowdate()),
-			as_dict=1,
+		item = frappe.qb.DocType("Item")
+		item_default = frappe.qb.DocType("Item Default")
+
+		query = (
+			frappe.qb.from_(item)
+			.left_join(item_default)
+			.on((item.name == item_default.parent) & (item_default.company == self.company))
+			.select(
+				item.name,
+				item.stock_uom,
+				item.description,
+				item.image,
+				item.item_name,
+				item.item_group,
+				item.has_batch_no,
+				item.sample_quantity,
+				item.has_serial_no,
+				item.allow_alternative_item,
+				item_default.expense_account,
+				item_default.buying_cost_center,
+			)
+			.where(
+				(item.name == args.get("item_code"))
+				& (item.disabled == 0)
+				& (
+					(item.end_of_life.isnull())
+					| (item.end_of_life < "1900-01-01")
+					| (item.end_of_life > nowdate())
+				)
+			)
 		)
+		item = query.run(as_dict=True)
 
 		if not item:
 			frappe.throw(
@@ -1466,6 +1473,11 @@ class StockEntry(StockController):
 
 		if self.purpose == "Material Issue":
 			ret["expense_account"] = item.get("expense_account") or item_group_defaults.get("expense_account")
+
+		if self.purpose == "Manufacture":
+			ret["expense_account"] = frappe.get_cached_value(
+				"Company", self.company, "stock_adjustment_account"
+			)
 
 		for company_field, field in {
 			"stock_adjustment_account": "expense_account",

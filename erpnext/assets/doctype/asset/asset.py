@@ -313,6 +313,7 @@ class Asset(AccountsController):
 				"asset_name": self.asset_name,
 				"target_location": self.location,
 				"to_employee": self.custodian,
+				"company": self.company,
 			}
 		]
 		asset_movement = frappe.get_doc(
@@ -635,37 +636,43 @@ class Asset(AccountsController):
 		return add_days(self.available_for_use_date, -1)
 
 	# if it returns True, depreciation_amount will not be equal for the first and last rows
-	def check_is_pro_rata(self, row, wdv_or_dd_non_yearly=False):
+	def check_is_pro_rata(asset_doc, row, wdv_or_dd_non_yearly=False):
 		has_pro_rata = False
 
 		# if not existing asset, from_date = available_for_use_date
 		# otherwise, if number_of_depreciations_booked = 2, available_for_use_date = 01/01/2020 and frequency_of_depreciation = 12
 		# from_date = 01/01/2022
-		from_date = self.get_modified_available_for_use_date(row, wdv_or_dd_non_yearly)
-		days = date_diff(row.depreciation_start_date, from_date) + 1
-
-		if wdv_or_dd_non_yearly:
-			total_days = get_total_days(row.depreciation_start_date, 12)
+		if row.depreciation_method in ("Straight Line", "Manual"):
+			prev_depreciation_start_date = get_last_day(
+				add_months(
+					row.depreciation_start_date,
+					(row.frequency_of_depreciation * -1) * asset_doc.number_of_depreciations_booked,
+				)
+			)
+			from_date = asset_doc.available_for_use_date
+			days = date_diff(prev_depreciation_start_date, from_date) + 1
+			total_days = get_total_days(prev_depreciation_start_date, row.frequency_of_depreciation)
 		else:
-			# if frequency_of_depreciation is 12 months, total_days = 365
+			from_date = _get_modified_available_for_use_date(asset_doc, row, wdv_or_dd_non_yearly=False)
+			days = date_diff(row.depreciation_start_date, from_date) + 1
 			total_days = get_total_days(row.depreciation_start_date, row.frequency_of_depreciation)
+
+		if days <= 0:
+			frappe.throw(
+				_(
+					"""Error: This asset already has {0} depreciation periods booked.
+					The `depreciation start` date must be at least {1} periods after the `available for use` date.
+					Please correct the dates accordingly."""
+				).format(
+					asset_doc.number_of_depreciations_booked,
+					asset_doc.number_of_depreciations_booked,
+				)
+			)
 
 		if days < total_days:
 			has_pro_rata = True
 
 		return has_pro_rata
-
-	def get_modified_available_for_use_date(self, row, wdv_or_dd_non_yearly=False):
-		if wdv_or_dd_non_yearly:
-			return add_months(
-				self.available_for_use_date,
-				(self.number_of_depreciations_booked * 12),
-			)
-		else:
-			return add_months(
-				self.available_for_use_date,
-				(self.number_of_depreciations_booked * row.frequency_of_depreciation),
-			)
 
 	def validate_asset_finance_books(self, row):
 		if flt(row.expected_value_after_useful_life) >= flt(self.gross_purchase_amount):
@@ -916,13 +923,12 @@ class Asset(AccountsController):
 					].expected_value_after_useful_life
 					value_after_depreciation = self.finance_books[idx].value_after_depreciation
 
-				if (
-					flt(value_after_depreciation) <= expected_value_after_useful_life
-					or self.is_fully_depreciated
-				):
+				if flt(value_after_depreciation) <= expected_value_after_useful_life:
 					status = "Fully Depreciated"
+					self.is_fully_depreciated = 1
 				elif flt(value_after_depreciation) < flt(self.gross_purchase_amount):
 					status = "Partially Depreciated"
+					self.is_fully_depreciated = 0
 		elif self.docstatus == 2:
 			status = "Cancelled"
 		return status
@@ -1291,6 +1297,28 @@ def get_item_details(item_code, asset_category, gross_purchase_amount):
 	return books
 
 
+def _get_modified_available_for_use_date(asset_doc, row, wdv_or_dd_non_yearly=False):
+	"""
+	if Asset has opening booked depreciations = 9,
+	available for use date = 17-07-2023,
+	depreciation start date = 30-04-2024
+	then from date should be 01-04-2024
+	"""
+	if asset_doc.number_of_depreciations_booked > 0:
+		from_date = add_months(
+			asset_doc.available_for_use_date,
+			(asset_doc.number_of_depreciations_booked * row.frequency_of_depreciation) - 1,
+		)
+		if is_last_day_of_the_month(row.depreciation_start_date):
+			return add_days(get_last_day(from_date), 1)
+
+		# get from date when depreciation start date is not last day of the month
+		months_difference = month_diff(row.depreciation_start_date, from_date) - 1
+		return add_days(add_months(row.depreciation_start_date, -1 * months_difference), 1)
+	else:
+		return asset_doc.available_for_use_date
+
+
 def get_asset_account(account_name, asset=None, asset_category=None, company=None):
 	account = None
 	if asset:
@@ -1504,11 +1532,7 @@ def get_straight_line_or_manual_depr_amount(asset, row, schedule_idx, number_of_
 	# if the Depreciation Schedule is being prepared for the first time
 	else:
 		if row.daily_prorata_based:
-			amount = (
-				flt(asset.gross_purchase_amount)
-				- flt(asset.opening_accumulated_depreciation)
-				- flt(row.expected_value_after_useful_life)
-			)
+			amount = flt(asset.gross_purchase_amount) - flt(row.expected_value_after_useful_life)
 			total_days = (
 				date_diff(
 					get_last_day(
@@ -1520,7 +1544,11 @@ def get_straight_line_or_manual_depr_amount(asset, row, schedule_idx, number_of_
 					),
 					add_days(
 						get_last_day(
-							add_months(row.depreciation_start_date, -1 * row.frequency_of_depreciation)
+							add_months(
+								row.depreciation_start_date,
+								(row.frequency_of_depreciation * (asset.number_of_depreciations_booked + 1))
+								* -1,
+							),
 						),
 						1,
 					),
@@ -1543,11 +1571,9 @@ def get_straight_line_or_manual_depr_amount(asset, row, schedule_idx, number_of_
 
 			return daily_depr_amount * (date_diff(to_date, from_date) + 1)
 		else:
-			return (
-				flt(asset.gross_purchase_amount)
-				- flt(asset.opening_accumulated_depreciation)
-				- flt(row.expected_value_after_useful_life)
-			) / flt(row.total_number_of_depreciations - asset.number_of_depreciations_booked)
+			return (flt(asset.gross_purchase_amount) - flt(row.expected_value_after_useful_life)) / flt(
+				row.total_number_of_depreciations
+			)
 
 
 def get_shift_depr_amount(asset, row, schedule_idx):

@@ -650,12 +650,17 @@ def _get_item_tax_template(args, taxes, out=None, for_validate=False):
 	taxes_with_no_validity = []
 
 	for tax in taxes:
-		tax_company = frappe.get_cached_value("Item Tax Template", tax.item_tax_template, "company")
-		if tax_company == args["company"]:
+		disabled, tax_company = frappe.get_cached_value(
+			"Item Tax Template", tax.item_tax_template, ["disabled", "company"]
+		)
+		if not disabled and tax_company == args["company"]:
 			if tax.valid_from or tax.maximum_net_rate:
 				# In purchase Invoice first preference will be given to supplier invoice date
 				# if supplier date is not present then posting date
-				validation_date = args.get("bill_date") or args.get("transaction_date")
+
+				validation_date = (
+					args.get("bill_date") or args.get("posting_date") or args.get("transaction_date")
+				)
 
 				if getdate(tax.valid_from) <= getdate(validation_date) and is_within_valid_range(args, tax):
 					taxes_with_validity.append(tax)
@@ -867,8 +872,8 @@ def get_price_list_rate(args, item_doc, out=None):
 			price_list_rate = get_price_list_rate_for(args, item_doc.variant_of)
 
 		# insert in database
-		if price_list_rate is None or frappe.db.get_single_value(
-			"Stock Settings", "update_existing_price_list_rate"
+		if price_list_rate is None or frappe.get_cached_value(
+			"Stock Settings", "Stock Settings", "update_existing_price_list_rate"
 		):
 			insert_item_price(args)
 
@@ -902,49 +907,71 @@ def insert_item_price(args):
 	):
 		return
 
-	if frappe.db.get_value("Price List", args.price_list, "currency", cache=True) == args.currency and cint(
-		frappe.db.get_single_value("Stock Settings", "auto_insert_price_list_rate_if_missing")
-	):
-		if frappe.has_permission("Item Price", "write"):
-			price_list_rate = (
-				(flt(args.rate) + flt(args.discount_amount)) / args.get("conversion_factor")
-				if args.get("conversion_factor")
-				else (flt(args.rate) + flt(args.discount_amount))
-			)
+	stock_settings = frappe.get_cached_doc("Stock Settings")
 
-			item_price = frappe.db.get_value(
-				"Item Price",
-				{"item_code": args.item_code, "price_list": args.price_list, "currency": args.currency},
-				["name", "price_list_rate"],
-				as_dict=1,
-			)
-			if item_price and item_price.name:
-				if item_price.price_list_rate != price_list_rate and frappe.db.get_single_value(
-					"Stock Settings", "update_existing_price_list_rate"
-				):
-					frappe.db.set_value("Item Price", item_price.name, "price_list_rate", price_list_rate)
-					frappe.msgprint(
-						_("Item Price updated for {0} in Price List {1}").format(
-							args.item_code, args.price_list
-						),
-						alert=True,
-					)
-			else:
-				item_price = frappe.get_doc(
-					{
-						"doctype": "Item Price",
-						"price_list": args.price_list,
-						"item_code": args.item_code,
-						"currency": args.currency,
-						"price_list_rate": price_list_rate,
-						"uom": args.stock_uom,
-					}
-				)
-				item_price.insert()
-				frappe.msgprint(
-					_("Item Price added for {0} in Price List {1}").format(args.item_code, args.price_list),
-					alert=True,
-				)
+	if (
+		not frappe.db.get_value("Price List", args.price_list, "currency", cache=True) == args.currency
+		or not stock_settings.auto_insert_price_list_rate_if_missing
+		or not frappe.has_permission("Item Price", "write")
+	):
+		return
+
+	item_price = frappe.db.get_value(
+		"Item Price",
+		{
+			"item_code": args.item_code,
+			"price_list": args.price_list,
+			"currency": args.currency,
+			"uom": args.stock_uom,
+		},
+		["name", "price_list_rate"],
+		as_dict=1,
+	)
+
+	update_based_on_price_list_rate = stock_settings.update_price_list_based_on == "Price List Rate"
+
+	if item_price and item_price.name:
+		if not stock_settings.update_existing_price_list_rate:
+			return
+
+		rate_to_consider = flt(args.price_list_rate) if update_based_on_price_list_rate else flt(args.rate)
+		price_list_rate = _get_stock_uom_rate(rate_to_consider, args)
+
+		if not price_list_rate or item_price.price_list_rate == price_list_rate:
+			return
+
+		frappe.db.set_value("Item Price", item_price.name, "price_list_rate", price_list_rate)
+		frappe.msgprint(
+			_("Item Price updated for {0} in Price List {1}").format(args.item_code, args.price_list),
+			alert=True,
+		)
+	else:
+		rate_to_consider = (
+			(flt(args.price_list_rate) or flt(args.rate))
+			if update_based_on_price_list_rate
+			else flt(args.rate)
+		)
+		price_list_rate = _get_stock_uom_rate(rate_to_consider, args)
+
+		item_price = frappe.get_doc(
+			{
+				"doctype": "Item Price",
+				"price_list": args.price_list,
+				"item_code": args.item_code,
+				"currency": args.currency,
+				"price_list_rate": price_list_rate,
+				"uom": args.stock_uom,
+			}
+		)
+		item_price.insert()
+		frappe.msgprint(
+			_("Item Price added for {0} in Price List {1}").format(args.item_code, args.price_list),
+			alert=True,
+		)
+
+
+def _get_stock_uom_rate(rate, args):
+	return rate / args.conversion_factor if args.conversion_factor else rate
 
 
 def get_item_price(args, item_code, ignore_party=False):

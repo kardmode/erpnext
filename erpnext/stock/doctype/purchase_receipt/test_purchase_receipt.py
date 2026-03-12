@@ -595,7 +595,7 @@ class TestPurchaseReceipt(FrappeTestCase):
 		pr2.load_from_db()
 		self.assertEqual(pr2.get("items")[0].billed_amt, 2000)
 		self.assertEqual(pr2.per_billed, 80)
-		self.assertEqual(pr2.status, "To Bill")
+		self.assertEqual(pr2.status, "Partly Billed")
 
 		pr2.cancel()
 		pi2.reload()
@@ -1006,7 +1006,7 @@ class TestPurchaseReceipt(FrappeTestCase):
 		pi.load_from_db()
 		pr.load_from_db()
 
-		self.assertEqual(pr.status, "To Bill")
+		self.assertEqual(pr.status, "Partly Billed")
 		self.assertAlmostEqual(pr.per_billed, 50.0, places=2)
 
 	def test_purchase_receipt_with_exchange_rate_difference(self):
@@ -1056,6 +1056,7 @@ class TestPurchaseReceipt(FrappeTestCase):
 
 		self.assertEqual(discrepancy_caused_by_exchange_rate_diff, amount)
 
+	@change_settings("Accounts Settings", {"automatically_fetch_payment_terms": 1})
 	def test_payment_terms_are_fetched_when_creating_purchase_invoice(self):
 		from erpnext.accounts.doctype.payment_entry.test_payment_entry import (
 			create_payment_terms_template,
@@ -1066,11 +1067,8 @@ class TestPurchaseReceipt(FrappeTestCase):
 			make_pr_against_po,
 		)
 		from erpnext.selling.doctype.sales_order.test_sales_order import (
-			automatically_fetch_payment_terms,
 			compare_payment_schedules,
 		)
-
-		automatically_fetch_payment_terms()
 
 		po = create_purchase_order(qty=10, rate=100, do_not_save=1)
 		create_payment_terms_template()
@@ -1088,8 +1086,6 @@ class TestPurchaseReceipt(FrappeTestCase):
 
 		# self.assertEqual(po.payment_terms_template, pi.payment_terms_template)
 		compare_payment_schedules(self, po, pi)
-
-		automatically_fetch_payment_terms(enable=0)
 
 	@change_settings("Stock Settings", {"allow_negative_stock": 1})
 	def test_neg_to_positive(self):
@@ -2667,6 +2663,156 @@ class TestPurchaseReceipt(FrappeTestCase):
 		)
 
 		self.assertEqual(data[0].get("bal_qty"), 50.0)
+
+	def test_same_stock_and_transaction_uom_conversion_factor(self):
+		item_code = "Test Item for Same Stock and Transaction UOM Conversion Factor"
+		create_item(item_code)
+
+		pr = make_purchase_receipt(
+			item_code=item_code,
+			qty=10,
+			rate=100,
+			stock_uom="Nos",
+			transaction_uom="Nos",
+			conversion_factor=10,
+		)
+
+		self.assertEqual(pr.items[0].conversion_factor, 1.0)
+
+	def test_purchase_return_partial_debit_note(self):
+		pr = make_purchase_receipt(
+			company="_Test Company with perpetual inventory",
+			warehouse="Stores - TCP1",
+			supplier_warehouse="Work In Progress - TCP1",
+		)
+
+		return_pr = make_purchase_receipt(
+			company="_Test Company with perpetual inventory",
+			warehouse="Stores - TCP1",
+			supplier_warehouse="Work In Progress - TCP1",
+			is_return=1,
+			return_against=pr.name,
+			qty=-2,
+			do_not_submit=1,
+		)
+		return_pr.items[0].purchase_receipt_item = pr.items[0].name
+		return_pr.submit()
+
+		# because new_doc isn't considering is_return portion of status_updater
+		returned = frappe.get_doc("Purchase Receipt", return_pr.name)
+		returned.update_prevdoc_status()
+		pr.load_from_db()
+
+		# Check if Original PR updated
+		self.assertEqual(pr.items[0].returned_qty, 2)
+		self.assertEqual(pr.per_returned, 40)
+
+		# Create first partial debit_note
+		pi_1 = make_purchase_invoice(return_pr.name)
+		pi_1.items[0].qty = -1
+		pi_1.submit()
+
+		# Check if the first partial debit billing percentage got updated
+		return_pr.reload()
+		self.assertEqual(return_pr.per_billed, 50)
+		self.assertEqual(return_pr.status, "Partly Billed")
+
+		# Create second partial debit_note to complete the debit note
+		pi_2 = make_purchase_invoice(return_pr.name)
+		pi_2.items[0].qty = -1
+		pi_2.submit()
+
+		# Check if the second partial debit note billing percentage got updated
+		return_pr.reload()
+		self.assertEqual(return_pr.per_billed, 100)
+		self.assertEqual(return_pr.status, "Completed")
+
+	def test_pr_status_based_on_invoices_with_update_stock(self):
+		from erpnext.buying.doctype.purchase_order.purchase_order import (
+			make_purchase_invoice as _make_purchase_invoice,
+		)
+		from erpnext.buying.doctype.purchase_order.purchase_order import (
+			make_purchase_receipt as _make_purchase_receipt,
+		)
+		from erpnext.buying.doctype.purchase_order.test_purchase_order import (
+			create_pr_against_po,
+			create_purchase_order,
+		)
+
+		item_code = "Test Item for PR Status Based on Invoices"
+		create_item(item_code)
+
+		po = create_purchase_order(item_code=item_code, qty=10)
+		pi = _make_purchase_invoice(po.name)
+		pi.update_stock = 1
+		pi.items[0].qty = 5
+		pi.submit()
+
+		po.reload()
+		self.assertEqual(po.per_billed, 50)
+
+		pr = _make_purchase_receipt(po.name)
+		self.assertEqual(pr.items[0].qty, 5)
+		pr.submit()
+		pr.reload()
+		self.assertEqual(pr.status, "To Bill")
+
+	def test_serial_no_exists_in_future(self):
+		from erpnext.stock.doctype.stock_entry.test_stock_entry import make_stock_entry
+
+		item_doc = make_item(
+			"Test Serial No Item Exists in Future",
+			{
+				"is_purchase_item": 1,
+				"is_stock_item": 1,
+				"has_serial_no": 1,
+				"serial_no_series": "SN-SBNS-.#####",
+			},
+		)
+
+		source_warehouse = "_Test Warehouse - _TC"
+		target_warehouse = "_Test Warehouse 1 - _TC"
+		if not frappe.db.exists("Warehouse", target_warehouse):
+			create_warehouse("_Test Warehouse 1")
+
+		make_purchase_receipt(
+			item_code=item_doc.name,
+			qty=1,
+			rate=100,
+			serial_no="SN-SBNS-00001",
+			posting_date=add_days(today(), -2),
+		)
+
+		make_stock_entry(
+			item_code=item_doc.name,
+			qty=1,
+			rate=100,
+			to_warehouse=target_warehouse,
+			serial_no="SN-SBNS-00002",
+			posting_date=add_days(today(), -1),
+		)
+
+		make_stock_entry(
+			item_code=item_doc.name,
+			qty=1,
+			rate=100,
+			from_warehouse=source_warehouse,
+			to_warehouse=target_warehouse,
+			serial_no="SN-SBNS-00001",
+			posting_date=today(),
+		)
+
+		se = make_stock_entry(
+			item_code=item_doc.name,
+			qty=1,
+			rate=100,
+			from_warehouse=target_warehouse,
+			serial_no="SN-SBNS-00001",
+			posting_date=add_days(today(), -1),
+			do_not_submit=True,
+		)
+
+		self.assertRaises(frappe.ValidationError, se.submit)
 
 
 def prepare_data_for_internal_transfer():

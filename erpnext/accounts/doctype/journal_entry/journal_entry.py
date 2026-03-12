@@ -153,7 +153,7 @@ class JournalEntry(AccountsController):
 			frappe.throw(_("Journal Entry type should be set as Depreciation Entry for asset depreciation"))
 
 	def validate_stock_accounts(self):
-		stock_accounts = get_stock_accounts(self.company, self.doctype, self.name)
+		stock_accounts = get_stock_accounts(self.company, accounts=self.accounts)
 		for account in stock_accounts:
 			account_bal, stock_bal, warehouse_list = get_stock_and_account_balance(
 				account, self.posting_date, self.company
@@ -433,8 +433,22 @@ class JournalEntry(AccountsController):
 		if customers:
 			from erpnext.selling.doctype.customer.customer import check_credit_limit
 
+			customer_details = frappe._dict(
+				frappe.db.get_all(
+					"Customer Credit Limit",
+					filters={
+						"parent": ["in", customers],
+						"parenttype": ["=", "Customer"],
+						"company": ["=", self.company],
+					},
+					fields=["parent", "bypass_credit_limit_check"],
+					as_list=True,
+				)
+			)
+
 			for customer in customers:
-				check_credit_limit(customer, self.company)
+				ignore_outstanding_sales_order = bool(customer_details.get(customer))
+				check_credit_limit(customer, self.company, ignore_outstanding_sales_order)
 
 	def validate_cheque_info(self):
 		if self.voucher_type in ["Bank Entry"]:
