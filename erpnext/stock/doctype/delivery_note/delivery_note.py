@@ -424,18 +424,7 @@ class DeliveryNote(SellingController):
 				ps.cancel()
 			frappe.msgprint(_("Packing Slip(s) cancelled"))
 
-	def update_status(self, status):
-		# if status == "Closed":
-			# doc_details = frappe.db.sql("""
-						# select name
-						# from `tabMRP Import Entry`where
-						# transaction_type = "Delivery Note"
-						# and reference_name = %s
-						# """, (self.name), as_dict=True)
-			
-			# if not doc_details:
-				# frappe.msgprint(_("Import Entry for delivery note {0} does not exist.").format(self.name))
-			
+	def update_status(self, status):			
 		self.set_status(update=True, status=status)
 		self.notify_update()
 		clear_doctype_notifications(self)

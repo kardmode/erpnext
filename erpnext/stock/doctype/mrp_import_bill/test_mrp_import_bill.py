@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-# Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
-from __future__ import unicode_literals
 
-import frappe
-import unittest
+# import frappe
+from frappe.tests.utils import FrappeTestCase
 
-class TestMRPImportBill(unittest.TestCase):
+
+class TestMRPImportBill(FrappeTestCase):
 	pass

@@ -1518,19 +1518,48 @@ def get_children(parent=None, is_root=False, **filters):
 
 		return bom_items
 
-@frappe.whitelist()	
-def convert_units(unit,value):
-	if unit == "ft":
-		finalvalue = flt(value) * flt(.3048)
-	elif unit == "cm":
-		finalvalue = flt(value) * flt(.01)
-	elif unit == "mm":
-		finalvalue = flt(value) * flt(0.001)
-	elif unit == "in":
-		finalvalue = flt(value) * flt(.0254)
-	else:
-		finalvalue = flt(value)
-	return finalvalue
+@frappe.whitelist()
+def convert_units(unit, value):
+	conversion = {
+		"m": 1,
+		"meter": 1,
+		"meters": 1,
+
+		"km": 1000,
+		"kilometer": 1000,
+		"kilo": 1000,
+
+		"cm": 0.01,
+		"centimeter": 0.01,
+		"centimeters": 0.01,
+
+		"mm": 0.001,
+		"millimeter": 0.001,
+		"millimeters": 0.001,
+
+		"um": 0.000001,
+		"micron": 0.000001,
+
+		"ft": 0.3048,
+		"foot": 0.3048,
+		"feet": 0.3048,
+
+		"in": 0.0254,
+		"inch": 0.0254,
+		"inches": 0.0254,
+
+		"yd": 0.9144,
+		"yard": 0.9144,
+		"yards": 0.9144,
+
+		"mi": 1609.344,
+		"mile": 1609.344,
+		"miles": 1609.344
+	}
+
+	unit = (unit or "").lower()
+
+	return flt(flt(value) * conversion.get(unit, 1), 6)
 	
 @frappe.whitelist()		
 def builder_merge_for_material_list(unmerged):
@@ -2025,11 +2054,11 @@ def build_bom_ext(bomitems,qtyRequired,qtyOriginal,dimensions):
 		has_laminate = False
 		
 		if not bb_item:
-			frappe.throw(_("No item provided for row {0} in BOM Builder Table").format(i))
+			frappe.throw(_("No item provided for row {0} in BOM Builder Table").format(i+1))
 		if not side:
-			frappe.throw(_("No part provided for item {0} in BOM Builder Table").format(bb_item))
+			frappe.throw(_("No part provided for row {0} item {0} in BOM Builder Table").format(i+1, bb_item))
 		if not d.bb_qty:
-			frappe.throw(_("Qty is not entered for item {0} in BOM Builder Table").format(bb_item))
+			frappe.throw(_("Qty is not entered for row {0} item {0} in BOM Builder Table").format(i+1, bb_item))
 		
 		# Use quantity considering bom quantity and what's required to manufacture - for production
 		if is_number(d.bb_qty):

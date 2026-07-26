@@ -5,10 +5,10 @@ frappe.provide("erpnext.bom");
 
 frappe.ui.form.on("BOM", {
   setup(frm) {
-    // frm.custom_make_buttons = {
-    // 'Work Order': 'Work Order',
-    // 'Quality Inspection': 'Quality Inspection'
-    // };
+    frm.custom_make_buttons = {
+      'Work Order': 'Work Order',
+      'Quality Inspection': 'Quality Inspection'
+    };
 
     // frm.set_query("bom_no", "items", function() {
     // return {
@@ -107,15 +107,19 @@ frappe.ui.form.on("BOM", {
 
   onload_post_render(frm) {
     frm.get_field("items").grid.set_multiple_add("item_code", "qty");
-
-    /* setTimeout(function(){
-				
-						frm.trigger("refresh_builder_editable");
-			}, 1000); */
   },
 
   refresh(frm) {
-    // frm.toggle_enable("item", frm.doc.__islocal);
+    //frm.toggle_enable("item", frm.doc.__islocal);
+
+    if (frm.doc.docstatus == 0) {
+      add_get_items_button(frm);
+
+
+      if (frm.doc.bomitems && frm.doc.bomitems.length) {
+        refresh_builder_permissions(frm.doc.bomitems);
+      }
+    }
 
     frm.set_indicator_formatter("item_code", function (doc) {
       if (doc.original_item) {
@@ -143,40 +147,40 @@ frappe.ui.form.on("BOM", {
       });
     }
 
-    /* if(frm.doc.docstatus!=0) {
-		}
+    if (frm.doc.docstatus != 0) {
+    }
 
-		if (frm.doc.docstatus == 1) {
-			frm.add_custom_button(
-				__("Work Order"),
-				function () {
-					frm.trigger("make_work_order");
-				},
-				__("Create")
-			);
+    if (frm.doc.docstatus == 1) {
+      frm.add_custom_button(
+        __("Work Order"),
+        function () {
+          frm.trigger("make_work_order");
+        },
+        __("Create")
+      );
 
-			if (frm.doc.has_variants) {
-				frm.add_custom_button(
-					__("Variant BOM"),
-					function () {
-						frm.trigger("make_variant_bom");
-					},
-					__("Create")
-				);
-			}
+      if (frm.doc.has_variants) {
+        frm.add_custom_button(
+          __("Variant BOM"),
+          function () {
+            frm.trigger("make_variant_bom");
+          },
+          __("Create")
+        );
+      }
 
-			if (frm.doc.inspection_required) {
-				frm.add_custom_button(
-					__("Quality Inspection"),
-					function () {
-						frm.trigger("make_quality_inspection");
-					},
-					__("Create")
-				);
-			}
+      if (frm.doc.inspection_required) {
+        frm.add_custom_button(
+          __("Quality Inspection"),
+          function () {
+            frm.trigger("make_quality_inspection");
+          },
+          __("Create")
+        );
+      }
 
-			frm.page.set_inner_btn_group_as_primary(__('Create'));
-		} */
+      frm.page.set_inner_btn_group_as_primary(__('Create'));
+    }
 
     if (frm.doc.items && frm.doc.allow_alternative_item) {
       const has_alternative = frm.doc.items.find(
@@ -198,10 +202,6 @@ frappe.ui.form.on("BOM", {
           });
         });
       }
-    }
-
-    if (frm.doc.docstatus < 1) {
-      frm.get_field("build_bom").$input.addClass("btn-primary");
     }
 
     if (frm.doc.has_variants) {
@@ -480,10 +480,14 @@ frappe.ui.form.on("BOM", {
     }
   },
   item(frm) {
-    frm.events.use_manufacturing_template(frm);
+    if (frm.__item_processed === frm.doc.item) return;
+
+    frm.__item_processed = frm.doc.item;
+
+    frm.events.custom_mrp_get_item_dimensions(frm);
   },
 
-  use_manufacturing_template(frm) {
+  custom_mrp_get_item_dimensions(frm) {
     if (frm.doc.docstatus > 0 || !frm.doc.item) return;
 
     frappe.call({
@@ -502,30 +506,28 @@ frappe.ui.form.on("BOM", {
       },
       freeze: true,
       callback: function (r) {
-        frm.set_value({
-          depth: r.message["depth"],
-          width: r.message["width"],
-          height: r.message["height"],
-          depthunit: r.message["depthunit"],
-          widthunit: r.message["widthunit"],
-          heightunit: r.message["heightunit"],
-        });
+        frm.doc.depth = r.message["depth"];
+        frm.doc.width = r.message["width"];
+        frm.doc.height = r.message["height"];
+        frm.doc.depthunit = r.message["depthunit"];
+        frm.doc.widthunit = r.message["widthunit"];
+        frm.doc.heightunit = r.message["heightunit"];
 
-        var bomitems = frm.doc.bomitems || [];
-        refresh_builder_editable_row(bomitems, true, true);
+        frm.refresh_fields("depth", "width", "height", "depthunit", "widthunit", "heightunit");
+        refresh_builder_rows(frm.doc.bomitems || []);
+
       },
     });
   },
 
-  refresh_part_dimensions(frm) {
-    var bomitems = frm.doc.bomitems || [];
-    refresh_builder_editable_row(bomitems, false, true);
+  custom_mrp_build_bom(frm) {
+    if (frm.doc.docstatus > 0 || !frm.doc.item) return;
+    refresh_builder_rows(frm.doc.bomitems || []);
   },
-  build_bom(frm) {
-    if (frm.doc.docstatus > 0) {
-      return;
-    }
 
+  build_bom(frm) {
+    console.log("build_bom");
+    if (frm.doc.docstatus > 0 || !frm.doc.item) return;
     var bomitems = frm.doc.bomitems || [];
 
     if (bomitems.length == 0) {
@@ -547,7 +549,6 @@ frappe.ui.form.on("BOM", {
     frappe.call({
       doc: frm.doc,
       method: "build_bom",
-      freeze: true,
       callback: function (r) {
         refresh_field("summary");
         refresh_field("items");
@@ -1179,7 +1180,7 @@ frappe.ui.form.on("BOM Builder Item", {
 
   side: function (frm, cdt, cdn) {
     var d = locals[cdt][cdn];
-    calculate_builder_dimensions(d, true);
+    refresh_builder_row(d, true);
   },
 
   bb_qty: function (frm, cdt, cdn) {
@@ -1249,11 +1250,7 @@ frappe.ui.form.on("BOM Builder Item", {
   },
 });
 
-var refresh_builder_editable_row = function (
-  rows,
-  build = false,
-  update_dimensions = false,
-) {
+var refresh_builder_rows = function (rows) {
   var depthOriginal = frappe.mrp.convert_units(
     cur_frm.doc.depthunit,
     cur_frm.doc.depth,
@@ -1266,6 +1263,7 @@ var refresh_builder_editable_row = function (
     cur_frm.doc.heightunit,
     cur_frm.doc.height,
   );
+
   frappe.call({
     method: "erpnext.manufacturing.doctype.bom.bom.get_all_part_details",
     args: {
@@ -1312,34 +1310,30 @@ var refresh_builder_editable_row = function (
 
         var grid_row = cur_frm.get_field("bomitems").grid.get_row(row_name);
         if (grid_row) {
-          if (allow_edit) {
-            grid_row.toggle_editable("length", allow_col1);
-            grid_row.toggle_editable("width", allow_col2);
-            grid_row.toggle_editable("bb_item", allow_col3);
-          } else {
-            // grid_row.toggle_editable("length", false);
-            // grid_row.toggle_editable("width", false);
-            // grid_row.toggle_editable("height", false);
+          if (!allow_col1) {
+            grid_row.doc.length = length;
           }
-        }
+          if (!allow_col2) {
+            grid_row.doc.width = width;
+          }
+          if (!allow_col3) {
+            grid_row.doc.height = height;
+          }
+          grid_row.doc.requom = requom;
+          set_row_editable(grid_row, "length", allow_edit && allow_col1);
+          set_row_editable(grid_row, "width", allow_edit && allow_col2);
+          set_row_editable(grid_row, "height", allow_edit && allow_col3);
+          grid_row.refresh();
 
-        if (update_dimensions) {
-          frappe.model.set_value(d.doctype, d.name, "length", length);
-          frappe.model.set_value(d.doctype, d.name, "height", height);
-          frappe.model.set_value(d.doctype, d.name, "width", width);
-          frappe.model.set_value(d.doctype, d.name, "requom", requom);
         }
       }
-      if (build) {
-        cur_frm.trigger("build_bom");
-      }
+      cur_frm.trigger("build_bom");
     },
   });
 };
 
-var calculate_builder_dimensions = function (d, build = false) {
+var refresh_builder_row = function (d, build = false) {
   if (!d.bb_item) return;
-
   if (!d.side) return;
 
   var side = d.side;
@@ -1401,33 +1395,23 @@ var calculate_builder_dimensions = function (d, build = false) {
       }
 
       /* if(cur_frm.get_field('items').grid.fields_map.conversion_factor) {
-			cur_frm.fields_dict.items.grid.toggle_enable("conversion_factor",
-				((item.uom != item.stock_uom) && !frappe.meta.get_docfield(cur_frm.fields_dict.items.grid.doctype, "conversion_factor").read_only)? true: false);
-			} */
+      cur_frm.fields_dict.items.grid.toggle_enable("conversion_factor",
+        ((item.uom != item.stock_uom) && !frappe.meta.get_docfield(cur_frm.fields_dict.items.grid.doctype, "conversion_factor").read_only)? true: false);
+      } */
 
       var grid_row = cur_frm.get_field("bomitems").grid.get_row(row_name);
       if (grid_row) {
-        if (allow_edit) {
-          grid_row.toggle_editable("length", allow_col1);
-          grid_row.toggle_editable("width", allow_col2);
-          grid_row.toggle_editable("height", allow_col3);
-        } else {
-          // grid_row.toggle_editable("length", false);
-          // grid_row.toggle_editable("width", false);
-          // grid_row.toggle_editable("height", false);
-        }
-      }
+        grid_row.doc.length = length;
+        grid_row.doc.width = width;
+        grid_row.doc.height = height;
+        grid_row.doc.requom = requom;
+        set_row_editable(grid_row, "length", allow_edit && allow_col1);
+        set_row_editable(grid_row, "width", allow_edit && allow_col2);
+        set_row_editable(grid_row, "height", allow_edit && allow_col3);
+        grid_row.refresh();
 
-      frappe.model.set_value(d.doctype, d.name, "length", length);
-      frappe.model.set_value(d.doctype, d.name, "height", height);
-      frappe.model.set_value(d.doctype, d.name, "width", width);
-      frappe.model.set_value(d.doctype, d.name, "requom", requom);
-
-      if (d.bb_item) {
-        if (build) {
-          cur_frm.trigger("build_bom");
-        }
       }
+      cur_frm.trigger("build_bom");
     },
   });
 };
@@ -1523,3 +1507,159 @@ function trigger_process_loss_qty_prompt(frm, cdt, cdn, item_code) {
     __("Set Quantity"),
   );
 }
+
+function add_get_items_button(frm) {
+  frm.add_custom_button("CSV", () => {
+    let dialog = new frappe.ui.Dialog({
+      title: "Import BOM Items",
+      fields: [
+        {
+          fieldname: "clear_items",
+          fieldtype: "Check",
+          label: "Clear Existing Items First",
+          default: 0
+        },
+        {
+          fieldname: "update_items",
+          fieldtype: "Check",
+          label: "Update Existing Items",
+          default: 0
+        },
+        {
+          fieldname: "quantity_mode",
+          fieldtype: "Select",
+          label: "When Updating Quantity",
+          options: [
+            "Replace Quantity",
+            "Add Quantity"
+          ],
+          default: "Replace Quantity",
+          depends_on: "eval:doc.update_items"
+        },
+        {
+          fieldname: "skip_invalid",
+          fieldtype: "Check",
+          label: "Skip Invalid Rows",
+          default: 0
+        }
+      ],
+      primary_action_label: "Upload CSV",
+      primary_action() {
+        let settings = dialog.get_values();
+        dialog.hide();
+
+        new frappe.ui.FileUploader({
+          as_dataurl: true,
+          allow_multiple: false,
+
+          on_success(file) {
+            let csv = atob(file.dataurl.split(",")[1]);
+            let rows = frappe.utils.csv_to_array(csv);
+
+            let headers = rows.shift();
+            let existing = {};
+
+            frm.doc.items.forEach(item => {
+              existing[item.item_code] = item;
+            });
+
+            if (settings.clear_items) {
+              frm.clear_table("items");
+              existing = {};
+            }
+
+            let skipped = [];
+
+            rows.forEach((row, index) => {
+              let data = {};
+
+              headers.forEach((header, i) => {
+                data[header.trim()] = row[i];
+              });
+
+              if (!data.item_code || !data.qty) {
+                if (settings.skip_invalid) {
+                  skipped.push(`Row ${index + 2}: Missing item or qty`);
+                  return;
+                }
+
+                frappe.throw(`Row ${index + 2}: Missing item or qty`);
+              }
+
+              if (settings.update_items && existing[data.item_code]) {
+                let item = existing[data.item_code];
+
+                if (settings.quantity_mode === "Add Quantity") {
+                  item.qty += flt(data.qty);
+                } else {
+                  item.qty = flt(data.qty);
+                }
+
+                if (data.uom) {
+                  item.uom = data.uom;
+                }
+              } else {
+                let item = frm.add_child("items");
+
+                item.item_code = data.item_code;
+                item.qty = flt(data.qty);
+                item.uom = data.uom;
+
+                existing[data.item_code] = item;
+              }
+            });
+
+            frm.refresh_field("items");
+
+            if (skipped.length) {
+              frappe.msgprint({
+                title: "Skipped Rows",
+                message: skipped.join("<br>"),
+                indicator: "orange"
+              });
+            }
+          }
+        });
+      }
+    });
+
+    dialog.show();
+  }, "Get Items From");
+}
+
+function set_row_editable(grid_row, fieldname, editable) {
+  let df = grid_row.docfields.find(d => d.fieldname === fieldname);
+
+  if (!df) return;
+
+  df.read_only = !editable;
+}
+
+var refresh_builder_permissions = function (rows) {
+  frappe.call({
+    method: "erpnext.manufacturing.doctype.bom.bom.get_all_part_details",
+    args: {
+      args: rows,
+    },
+    callback: function (r) {
+      for (let d of r.message) {
+        if (!d.name) continue;
+
+        let grid_row = cur_frm.get_field("bomitems").grid.get_row(d.name);
+        if (!grid_row) continue;
+
+        let allow_col1 = Boolean(Number(d.allow_col1));
+        let allow_col2 = Boolean(Number(d.allow_col2));
+        let allow_col3 = Boolean(Number(d.allow_col3));
+
+        let allow_edit = !["top", "front", "side"].includes(d.plane);
+
+        set_row_editable(grid_row, "length", allow_edit && allow_col1);
+        set_row_editable(grid_row, "width", allow_edit && allow_col2);
+        set_row_editable(grid_row, "height", allow_edit && allow_col3);
+
+        grid_row.refresh();
+      }
+    },
+  });
+};

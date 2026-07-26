@@ -1,11 +1,6 @@
 {
- "charts": [
-  {
-   "chart_name": "Item Shortage Summary",
-   "label": "Item Shortage Summary"
-  }
- ],
- "content": "[{\"id\":\"83lIo6RrYR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"5l3W7FRDha\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Group\",\"col\":3}},{\"id\":\"JQoBjkcgCU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Reconciliation\",\"col\":3}},{\"id\":\"PnaXvDP875\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customs Tariff Number\",\"col\":3}},{\"id\":\"BoJAZfVhrr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Import Item Alt\",\"col\":3}},{\"id\":\"q8tPoQ93k4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"uzV3N0WWQc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"qSrE6CthhQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"It3hvOQmIB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"8RasH2Prcj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"KkLtmVFlIS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"ucO-yZuBtS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Delivery\",\"col\":3}},{\"id\":\"5n9zC41Br9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Sale\",\"col\":3}},{\"id\":\"rjwR1mNuOq\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"MWahF3xQsC\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-LMoDSveiU\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Item Shortage Summary\",\"col\":12}},{\"id\":\"TfqosnEFen\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Purchase Receipt\",\"col\":6}},{\"id\":\"uJpHqg9Ltf\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Delivery Note\",\"col\":6}}]",
+ "charts": [],
+ "content": "[{\"id\":\"83lIo6RrYR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"6ZAEalNhBL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Duplicate Item Finder\",\"col\":3}},{\"id\":\"5l3W7FRDha\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Group\",\"col\":3}},{\"id\":\"JQoBjkcgCU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Reconciliation\",\"col\":3}},{\"id\":\"PnaXvDP875\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customs Tariff Number\",\"col\":3}},{\"id\":\"BoJAZfVhrr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Import Item Alt\",\"col\":3}},{\"id\":\"q8tPoQ93k4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Material Request\",\"col\":3}},{\"id\":\"qSrE6CthhQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Receipt\",\"col\":3}},{\"id\":\"It3hvOQmIB\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Delivery Note\",\"col\":3}},{\"id\":\"8RasH2Prcj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Ledger\",\"col\":3}},{\"id\":\"KkLtmVFlIS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Balance\",\"col\":3}},{\"id\":\"ucO-yZuBtS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Delivery\",\"col\":3}},{\"id\":\"5n9zC41Br9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Sale\",\"col\":3}},{\"id\":\"YPDF-nBye4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cross Company Invoice\",\"col\":3}},{\"id\":\"MWahF3xQsC\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"TfqosnEFen\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Purchase Receipt\",\"col\":6}},{\"id\":\"uJpHqg9Ltf\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Delivery Note\",\"col\":6}}]",
  "creation": "2020-03-02 15:43:10.096528",
  "custom_blocks": [],
  "docstatus": 0,
@@ -26,6 +21,12 @@
    "doc_view": "",
    "label": "Cross Company Sale",
    "link_to": "Cross Company Sale",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Cross Company Invoice",
+   "link_to": "Cross Company Invoice",
    "type": "DocType"
   }
  ],
@@ -99,7 +100,7 @@
    "type": "Link"
   }
  ],
- "modified": "2025-12-22 03:24:18.340718",
+ "modified": "2026-07-24 13:53:37.371685",
  "modified_by": "Administrator",
  "module": "Stock",
  "name": "Stock",
@@ -149,6 +150,14 @@
   {
    "color": "Grey",
    "doc_view": "List",
+   "label": "Cross Company Invoice",
+   "link_to": "Cross Company Invoice",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
    "label": "Cross Company Sale",
    "link_to": "Cross Company Sale",
    "stats_filter": "[]",
@@ -163,19 +172,19 @@
    "type": "DocType"
   },
   {
-   "color": "Grey",
-   "doc_view": "List",
-   "label": "Dashboard",
-   "link_to": "Stock",
-   "type": "Dashboard"
-  },
-  {
    "color": "Green",
    "doc_view": "List",
    "format": "{}  ",
    "label": "Item",
    "link_to": "Item",
    "stats_filter": "[[\"Item\",\"disabled\",\"=\",0,false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Duplicate Item Finder",
+   "link_to": "Duplicate Item Finder",
    "type": "DocType"
   },
   {
@@ -192,11 +201,6 @@
    "label": "Customs Tariff Number",
    "link_to": "Customs Tariff Number",
    "stats_filter": "[]",
-   "type": "DocType"
-  },
-  {
-   "label": "Stock Entry",
-   "link_to": "Stock Entry",
    "type": "DocType"
   },
   {

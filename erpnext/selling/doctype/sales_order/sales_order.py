@@ -188,7 +188,7 @@ class SalesOrder(SellingController):
 				(self.project, self.customer),
 			)
 			if not res:
-				frappe.throw(
+				frappe.msgprint(
 					_("Customer {0} does not belong to project {1}").format(self.customer, self.project)
 				)
 
