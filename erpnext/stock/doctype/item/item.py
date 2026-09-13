@@ -71,22 +71,29 @@ class Item(Document):
 		self.item_code = strip(self.item_code)
 		self.name = self.item_code
 		
-	def mrp_validate_item_code(self,code):
-		if "payment" in str(code).lower():
-			frappe.throw(_("You cannot make payment items because I told you not to."))
-
-
-	def before_insert(self):
-		self.mrp_validate_item_code(self.item_code)
-		
+	def mrp_validate_item_code(self):
 		if not self.item_name:
 			self.item_name = self.item_code
-		else:
-			self.item_name = self.item_name.strip()
+		
+		self.item_name = self.item_name.strip()
 		
 		if not self.description:
 			self.description = self.item_name
 
+		self.description = strip_html(cstr(self.description)).strip()
+
+		if not self.parent_item_group:
+			self.parent_item_group = frappe.db.get_value(
+				"Item Group",
+				self.item_group,
+				"parent_item_group"
+			)
+		
+	def before_insert(self):
+		if "payment" in str(self.item_code).lower():
+			frappe.throw(_("Please use payment items that already exist."))
+		
+		self.mrp_validate_item_code()
 
 	def after_insert(self):
 		"""set opening stock and item price"""
@@ -101,19 +108,12 @@ class Item(Document):
 			
 		if self.opening_stock:
 			self.set_opening_stock()
-			
-	
 
 	def validate(self):
 		if not self.item_name:
 			self.item_name = self.item_code
 
-		if not strip_html(cstr(self.description)).strip():
-			self.description = self.item_name
-			
-		if not self.parent_item_group:
-			self.parent_item_group = frappe.db.get_value("item_group", self.item_group, "parent_item_group")
-
+		self.mrp_validate_item_code()
 		self.validate_uom()
 		self.validate_description()
 		self.add_default_uom_in_conversion_factor_table()
@@ -507,13 +507,9 @@ class Item(Document):
 			frappe.delete_doc("Item", variant_of.name)
 
 	def before_rename(self, old_name, new_name, merge=False):
-		# self.mrp_validate_item_code(new_name)
 		# if self.item_name==old_name:
 			# frappe.db.set_value("Item", old_name, "item_name", new_name)
 		
-		# if not self.item_code == new_name:
-			# frappe.throw(_("Item Code {0} and Name have to be the same. Name is not the same as item name").format(self.item_code,new_name))
-				
 		if merge:
 			self.validate_properties_before_merge(new_name)
 			self.validate_duplicate_product_bundles_before_merge(old_name, new_name)

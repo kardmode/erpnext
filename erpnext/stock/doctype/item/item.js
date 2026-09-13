@@ -83,29 +83,169 @@ frappe.ui.form.on("Item", {
 			frm.trigger("set_asset_naming_series");
 		}
 	},
-
-	refresh: function(frm) {
-		if (!frm.doc.__islocal){
-			if(!frm.doc.parent_item_group && frm.doc.item_group)
-			{		
-				frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
-					parent_item_group = r && r.parent_item_group;
-					frm.set_value("parent_item_group",parent_item_group);
-				});
-				
-			}
-			
+	mrp_create_scrap_version(frm) {
+		if (!frm.doc.name) {
+			frappe.msgprint("Please save the Item first");
+			return;
 		}
-		
-		frm.add_custom_button(__("Add Weight"), function() {
+
+		// Convert original dimensions to meters
+		let orig_len = frm.doc.depth ? frappe.mrp.convert_units(frm.doc.depthunit, frm.doc.depth) : 0;
+		let orig_width = frm.doc.width ? frappe.mrp.convert_units(frm.doc.widthunit, frm.doc.width) : 0;
+
+		let dialog = new frappe.ui.Dialog({
+			title: __("Create Scrap Version"),
+			fields: [
+				{
+					fieldname: "scrap_type",
+					fieldtype: "Select",
+					label: __("Scrap Type"),
+					options: ["Sheet", "Length"].join("\n"),
+					default: "Sheet",
+					reqd: 1
+				},
+				{
+					fieldname: "item_code",
+					fieldtype: "Data",
+					label: __("New Scrap Item Code"),
+					default: frm.doc.name + "-SCRAP",
+					reqd: 1
+				},
+				{
+					fieldname: "base_length_display",
+					fieldtype: "Float",
+					label: __("Base Length (m)"),
+					default: orig_len || 1,
+				},
+				{
+					fieldname: "base_width_display",
+					fieldtype: "Float",
+					label: __("Base Width (m)"),
+					default: orig_width || 1,
+					depends_on: "eval:doc.scrap_type == 'Sheet'"
+				},
+				{
+					fieldname: "base_valuation_rate",
+					fieldtype: "Currency",
+					label: __("Base Valuation Rate"),
+					default: frm.doc.valuation_rate || 0
+				},
+				{
+					fieldname: "scrap_length",
+					fieldtype: "Float",
+					label: __("Scrap Length (m)"),
+					default: .01,
+				},
+				{
+					fieldname: "scrap_width",
+					fieldtype: "Float",
+					label: __("Scrap Width (m)"),
+					default: .01,
+					depends_on: "eval:doc.scrap_type == 'Sheet'"
+				}
+			],
+			primary_action_label: __("Create"),
+			primary_action(values) {
+				const uom = values.scrap_type === "Sheet" ? "sqm" : "m";
+				const scrap_code = values.item_code || (frm.doc.name + "-SCRAP");
+				const scrap_name = values.item_code || (frm.doc.name + "-SCRAP");
+				const orig_val_rate = flt(values.base_valuation_rate);
+
+				let scrap_val_rate = 0;
+
+				if (orig_val_rate <= 0) {
+					frappe.throw(__("Please enter a valid Base Valuation Rate."));
+					return;
+				}
+
+				if (values.scrap_type === "Sheet") {
+					if (orig_len <= 0 || orig_width <= 0) {
+						frappe.throw(__("Base Item must have both Depth/Length and Width defined and greater than 0 to calculate Sheet scrap rate."));
+						return;
+					}
+
+					let val_rate_per_sqm = 0;
+
+					if (orig_len > 0 && orig_width > 0) {
+						const orig_area = orig_len * orig_width;
+						val_rate_per_sqm = orig_val_rate / orig_area;
+					} else if (frm.doc.stock_uom === "sqm") {
+						val_rate_per_sqm = orig_val_rate;
+					} else {
+						val_rate_per_sqm = orig_val_rate;
+					}
+
+					scrap_val_rate = val_rate_per_sqm;
+				} else {
+					// Length
+					if (orig_len <= 0) {
+						frappe.throw(__("Base Item must have Depth/Length defined and greater than 0 to calculate Length scrap rate."));
+						return;
+					}
+
+					let val_rate_per_m = 0;
+
+					if (orig_len > 0) {
+						val_rate_per_m = orig_val_rate / orig_len;
+					} else if (frm.doc.stock_uom === "m") {
+						val_rate_per_m = orig_val_rate;
+					} else {
+						val_rate_per_m = orig_val_rate;
+					}
+
+					scrap_val_rate = val_rate_per_m;
+				}
+
+				dialog.hide();
+
+				var new_item = frappe.model.copy_doc(frm.doc);
+				new_item.item_code = scrap_code;
+				new_item.item_name = scrap_name;
+				new_item.stock_uom = uom;
+				new_item.is_stock_item = frm.doc.is_stock_item || 1;
+				new_item.description = frm.doc.description || scrap_name;
+				new_item.has_batch_no = frm.doc.has_batch_no || 0;
+				new_item.has_serial_no = frm.doc.has_serial_no || 0;
+				new_item.depth = flt(values.scrap_length);
+				new_item.depthunit = "m";
+				new_item.width = flt(values.scrap_width);
+				new_item.widthunit = "m";
+				new_item.uoms = [];
+				new_item.valuation_rate = flt(scrap_val_rate.toFixed(4));
+				new_item.standard_buying_rate = flt(scrap_val_rate.toFixed(4));
+				new_item.standard_rate = flt(scrap_val_rate.toFixed(4));
+
+				frappe.set_route("Form", "Item", new_item.name);
+			}
+		});
+
+		dialog.show();
+	},
+
+	refresh: function (frm) {
+		if (!frm.doc.__islocal) {
+			if (!frm.doc.parent_item_group && frm.doc.item_group) {
+				frappe.db.get_value('Item Group', { name: frm.doc.item_group }, 'parent_item_group', (r) => {
+					parent_item_group = r && r.parent_item_group;
+					frm.set_value("parent_item_group", parent_item_group);
+				});
+
+			}
+
+			frm.add_custom_button(__('Create Scrap Version'), () => {
+				frm.trigger('mrp_create_scrap_version');
+			}, __('Actions'));
+		}
+
+		frm.add_custom_button(__("Add Weight"), function () {
 			frm.trigger('mrp_add_weight');
 		}, __("Actions"));
-		
-		frm.add_custom_button(__("Add Units"), function() {
+
+		frm.add_custom_button(__("Add Units"), function () {
 			frm.trigger('mrp_add_uom');
 		}, __("Actions"));
-		
-		frm.add_custom_button(__("Generate Random Barcode"), function() {
+
+		frm.add_custom_button(__("Generate Random Barcode"), function () {
 			frm.trigger('mrp_add_barcode');
 		}, __("Actions"));
 
@@ -295,8 +435,8 @@ frappe.ui.form.on("Item", {
 
 	validate: function (frm) {
 		erpnext.item.weight_to_validate(frm);
-		calculate_conversion_factor(frm,false);
-		
+		calculate_conversion_factor(frm, false);
+
 	},
 
 	image: function () {
@@ -339,32 +479,40 @@ frappe.ui.form.on("Item", {
 
 	page_name: frappe.utils.warn_page_name_change,
 
-	// item_name: function(frm) {
-		// if(frm.doc.item_name)
-		// {
-			// var newword = process_string(frm.doc.item_name);
-			// frm.set_value("item_name", newword.trim());
-		// }
-	// },
-	
-	item_code: function(frm) {
-		if(!frm.doc.item_name)
-			frm.set_value("item_name", frm.doc.item_code);
-	},
-	
-	item_group: function(frm) {
-		if(frm.doc.item_group == "Services" || frm.doc.item_group == "Header1" || frm.doc.item_group == "Header2"){
-			frm.set_value("is_stock_item", 0);
-		}else {			
+	item_name: function (frm) {
+		if (frm.doc.item_name) {
+			//var newword = process_string(frm.doc.item_name);
+			//frm.set_value("item_name", newword.trim());
+			//frm.set_value("item_name", frm.doc.item_name.trim());
 		}
 	},
-	
-	opening_stock: function(frm) {
-		if(frm.doc.opening_stock > 0){
+
+	item_code: function (frm) {
+		if (frm.is_new()) {
+			frm.set_value("item_name", frm.doc.item_code);
+			frm.set_value("description", frm.doc.item_code);
+		}
+		else {
+			if (!frm.doc.item_name)
+				frm.set_value("item_name", frm.doc.item_code);
+			if (!frm.doc.description)
+				frm.set_value("description", frm.doc.item_code);
+		}
+	},
+
+	item_group: function (frm) {
+		if (frm.doc.item_group == "Services" || frm.doc.item_group == "Header1" || frm.doc.item_group == "Header2") {
+			frm.set_value("is_stock_item", 0);
+		} else {
+		}
+	},
+
+	opening_stock: function (frm) {
+		if (frm.doc.opening_stock > 0) {
 			frappe.call({
 				method: "erpnext.stock.utils.get_default_warehouse",
-				callback: function(r) {
-					if(!r.exc) {
+				callback: function (r) {
+					if (!r.exc) {
 						cur_frm.set_value("opening_warehouse", r.message.source_warehouse);
 					}
 				}
@@ -383,7 +531,7 @@ frappe.ui.form.on("Item", {
 	has_variants: function (frm) {
 		erpnext.item.toggle_attributes(frm);
 	},
-	mrp_add_barcode: function(frm) {
+	mrp_add_barcode: function (frm) {
 		function generateEAN13() {
 			// Generate a random 12-digit number (excluding the check digit)
 			var randomNumber = Math.floor(Math.random() * 1000000000000); // Generate a random 12-digit number
@@ -397,10 +545,10 @@ frappe.ui.form.on("Item", {
 
 			// Concatenate the generated number with the check digit to form the complete EAN-13 number
 			var ean = randomNumber.toString() + checkDigit.toString();
-			
+
 			return ean;
 		}
-		
+
 		function generateRandomCode() {
 			// Generate a random 12-digit number (excluding the check digit)
 			var randomNumber = Math.floor(Math.random() * 1000000000000); // Generate a random 12-digit number
@@ -411,61 +559,64 @@ frappe.ui.form.on("Item", {
 		// Generate a random EAN-13 barcode number
 		var barcodeData = generateEAN13();
 
-		let row = frm.add_child('barcodes', {barcode:barcodeData,uom:frm.doc.stock_uom });
+		let row = frm.add_child('barcodes', { barcode: barcodeData, uom: frm.doc.stock_uom });
 		refresh_field("barcodes");
-		cur_frm.script_manager.trigger("barcode", row.doctype, row.name);	
+		cur_frm.script_manager.trigger("barcode", row.doctype, row.name);
 	},
-	mrp_add_uom: function(frm) {
+	mrp_add_uom: function (frm) {
 		var dialog = new frappe.ui.Dialog({
 			fields: [
-				{fieldname:'calc_check', fieldtype:'Check', default:0, label:'Calculate Area/Volume from Dimensions',
+				{
+					fieldname: 'calc_check', fieldtype: 'Check', default: 0, label: 'Calculate Area/Volume from Dimensions',
 					onchange() {
-						var fieldnames = ['stock_qty','stock_uom','qty','uom']
+						var fieldnames = ['stock_qty', 'stock_uom', 'qty', 'uom']
 						var calc_check = dialog.get_field('calc_check');
-						fieldnames.forEach(function(d) {
+						fieldnames.forEach(function (d) {
 							dialog.set_df_property(d, 'reqd', !calc_check.get_value());
 						});
 					}
 				},
 
-				
-				{fieldtype:'Section Break',fieldname:'section1',
+
+				{
+					fieldtype: 'Section Break', fieldname: 'section1',
 					depends_on: doc => doc.calc_check === 0
 				},
-				{fieldname:'qty', fieldtype:'Float', default:1, reqd:1, label:'Qty'},
-				{fieldtype:'Column Break',fieldname:'column2'},
-				{fieldname:'uom',fieldtype:'Link', options:'UOM', reqd:1, label:__('UOM')},
-								{fieldtype:'Section Break',fieldname:'section_1',
+				{ fieldname: 'qty', fieldtype: 'Float', default: 1, reqd: 1, label: 'Qty' },
+				{ fieldtype: 'Column Break', fieldname: 'column2' },
+				{ fieldname: 'uom', fieldtype: 'Link', options: 'UOM', reqd: 1, label: __('UOM') },
+				{
+					fieldtype: 'Section Break', fieldname: 'section_1',
 					depends_on: doc => doc.calc_check === 0
 				},
-				{fieldtype:'Read Only',fieldname:'sectiondesc',default:'Converts To',
+				{
+					fieldtype: 'Read Only', fieldname: 'sectiondesc', default: 'Converts To',
 					depends_on: doc => doc.calc_check === 0
 				},
-				{fieldtype:'Section Break',fieldname:'section0',
+				{
+					fieldtype: 'Section Break', fieldname: 'section0',
 					depends_on: doc => doc.calc_check === 0
 				},
-				{fieldname:'stock_qty', fieldtype:'Float', default:1, reqd:1, label:'Stock Qty'},
-				{fieldtype:'Column Break',fieldname:'column1'},
-				{fieldname:'stock_uom', fieldtype:'Link', options:'UOM', reqd:1, read_only:1, label:__('Stock UOM'),default:frm.doc.stock_uom},
-				
+				{ fieldname: 'stock_qty', fieldtype: 'Float', default: 1, reqd: 1, label: 'Stock Qty' },
+				{ fieldtype: 'Column Break', fieldname: 'column1' },
+				{ fieldname: 'stock_uom', fieldtype: 'Link', options: 'UOM', reqd: 1, read_only: 1, label: __('Stock UOM'), default: frm.doc.stock_uom },
+
 			]
 		});
 
-		dialog.set_primary_action(__('Add'), function() {
+		dialog.set_primary_action(__('Add'), function () {
 			var data = dialog.get_values();
-			if(!data) return;
-			
-			if(data.calc_check === 1)
-			{
-				calculate_conversion_factor(frm,true);
+			if (!data) return;
+
+			if (data.calc_check === 1) {
+				calculate_conversion_factor(frm, true);
 			}
-			else
-			{
-				if(data.uom === data.stock_uom) return;
+			else {
+				if (data.uom === data.stock_uom) return;
 				var conversion_factor = flt(data.stock_qty) / flt(data.qty);
-				mrp_add_uom_to_table(frm,[data.uom],[conversion_factor]);
+				mrp_add_uom_to_table(frm, [data.uom], [conversion_factor]);
 			}
-			
+
 			dialog.hide();
 			refresh_field("uoms");
 		})
@@ -473,110 +624,113 @@ frappe.ui.form.on("Item", {
 		dialog.show();
 	},
 
-	mrp_add_weight: function(frm) {
-	let dialog = new frappe.ui.Dialog({
-		title: __('Calculate Item Weight'),
-		fields: [
-			{fieldname:'profile_shape', fieldtype:'Select', default:"Rectangle", options:['Circle','Rectangle'], label:'Profile Shape', reqd:1},
-			{fieldname:'profile_direction', fieldtype:'Select', label:'Profile Direction',
-				options:['Length','Width','Height'], default:'Length'
-			},
-			{fieldtype:'Column Break'},
-			{fieldname:'is_hollow', fieldtype:'Check', label:'Is Hollow', default:0},
-			{fieldtype:'Section Break'},
-			{fieldname:'profile_length', fieldtype:'Float', label:'Depth / Length', reqd:1, default: frm.doc.depth || 0, read_only:1},
-			{fieldname:'profile_width', fieldtype:'Float', label:'Width / Diameter', reqd:1, default: frm.doc.width || 0, read_only:1},
-			{fieldname:'profile_height', fieldtype:'Float', label:'Height / Diameter', reqd:1, default: frm.doc.height || 0, read_only:1},
-			{fieldname:'profile_thickness', fieldtype:'Float', label:'Thickness', default:0,
-				depends_on:'eval:doc.is_hollow'
-			},			
-			{fieldname:'density', fieldtype:'Float', label:'Density (kg/m³)', reqd:1, default:0},
-			
-			{fieldtype:'Column Break'},
-			
-			{fieldname:'profile_length_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Length Unit', default: frm.doc.depthunit || 'm', read_only:1},
-			{fieldname:'profile_width_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Width Unit', default: frm.doc.widthunit || 'm', read_only:1},
-			
-			{fieldname:'profile_height_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Height Unit', default: frm.doc.heightunit || 'm', read_only:1},
-			
-			{fieldname:'profile_thickness_units', fieldtype:'Select', options:['mm','cm','m','ft','in'], label:'Thickness Unit', default:'mm',
-				depends_on:'eval:doc.is_hollow'
-			},
-			{fieldname:'calculated_weight', fieldtype:'Float', label:'Weight (Kg)', read_only:1}
-			
-		]
-	});
-	
-	function update_weight_preview(add_to_form = false) {
-		let d = dialog.get_values();
-		if(!d) return;
+	mrp_add_weight: function (frm) {
+		let dialog = new frappe.ui.Dialog({
+			title: __('Calculate Item Weight'),
+			fields: [
+				{ fieldname: 'profile_shape', fieldtype: 'Select', default: "Rectangle", options: ['Circle', 'Rectangle'], label: 'Profile Shape', reqd: 1 },
+				{
+					fieldname: 'profile_direction', fieldtype: 'Select', label: 'Profile Direction',
+					options: ['Length', 'Width', 'Height'], default: 'Length'
+				},
+				{ fieldtype: 'Column Break' },
+				{ fieldname: 'is_hollow', fieldtype: 'Check', label: 'Is Hollow', default: 0 },
+				{ fieldtype: 'Section Break' },
+				{ fieldname: 'profile_length', fieldtype: 'Float', label: 'Depth / Length', reqd: 1, default: frm.doc.depth || 0, read_only: 1 },
+				{ fieldname: 'profile_width', fieldtype: 'Float', label: 'Width / Diameter', reqd: 1, default: frm.doc.width || 0, read_only: 1 },
+				{ fieldname: 'profile_height', fieldtype: 'Float', label: 'Height / Diameter', reqd: 1, default: frm.doc.height || 0, read_only: 1 },
+				{
+					fieldname: 'profile_thickness', fieldtype: 'Float', label: 'Thickness', default: 0,
+					depends_on: 'eval:doc.is_hollow'
+				},
+				{ fieldname: 'density', fieldtype: 'Float', label: 'Density (kg/m³)', reqd: 1, default: 0 },
 
-		let length_m = frappe.mrp.convert_units(d.profile_length_units, d.profile_length);
-		let width_m = frappe.mrp.convert_units(d.profile_width_units, d.profile_width);
-		let height_m = frappe.mrp.convert_units(d.profile_height_units, d.profile_height);
-		let thickness_m = frappe.mrp.convert_units(d.profile_thickness_units, d.profile_thickness);
+				{ fieldtype: 'Column Break' },
 
-		let fvolume = 0;
+				{ fieldname: 'profile_length_units', fieldtype: 'Select', options: ['mm', 'cm', 'm', 'ft', 'in'], label: 'Length Unit', default: frm.doc.depthunit || 'm', read_only: 1 },
+				{ fieldname: 'profile_width_units', fieldtype: 'Select', options: ['mm', 'cm', 'm', 'ft', 'in'], label: 'Width Unit', default: frm.doc.widthunit || 'm', read_only: 1 },
 
-		switch(d.profile_shape){
+				{ fieldname: 'profile_height_units', fieldtype: 'Select', options: ['mm', 'cm', 'm', 'ft', 'in'], label: 'Height Unit', default: frm.doc.heightunit || 'm', read_only: 1 },
+
+				{
+					fieldname: 'profile_thickness_units', fieldtype: 'Select', options: ['mm', 'cm', 'm', 'ft', 'in'], label: 'Thickness Unit', default: 'mm',
+					depends_on: 'eval:doc.is_hollow'
+				},
+				{ fieldname: 'calculated_weight', fieldtype: 'Float', label: 'Weight (Kg)', read_only: 1 }
+
+			]
+		});
+
+		function update_weight_preview(add_to_form = false) {
+			let d = dialog.get_values();
+			if (!d) return;
+
+			let length_m = frappe.mrp.convert_units(d.profile_length_units, d.profile_length);
+			let width_m = frappe.mrp.convert_units(d.profile_width_units, d.profile_width);
+			let height_m = frappe.mrp.convert_units(d.profile_height_units, d.profile_height);
+			let thickness_m = frappe.mrp.convert_units(d.profile_thickness_units, d.profile_thickness);
+
+			let fvolume = 0;
+
+			switch (d.profile_shape) {
 			case "Circle":
 				let radius, cyl_height;
-				switch(d.profile_direction){
-					case 'Length': radius=width_m/2; cyl_height=length_m; break;
-					case 'Height': radius=width_m/2; cyl_height=height_m; break;
-					case 'Width': radius=length_m/2; cyl_height=width_m; break;
+				switch (d.profile_direction) {
+				case 'Length': radius = width_m / 2; cyl_height = length_m; break;
+				case 'Height': radius = width_m / 2; cyl_height = height_m; break;
+				case 'Width': radius = length_m / 2; cyl_height = width_m; break;
 				}
-				fvolume = Math.PI * Math.pow(radius,2) * cyl_height;
-				if(d.is_hollow && thickness_m>0){
+				fvolume = Math.PI * Math.pow(radius, 2) * cyl_height;
+				if (d.is_hollow && thickness_m > 0) {
 					let inner_r = radius - thickness_m;
-					if(inner_r>0) fvolume -= Math.PI * Math.pow(inner_r,2) * cyl_height;
+					if (inner_r > 0) fvolume -= Math.PI * Math.pow(inner_r, 2) * cyl_height;
 				}
 				break;
 			case "Rectangle":
 				fvolume = width_m * height_m * length_m;
 
-				if(d.is_hollow && thickness_m>0){
+				if (d.is_hollow && thickness_m > 0) {
 					let inner_w = width_m;
 					let inner_h = height_m;
 					let inner_l = length_m;
 
-					switch(d.profile_direction){
-						case 'Length': inner_w -= 2*thickness_m; inner_h -= 2*thickness_m; break;
-						case 'Width': inner_l -= 2*thickness_m; inner_h -= 2*thickness_m; break;
-						case 'Height': inner_l -= 2*thickness_m; inner_w -= 2*thickness_m; break;
+					switch (d.profile_direction) {
+					case 'Length': inner_w -= 2 * thickness_m; inner_h -= 2 * thickness_m; break;
+					case 'Width': inner_l -= 2 * thickness_m; inner_h -= 2 * thickness_m; break;
+					case 'Height': inner_l -= 2 * thickness_m; inner_w -= 2 * thickness_m; break;
 					}
 
-					if(inner_w>0 && inner_h>0 && inner_l>0) 
+					if (inner_w > 0 && inner_h > 0 && inner_l > 0)
 						fvolume -= inner_w * inner_h * inner_l;
 				}
 				break;
 
+			}
+
+			let weight_kg = d.density * fvolume;
+
+			if (add_to_form) {
+				frm.set_value('weight_per_unit', weight_kg);
+				frm.set_value('weight_uom', 'Kg');
+				frappe.msgprint(__('Added weight: {0} Kg', [weight_kg.toFixed(3)]));
+				dialog.hide();
+			}
+			else
+				dialog.set_value('calculated_weight', weight_kg.toFixed(3));
 		}
 
-		let weight_kg = d.density * fvolume;
-		
-		if (add_to_form){
-			frm.set_value('weight_per_unit', weight_kg);
-			frm.set_value('weight_uom', 'Kg');
-			frappe.msgprint(__('Added weight: {0} Kg', [weight_kg.toFixed(3)]));
-			dialog.hide();
-		}
-		else
-			dialog.set_value('calculated_weight', weight_kg.toFixed(3));
-}
-	
-	// Attach change handlers for all relevant fields
-	['profile_length','profile_width','profile_height','profile_thickness','density','profile_direction','profile_shape','is_hollow'].forEach(fn => {
-		dialog.fields_dict[fn].df.change = () => update_weight_preview(false);
-	});
+		// Attach change handlers for all relevant fields
+		['profile_length', 'profile_width', 'profile_height', 'profile_thickness', 'density', 'profile_direction', 'profile_shape', 'is_hollow'].forEach(fn => {
+			dialog.fields_dict[fn].df.change = () => update_weight_preview(false);
+		});
 
-	// Primary action
-	dialog.set_primary_action(__('Add'), function() {
-		update_weight_preview(true);
-	});
+		// Primary action
+		dialog.set_primary_action(__('Add'), function () {
+			update_weight_preview(true);
+		});
 
-	dialog.show();
-}
+		dialog.show();
+	}
 
 });
 
@@ -587,16 +741,16 @@ frappe.ui.form.on("Item", {
 
 
 frappe.ui.form.on('Item Barcode', {
-	barcode: function(frm, cdt, cdn) {
+	barcode: function (frm, cdt, cdn) {
 		var row = frappe.get_doc(cdt, cdn);
 		var barcode = row.barcode;
 		frappe.model.set_value(cdt, cdn, 'custom_display_barcode', barcode);
-		cur_frm.script_manager.trigger("custom_display_barcode", cdt, cdn);	
+		cur_frm.script_manager.trigger("custom_display_barcode", cdt, cdn);
 	}
 })
 
 frappe.ui.form.on('Item Reorder', {
-	reorder_levels_add: function(frm, cdt, cdn) {
+	reorder_levels_add: function (frm, cdt, cdn) {
 		var row = frappe.get_doc(cdt, cdn);
 		var type = frm.doc.default_material_request_type;
 		row.material_request_type = type == "Material Transfer" ? "Transfer" : type;
@@ -752,18 +906,18 @@ $.extend(erpnext.item, {
 			return { query: "erpnext.controllers.queries.supplier_query" };
 		};
 
-		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function(doc, cdt, cdn) {
+		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function (doc, cdt, cdn) {
 			const row = locals[cdt][cdn];
 			return {
 				filters: {
 					"is_group": 0,
 					"company": row.company,
-					disabled:0
+					disabled: 0
 				}
 			}
 		}
-		
-		frm.fields_dict['opening_warehouse'].get_query = function(doc) {
+
+		frm.fields_dict['opening_warehouse'].get_query = function (doc) {
 			return {
 				filters: {
 					"is_group": 0,
@@ -1213,129 +1367,118 @@ $.extend(erpnext.item, {
 	},
 });
 
-var check_parent_item_group = function(frm) {
-	if(!frm.doc.parent_item_group)
-	{		
-		frappe.db.get_value('Item Group', {name: frm.doc.item_group}, 'parent_item_group', (r) => {
+var check_parent_item_group = function (frm) {
+	if (!frm.doc.parent_item_group) {
+		frappe.db.get_value('Item Group', { name: frm.doc.item_group }, 'parent_item_group', (r) => {
 			parent_item_group = r && r.parent_item_group;
-			frm.set_value("parent_item_group",parent_item_group);
+			frm.set_value("parent_item_group", parent_item_group);
 		});
-		
+
 	}
 }
-var calculate_conversion_factor = function(frm,show_debug = false) {
-	
+var calculate_conversion_factor = function (frm, show_debug = false) {
+
 	check_parent_item_group(frm);
 
-	if (frm.doc.depth <=0 || frm.doc.width <= 0 || frm.doc.height <= 0)
-	{
+	if (frm.doc.depth <= 0 || frm.doc.width <= 0 || frm.doc.height <= 0) {
 		if (show_debug) frappe.msgprint(__("All Dimensions have to be greater than 0"));
 	}
-	else
-	{
+	else {
 		var check_units = show_debug;
-		
+
 		if (!show_debug)
 			check_units = check_current_units(frm.doc.stock_uom);
-		
-		if (check_units)
-		{
-			
+
+		if (check_units) {
+
 			var conversion_factors = get_dimensions(frm);
 			var conversion_factor = conversion_factors[0];
 			var cft_conversion_factor = conversion_factors[1];
 			conversion_factor = flt(conversion_factor.toFixed(5));
 			cft_conversion_factor = flt(cft_conversion_factor.toFixed(5));
-			mrp_add_uom_to_table(frm,["sqm","cft"],[conversion_factor,cft_conversion_factor]);
+			mrp_add_uom_to_table(frm, ["sqm", "cft"], [conversion_factor, cft_conversion_factor]);
 		}
-		else
-		{
+		else {
 			if (show_debug) frappe.msgprint(__("Stock UOM can't be a standard unit of length. Must be Nos or sheet etc."));
 		}
 	}
-	
+
 }
 
-var check_current_units = function(unit) {
-	if (["sqm","cft","ft","m","cm","in","mm"].indexOf(unit) < 0){
+var check_current_units = function (unit) {
+	if (["sqm", "cft", "ft", "m", "cm", "in", "mm"].indexOf(unit) < 0) {
 		return true;
 	}
-		
+
 	return false;
 }
 
 
-var mrp_add_uom_to_table = function(frm,units,conversion_factors) {
+var mrp_add_uom_to_table = function (frm, units, conversion_factors) {
 	var tbl = frm.doc.uoms || [];
 	var i = tbl.length;
-	while (i--)
-	{
+	while (i--) {
 		let found_index = units.indexOf(tbl[i].uom);
-	
-		if(found_index > -1)
-		{
+
+		if (found_index > -1) {
 			frm.get_field("uoms").grid.grid_rows[i].remove();
 		}
 	}
-	
-	for(var i=0;i<units.length;i++)
-	{
-		let row = frm.add_child('uoms', {uom:  units[i], conversion_factor: conversion_factors[i]});
+
+	for (var i = 0; i < units.length; i++) {
+		let row = frm.add_child('uoms', { uom: units[i], conversion_factor: conversion_factors[i] });
 	}
 }
 
-var process_string = function(code){
-	
+var process_string = function (code) {
 	code = code.replace(/  +/g, ' ');
-			var newword = "";
-			var tests = ["mm","cm","m","in","ft"];
+	var newword = "";
+	var tests = ["mm", "cm", "m", "in", "ft"];
 
-			code.trim().split(" ").forEach(function(s) {
-				if(s.toLowerCase() == "x"){
-					var ss = s.toLowerCase();
-					if (newword == "")
-						newword = ss;
-					else
-						newword = newword + " " + ss;
-				}
-				else if (tests.indexOf(s.toLowerCase()) != -1)
-				{
-					var ss = s.toLowerCase();
-					if (newword == "")
-						newword = ss;
-					else
-						newword = newword + ss;
-				}
-				else
-				{
-					var ss = s;
-					if (newword == "")
-						newword = ss;
-					else
-						newword = newword + " " + ss;
-					
-				}
-			});
-			newword = newword.replace(" X ", "x");
-			newword = newword.replace(" x ", "x");
-			// newword = newword.replace('"', "");
-			// newword = newword.replace(' " ', "");
-			return newword.trim();
+	code.trim().split(" ").forEach(function (s) {
+		if (s.toLowerCase() == "x") {
+			var ss = s.toLowerCase();
+			if (newword == "")
+				newword = ss;
+			else
+				newword = newword + " " + ss;
+		}
+		else if (tests.indexOf(s.toLowerCase()) != -1) {
+			var ss = s.toLowerCase();
+			if (newword == "")
+				newword = ss;
+			else
+				newword = newword + ss;
+		}
+		else {
+			var ss = s;
+			if (newword == "")
+				newword = ss;
+			else
+				newword = newword + " " + ss;
+
+		}
+	});
+	newword = newword.replace(" X ", "x");
+	newword = newword.replace(" x ", "x");
+	// newword = newword.replace('"', "");
+	// newword = newword.replace(' " ', "");
+	return newword.trim();
 }
 
-var get_dimensions = function(frm) {
-	
-	var length = frappe.mrp.convert_units(frm.doc.depthunit,frm.doc.depth);
-	var width = frappe.mrp.convert_units(frm.doc.widthunit,frm.doc.width);
-	var height = frappe.mrp.convert_units(frm.doc.heightunit,frm.doc.height);
-	
-	var perimeter = 2*flt(length)+2*flt(width);
+var get_dimensions = function (frm) {
+
+	var length = frappe.mrp.convert_units(frm.doc.depthunit, frm.doc.depth);
+	var width = frappe.mrp.convert_units(frm.doc.widthunit, frm.doc.width);
+	var height = frappe.mrp.convert_units(frm.doc.heightunit, frm.doc.height);
+
+	var perimeter = 2 * flt(length) + 2 * flt(width);
 	var farea = flt(length) * flt(width);
 	var fvolume = flt(length) * flt(width) * flt(height);
 	var fvolumecft = fvolume * 35.3147;
-	
-	var conversion_factor = 1/flt(farea);
-	var cft_conversion_factor = 1/flt(fvolumecft);
+
+	var conversion_factor = 1 / flt(farea);
+	var cft_conversion_factor = 1 / flt(fvolumecft);
 	return [conversion_factor, cft_conversion_factor];
 }
 

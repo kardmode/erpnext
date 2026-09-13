@@ -1,115 +1,463 @@
-<div class="page-break">
+<style>
+	.soa-container {
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+		color: #1e293b;
+		line-height: 1.4;
+		font-size: 11px;
+	}
+	.soa-header {
+		margin-bottom: 16px;
+		border-bottom: 2px solid #e2e8f0;
+		padding-bottom: 12px;
+	}
+	.soa-title {
+		font-size: 20px;
+		font-weight: 700;
+		color: #0f172a;
+		letter-spacing: -0.5px;
+		margin: 0 0 8px 0;
+		text-transform: uppercase;
+	}
+	.soa-meta-grid {
+		display: table;
+		width: 100%;
+		margin-top: 8px;
+	}
+	.soa-meta-left {
+		display: table-cell;
+		width: 55%;
+		vertical-align: top;
+	}
+	.soa-meta-right {
+		display: table-cell;
+		width: 45%;
+		vertical-align: top;
+		text-align: right;
+	}
+	.soa-party-name {
+		font-size: 14px;
+		font-weight: 700;
+		color: #1e293b;
+	}
+	.soa-party-sub {
+		font-size: 11px;
+		color: #64748b;
+	}
+	.soa-kpi-grid {
+		display: table;
+		width: 100%;
+		margin-bottom: 18px;
+		border-collapse: separate;
+		border-spacing: 6px 0;
+	}
+	.soa-kpi-card {
+		display: table-cell;
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 6px;
+		padding: 8px 10px;
+		text-align: center;
+		vertical-align: middle;
+	}
+	.soa-kpi-card.highlight {
+		background: #eff6ff;
+		border-color: #bfdbfe;
+	}
+	.soa-kpi-title {
+		font-size: 9px;
+		font-weight: 600;
+		text-transform: uppercase;
+		color: #64748b;
+		margin-bottom: 3px;
+		letter-spacing: 0.3px;
+	}
+	.soa-kpi-val {
+		font-size: 13px;
+		font-weight: 700;
+		color: #0f172a;
+	}
+	.soa-kpi-card.highlight .soa-kpi-val {
+		color: #1d4ed8;
+	}
+	.soa-table {
+		width: 100%;
+		border-collapse: collapse;
+		margin-bottom: 16px;
+		font-size: 10.5px;
+	}
+	.soa-table th {
+		background: #1e293b;
+		color: #ffffff;
+		font-weight: 600;
+		text-align: left;
+		padding: 6px 8px;
+		font-size: 10px;
+		border: 1px solid #1e293b;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	.soa-table th.num-col, .soa-table td.num-col {
+		text-align: right;
+	}
+	.soa-table td {
+		padding: 6px 8px;
+		border: 1px solid #cbd5e1;
+		vertical-align: top;
+	}
+	.soa-table tbody tr:nth-child(even) {
+		background: #f8fafc;
+	}
+	.soa-table tr.total-row {
+		background: #e2e8f0 !important;
+		font-weight: 700;
+	}
+	.soa-table tr.closing-row {
+		background: #0f172a !important;
+		color: #ffffff !important;
+		font-weight: 700;
+		font-size: 11px;
+	}
+	.soa-table tr.closing-row td {
+		border-color: #0f172a;
+		color: #ffffff !important;
+	}
+	.badge-vtype {
+		display: inline-block;
+		font-size: 8.5px;
+		font-weight: 700;
+		padding: 1px 5px;
+		border-radius: 3px;
+		text-transform: uppercase;
+		margin-bottom: 2px;
+	}
+	.badge-invoice {
+		background: #dbeafe;
+		color: #1e40af;
+		border: 1px solid #bfdbfe;
+	}
+	.badge-credit-note {
+		background: #fee2e2;
+		color: #991b1b;
+		border: 1px solid #fecaca;
+	}
+	.badge-payment {
+		background: #dcfce7;
+		color: #166534;
+		border: 1px solid #bbf7d0;
+	}
+	.badge-journal {
+		background: #f3e8ff;
+		color: #6b21a8;
+		border: 1px solid #e9d5ff;
+	}
+	.badge-default {
+		background: #f1f5f9;
+		color: #475569;
+		border: 1px solid #e2e8f0;
+	}
+	.return-ref-text {
+		color: #b91c1c;
+		font-weight: 600;
+		font-size: 9.5px;
+		margin-top: 2px;
+	}
+	.alloc-text {
+		color: #15803d;
+		font-size: 9.5px;
+		margin-top: 2px;
+	}
+	.project-tag {
+		display: inline-block;
+		font-size: 9px;
+		background: #f1f5f9;
+		color: #334155;
+		padding: 1px 4px;
+		border-radius: 3px;
+		margin-top: 2px;
+	}
+	.ageing-box {
+		margin-top: 14px;
+		margin-bottom: 14px;
+	}
+	.ageing-title {
+		font-size: 11px;
+		font-weight: 700;
+		color: #334155;
+		margin-bottom: 4px;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	.letterhead-logo {
+    display: inline-block;
+    margin-right: 10px;
+}
+
+.letterhead-title {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 25px;
+    width: fit-content;
+    white-space: nowrap;
+}
+
+.letterhead-address {
+    text-align: center;
+    font-size: 12px;
+}
+</style>
+
+<div class="page-break soa-container">
 	<div id="header-html" class="hidden-pdf">
 		{% if letter_head.content %}
-		<div class="letter-head text-center">{{ letter_head.content }}</div>
-		<hr style="height:2px;border-width:0;color:black;background-color:black;">
+		<div class="letter-head">{{ letter_head.content }}</div>
 		{% endif %}
 	</div>
 	<div id="footer-html" class="visible-pdf">
 		{% if letter_head.footer %}
 		<div class="letter-head-footer">
-			<hr style="border-width:0;color:black;background-color:black;padding-bottom:2px;">
 			{{ letter_head.footer }}
 		</div>
 		{% endif %}
 	</div>
-	<h2 class="text-center">{{ _("STATEMENTS OF ACCOUNTS") }}</h2>
-	<div>
-		{% if filters.party[0] == filters.party_name[0] %}
-			<h5 style="float: left;">{{ _("Customer: ") }} <b>{{ filters.party_name[0] }}</b></h5>
-		{% else %}
-			<h5 style="float: left;">{{ _("Customer: ") }} <b>{{ filters.party[0] }}</b></h5>
-			<h5 style="float: left; margin-left:15px">{{ _("Customer Name: ") }} <b>{{filters.party_name[0] }}</b></h5>
-		{% endif %}
-		<h5 style="float: right;">
-			{{ _("Date: ") }}
-			<b>{{ frappe.format(filters.from_date, 'Date')}}
-			{{ _("to") }}
-			{{ frappe.format(filters.to_date, 'Date')}}</b>
-			</h5>
-	</div>
-	<br>
 
-	<table class="table table-bordered" style="font-size: 10px">
+	<div class="soa-header">
+		<div class="soa-title text-center">{{ _("Statement of Accounts") }}</div>
+		<div class="soa-meta-grid">
+			<div class="soa-meta-left">
+				<div class="soa-party-name">{{ customer_doc.customer_name or (filters.party_name and filters.party_name[0]) or (filters.party and filters.party[0]) or '' }}</div>
+				<div class="soa-party-sub">
+					{{ _("Customer Code") }}: <b>{{ (filters.party and filters.party[0]) or customer_doc.name or '' }}</b>
+					{% if customer_doc.tax_id or filters.tax_id %}
+						| {{ _("Tax ID / TRN") }}: <b>{{ customer_doc.tax_id or filters.tax_id }}</b>
+					{% endif %}
+				</div>
+			</div>
+			<div class="soa-meta-right">
+				<div>
+					{{ _("Statement Period") }}:
+					<b>
+					{% if filters.from_date and filters.from_date != '1900-01-01' %}
+						{{ frappe.format(filters.from_date, 'Date') }} {{ _("to") }} {{ frappe.format(filters.to_date, 'Date') }}
+					{% else %}
+						{{ _("Until") }} {{ frappe.format(filters.to_date or filters.posting_date or frappe.utils.today(), 'Date') }}
+					{% endif %}
+					</b>
+				</div>
+				<div class="soa-party-sub">{{ _("Currency") }}: <b>{{ filters.presentation_currency }}</b></div>
+			</div>
+		</div>
+	</div>
+
+	{% if summary %}
+	<div class="soa-kpi-grid">
+		<div class="soa-kpi-card">
+			<div class="soa-kpi-title">{{ _("Opening Balance") }}</div>
+			<div class="soa-kpi-val">{{ frappe.utils.fmt_money(summary.opening_balance, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="soa-kpi-card">
+			<div class="soa-kpi-title">{{ _("Total Invoiced") }}</div>
+			<div class="soa-kpi-val">{{ frappe.utils.fmt_money(summary.total_invoiced, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="soa-kpi-card">
+			<div class="soa-kpi-title">{{ _("Credit Notes & Returns") }}</div>
+			<div class="soa-kpi-val" style="color: #b91c1c;">{{ frappe.utils.fmt_money(summary.total_credit_notes, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="soa-kpi-card">
+			<div class="soa-kpi-title">{{ _("Payments / Receipts") }}</div>
+			<div class="soa-kpi-val" style="color: #15803d;">{{ frappe.utils.fmt_money(summary.total_payments, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="soa-kpi-card highlight">
+			<div class="soa-kpi-title">{{ _("Net Balance Due") }}</div>
+			<div class="soa-kpi-val">{{ frappe.utils.fmt_money(summary.closing_balance, currency=filters.presentation_currency) }}</div>
+		</div>
+	</div>
+	{% endif %}
+
+	<table class="soa-table">
 		<thead>
 			<tr>
-				<th style="width: 12%">{{ _("Date") }}</th>
-				<th style="width: 15%">{{ _("Reference") }}</th>
-				<th style="width: 25%">{{ _("Remarks") }}</th>
-				<th style="width: 15%">{{ _("Debit") }}</th>
-				<th style="width: 15%">{{ _("Credit") }}</th>
-				<th style="width: 18%">{{ _("Balance (Dr - Cr)") }}</th>
+				<th style="width: 10%">{{ _("Date") }}</th>
+				<th style="width: 18%">{{ _("Voucher Ref") }}</th>
+				<th style="width: 36%">{{ _("Particulars / Allocation Details") }}</th>
+				<th class="num-col" style="width: 12%">{{ _("Debit") }}</th>
+				<th class="num-col" style="width: 12%">{{ _("Credit") }}</th>
+				<th class="num-col" style="width: 12%">{{ _("Balance") }}</th>
 			</tr>
 		</thead>
 		<tbody>
 		{% for row in data %}
+			{% set is_opening = not row.posting_date and ('Opening' in row.get('account', '')) %}
+			{% set is_total = not row.posting_date and ('Total' in row.get('account', '') and 'Closing' not in row.get('account', '')) %}
+			{% set is_closing = not row.posting_date and ('Closing' in row.get('account', '')) %}
+
+			{% if is_closing %}
+			<tr class="closing-row">
+				<td colspan="3"><b>{{ _("Closing Balance Due") }}</b></td>
+				<td class="num-col"></td>
+				<td class="num-col"></td>
+				<td class="num-col"><b>{{ frappe.utils.fmt_money(row.balance, currency=filters.presentation_currency) }}</b></td>
+			</tr>
+			{% elif is_total %}
+			<tr class="total-row">
+				<td colspan="3"><b>{{ _("Total Transactions") }}</b></td>
+				<td class="num-col"><b>{{ frappe.utils.fmt_money(row.debit, currency=filters.presentation_currency) }}</b></td>
+				<td class="num-col"><b>{{ frappe.utils.fmt_money(row.credit, currency=filters.presentation_currency) }}</b></td>
+				<td class="num-col"><b>{{ frappe.utils.fmt_money(row.balance, currency=filters.presentation_currency) }}</b></td>
+			</tr>
+			{% elif is_opening %}
+			<tr style="background: #f1f5f9; font-weight: 600;">
+				<td></td>
+				<td><b>{{ _("Opening Balance") }}</b></td>
+				<td>{{ _("Brought forward from previous period") }}</td>
+				<td class="num-col">{{ row.debit and frappe.utils.fmt_money(row.debit, currency=filters.presentation_currency) or "-" }}</td>
+				<td class="num-col">{{ row.credit and frappe.utils.fmt_money(row.credit, currency=filters.presentation_currency) or "-" }}</td>
+				<td class="num-col"><b>{{ frappe.utils.fmt_money(row.balance, currency=filters.presentation_currency) }}</b></td>
+			</tr>
+			{% elif row.posting_date %}
 			<tr>
-			{% if(row.posting_date) %}
 				<td>{{ frappe.format(row.posting_date, 'Date') }}</td>
-				<td>{{ row.voucher_type }}
-					<br>{{ row.voucher_no }}</td>
 				<td>
-					{% if not (filters.party or filters.account)  %}
-						{{ row.party or row.account }}
-						<br>
+					{% if row.is_return or (row.voucher_type == 'Sales Invoice' and row.credit) %}
+						<span class="badge-vtype badge-credit-note">{{ _("Credit Note") }}</span>
+					{% elif row.voucher_type == 'Sales Invoice' %}
+						<span class="badge-vtype badge-invoice">{{ _("Sales Invoice") }}</span>
+					{% elif row.voucher_type == 'Payment Entry' %}
+						<span class="badge-vtype badge-payment">{{ _("Payment Entry") }}</span>
+					{% elif row.is_reconciliation or (row.voucher_type == 'Journal Entry' and row.reconciliation_allocations) %}
+						<span class="badge-vtype" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">{{ _("Reconciliation") }}</span>
+					{% elif row.voucher_type == 'Journal Entry' %}
+						<span class="badge-vtype badge-journal">{{ _("Journal Entry") }}</span>
+					{% else %}
+						<span class="badge-vtype badge-default">{{ row.voucher_type }}</span>
+					{% endif %}
+					<br><b>{{ row.voucher_no }}</b>
+				</td>
+				<td>
+					{% if row.is_return and row.return_against %}
+						<div class="return-ref-text">&#8617; {{ _("Return Against Invoice") }}: <b>{{ row.return_against }}</b></div>
 					{% endif %}
 
-					<br>{{ _("Remarks") }}: {{ row.remarks }}
-					{% if row.bill_no %}
-						<br>{{ _("Supplier Invoice No") }}: {{ row.bill_no }}
+					{% if row.reconciled_allocations %}
+						<div class="alloc-text">
+							&#10003; {{ _("Reallocated to") }}:
+							{% for alloc in row.reconciled_allocations %}
+								<b>{{ alloc.target_invoice }}</b> ({{ frappe.utils.fmt_money(alloc.amount, currency=filters.presentation_currency) }}){% if not loop.last %}, {% endif %}
+							{% endfor %}
+						</div>
 					{% endif %}
-					</td>
-					<td style="text-align: right">
-						{{ frappe.utils.fmt_money(row.debit, currency=filters.presentation_currency) }}</td>
-					<td style="text-align: right">
-						{{ frappe.utils.fmt_money(row.credit, currency=filters.presentation_currency) }}</td>
-			{% else %}
-				<td></td>
-				<td></td>
-				<td><b>{{ frappe.format(row.account, {fieldtype: "Link"}) or "&nbsp;" }}</b></td>
-				<td style="text-align: right">
-					{{ row.get('account', '') and frappe.utils.fmt_money(row.debit, currency=filters.presentation_currency) }}
+
+					{% if row.reconciled_credits %}
+						<div class="alloc-text" style="line-height:1.4;">
+							{% for cr in row.reconciled_credits %}
+								{% if cr.is_credit_note %}
+									<span style="color:#b91c1c; font-weight:600;">
+										&#8629; {{ _("Adjusted by Credit Note") }}:
+										{% if cr.credit_note_ref and cr.credit_note_ref != cr.voucher_no %}
+											<b>{{ cr.credit_note_ref }}</b> <span style="font-weight:normal; color:#64748b;">(via {{ cr.voucher_no }})</span>
+										{% else %}
+											<b>{{ cr.voucher_no }}</b>
+										{% endif %}
+										({{ frappe.utils.fmt_money(cr.amount, currency=filters.presentation_currency) }})
+									</span><br>
+								{% elif cr.is_advance %}
+									<span style="color:#15803d;">
+										&#10003; {{ _("Settled via Advance") }}: <b>{{ cr.voucher_no }}</b>{% if cr.reference_no %} (Ref: <b>{{ cr.reference_no }}</b>{% if cr.mode_of_payment %} &bull; {{ cr.mode_of_payment }}{% endif %}){% elif cr.mode_of_payment %} ({{ cr.mode_of_payment }}){% endif %} ({{ frappe.utils.fmt_money(cr.amount, currency=filters.presentation_currency) }})
+									</span><br>
+								{% else %}
+									<span style="color:#15803d;">
+										&#10003; {{ _("Settled via Payment") }}: <b>{{ cr.voucher_no }}</b>{% if cr.reference_no %} (Ref: <b>{{ cr.reference_no }}</b>{% if cr.mode_of_payment %} &bull; {{ cr.mode_of_payment }}{% endif %}){% elif cr.mode_of_payment %} ({{ cr.mode_of_payment }}){% endif %} ({{ frappe.utils.fmt_money(cr.amount, currency=filters.presentation_currency) }})
+									</span><br>
+								{% endif %}
+							{% endfor %}
+						</div>
+					{% endif %}
+
+					{% if row.is_reconciliation and row.reconciliation_allocations %}
+						<div class="alloc-text">
+							&#8644; {{ _("Reallocated") }}:
+							{% for a in row.reconciliation_allocations %}
+								{{ frappe.utils.fmt_money(a.amount, currency=filters.presentation_currency) }} from <b>{{ a.credit_note }}</b> to <b>{{ a.target_invoice }}</b>{% if not loop.last %}, {% endif %}
+							{% endfor %}
+						</div>
+					{% endif %}
+
+					{% if row.allocations %}
+						<div class="alloc-text">
+							&#10003; {{ _("Allocated to") }}:
+							{% for alloc in row.allocations %}
+								<b>{{ alloc.reference_name }}</b> ({{ frappe.utils.fmt_money(alloc.allocated_amount, currency=filters.presentation_currency) }}){% if not loop.last %}, {% endif %}
+							{% endfor %}
+						</div>
+					{% endif %}
+
+					{% if filters.show_remarks %}
+						{% set rem = (row.invoice_remarks or row.remarks or '')|trim %}
+						{% if rem and rem not in ['No Remarks', 'No Remarks.', 'None', row.voucher_no] %}
+							<div style="color: #475569; font-size: 9px; margin-top: 2px;">{{ rem }}</div>
+						{% endif %}
+					{% endif %}
+
+					{% if row.project %}
+						<div class="project-tag">&#9679; {{ _("Project") }}: {{ row.project }}</div>
+					{% endif %}
+					{% if row.bill_no %}
+						<div style="font-size: 9px; color: #64748b;">{{ _("Supplier Invoice No") }}: {{ row.bill_no }}</div>
+					{% endif %}
 				</td>
-				<td style="text-align: right">
-					{{ row.get('account', '') and frappe.utils.fmt_money(row.credit, currency=filters.presentation_currency) }}
+				<td class="num-col">
+					{% if row.debit %}
+						{{ frappe.utils.fmt_money(row.debit, currency=filters.presentation_currency) }}
+					{% else %}
+						-
+					{% endif %}
 				</td>
-			{% endif %}
-				<td style="text-align: right">
-					{{ frappe.utils.fmt_money(row.balance, currency=filters.presentation_currency) }}
+				<td class="num-col">
+					{% if row.credit %}
+						{{ frappe.utils.fmt_money(row.credit, currency=filters.presentation_currency) }}
+					{% else %}
+						-
+					{% endif %}
+				</td>
+				<td class="num-col">
+					<b>{{ frappe.utils.fmt_money(row.balance, currency=filters.presentation_currency) }}</b>
 				</td>
 			</tr>
+			{% endif %}
 		{% endfor %}
 		</tbody>
 	</table>
-	<br>
+
 	{% if ageing %}
-	<h4 class="text-center">{{ _("Ageing Report based on ") }} {{ ageing.ageing_based_on }}
-		{{ _("up to " ) }}  {{ frappe.format(filters.to_date, 'Date')}}
-	</h4>
-	<table class="table table-bordered">
-		<thead>
-			<tr>
-				<th style="width: 20%">0 - 30 Days</th>
-				<th style="width: 20%">30 - 60 Days</th>
-				<th style="width: 20%">60 - 90 Days</th>
-				<th style="width: 20%">90 - 120 Days</th>
-				<th style="width: 20%">Above 120 Days</th>
-			</tr>
-		</thead>
-		<tbody>
-			<tr>
-				<td>{{ frappe.utils.fmt_money(ageing.range1, currency=filters.presentation_currency) }}</td>
-				<td>{{ frappe.utils.fmt_money(ageing.range2, currency=filters.presentation_currency) }}</td>
-				<td>{{ frappe.utils.fmt_money(ageing.range3, currency=filters.presentation_currency) }}</td>
-				<td>{{ frappe.utils.fmt_money(ageing.range4, currency=filters.presentation_currency) }}</td>
-				<td>{{ frappe.utils.fmt_money(ageing.range5, currency=filters.presentation_currency) }}</td>
-			</tr>
-		</tbody>
-	</table>
+	<div class="ageing-box">
+		<div class="ageing-title">{{ _("Ageing Analysis (Based on ") }} {{ ageing.ageing_based_on }} {{ _("up to " ) }}  {{ frappe.format(filters.to_date, 'Date') }})</div>
+		<table class="soa-table" style="margin-bottom: 0;">
+			<thead>
+				<tr>
+					<th class="num-col" style="width: 20%">0 - 30 Days</th>
+					<th class="num-col" style="width: 20%">30 - 60 Days</th>
+					<th class="num-col" style="width: 20%">60 - 90 Days</th>
+					<th class="num-col" style="width: 20%">90 - 120 Days</th>
+					<th class="num-col" style="width: 20%">Above 120 Days</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td class="num-col">{{ frappe.utils.fmt_money(ageing.range1, currency=filters.presentation_currency) }}</td>
+					<td class="num-col">{{ frappe.utils.fmt_money(ageing.range2, currency=filters.presentation_currency) }}</td>
+					<td class="num-col">{{ frappe.utils.fmt_money(ageing.range3, currency=filters.presentation_currency) }}</td>
+					<td class="num-col">{{ frappe.utils.fmt_money(ageing.range4, currency=filters.presentation_currency) }}</td>
+					<td class="num-col">{{ frappe.utils.fmt_money(ageing.range5, currency=filters.presentation_currency) }}</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
 	{% endif %}
+
 	{% if terms_and_conditions %}
-	<div>
+	<div style="margin-top: 16px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px;">
+		<div style="font-weight: 700; margin-bottom: 4px; text-transform: uppercase;">{{ _("Terms & Conditions / Remittance Instructions") }}</div>
 		{{ terms_and_conditions }}
 	</div>
 	{% endif %}
 </div>
+

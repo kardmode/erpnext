@@ -294,15 +294,15 @@ class StockEntry(StockController):
 	def set_transfer_qty(self):
 		for item in self.get("items"):
 			if not flt(item.qty):
-				frappe.throw(_("Row {0}: Qty is mandatory").format(item.idx), title=_("Zero quantity"))
+				frappe.throw(_("Row {0}:Item {1} Qty is mandatory").format(item.idx,item.item_code), title=_("Zero quantity"))
 			if not flt(item.conversion_factor):
-				frappe.throw(_("Row {0}: UOM Conversion Factor is mandatory").format(item.idx))
+				frappe.throw(_("Row {0}:Item {1} UOM Conversion Factor is mandatory").format(item.idx,item.item_code))
 			item.transfer_qty = flt(
 				flt(item.qty) * flt(item.conversion_factor), self.precision("transfer_qty", item)
 			)
 			if not flt(item.transfer_qty):
 				frappe.throw(
-					_("Row {0}: Qty in Stock UOM can not be zero.").format(item.idx), title=_("Zero quantity")
+					_("Row {0}:Item {1} Qty in Stock UOM can not be zero.").format(item.idx,item.item_code), title=_("Zero quantity")
 				)
 
 	def update_cost_in_project(self):
@@ -2212,6 +2212,7 @@ class StockEntry(StockController):
 			se_child.is_scrap_item = item_row.get("is_scrap_item", 0)
 			se_child.po_detail = item_row.get("po_detail")
 			se_child.sco_rm_detail = item_row.get("sco_rm_detail")
+			se_child.set_basic_rate_manually = item_row.get("set_basic_rate_manually", 0)
 
 			for field in [
 				self.subcontract_data.rm_detail_field,
@@ -2222,6 +2223,9 @@ class StockEntry(StockController):
 				"serial_no",
 				"batch_no",
 				"allow_zero_valuation_rate",
+				"basic_rate",
+				"basic_amount",
+				"amount"
 			]:
 				if item_row.get(field):
 					se_child.set(field, item_row.get(field))

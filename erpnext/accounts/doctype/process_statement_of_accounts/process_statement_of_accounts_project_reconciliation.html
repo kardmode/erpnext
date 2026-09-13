@@ -1,0 +1,496 @@
+<style>
+	.reconcile-container {
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+		color: #1e293b;
+		line-height: 1.45;
+		font-size: 11px;
+	}
+	.letterhead-logo {
+		display: inline-block;
+		margin-right: 10px;
+	}
+	.letterhead-title {
+		display: inline-block;
+		vertical-align: middle;
+		font-size: 25px;
+		width: fit-content;
+		white-space: nowrap;
+	}
+	.letterhead-address {
+		text-align: center;
+		font-size: 12px;
+	}
+	.rec-header {
+		margin-top: 10px;
+		margin-bottom: 16px;
+		border-bottom: 2px solid #e2e8f0;
+		padding-bottom: 12px;
+	}
+	.rec-main-title {
+		font-size: 20px;
+		font-weight: 800;
+		color: #0f172a;
+		letter-spacing: -0.5px;
+		margin: 0 0 6px 0;
+		text-transform: uppercase;
+	}
+	.rec-meta-grid {
+		display: table;
+		width: 100%;
+		margin-top: 8px;
+	}
+	.rec-meta-left {
+		display: table-cell;
+		width: 55%;
+		vertical-align: top;
+	}
+	.rec-meta-right {
+		display: table-cell;
+		width: 45%;
+		vertical-align: top;
+		text-align: right;
+	}
+	.rec-party-name {
+		font-size: 14px;
+		font-weight: 700;
+		color: #1e293b;
+	}
+	.rec-party-sub {
+		font-size: 11px;
+		color: #475569;
+		margin-top: 2px;
+	}
+	.rec-section {
+		margin-bottom: 20px;
+	}
+	.rec-section-title {
+		font-size: 13px;
+		font-weight: 700;
+		color: #0f172a;
+		text-transform: uppercase;
+		letter-spacing: 0.2px;
+		margin-bottom: 8px;
+		border-bottom: 1.5px solid #cbd5e1;
+		padding-bottom: 4px;
+	}
+	.rec-table {
+		width: 100%;
+		border-collapse: collapse;
+		margin-bottom: 12px;
+		font-size: 11px;
+	}
+	.rec-table th {
+		background: #1e293b;
+		color: #ffffff;
+		font-weight: 600;
+		text-align: left;
+		padding: 7px 10px;
+		font-size: 10.5px;
+		border: 1px solid #1e293b;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+	.rec-table th.num-col, .rec-table td.num-col {
+		text-align: right;
+	}
+	.rec-table td {
+		padding: 6px 10px;
+		border: 1px solid #cbd5e1;
+		vertical-align: top;
+	}
+	.rec-table tbody tr:nth-child(even) {
+		background: #f8fafc;
+	}
+	.rec-table tr.total-row {
+		background: #0f172a !important;
+		color: #ffffff !important;
+		font-weight: 700;
+	}
+	.rec-table tr.total-row td {
+		border-color: #0f172a;
+		color: #ffffff !important;
+	}
+	.rec-kpi-grid {
+		display: table;
+		width: 100%;
+		margin: 10px 0 16px 0;
+		border-collapse: separate;
+		border-spacing: 6px 0;
+	}
+	.rec-kpi-card {
+		display: table-cell;
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 6px;
+		padding: 8px 10px;
+		text-align: center;
+		vertical-align: middle;
+	}
+	.rec-kpi-card.highlight {
+		background: #eff6ff;
+		border-color: #bfdbfe;
+	}
+	.rec-kpi-title {
+		font-size: 9px;
+		font-weight: 600;
+		text-transform: uppercase;
+		color: #64748b;
+		margin-bottom: 3px;
+	}
+	.rec-kpi-val {
+		font-size: 13.5px;
+		font-weight: 700;
+		color: #0f172a;
+	}
+	.rec-card-box {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 6px;
+		padding: 12px 14px;
+		margin-bottom: 14px;
+	}
+	.badge-pill {
+		display: inline-block;
+		font-size: 9px;
+		font-weight: 700;
+		padding: 2px 6px;
+		border-radius: 4px;
+		text-transform: uppercase;
+	}
+	.badge-cn {
+		background: #fee2e2;
+		color: #991b1b;
+		border: 1px solid #fecaca;
+	}
+	.badge-paid {
+		background: #dcfce7;
+		color: #15803d;
+		border: 1px solid #bbf7d0;
+	}
+	.reconciliation-math-box {
+		background: #f1f5f9;
+		border: 1.5px solid #cbd5e1;
+		border-radius: 6px;
+		padding: 12px 16px;
+		margin-top: 16px;
+		text-align: center;
+	}
+	.math-step {
+		display: inline-block;
+		margin: 0 10px;
+		vertical-align: middle;
+	}
+	.math-val {
+		font-size: 14px;
+		font-weight: 700;
+		color: #0f172a;
+	}
+	.math-lbl {
+		font-size: 9px;
+		color: #64748b;
+		text-transform: uppercase;
+	}
+	.math-op {
+		font-size: 16px;
+		font-weight: 700;
+		color: #64748b;
+		vertical-align: middle;
+	}
+</style>
+
+<div class="page-break reconcile-container">
+	<div id="header-html" class="hidden-pdf">
+		{% if letter_head.content %}
+		<div class="letter-head">{{ letter_head.content }}</div>
+		{% endif %}
+	</div>
+	<div id="footer-html" class="visible-pdf">
+		{% if letter_head.footer %}
+		<div class="letter-head-footer">
+			{{ letter_head.footer }}
+		</div>
+		{% endif %}
+	</div>
+
+	<!-- Title & Header -->
+	<div class="rec-header">
+		<div class="rec-main-title text-center">{{ _("Project Account Reconciliation") }}</div>
+		<div class="rec-meta-grid">
+			<div class="rec-meta-left">
+				<div class="rec-party-name">{{ customer_doc.customer_name or (filters.party and filters.party[0]) or '' }}</div>
+				<div class="rec-party-sub">
+					<b>{{ _("Customer Code") }}:</b> {{ (filters.party and filters.party[0]) or customer_doc.name or '' }}
+					{% if customer_doc.tax_id or filters.tax_id %}
+						| <b>{{ _("Tax ID / TRN") }}:</b> {{ customer_doc.tax_id or filters.tax_id }}
+					{% endif %}
+				</div>
+				{% if filters.project %}
+				<div class="rec-party-sub" style="color: #0f172a; font-weight: 600; margin-top: 4px;">
+					&#9679; {{ _("Project") }}: 
+					{% for p in filters.project %}
+						{{ p }}{% if not loop.last %}, {% endif %}
+					{% endfor %}
+				</div>
+				{% endif %}
+			</div>
+			<div class="rec-meta-right">
+				<div>
+					<b>{{ _("Statement Date / As Of") }}:</b>
+					{% if filters.from_date %}
+						{{ frappe.format(filters.from_date, 'Date') }} {{ _("to") }} {{ frappe.format(filters.to_date or filters.report_date, 'Date') }}
+					{% else %}
+						{{ frappe.format(filters.to_date or filters.report_date or frappe.utils.today(), 'Date') }}
+					{% endif %}
+				</div>
+				<div class="rec-party-sub"><b>{{ _("Currency") }}:</b> {{ filters.presentation_currency }}</div>
+			</div>
+		</div>
+	</div>
+
+	{% if summary %}
+	<!-- Executive 5-Stage KPI Summary Deck (Consistent across all modes) -->
+	<div class="rec-kpi-grid">
+		<div class="rec-kpi-card">
+			<div class="rec-kpi-title">{{ _("Total Invoiced (Gross)") }}</div>
+			<div class="rec-kpi-val">{{ frappe.utils.fmt_money(summary.gross_invoiced or summary.total_invoiced, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="rec-kpi-card">
+			<div class="rec-kpi-title">{{ _("Credit Notes & Returns") }}</div>
+			<div class="rec-kpi-val" style="color: #b91c1c;">-{{ frappe.utils.fmt_money(summary.total_credit_notes, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="rec-kpi-card" style="background: #f8fafc; border-color: #cbd5e1;">
+			<div class="rec-kpi-title" style="color: #0f172a;">{{ _("Net Billed Amount") }}</div>
+			<div class="rec-kpi-val" style="color: #0f172a;">{{ frappe.utils.fmt_money(summary.net_invoiced or (summary.total_invoiced - summary.total_credit_notes), currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="rec-kpi-card">
+			<div class="rec-kpi-title">{{ _("Total Paid") }}</div>
+			<div class="rec-kpi-val" style="color: #15803d;">{{ frappe.utils.fmt_money(summary.total_paid, currency=filters.presentation_currency) }}</div>
+		</div>
+		<div class="rec-kpi-card highlight">
+			<div class="rec-kpi-title">{{ _("Net Outstanding Due") }}</div>
+			<div class="rec-kpi-val" style="color: #1d4ed8;">{{ frappe.utils.fmt_money(summary.total_outstanding, currency=filters.presentation_currency) }}</div>
+		</div>
+	</div>
+	{% endif %}
+
+	<!-- 1. Project Billing & Payment Summary -->
+	<div class="rec-section">
+		<div class="rec-section-title">1. {{ _("Project Billing & Payment Summary") }}</div>
+		
+		<table class="rec-table" style="margin-bottom: 12px;">
+			<thead>
+				<tr>
+					<th style="width: 70%">{{ _("Description / Commercial Stage") }}</th>
+					<th class="num-col" style="width: 30%">{{ _("Amount") }} ({{ filters.presentation_currency }})</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><b>{{ _("Total Invoices Issued (Gross Billing)") }}</b></td>
+					<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.gross_invoiced or summary.total_invoiced, currency=filters.presentation_currency) }}</b></td>
+				</tr>
+				{% if summary.total_credit_notes %}
+				<tr style="color: #b91c1c;">
+					<td>
+						{{ _("Less: Credit Note Adjustments") }}
+						{% if rec_data.credit_notes %}
+							({{ rec_data.credit_notes | map(attribute='voucher_no') | join(', ') }})
+						{% endif %}
+					</td>
+					<td class="num-col">({{ frappe.utils.fmt_money(summary.total_credit_notes, currency=filters.presentation_currency) }})</td>
+				</tr>
+				{% endif %}
+				<tr style="background: #f1f5f9; font-weight: 700;">
+					<td><b>{{ _("Net Invoiced Amount (Net Project Value)") }}</b></td>
+					<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.net_invoiced or (summary.total_invoiced - summary.total_credit_notes), currency=filters.presentation_currency) }}</b></td>
+				</tr>
+				<tr style="color: #15803d;">
+					<td>
+						{{ _("Less: Payments Received") }}
+						{% if rec_data.payments %}
+							({{ rec_data.payments | map(attribute='voucher_no') | join(', ') }})
+						{% endif %}
+					</td>
+					<td class="num-col">({{ frappe.utils.fmt_money(summary.total_paid, currency=filters.presentation_currency) }})</td>
+				</tr>
+				<tr class="total-row">
+					<td><b>{{ _("NET BALANCE OUTSTANDING DUE") }}</b></td>
+					<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.total_outstanding, currency=filters.presentation_currency) }}</b></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- 2. Payment Received Schedule -->
+	<div class="rec-section">
+		<div class="rec-section-title">2. {{ _("Payments Received") }}</div>
+		{% if rec_data.payments %}
+		<table class="rec-table">
+			<thead>
+				<tr>
+					<th style="width: 15%">{{ _("Date") }}</th>
+					<th style="width: 25%">{{ _("Reference") }}</th>
+					<th style="width: 35%">{{ _("Description / Allocation") }}</th>
+					<th class="num-col" style="width: 25%">{{ _("Amount Received") }} ({{ filters.presentation_currency }})</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for p in rec_data.payments %}
+				<tr>
+					<td>{{ p.posting_date and frappe.format(p.posting_date, 'Date') or "-" }}</td>
+					<td>
+						<b>{{ p.voucher_no }}</b> <span class="badge-pill badge-paid">{{ _("Payment") }}</span>
+						{% if p.reference_no %}
+							<div style="font-size: 9px; color: #0f172a; margin-top: 2px;">
+								<b>{{ _("Ref") }}:</b> {{ p.reference_no }}
+							</div>
+						{% endif %}
+					</td>
+					<td>
+						{% if p.mode_of_payment %}
+							<div style="font-size: 9.5px; font-weight: 600; color: #0f172a;">&#9679; {{ _("Mode") }}: {{ p.mode_of_payment }}</div>
+						{% endif %}
+						{{ p.remarks or _("Advance / project payment") }}
+					</td>
+					<td class="num-col"><b>{{ frappe.utils.fmt_money(p.amount, currency=filters.presentation_currency) }}</b></td>
+				</tr>
+				{% endfor %}
+				<tr style="background: #f8fafc; font-weight: 700;">
+					<td colspan="3"><b>{{ _("Total Payments Received") }}</b></td>
+					<td class="num-col" style="color: #15803d;"><b>{{ frappe.utils.fmt_money(summary.total_paid, currency=filters.presentation_currency) }}</b></td>
+				</tr>
+			</tbody>
+		</table>
+		{% else %}
+		<div style="padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; color: #64748b;">
+			{{ _("No direct cash payments recorded for the selected period.") }}
+		</div>
+		{% endif %}
+	</div>
+
+	<!-- 3. Credit Note Reallocation Schedule -->
+	<div class="rec-section">
+		<div class="rec-section-title">3. {{ _("Credit Note Reallocation Schedule") }}</div>
+		{% if rec_data.credit_notes %}
+			{% for cn in rec_data.credit_notes %}
+			<div class="rec-card-box">
+				<div style="display: table; width: 100%; margin-bottom: 8px;">
+					<div style="display: table-cell; vertical-align: middle;">
+						<span class="badge-pill badge-cn">{{ _("Credit Note") }}</span>
+						<b style="font-size: 12px; margin-left: 4px;">{{ cn.voucher_no }}</b>
+						{% if cn.return_against %}
+							<span style="color: #64748b; font-size: 10px;">(↩ {{ _("Return Against") }}: <b>{{ cn.return_against }}</b>)</span>
+						{% endif %}
+					</div>
+					<div style="display: table-cell; text-align: right; vertical-align: middle;">
+						<b>{{ _("Total Credit Issued") }}:</b> <span style="font-size: 12px; color: #b91c1c; font-weight: 700;">{{ frappe.utils.fmt_money(cn.amount, currency=filters.presentation_currency) }}</span>
+					</div>
+				</div>
+
+				{% if cn.remarks and cn.remarks not in ['No Remarks', 'No Remarks.', 'None', cn.voucher_no] %}
+					<div style="color: #475569; font-size: 10px; margin-bottom: 8px;"><b>{{ _("Reason / Remarks") }}:</b> {{ cn.remarks }}</div>
+				{% endif %}
+
+				{% if cn.allocations %}
+				<table class="rec-table" style="margin-bottom: 0;">
+					<thead>
+						<tr>
+							<th style="width: 50%">{{ _("Invoice Reference Settled") }}</th>
+							<th style="width: 25%">{{ _("Settlement JV / Link") }}</th>
+							<th class="num-col" style="width: 25%">{{ _("Credit Applied") }} ({{ filters.presentation_currency }})</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for alloc in cn.allocations %}
+						<tr>
+							<td><b>{{ alloc.target_invoice }}</b></td>
+							<td style="color: #64748b;">{{ alloc.jv or "-" }}</td>
+							<td class="num-col" style="color: #b91c1c; font-weight: 600;">{{ frappe.utils.fmt_money(alloc.amount, currency=filters.presentation_currency) }}</td>
+						</tr>
+						{% endfor %}
+						<tr style="background: #f1f5f9; font-weight: 700;">
+							<td colspan="2"><b>{{ _("Total Credit Allocated") }}</b></td>
+							<td class="num-col" style="color: #b91c1c;"><b>{{ frappe.utils.fmt_money(cn.amount, currency=filters.presentation_currency) }}</b></td>
+						</tr>
+					</tbody>
+				</table>
+				{% else %}
+				<div style="color: #64748b; font-size: 10px;">{{ _("Credit note remains unallocated as an open customer credit balance.") }}</div>
+				{% endif %}
+			</div>
+			{% endfor %}
+		{% else %}
+		<div style="padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; color: #64748b;">
+			{{ _("No credit notes or return invoices recorded for this project.") }}
+		</div>
+		{% endif %}
+	</div>
+
+	<!-- 4. Current Outstanding Invoices Schedule -->
+	<div class="rec-section">
+		<div class="rec-section-title">4. {{ _("Current Outstanding Invoices") }}</div>
+		{% if rec_data.outstanding_invoices %}
+		<table class="rec-table">
+			<thead>
+				<tr>
+					<th style="width: 12%">{{ _("Date") }}</th>
+					<th style="width: 12%">{{ _("Due Date") }}</th>
+					<th style="width: 22%">{{ _("Invoice Reference") }}</th>
+					<th class="num-col" style="width: 18%">{{ _("Total Invoiced") }}</th>
+					<th class="num-col" style="width: 18%">{{ _("Paid / Credited") }}</th>
+					<th class="num-col" style="width: 18%">{{ _("Balance Due") }}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for inv in rec_data.outstanding_invoices %}
+				{% set settled = (inv.invoiced - inv.outstanding) %}
+				<tr>
+					<td>{{ inv.posting_date and frappe.format(inv.posting_date, 'Date') or "-" }}</td>
+					<td>{{ inv.due_date and frappe.format(inv.due_date, 'Date') or "-" }}</td>
+					<td>
+						<b>{{ inv.voucher_no }}</b>
+						{% if settled > 0 %}
+							<br><span style="font-size: 8.5px; color: #15803d;">&#10003; {{ _("Partially Settled") }}: {{ frappe.utils.fmt_money(settled, currency=filters.presentation_currency) }}</span>
+						{% endif %}
+					</td>
+					<td class="num-col">{{ frappe.utils.fmt_money(inv.invoiced, currency=filters.presentation_currency) }}</td>
+					<td class="num-col">{{ frappe.utils.fmt_money(settled, currency=filters.presentation_currency) }}</td>
+					<td class="num-col" style="font-weight: 700; color: #0f172a;">{{ frappe.utils.fmt_money(inv.outstanding, currency=filters.presentation_currency) }}</td>
+				</tr>
+				{% endfor %}
+				<tr class="total-row">
+					<td colspan="5"><b>{{ _("TOTAL REMAINING BALANCE DUE") }}</b></td>
+					<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.total_outstanding, currency=filters.presentation_currency) }}</b></td>
+				</tr>
+			</tbody>
+		</table>
+		{% else %}
+		<div style="padding: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; color: #15803d; font-weight: 600;">
+			&#10003; {{ _("All invoices for this project are fully paid and settled. Net balance due is 0.00.") }}
+		</div>
+		{% endif %}
+	</div>
+
+	<!-- Formal Statement Reconciliation Confirmation -->
+	<div class="reconciliation-math-box" style="text-align: left; padding: 12px 18px; display: table; width: 100%;">
+		<div style="display: table-cell; vertical-align: middle;">
+			<div style="font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase;">
+				&#10003; {{ _("Statement Reconciliation Confirmation") }}
+			</div>
+			<div style="font-size: 10px; color: #475569; margin-top: 2px;">
+				{{ _("All gross billings, credit note allocations, and payment receipts for this project have been fully reconciled and verified against company accounting ledgers.") }}
+			</div>
+		</div>
+		<div style="display: table-cell; vertical-align: middle; text-align: right; width: 40%;">
+			<div style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase;">{{ _("Net Balance Outstanding") }}</div>
+			<div style="font-size: 16px; font-weight: 800; color: #1d4ed8;">{{ frappe.utils.fmt_money(summary.total_outstanding, currency=filters.presentation_currency) }}</div>
+		</div>
+	</div>
+
+	{% if terms_and_conditions %}
+	<div style="margin-top: 16px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10px;">
+		<div style="font-weight: 700; margin-bottom: 4px; text-transform: uppercase;">{{ _("Terms & Conditions / Remittance Instructions") }}</div>
+		{{ terms_and_conditions }}
+	</div>
+	{% endif %}
+</div>

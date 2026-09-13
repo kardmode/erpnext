@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"pMywM0nhlj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Chart of Accounts\",\"col\":3}},{\"id\":\"_pRdD6kqUG\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"B2cMsP8dzi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Proforma Invoice\",\"col\":3}},{\"id\":\"G984SgVRJN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"1ArNvt9qhz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Journal Entry\",\"col\":3}},{\"id\":\"F9f4I1viNr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"4IBBOIxfqW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"El2anpPaFY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"1nwcM9upJo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trial Balance\",\"col\":3}},{\"id\":\"k0WQEK3lIT\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":3}},{\"id\":\"JLQz-w-f2E\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Licenses\",\"col\":3}},{\"id\":\"HPRkeiZnOC\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Dashboard\",\"col\":3}},{\"id\":\"B7-uxs8tkU\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-1SpyBw2xL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vat Return\",\"col\":3}},{\"id\":\"LtLZSro-_s\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vat Return Adjustment\",\"col\":3}},{\"id\":\"FXOvgzS_Xb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Vat Purchase Invoice\",\"col\":3}},{\"id\":\"LuQEibPuTA\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Vat Sales\",\"col\":3}},{\"id\":\"7jRxYphFiw\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Corporate Tax\",\"col\":3}},{\"id\":\"_WX2aOtnlz\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"HSmLEvNBha\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Sales Invoices\",\"col\":6}},{\"id\":\"SFUzkE0oNC\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Purchase Invoices\",\"col\":6}},{\"id\":\"6TokUI_JrN\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Sales Invoice\",\"col\":6}},{\"id\":\"lH7-LX0XN_\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Purchase Invoice\",\"col\":6}}]",
+ "content": "[{\"id\":\"pMywM0nhlj\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Chart of Accounts\",\"col\":3}},{\"id\":\"_pRdD6kqUG\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Invoice\",\"col\":3}},{\"id\":\"B2cMsP8dzi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Proforma Invoice\",\"col\":3}},{\"id\":\"G984SgVRJN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Purchase Invoice\",\"col\":3}},{\"id\":\"1ArNvt9qhz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Journal Entry\",\"col\":3}},{\"id\":\"F9f4I1viNr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Entry\",\"col\":3}},{\"id\":\"4IBBOIxfqW\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Accounts Receivable\",\"col\":3}},{\"id\":\"El2anpPaFY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"General Ledger\",\"col\":3}},{\"id\":\"1nwcM9upJo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Trial Balance\",\"col\":3}},{\"id\":\"k0WQEK3lIT\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":3}},{\"id\":\"JLQz-w-f2E\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company Licenses\",\"col\":3}},{\"id\":\"gk8f2Mz86m\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Account Statement\",\"col\":3}},{\"id\":\"TLs8qddbXC\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payment Reconciliation\",\"col\":3}},{\"id\":\"B7-uxs8tkU\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-1SpyBw2xL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vat Return\",\"col\":3}},{\"id\":\"LtLZSro-_s\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vat Return Adjustment\",\"col\":3}},{\"id\":\"FXOvgzS_Xb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Vat Purchase Invoice\",\"col\":3}},{\"id\":\"LuQEibPuTA\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Vat Sales\",\"col\":3}},{\"id\":\"7jRxYphFiw\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mrp Corporate Tax\",\"col\":3}},{\"id\":\"_WX2aOtnlz\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"HSmLEvNBha\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Sales Invoices\",\"col\":6}},{\"id\":\"SFUzkE0oNC\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Purchase Invoices\",\"col\":6}},{\"id\":\"6TokUI_JrN\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Sales Invoice\",\"col\":6}},{\"id\":\"lH7-LX0XN_\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Purchase Invoice\",\"col\":6}}]",
  "creation": "2020-03-02 15:41:59.515192",
  "custom_blocks": [],
  "docstatus": 0,
@@ -909,7 +909,7 @@
    "type": "Link"
   }
  ],
- "modified": "2025-12-24 06:46:38.837569",
+ "modified": "2026-09-12 19:47:37.624215",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Accounting",
@@ -928,14 +928,14 @@
  "public": 1,
  "quick_lists": [
   {
-   "document_type": "Purchase Invoice",
-   "label": "Purchase Invoice",
-   "quick_list_filter": "[[\"Purchase Invoice\",\"status\",\"not in\",[\"Return\",\"Debit Note Issued\",\"Paid\",\"Cancelled\",null],false]]"
-  },
-  {
    "document_type": "Sales Invoice",
    "label": "Sales Invoice",
    "quick_list_filter": "[[\"Sales Invoice\",\"status\",\"not in\",[\"Return\",\"Credit Note Issued\",\"Paid\",\"Cancelled\",null],false]]"
+  },
+  {
+   "document_type": "Purchase Invoice",
+   "label": "Purchase Invoice",
+   "quick_list_filter": "[[\"Purchase Invoice\",\"status\",\"not in\",[\"Return\",\"Debit Note Issued\",\"Paid\",\"Cancelled\",null],false]]"
   }
  ],
  "restrict_to_domain": "",
@@ -954,7 +954,7 @@
    "color": "Grey",
    "doc_view": "List",
    "label": "Mrp Vat Purchase Invoice",
-   "link_to": "MRP VAT Purchase Invoice",
+   "link_to": "MRP VAT Purchase",
    "type": "Report"
   },
   {
@@ -991,9 +991,10 @@
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "Dashboard",
-   "link_to": "Accounts",
-   "type": "Dashboard"
+   "label": "Account Statement",
+   "link_to": "Process Statement Of Accounts",
+   "stats_filter": "[]",
+   "type": "DocType"
   },
   {
    "doc_view": "",
@@ -1038,6 +1039,13 @@
    "doc_view": "Tree",
    "label": "Chart of Accounts",
    "link_to": "Account",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Payment Reconciliation",
+   "link_to": "Payment Reconciliation",
    "type": "DocType"
   },
   {

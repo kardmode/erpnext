@@ -867,7 +867,7 @@ class BOM(WebsiteGenerator):
 				continue
 
 			old_rate = d.rate
-			if self.rm_cost_as_per != "Manual" and d.mrp_rm_cost_as_per != "Manual":
+			if self.rm_cost_as_per != "Manual":
 				d.rate = self.get_rm_rate(
 					{
 						"company": self.company,
@@ -937,7 +937,10 @@ class BOM(WebsiteGenerator):
 			old_rate = flt(row.rate)
 			row.rate = rm_rate_map.get(row.item_code)
 			row.amount = flt(row.stock_qty) * flt(row.rate)
-
+			
+			if hasattr(row, 'stock_rate'):
+				row.stock_rate = row.rate
+				
 			if old_rate != row.rate:
 				# Only db_update if changed
 				row.db_update()
@@ -1231,8 +1234,11 @@ class BOM(WebsiteGenerator):
 			
 			newd.rate = flt(ret_item["rate"])
 			newd.base_rate = flt(ret_item["base_rate"])
-			newd.stock_rate = flt(ret_item["stock_rate"])
-			newd.base_stock_rate = flt(ret_item["base_stock_rate"])			
+			if flt(ret_item["stock_rate"]) == 0:
+				newd.stock_rate = flt(ret_item["rate"])
+			else:
+				newd.stock_rate = flt(ret_item["stock_rate"])
+			newd.base_stock_rate = flt(newd.stock_rate) * flt(self.conversion_rate)			
 			newd.amount = flt(newd.rate)* flt(newd.stock_qty)
 			newd.conversion_factor = ret_item["conversion_factor"]
 			newd.bom_no = ret_item["bom_no"]
@@ -1836,33 +1842,56 @@ def create_materials_table(dict):
 	return joiningtext
 
 @frappe.whitelist()	
-def get_default_bom(item_code, project=None):
-	def _get_bom(item_code, project=None, allow_non_defaults=False):
-		bom_name = None
+def get_default_bom(item_code, project=None, allow_any_project_fallback=False):
+	def _get_bom(item_code, project=None):
+		filters = {
+			"item": item_code,
+			"is_active": 1
+		}
+
+		def find(filters):
+			boms = frappe.get_all(
+				"BOM",
+				filters=filters,
+				fields=["name"],
+				order_by="docstatus desc, modified desc",
+				limit=1
+			)
+			return boms[0].name if boms else None
+
+		# 1. Project BOM (exact match)
 		if project:
-			bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "docstatus": 1, "project": project}) 
-			if not bom_name:
-				bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "project": project})
-		
-		if not bom_name:
-			bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "docstatus": 1, "is_default": 1})
-			if not bom_name:
-				bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "is_default": 1})
-		
-		if not bom_name and allow_non_defaults:
-			bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1, "docstatus": 1})
-			if not bom_name:
-				bom_name = frappe.db.get_value("BOM", {"item": item_code, "is_active": 1})
-		
-		return bom_name
-		
+			bom = find({**filters, "project": project})
+			if bom:
+				return bom
+
+		# 2. Standard Default Non-Project BOM
+		bom = find({**filters, "is_default": 1, "project": ["in", ["", None]]})
+		if bom:
+			return bom
+
+		# 3. Any active Non-Project BOM (if no is_default was set)
+		bom = find({**filters, "project": ["in", ["", None]]})
+		if bom:
+			return bom
+
+		# 4. Fallback to any active BOM even if assigned to another project
+		if allow_any_project_fallback:
+			bom = find(filters)
+			if bom:
+				return bom
+
+		return None
+
 	if not item_code:
 		return
 
-	bom_name = _get_bom(item_code,project)
-	template_item = frappe.db.get_value("Item", item_code, "variant_of")
-	if not bom_name and template_item:
-		bom_name = _get_bom(template_item, project)
+	bom_name = _get_bom(item_code, project)
+
+	if not bom_name:
+		template_item = frappe.db.get_value("Item", item_code, "variant_of")
+		if template_item:
+			bom_name = _get_bom(template_item, project)
 
 	return bom_name
 
@@ -1957,8 +1986,11 @@ def mrp_generate_exploded(bom_no, qtyRequired, qtyOriginal, dimensions):
 					d[k] = getattr(original_exploded_dict[item_code], k, None)
 				
 				if not d.get("stock_rate"):
-					frappe.msgprint(_("Stock Rate 0.0 or not found for item {0} in BOM {1}").format(item_link, bom_link))
+					d["stock_rate"] = d.get("rate")
 				
+				if not d.get("stock_rate"):
+					frappe.throw(_("Stock Rate 0.0 or not found for item {0} in BOM {1}. Cost As Per {2}").format(item_link, bom_link,bom.rm_cost_as_per))
+
 				d["side"] = ""
 				d["qty"] = d["stock_qty"]
 				d["uom"] = d["stock_uom"]

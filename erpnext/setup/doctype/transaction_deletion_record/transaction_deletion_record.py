@@ -207,20 +207,6 @@ class TransactionDeletionRecord(Document):
 		for doctype in doctypes_to_be_ignored_list:
 			self.append("doctypes_to_be_ignored", {"doctype_name": doctype})
 
-	@frappe.whitelist()
-	def delete_bins(self):
-		if not self.custom_mrp_debug_only:
-			frappe.db.sql(
-				"""delete from `tabBin` where warehouse in
-					(select name from tabWarehouse where company=%s)""",
-				self.company,
-			)
-		
-			frappe.db.sql(
-				"""delete from `tabRepost Item Valuation` where company=%s""",
-				self.company,
-			)
-
 	def delete_lead_addresses(self):
 		if not self.custom_mrp_debug_only:
 			"""Delete addresses to which leads are linked"""
@@ -252,16 +238,18 @@ class TransactionDeletionRecord(Document):
 		self.db_set("status", "Running")
 		self.enqueue_task(task="Delete Bins")
 
+	@frappe.whitelist()
 	def delete_bins(self):
-		self.validate_doc_status()
-		if not self.delete_bin_data:
-			frappe.db.sql(
-				"""delete from `tabBin` where warehouse in
-					(select name from tabWarehouse where company=%s)""",
-				self.company,
-			)
-			self.db_set("delete_bin_data", 1)
-		self.enqueue_task(task="Delete Leads and Addresses")
+		if not self.custom_mrp_debug_only:
+			self.validate_doc_status()
+			if not self.delete_bin_data:
+				frappe.db.sql(
+					"""delete from `tabBin` where warehouse in
+						(select name from tabWarehouse where company=%s)""",
+					self.company,
+				)
+				self.db_set("delete_bin_data", 1)
+			self.enqueue_task(task="Delete Leads and Addresses")
 
 	def delete_lead_addresses(self):
 		"""Delete addresses to which leads are linked"""
