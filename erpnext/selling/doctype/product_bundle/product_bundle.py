@@ -137,7 +137,7 @@ class ProductBundle(Document):
 		rate = self.get_rm_rate(args)
 		stock_rate = rate / conversion_factor
 
-		from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
+		from mrp.mrp.custom_stock_entry import get_best_warehouse
 
 		best_warehouse,enough_stock = get_best_warehouse(args["item_code"],args.get("stock_qty") or args.get("qty") or 1,company = self.company)
 
