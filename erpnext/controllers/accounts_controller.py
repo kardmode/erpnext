@@ -277,35 +277,6 @@ class AccountsController(TransactionBase):
 
 		if self.doctype != "Material Request" and not self.ignore_pricing_rule:
 			apply_pricing_rule_on_transaction(self)
-			
-		self.mrp_validate_project()
-		self.mrp_validate_exchange_rate()
-		
-	def mrp_validate_project(self):
-		if self.meta.get_field("project") and self.meta.get_field("company"):
-			if self.project and self.company:
-				project_company = frappe.db.get_value("Project", self.project, "company")
-				if project_company and project_company != self.company:
-					frappe.throw(f"Project {self.project} belongs to {project_company}, not {self.company}.")
-					
-		
-	def mrp_validate_exchange_rate(self):
-	
-		if self.meta.get_field("posting_date"):
-			transaction_date = self.posting_date
-		else:
-			transaction_date = self.transaction_date
-
-		if self.meta.get_field("currency") and self.meta.get_field("conversion_rate"):
-			live_exchange_rate = get_exchange_rate(self.currency, self.company_currency, transaction_date)
-			from math import isclose
-			if not live_exchange_rate == 0.0 and not isclose(live_exchange_rate, self.conversion_rate, abs_tol=2.5):
-				frappe.msgprint(
-					_(
-						"The differenct between the used exchange rate {0} and the live exchange rate {1} is greater than 2.5. Please check the value."
-					).format(self.conversion_rate,live_exchange_rate)
-				)
-		
 
 		self.set_total_in_words()
 		self.validate_company_in_accounting_dimension()

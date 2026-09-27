@@ -52,30 +52,46 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 				);
 			});
 			frm.add_custom_button(__("Download PDF"), function () {
-				var url = frappe.urllib.get_full_url(
-					"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_statements?" +
-					"document_name=" +
-					encodeURIComponent(frm.doc.name)
-				);
-				$.ajax({
-					url: url,
-					type: "GET",
-					success: function (result) {
-						if (jQuery.isEmptyObject(result)) {
-							frappe.msgprint(__("No Records for these settings."));
-						} else {
+				frappe.call({
+					method: "erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.validate_has_records",
+					args: {
+						document_name: frm.doc.name,
+						format: "pdf",
+					},
+					freeze: true,
+					freeze_message: __("Preparing Statement PDF..."),
+					callback: function (r) {
+						if (r && r.message) {
+							var url = frappe.urllib.get_full_url(
+								"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_statements?" +
+								"document_name=" +
+								encodeURIComponent(frm.doc.name)
+							);
 							window.location = url;
 						}
 					},
 				});
 			});
 			frm.add_custom_button(__("Export to Excel"), function () {
-				var url = frappe.urllib.get_full_url(
-					"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_excel_statements?" +
-					"document_name=" +
-					encodeURIComponent(frm.doc.name)
-				);
-				window.open(url);
+				frappe.call({
+					method: "erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.validate_has_records",
+					args: {
+						document_name: frm.doc.name,
+						format: "excel",
+					},
+					freeze: true,
+					freeze_message: __("Preparing Excel Export..."),
+					callback: function (r) {
+						if (r && r.message) {
+							var url = frappe.urllib.get_full_url(
+								"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_excel_statements?" +
+								"document_name=" +
+								encodeURIComponent(frm.doc.name)
+							);
+							window.open(url);
+						}
+					},
+				});
 			});
 		}
 	},
@@ -94,6 +110,20 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 				},
 			};
 		});
+		frm.set_query("project", function () {
+			return {
+				filters: {
+					company: frm.doc.company,
+				},
+			};
+		});
+		frm.set_query("cost_center", function () {
+			return {
+				filters: {
+					company: frm.doc.company,
+				},
+			};
+		});
 		if (frm.doc.__islocal) {
 			frm.set_value("from_date", frappe.datetime.add_months(frappe.datetime.get_today(), -1));
 			frm.set_value("to_date", frappe.datetime.get_today());
@@ -103,7 +133,7 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 		let filters = {
 			company: frm.doc.company,
 		};
-		if (frm.doc.report == "Accounts Receivable") {
+		if (frm.doc.report == "Accounts Receivable" || frm.doc.report == "Detailed Statement (Running Balance)") {
 			filters["account_type"] = "Receivable";
 		}
 		frm.set_query("account", function () {

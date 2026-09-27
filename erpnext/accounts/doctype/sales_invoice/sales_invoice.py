@@ -88,12 +88,6 @@ class SalesInvoice(SellingController):
 		else:
 			self.indicator_color = "green"
 			self.indicator_title = _("Paid")
-			
-	def set_total_qty(self):
-		total_qty = 0
-		for d in self.get('items'):
-			total_qty = total_qty + flt(d.qty)
-		self.total_qty = total_qty
 
 	def validate(self):
 		self.validate_auto_set_posting_time()
@@ -102,7 +96,6 @@ class SalesInvoice(SellingController):
 		if not (self.is_pos or self.is_debit_note):
 			self.so_dn_required()
 
-		self.mrp_validate_items()
 		self.set_tax_withholding()
 
 		self.validate_proj_cust()
@@ -126,8 +119,6 @@ class SalesInvoice(SellingController):
 
 		if cint(self.is_pos):
 			self.validate_pos()
-			
-		self.set_total_qty()
 
 		if cint(self.update_stock):
 			self.validate_dropship_item()
@@ -185,19 +176,6 @@ class SalesInvoice(SellingController):
 		self.allow_write_off_only_on_pos()
 		self.reset_default_field_value("set_warehouse", "items", "warehouse")
 
-	def mrp_validate_items(self):
-		for d in self.get('items'):
-			if d.expense_account:
-				if frappe.db.get_value("Account", d.expense_account, "company") != self.company:
-					d.expense_account = frappe.db.get_value("Company", self.company, "default_expense_account")
-			
-			if d.income_account:
-				if frappe.db.get_value("Account", d.income_account, "company") != self.company:
-					d.income_account = frappe.db.get_value("Company", self.company, "default_income_account")
-			
-			if d.cost_center:
-				if frappe.db.get_value("Cost Center", d.cost_center, "company") != self.company:
-					d.cost_center = frappe.db.get_value("Company", self.company, "cost_center")
 	def validate_accounts(self):
 		self.validate_write_off_account()
 		self.validate_account_for_change_amount()
@@ -297,19 +275,16 @@ class SalesInvoice(SellingController):
 		# Updating stock ledger should always be called after updating prevdoc status,
 		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		if self.update_stock == 1:
-			# Conditionally update stock ledger and make GL entries
-			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-				self.update_stock_ledger()
+			self.update_stock_ledger()
+
 		if self.is_return and self.update_stock:
 			update_serial_nos_after_submit(self, "items")
 
-		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			# this sequence because outstanding may get -ve
-			self.make_gl_entries()
+		# this sequence because outstanding may get -ve
+		self.make_gl_entries()
 
 		if self.update_stock == 1:
-			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-				self.repost_future_sle_and_gle()
+			self.repost_future_sle_and_gle()
 
 		if not self.is_return:
 			self.update_billing_status_for_zero_amount_refdoc("Delivery Note")
@@ -427,17 +402,12 @@ class SalesInvoice(SellingController):
 		# Updating stock ledger should always be called after updating prevdoc status,
 		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		if self.update_stock == 1:
-			# Conditionally update stock ledger
-			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-				self.update_stock_ledger()
+			self.update_stock_ledger()
 
-		# Conditionally cancel GL entries
-		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.make_gl_entries_on_cancel()
+		self.make_gl_entries_on_cancel()
 
 		if self.update_stock == 1:
-			if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-				self.repost_future_sle_and_gle()
+			self.repost_future_sle_and_gle()
 
 		self.db_set("status", "Cancelled")
 
@@ -2658,117 +2628,6 @@ def check_if_return_invoice_linked_with_payment_entry(self):
 			message += _("to unallocate the amount of this Return Invoice before cancelling it.")
 			frappe.throw(message)
 
-@frappe.whitelist()		
-def mrp_duplicate_sales_invoice(data):
-	company_field_no_map = ["taxes", "taxes_and_charges", "customer_address", "shipping_address_name"]
-	item_field_no_map = ["income_account", "expense_account", "cost_center", "warehouse"]
-	
-	import json
-	args = json.loads(data)
-	doctype = target_doctype = 'Sales Invoice'
-	source_name = args["source_name"]
-	
-	def set_missing_values(source, target):
-		target.run_method("set_missing_values")
-		target.run_method("calculate_taxes_and_totals")
-		
-	def update_details(source_doc, target_doc, source_parent):
-		currency = frappe.db.get_value("Customer", args.get("customer"), "default_currency")
-		if currency:
-			target_doc.currency = currency
-		
-		target_doc.company = args.get("company")
-		target_doc.customer = args.get("customer")
-
-	
-	def update_details_too(source_doc,target_doc):
-		project_percent = flt(args["project_percent"])/100 or 1.0
-		sales_invoice_percent = flt(args["sales_invoice_percent"])/100 or 1.0
-		
-		target_doc.naming_series = source_doc.naming_series
-		target_doc.posting_date = source_doc.posting_date
-		target_doc.posting_time = source_doc.posting_time
-		target_doc.due_date = source_doc.due_date
-		target_doc.ignore_pricing_rule = 1
-		target_doc.customer = args["customer"]
-		target_doc.company = args["company"]
-		target_doc.project = args["project"]
-		target_doc.taxes_and_charges = args["taxes_and_charges"]
-		target_doc.tc_name = args.get("tc_name")
-		target_doc.taxes = []
-		target_doc.terms = ''
-		target_doc.debit_to = None
-		target_doc.vat_emirate = None
-		target_doc.po_no = None
-		target_doc.po_date = None
-		target_doc.sales_partner = None
-		target_doc.commision_rate = 0
-		target_doc.company_address = None
-		target_doc.company_address_display = ''
-		target_doc.customer_address = None
-		target_doc.address_display = ''
-		target_doc.contact_person = None
-		target_doc.contact_display = ''
-		target_doc.shipping_address_name = None
-		target_doc.shipping_address = ''
-		target_doc.dispatch_address_name = None
-		target_doc.dispatch_address = ''
-		target_doc.project_total = project_percent * flt(source_doc.project_total)
-
-		for item in target_doc.items:
-			item.base_rate = sales_invoice_percent * flt(item.base_rate)
-			item.rate = sales_invoice_percent * flt(item.rate)
-			item.base_amount = item.qty * flt(item.base_rate)		
-			item.amount = item.qty * flt(item.rate)
-			item.expense_account = frappe.db.get_value("Company", target_doc.company, "default_expense_account")
-			item.income_account = frappe.db.get_value("Company", target_doc.company, "default_income_account")
-			item.cost_center = frappe.db.get_value("Company", target_doc.company, "cost_center")
-
-		# fetch terms
-		if target_doc.tc_name:
-			target_doc.terms = frappe.db.get_value("Terms and Conditions", target_doc.tc_name, "terms")
-
-		# fetch charges
-		if target_doc.taxes_and_charges and not len(target_doc.get("taxes")):
-			target_doc.set_taxes()
-
-		
-	if args.get('use_mapped') and args.get('use_mapped') == True:
-		item_field_map = {
-			"doctype": target_doctype + " Item",
-			"field_no_map": item_field_no_map,
-			"field_map": {
-				"rate": "rate",
-			},
-		}
-		
-		doclist = get_mapped_doc(
-			doctype,
-			source_name,
-			{
-				doctype: {
-					"doctype": target_doctype,
-					"postprocess": update_details,
-					"field_no_map": company_field_no_map,
-				},
-				doctype + " Item": item_field_map,
-			},
-			None,
-			set_missing_values,
-		)
-		doclist.save()
-		can_read = doclist.has_permission('read')
-		return doclist, can_read
-		
-		
-	else:
-		source_doc = frappe.get_doc("Sales Invoice", source_name)
-		target_doc = frappe.copy_doc(source_doc, ignore_no_copy=False)
-		update_details_too(source_doc, target_doc)
-		set_missing_values(source_doc, target_doc)
-		target_doc.save()
-		can_read = target_doc.has_permission('read')
-		return target_doc, can_read
 	
 
 

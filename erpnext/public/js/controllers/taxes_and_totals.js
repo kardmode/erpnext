@@ -418,7 +418,7 @@ erpnext.taxes_and_totals = class TaxesAndTotals extends erpnext.payments {
 
 	set_cumulative_total(row_idx, tax) {
 		var tax_amount = tax.tax_amount_after_discount_amount;
-		if (in_list(["Valuation", "Account Ledger Only"], tax.category)) {
+		if (tax.category == 'Valuation') {
 			tax_amount = 0;
 		}
 
@@ -721,7 +721,7 @@ erpnext.taxes_and_totals = class TaxesAndTotals extends erpnext.payments {
 
 		function update_actual_taxes_dict(tax, tax_amount) {
 			if (tax.add_deduct_tax == "Deduct") tax_amount *= -1;
-			if (!["Valuation","Account Ledger Only"].includes(tax.category)) total_actual_tax += tax_amount;
+			if (tax.category != "Valuation") total_actual_tax += tax_amount;
 
 			actual_taxes_dict[tax.idx] = {
 				tax_amount: tax_amount,

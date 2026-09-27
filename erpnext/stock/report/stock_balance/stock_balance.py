@@ -164,12 +164,6 @@ class StockBalanceReport:
 		item_warehouse_map = filter_items_with_no_transactions(
 			item_warehouse_map, self.float_precision, self.inventory_dimensions
 		)
-		
-		# mrp
-		item_warehouse_map = filter_items_with_custom_filters(
-			item_warehouse_map, self.filters, self.inventory_dimensions
-		)
-
 
 		return item_warehouse_map
 
@@ -477,29 +471,6 @@ class StockBalanceReport:
 				{"label": att_name, "fieldname": att_name, "width": 100}
 				for att_name in get_variants_attributes()
 			]
-			
-		if self.filters.get("report_style") == "Minimal":
-			columns = [
-				{"label": _("Item"), "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 300},
-				# _("Item Name")+"::150",
-				{"label": _("Item Group"), "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 100},
-				# _("Brand")+"::90",
-				# _("Description")+"::140",
-				{"label": _("Warehouse"), "fieldname": "warehouse", "fieldtype": "Link", "options": "Warehouse", "width": 100},
-				{"label": _("Stock UOM"), "fieldname": "stock_uom", "fieldtype": "Link", "options": "UOM", "width": 90},
-				# _("Opening Qty")+":Float:100",
-				# _("Opening Value")+":Float:60",
-				# _("In Qty")+":Float:100",
-				# _("In Value")+":Float:80",
-				# _("Out Qty")+":Float:100",
-				# _("Out Value")+":Float:80",
-				{"label": _("Balance Qty"), "fieldname": "bal_qty", "fieldtype": "Float", "width": 100, "convertible": "qty"},
-				# _("Balance Value")+":Float:100",
-				# _("Valuation Rate")+":Float:100"
-				# ,_("Reorder Level")+":Float:80",
-				# _("Reorder Qty")+":Float:80",
-				# _("Company")+":Link/Company:100"
-			]
 
 		return columns
 
@@ -642,43 +613,3 @@ def filter_items_with_no_transactions(
 def get_variants_attributes() -> list[str]:
 	"""Return all item variant attributes."""
 	return frappe.get_all("Item Attribute", pluck="name")
-
-def filter_items_with_custom_filters(iwb_map,filters,inventory_dimensions):
-	pop_keys = []
-	for group_by_key in iwb_map:
-		qty_dict = iwb_map[group_by_key]
-		no_transactions = False
-		warehouse = group_by_key[2]
-		
-		if filters.get("hide_disabled") == 1:
-			warehouse_details = frappe.db.get_value("Warehouse", warehouse , ["disabled"], as_dict=1)
-			if warehouse_details:
-				if warehouse_details.disabled == True:
-					no_transactions = True
-		
-		for key, val in qty_dict.items():
-			if inventory_dimensions and key in inventory_dimensions:
-				continue
-			
-			if filters.get("hide_positive_qty") == 1:
-				if qty_dict.bal_qty > 0:
-					no_transactions = True
-					
-			if filters.get("hide_negative_qty") == 1:
-				if qty_dict.bal_qty < 0:
-					no_transactions = True
-					
-			if filters.get("hide_zero_qty") == 1:
-				if qty_dict.bal_qty == 0:
-					no_transactions = True
-
-			
-
-		if no_transactions:
-			pop_keys.append(group_by_key)
-
-	for key in pop_keys:
-		iwb_map.pop(key)
-		
-	return iwb_map
-

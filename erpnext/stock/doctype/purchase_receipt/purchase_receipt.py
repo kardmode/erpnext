@@ -108,15 +108,6 @@ class PurchaseReceipt(BuyingController):
 				]
 			)
 			
-	def mrp_set_total_qty(self):
-		total_qty = 0
-		fake_total = 0
-		for d in self.get('items'):
-			total_qty = total_qty + flt(d.qty)
-			fake_total = fake_total + flt(d.fake_qty)
-		self.total_qty = total_qty
-		self.fake_qty = fake_total
-		
 	def before_validate(self):
 		from erpnext.stock.doctype.putaway_rule.putaway_rule import apply_putaway_rule
 
@@ -126,8 +117,6 @@ class PurchaseReceipt(BuyingController):
 	def validate(self):
 		self.validate_posting_time()
 		super().validate()
-		
-		self.mrp_validate_supplier_with_dn()
 
 		if self._action == "submit":
 			self.make_batches("warehouse")
@@ -138,7 +127,6 @@ class PurchaseReceipt(BuyingController):
 		self.validate_items_quality_inspection()
 		self.validate_with_previous_doc()
 		self.validate_uom_is_integer()
-		self.mrp_set_total_qty()
 		self.validate_cwip_accounts()
 		self.validate_provisional_expense_account()
 
@@ -762,17 +750,6 @@ class PurchaseReceipt(BuyingController):
 			pr_doc = self if (pr == self.name) else frappe.get_doc("Purchase Receipt", pr)
 			update_billing_percentage(pr_doc, update_modified=update_modified)
 
-		
-	def mrp_validate_supplier_with_dn(self):
-		if self.supplier_delivery_note:
-			duplicate_pr = None
-			if cint(self.get("__islocal")):
-				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where supplier = %s and supplier_delivery_note = %s and docstatus = 1 limit 1""", (self.supplier,self.supplier_delivery_note),as_dict=True)
-			else:
-				duplicate_pr = frappe.db.sql("""select name from `tabPurchase Receipt` where name <> %s and supplier = %s and supplier_delivery_note = %s limit 1""", (self.name,self.supplier,self.supplier_delivery_note),as_dict=True)
-
-			if duplicate_pr:
-				frappe.throw(_("Supplier Delivery Note Identical to {0}").format(duplicate_pr[0].name))
 
 def get_stock_value_difference(voucher_no, voucher_detail_no, warehouse):
 	return frappe.db.get_value(

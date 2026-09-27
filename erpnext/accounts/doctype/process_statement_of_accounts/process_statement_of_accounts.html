@@ -231,6 +231,14 @@
 						| {{ _("Tax ID / TRN") }}: <b>{{ customer_doc.tax_id or filters.tax_id }}</b>
 					{% endif %}
 				</div>
+				{% if filters.project %}
+				<div class="soa-party-sub" style="color: #0f172a; font-weight: 600; margin-top: 4px;">
+					&#9679; {{ _("Project") }}: 
+					{% for p in filters.project %}
+						{{ p }}{% if not loop.last %}, {% endif %}
+					{% endfor %}
+				</div>
+				{% endif %}
 			</div>
 			<div class="soa-meta-right">
 				<div>

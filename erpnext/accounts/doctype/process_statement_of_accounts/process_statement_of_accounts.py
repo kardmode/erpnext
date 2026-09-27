@@ -554,12 +554,13 @@ def filter_and_enrich_ar_data(doc, entry, res):
 		if selected_projects and row.get("project") not in selected_projects:
 			continue
 
-		# Apply from_date filter if posting_date exists
-		if doc.from_date and v_date and getdate(v_date) < getdate(doc.from_date):
+		# Apply from_date filter if posting_date exists (for AR, do not drop older unpaid invoices)
+		if doc.report != "Accounts Receivable" and doc.from_date and v_date and getdate(v_date) < getdate(doc.from_date):
 			continue
 
 		# Apply to_date filter if posting_date exists
-		if doc.to_date and v_date and getdate(v_date) > getdate(doc.to_date):
+		to_cutoff = doc.to_date or doc.posting_date
+		if to_cutoff and v_date and getdate(v_date) > getdate(to_cutoff):
 			continue
 
 		invoiced = float(row.get("invoiced") or row.get("invoiced_amount") or 0.0)
@@ -632,6 +633,25 @@ def filter_and_enrich_ar_data(doc, entry, res):
 
 		filtered_res.append(row)
 
+	# Sort rows chronologically by posting date
+	filtered_res.sort(key=lambda r: (str(r.get("posting_date") or ""), str(r.get("voucher_no") or "")))
+
+	# Calculate continuous running balance
+	running_bal = 0.0
+	for row in filtered_res:
+		inv = float(row.get("invoiced") or row.get("invoiced_amount") or 0.0)
+		pd = float(row.get("paid") or row.get("paid_amount") or 0.0)
+		cn = float(row.get("credit_note") or row.get("credit_note_amount") or 0.0)
+		if row.get("is_payment_entry") or row.get("status") == "Unallocated Payment":
+			out_val = float(row.get("outstanding") or row.get("outstanding_amount") or 0.0)
+			delta = out_val if out_val < 0 else -pd
+		elif row.get("is_return") or inv < 0:
+			delta = inv
+		else:
+			delta = inv - pd - cn
+		running_bal += delta
+		row["running_balance"] = running_bal
+
 	total_net_invoiced = max(0.0, total_gross_invoiced - total_credit_notes_issued)
 
 	summary = {
@@ -649,11 +669,307 @@ def filter_and_enrich_ar_data(doc, entry, res):
 	return filtered_res, summary
 
 
+def get_detailed_statement_running_balance_data(doc, entry):
+	"""
+	Retrieves all invoices, credit notes, and payment entries for the customer,
+	computes period opening balance (if from_date set), running balance, and settlement details.
+	"""
+	from frappe.utils import flt
+	selected_projects = []
+	if doc.get("project"):
+		for p in doc.project:
+			p_name = p if isinstance(p, str) else getattr(p, "project_name", None) or p.get("project_name")
+			if p_name and str(p_name).strip():
+				selected_projects.append(str(p_name).strip())
+
+	to_d = getdate(doc.to_date or doc.posting_date or today())
+	from_d = getdate(doc.from_date) if doc.from_date else None
+
+	inv_filters = {
+		"customer": entry.customer,
+		"docstatus": 1,
+		"posting_date": ["<=", to_d],
+	}
+	if doc.get("company"):
+		inv_filters["company"] = doc.company
+	if selected_projects:
+		inv_filters["project"] = ["in", selected_projects]
+
+	invoices = frappe.get_all(
+		"Sales Invoice",
+		filters=inv_filters,
+		fields=[
+			"name",
+			"posting_date",
+			"due_date",
+			"grand_total",
+			"outstanding_amount",
+			"project",
+			"po_no",
+			"remarks",
+			"is_return",
+			"return_against",
+			"currency",
+		],
+		order_by="posting_date asc, creation asc",
+	)
+
+	pe_filters = {
+		"party_type": "Customer",
+		"party": entry.customer,
+		"docstatus": 1,
+		"posting_date": ["<=", to_d],
+	}
+	if doc.get("company"):
+		pe_filters["company"] = doc.company
+
+	payment_entries = frappe.get_all(
+		"Payment Entry",
+		filters=pe_filters,
+		fields=[
+			"name",
+			"posting_date",
+			"reference_no",
+			"reference_date",
+			"mode_of_payment",
+			"received_amount",
+			"paid_amount",
+			"unallocated_amount",
+			"project",
+			"remarks",
+		],
+		order_by="posting_date asc, creation asc",
+	)
+
+	settlement_data = get_customer_settlement_map(entry.customer)
+	settlement_map = settlement_data.get("by_invoice", {})
+	cn_realloc_map = settlement_data.get("by_credit_note", {})
+
+	pe_meta_dict = {pe.name: pe for pe in payment_entries}
+	for alloc_list in settlement_map.values():
+		for a in alloc_list:
+			v = a.get("voucher_no")
+			if v in pe_meta_dict:
+				a["reference_no"] = pe_meta_dict[v].reference_no
+				a["mode_of_payment"] = pe_meta_dict[v].mode_of_payment
+
+	allocated_pe_amounts = {}
+	for inv_name, alloc_list in settlement_map.items():
+		for item in alloc_list:
+			if not item.get("is_credit_note"):
+				v_no = item.get("voucher_no")
+				if v_no:
+					allocated_pe_amounts[v_no] = allocated_pe_amounts.get(v_no, 0.0) + flt(item.get("amount", 0.0))
+
+	# Compute opening balance for transactions before from_d (if from_d is specified)
+	opening_balance = 0.0
+	if from_d:
+		for inv in invoices:
+			if getdate(inv.posting_date) < from_d:
+				invoiced_amt = flt(inv.grand_total)
+				if inv.is_return or invoiced_amt < 0:
+					opening_balance -= abs(invoiced_amt)
+				else:
+					allocs = settlement_map.get(inv.name, [])
+					cr_amt = sum(flt(a["amount"]) for a in allocs if a.get("is_credit_note"))
+					paid_amt = sum(flt(a["amount"]) for a in allocs if not a.get("is_credit_note"))
+					out_amt = flt(inv.outstanding_amount)
+					settled_diff = invoiced_amt - out_amt
+					if settled_diff > 0 and (paid_amt + cr_amt) == 0:
+						paid_amt = settled_diff
+					opening_balance += (invoiced_amt - paid_amt - cr_amt)
+
+		for pe in payment_entries:
+			if getdate(pe.posting_date) < from_d:
+				if selected_projects and pe.project and pe.project not in selected_projects:
+					continue
+				pe_total = flt(pe.received_amount or pe.paid_amount)
+				pe_allocated = allocated_pe_amounts.get(pe.name, 0.0)
+				unalloc = flt(pe.unallocated_amount) if pe.unallocated_amount is not None else max(0.0, pe_total - pe_allocated)
+				if unalloc > 0.001:
+					opening_balance -= unalloc
+
+	rows = []
+	# Process Invoices
+	for inv in invoices:
+		v_date = inv.posting_date
+		if from_d and getdate(v_date) < from_d:
+			continue
+
+		invoiced_amt = flt(inv.grand_total)
+		out_amt = flt(inv.outstanding_amount)
+
+		if inv.is_return or invoiced_amt < 0:
+			abs_cn = abs(invoiced_amt)
+			reallocs = cn_realloc_map.get(inv.name, [])
+			realloc_sum = sum(flt(r.get("amount", 0.0)) for r in reallocs)
+			unallocated_cn = max(0.0, abs_cn - realloc_sum)
+
+			row = {
+				"posting_date": inv.posting_date,
+				"due_date": inv.due_date,
+				"voucher_no": inv.name,
+				"voucher_type": "Credit Note",
+				"customer_ref": inv.po_no or "",
+				"project": inv.project,
+				"is_return": 1,
+				"return_against": inv.return_against,
+				"remarks": inv.remarks,
+				"invoice_remarks": inv.remarks,
+				"invoiced": -abs_cn,
+				"paid": 0.0,
+				"credit_note": 0.0,
+				"outstanding": -unallocated_cn if unallocated_cn > 0.001 else 0.0,
+				"reallocated_to": reallocs,
+				"allocations": [],
+				"status": "Credit Note",
+				"delta": -abs_cn,
+			}
+			rows.append(row)
+		else:
+			allocs = settlement_map.get(inv.name, [])
+			cr_amt = sum(flt(a["amount"]) for a in allocs if a.get("is_credit_note"))
+			paid_amt = sum(flt(a["amount"]) for a in allocs if not a.get("is_credit_note"))
+
+			settled_diff = invoiced_amt - out_amt
+			if settled_diff > 0 and (paid_amt + cr_amt) == 0:
+				paid_amt = settled_diff
+
+			if out_amt <= 0.001:
+				if cr_amt > 0 and paid_amt == 0:
+					status_label = "Paid via Credit Note"
+				else:
+					status_label = "Paid in Full"
+			elif out_amt < invoiced_amt:
+				status_label = "Partially Paid"
+			else:
+				status_label = "Unpaid"
+
+			row = {
+				"posting_date": inv.posting_date,
+				"due_date": inv.due_date,
+				"voucher_no": inv.name,
+				"customer_ref": inv.po_no or "",
+				"voucher_type": "Sales Invoice",
+				"project": inv.project,
+				"is_return": 0,
+				"return_against": inv.return_against,
+				"remarks": inv.remarks,
+				"invoice_remarks": inv.remarks,
+				"invoiced": invoiced_amt,
+				"paid": paid_amt,
+				"credit_note": cr_amt,
+				"outstanding": out_amt,
+				"allocations": allocs,
+				"status": status_label,
+				"delta": invoiced_amt - paid_amt - cr_amt,
+			}
+			rows.append(row)
+
+	# Process Unallocated Payment Entries
+	for pe in payment_entries:
+		v_date = pe.posting_date
+		if from_d and getdate(v_date) < from_d:
+			continue
+		if selected_projects and pe.project and pe.project not in selected_projects:
+			continue
+
+		pe_total = flt(pe.received_amount or pe.paid_amount)
+		pe_allocated = allocated_pe_amounts.get(pe.name, 0.0)
+		unalloc = flt(pe.unallocated_amount) if pe.unallocated_amount is not None else max(0.0, pe_total - pe_allocated)
+
+		if unalloc > 0.001:
+			row = {
+				"posting_date": pe.posting_date,
+				"due_date": pe.reference_date or pe.posting_date,
+				"voucher_no": pe.name,
+				"voucher_type": "Payment Entry",
+				"customer_ref": pe.reference_no or "",
+				"reference_no": pe.reference_no or "",
+				"reference_date": pe.reference_date,
+				"mode_of_payment": pe.mode_of_payment or "Advance Payment",
+				"pe_remarks": pe.remarks,
+				"remarks": pe.remarks,
+				"pe_total_amount": pe_total,
+				"project": pe.project or "",
+				"is_payment_entry": 1,
+				"status": "Unallocated Payment",
+				"invoiced": 0.0,
+				"paid": unalloc,
+				"credit_note": 0.0,
+				"outstanding": -unalloc,
+				"allocations": [],
+				"delta": -unalloc,
+			}
+			rows.append(row)
+
+	# Sort rows chronologically
+	rows.sort(key=lambda r: (str(r.get("posting_date") or ""), str(r.get("voucher_no") or "")))
+
+	# Prepend Opening Balance if present
+	if abs(opening_balance) > 0.001:
+		opening_row = {
+			"posting_date": from_d,
+			"due_date": "",
+			"voucher_no": "Opening Balance",
+			"voucher_type": "",
+			"customer_ref": "",
+			"project": "",
+			"is_return": 0,
+			"is_opening": 1,
+			"remarks": "Balance brought forward",
+			"invoice_remarks": "Balance brought forward",
+			"invoiced": 0.0,
+			"paid": 0.0,
+			"credit_note": 0.0,
+			"outstanding": opening_balance,
+			"running_balance": opening_balance,
+			"allocations": [],
+			"status": "Opening",
+		}
+		rows.insert(0, opening_row)
+
+	if not rows:
+		return [], {}, {}
+
+	# Compute Running Balance
+	running_bal = 0.0
+	for r in rows:
+		if r.get("is_opening"):
+			running_bal = flt(r.get("running_balance"))
+		else:
+			delta = flt(r.get("delta", 0.0))
+			running_bal += delta
+			r["running_balance"] = running_bal
+
+	total_gross_inv = sum(flt(r.get("invoiced", 0.0)) for r in rows if not r.get("is_return") and not r.get("is_opening") and flt(r.get("invoiced", 0.0)) > 0)
+	total_cn = sum(abs(flt(r.get("invoiced", 0.0))) for r in rows if (r.get("is_return") or flt(r.get("invoiced", 0.0)) < 0) and not r.get("is_opening"))
+	total_pd = sum(flt(r.get("paid", 0.0)) for r in rows if not r.get("is_opening"))
+	total_out = running_bal
+	net_inv = max(0.0, total_gross_inv - total_cn)
+
+	summary = {
+		"opening_balance": opening_balance if abs(opening_balance) > 0.001 else 0.0,
+		"gross_invoiced": total_gross_inv,
+		"total_credit_notes": total_cn,
+		"net_invoiced": net_inv,
+		"total_invoiced": total_gross_inv,
+		"total_paid": total_pd,
+		"total_payments": total_pd,
+		"closing_balance": total_out,
+		"total_outstanding": total_out,
+	}
+
+	return rows, summary, {}
+
+
 def get_project_billing_data(doc, entry):
 	filters = {
 		"customer": entry.customer,
 		"docstatus": 1,
 	}
+	if doc.get("company"):
+		filters["company"] = doc.company
 	if doc.project:
 		filters["project"] = ["in", [p.project_name for p in doc.project]]
 	if doc.from_date:
@@ -768,6 +1084,19 @@ def get_project_billing_data(doc, entry):
 				"status": status_label,
 			}
 			res.append(row)
+
+	# Calculate continuous running balance
+	running_bal = 0.0
+	for r in res:
+		inv = float(r.get("invoiced") or 0.0)
+		pd = float(r.get("paid") or 0.0)
+		cn = float(r.get("credit_note") or 0.0)
+		if r.get("is_return") or inv < 0:
+			delta = inv
+		else:
+			delta = inv - pd - cn
+		running_bal += delta
+		r["running_balance"] = running_bal
 
 	total_net_invoiced = max(0.0, total_gross_invoiced - total_credit_notes_issued)
 
@@ -915,6 +1244,12 @@ def get_statement_dict(doc, get_statement_dict=False):
 				if len(res) > abs(x) and isinstance(res[x], dict) and "account" in res[x]:
 					res[x]["account"] = str(res[x]["account"]).replace("'", "")
 			res, summary = enrich_statement_data(doc, entry, res)
+		elif doc.report == "Detailed Statement (Running Balance)":
+			filters.update(get_ar_filters(doc, entry))
+			col = []
+			res, summary, rec_data = get_detailed_statement_running_balance_data(doc, entry)
+			if not res:
+				continue
 		elif doc.report == "Project Billing Statement" or (
 			doc.report == "Accounts Receivable" and doc.get("include_settled_invoices")
 		):
@@ -1003,6 +1338,7 @@ def get_ar_filters(doc, entry):
 	from_d = getdate(doc.from_date) if doc.from_date else None
 	to_d = getdate(doc.to_date) if doc.to_date else report_date
 	filters = {
+		"company": doc.company,
 		"report_date": report_date,
 		"from_date": from_d,
 		"to_date": to_d,
@@ -1036,6 +1372,8 @@ def get_html(doc, filters, entry, col, res, ageing, summary=None, rec_data=None)
 		)
 	elif doc.report == "Project Billing Statement":
 		template_path = "erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts_project_reconciliation.html"
+	elif doc.report == "Detailed Statement (Running Balance)":
+		template_path = "erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts_running_balance.html"
 	else:
 		template_path = "erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts_accounts_receivable.html"
 
@@ -1275,16 +1613,38 @@ def get_statement_download_filename(doc, extension="pdf"):
 
 
 @frappe.whitelist()
+def validate_has_records(document_name, format="pdf"):
+	doc = frappe.get_doc("Process Statement Of Accounts", document_name)
+	if format == "excel":
+		has_data = bool(get_report_excel(doc))
+	else:
+		statement_dict = get_statement_dict(doc)
+		has_data = bool(statement_dict)
+
+	if not has_data:
+		msg = _("No data found for the selected criteria.")
+		if not doc.get("include_settled_invoices"):
+			msg += " " + _("Invoices may be fully settled. Try enabling 'Include Fully Settled / Paid Invoices'.")
+		frappe.throw(msg, title=_("No Records Found"))
+	return True
+
+
+@frappe.whitelist()
 def download_statements(document_name):
 	try:
 		doc = frappe.get_doc("Process Statement Of Accounts", document_name)
 		report = get_report_pdf(doc)
-		if report:
-			frappe.local.response.filename = get_statement_download_filename(doc, "pdf")
-			frappe.local.response.filecontent = report
-			frappe.local.response.type = "download"
-		else:
-			frappe.msgprint(_("No data found for the selected criteria."))
+		if not report:
+			msg = _("No data found for the selected criteria.")
+			if not doc.get("include_settled_invoices"):
+				msg += " " + _("Invoices may be fully settled. Try enabling 'Include Fully Settled / Paid Invoices'.")
+			frappe.throw(msg, title=_("No Records Found"))
+
+		frappe.local.response.filename = get_statement_download_filename(doc, "pdf")
+		frappe.local.response.filecontent = report
+		frappe.local.response.type = "download"
+	except frappe.ValidationError:
+		raise
 	except Exception as e:
 		frappe.log_error(f"Error in download_statements: {str(e)}", "Process Statement Of Accounts")
 		frappe.throw(str(e))
@@ -1295,11 +1655,16 @@ def download_excel_statements(document_name):
 	try:
 		doc = frappe.get_doc("Process Statement Of Accounts", document_name)
 		excel_file = get_report_excel(doc)
-		if excel_file:
-			filename_base = get_statement_download_filename(doc, "")
-			provide_binary_file(filename_base, "xlsx", excel_file.getvalue())
-		else:
-			frappe.msgprint(_("No data found for the selected criteria."))
+		if not excel_file:
+			msg = _("No data found for the selected criteria.")
+			if not doc.get("include_settled_invoices"):
+				msg += " " + _("Invoices may be fully settled. Try enabling 'Include Fully Settled / Paid Invoices'.")
+			frappe.throw(msg, title=_("No Records Found"))
+
+		filename_base = get_statement_download_filename(doc, "")
+		provide_binary_file(filename_base, "xlsx", excel_file.getvalue())
+	except frappe.ValidationError:
+		raise
 	except Exception as e:
 		frappe.log_error(f"Error in download_excel_statements: {str(e)}", "Process Statement Of Accounts")
 		frappe.throw(str(e))
@@ -1355,6 +1720,11 @@ def get_report_excel(doc):
 				if len(res) > abs(x) and isinstance(res[x], dict) and "account" in res[x]:
 					res[x]["account"] = str(res[x]["account"]).replace("'", "")
 			res, summary = enrich_statement_data(doc, entry, res)
+		elif doc.report == "Detailed Statement (Running Balance)":
+			filters.update(get_ar_filters(doc, entry))
+			res, summary, rec_data = get_detailed_statement_running_balance_data(doc, entry)
+			if not res:
+				continue
 		elif doc.report == "Project Billing Statement" or (
 			doc.report == "Accounts Receivable" and doc.get("include_settled_invoices")
 		):
@@ -1389,7 +1759,12 @@ def get_report_excel(doc):
 		else:
 			period_str = f"Until: {frappe.format(to_d, 'Date')}"
 
-		ws["A3"] = f"{period_str} | Currency: {presentation_currency} | Tax ID: {tax_id or 'N/A'}"
+		proj_info = ""
+		if doc.project:
+			proj_names = ", ".join([p.project_name for p in doc.project])
+			proj_info = f" | Project: {proj_names}"
+
+		ws["A3"] = f"{period_str} | Currency: {presentation_currency} | Tax ID: {tax_id or 'N/A'}{proj_info}"
 		ws["A3"].font = regular_font
 
 		current_row = 5
@@ -1730,6 +2105,9 @@ def get_report_excel(doc):
 					"Credit Note",
 					"Outstanding",
 				]
+				if doc.report == "Detailed Statement (Running Balance)":
+					headers.append("Running Balance")
+
 				for col_idx, header in enumerate(headers, start=1):
 					cell = ws.cell(row=current_row, column=col_idx, value=header)
 					cell.font = header_font
@@ -1857,6 +2235,7 @@ def get_report_excel(doc):
 					r_paid = float(row.get("paid") or row.get("paid_amount") or 0.0)
 					r_credit = float(row.get("credit_note") or row.get("credit_note_amount") or 0.0)
 					r_outstanding = float(row.get("outstanding") or row.get("outstanding_amount") or 0.0)
+					r_running_balance = row.get("running_balance")
 
 					row_data = [
 						str(r_date) if r_date else "",
@@ -1868,12 +2247,14 @@ def get_report_excel(doc):
 						r_credit,
 						r_outstanding,
 					]
+					if doc.report == "Detailed Statement (Running Balance)":
+						row_data.append(float(r_running_balance) if r_running_balance is not None else "")
 
 					for col_idx, val in enumerate(row_data, start=1):
 						c = ws.cell(row=current_row, column=col_idx, value=val)
 						c.font = regular_font
 						c.border = thin_border
-						if 5 <= col_idx <= 8:
+						if 5 <= col_idx <= 9:
 							c.number_format = "#,##0.00"
 							c.alignment = Alignment(horizontal="right")
 						elif col_idx <= 2:

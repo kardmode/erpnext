@@ -101,12 +101,12 @@ class SalesOrder(SellingController):
 				if cint(
 					frappe.db.get_single_value("Selling Settings", "allow_against_multiple_purchase_orders")
 				):
-					pass
-					# frappe.msgprint(
-						# _("Warning: Sales Order {0} already exists against Customer's Purchase Order {1}").format(
-							# frappe.bold(so[0][0]), frappe.bold(self.po_no)
-						# )
-					# )
+					frappe.msgprint(
+						_(
+							"Warning: Sales Order {0} already exists against Customer's Purchase Order {1}"
+						).format(frappe.bold(so[0][0]), frappe.bold(self.po_no)),
+						alert=True,
+					)
 				else:
 					frappe.throw(
 						_(
@@ -188,7 +188,7 @@ class SalesOrder(SellingController):
 				(self.project, self.customer),
 			)
 			if not res:
-				frappe.msgprint(
+				frappe.throw(
 					_("Customer {0} does not belong to project {1}").format(self.customer, self.project)
 				)
 
@@ -756,14 +756,6 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 		if target.get("allocate_advances_automatically"):
 			target.set_advances()
 
-		target.update({"project": source.project})
-
-		if hasattr(target, "project_total"):
-			target.update({"project_total": source.base_grand_total})
-
-		if hasattr(target, "custom_sales_order"):
-			target.update({"custom_sales_order": source.name})
-
 	def set_missing_values(source, target):
 		target.flags.ignore_permissions = True
 		target.run_method("set_missing_values")
@@ -803,9 +795,6 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 
 			if cost_center:
 				target.cost_center = cost_center
-
-		# MRP FIXED 
-		target.project = getattr(source_parent, "project", None)
 
 	doclist = get_mapped_doc(
 		"Sales Order",

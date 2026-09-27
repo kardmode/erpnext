@@ -219,29 +219,6 @@ def get_latest_stock_qty(item_code, warehouse=None):
 	return actual_qty
 
 
-@frappe.whitelist()
-def get_actual_qty(item_code,company = None):
-
-	actual_qty = 0
-	
-	if not company:
-		if item_code:
-			values, condition = [item_code], ""
-			actual_qty = frappe.db.sql("""select sum(actual_qty) from tabBin
-			where item_code=%s {0}""".format(condition), values)[0][0]
-
-	else:
-	
-		stock_details = frappe.db.sql("select t1.warehouse, t1.actual_qty from `tabBin` t1 where t1.item_code = %s AND t1.actual_qty > 0 ORDER BY actual_qty DESC",(item_code),as_dict=1)
-
-		for stdetail in stock_details:
-			company_of_warehouse = frappe.get_value('Warehouse', stdetail.warehouse, 'company')
-			if company == company_of_warehouse:
-				actual_qty = actual_qty + flt(stdetail.actual_qty)
-			
-	
-	return actual_qty
-		
 def get_latest_stock_balance():
 	bin_map = {}
 	for d in frappe.db.sql(
@@ -287,7 +264,6 @@ def _create_bin(item_code, warehouse):
 		bin_obj = frappe.get_last_doc("Bin", {"item_code": item_code, "warehouse": warehouse})
 
 	return bin_obj
-
 
 
 @frappe.whitelist()
@@ -425,32 +401,6 @@ def is_group_warehouse(warehouse):
 	if frappe.db.get_value("Warehouse", warehouse, "is_group", cache=True):
 		frappe.throw(_("Group node warehouse is not allowed to select for transactions"))
 
-@frappe.whitelist()
-def get_default_warehouse(company=None):
-	from erpnext import get_default_company
-	company = company or get_default_company()
-
-	# Helper function to get warehouse values with field existence check
-	def get_warehouse_value(field, default_setting, setting_type="Manufacturing Settings"):
-		if frappe.get_meta("Company").has_field(field):
-			value = frappe.db.get_value("Company", company, field)
-			if value:
-				return value
-		
-		# error_msg = f"Warehouse: {str(field)} not set or doesn't exist for company {str(company)}"
-		# frappe.log_error(error_msg)
-		# raise frappe.ValidationError(error_msg)  # More explicit exception raising
-	
-		# Fallback to global default settings
-		return frappe.db.get_single_value(setting_type, default_setting)
-
-	return {
-		"source_warehouse": get_warehouse_value("stock_stores", "default_warehouse", "Stock Settings"),
-		"wip_warehouse": get_warehouse_value("wip_warehouse", "default_wip_warehouse"),
-		"fg_warehouse": get_warehouse_value("fg_warehouse", "default_fg_warehouse"),
-		"scrap_warehouse": get_warehouse_value("scrap_warehouse", "default_scrap_warehouse"),
-	}
-
 
 def validate_disabled_warehouse(warehouse):
 	if frappe.db.get_value("Warehouse", warehouse, "disabled", cache=True):
@@ -459,6 +409,7 @@ def validate_disabled_warehouse(warehouse):
 				get_link_to_form("Warehouse", warehouse)
 			)
 		)
+
 
 def update_included_uom_in_report(columns, result, include_uom, conversion_factors):
 	if not include_uom or not conversion_factors:
@@ -551,29 +502,6 @@ def add_additional_uom_columns(columns, result, include_uom, conversion_factors)
 				row[data.converted_col] = flt(value_before_conversion) / conversion_factor
 
 		result[row_idx] = row
-		
-		
-# I made this - validate uoms
-@frappe.whitelist()
-def validate_item_uoms(doc):
-	from erpnext.stock.get_item_details import get_conversion_factor, get_conversion_factor_between_two_units
-	
-	for d in doc.get("items"):
-		if not d.meta.get_field("stock_qty"):
-			break
-			
-		
-		uom = d.get("uom") or None
-		stock_uom = d.get("stock_uom") or None
-		item_code = d.get("item_code") or None
-				
-		if uom and stock_uom and item_code:
-			conversion_factor_details = get_conversion_factor_between_two_units(item_code, uom, stock_uom)
-			if not conversion_factor_details.get("conversion_factor_exists"):
-				frappe.throw(_("Conversion factor for Item {0} and UOM {1} does not exist.").format(item_code, initial_uom))
-			else:
-				d.conversion_factor = 1/conversion_factor_details.get("conversion_factor")
-				d.stock_qty = flt(d.qty) * flt(d.conversion_factor)
 
 
 def get_incoming_outgoing_rate_for_cancel(item_code, voucher_type, voucher_no, voucher_detail_no):

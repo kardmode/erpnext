@@ -118,13 +118,7 @@ class DeliveryNote(SellingController):
 					(d.item_code, d.warehouse),
 				)
 				d.actual_qty = actual_qty and flt(actual_qty[0][0]) or 0
-				
-	def set_total_qty(self):
-		total_qty = 0
-		for d in self.get('items'):
-			total_qty = total_qty + flt(d.qty)
-		self.total_qty = total_qty
-		
+
 	def so_required(self):
 		"""check in manage account if sales order required or not"""
 		if frappe.db.get_single_value("Selling Settings", "so_required") == "Yes":
@@ -152,8 +146,7 @@ class DeliveryNote(SellingController):
 
 		self.set_product_bundle_reference_in_packed_items()  # should be called before `make_packing_list`
 		make_packing_list(self)
-		self.set_total_qty()
-		
+
 		if self._action != "submit" and not self.is_return:
 			set_batch_nos(self, "warehouse", throw=True)
 			set_batch_nos(self, "warehouse", throw=True, child_table="packed_items")
@@ -302,15 +295,11 @@ class DeliveryNote(SellingController):
 		elif self.issue_credit_note:
 			self.make_return_invoice()
 
-		# Conditionally update stock ledger and make GL entries
-		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.update_stock_ledger()
+		self.update_stock_ledger()
 
-		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.make_gl_entries()
+		self.make_gl_entries()
 
-		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.repost_future_sle_and_gle()
+		self.repost_future_sle_and_gle()
 
 
 	def on_cancel(self):
@@ -322,19 +311,14 @@ class DeliveryNote(SellingController):
 		self.update_prevdoc_status()
 		self.update_billing_status()
 
-		# Conditionally update stock ledger
-		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.update_stock_ledger()
+		self.update_stock_ledger()
 
 		self.cancel_packing_slips()
 
-		# Conditionally cancel GL entries
-		if not (getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.make_gl_entries_on_cancel()
+		self.make_gl_entries_on_cancel()
 
-		if not (getattr(self, "custom_skip_stock", False) or getattr(self, "custom_skip_accounts", False) or getattr(self, "custom_mrp_skip_stock_and_accounts", False)):
-			self.repost_future_sle_and_gle()
-		
+		self.repost_future_sle_and_gle()
+
 		self.ignore_linked_doctypes = ("GL Entry", "Stock Ledger Entry", "Repost Item Valuation")
 
 	def check_credit_limit(self):

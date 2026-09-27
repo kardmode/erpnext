@@ -70,42 +70,20 @@ class Item(Document):
 
 		self.item_code = strip(self.item_code)
 		self.name = self.item_code
-		
-	def mrp_validate_item_code(self):
-		if not self.item_name:
-			self.item_name = self.item_code
-		
-		self.item_name = self.item_name.strip()
-		
-		if not self.description:
-			self.description = self.item_name
-
-		self.description = strip_html(cstr(self.description)).strip()
-
-		if not self.parent_item_group:
-			self.parent_item_group = frappe.db.get_value(
-				"Item Group",
-				self.item_group,
-				"parent_item_group"
-			)
-		
-	def before_insert(self):
-		if "payment" in str(self.item_code).lower():
-			frappe.throw(_("Please use payment items that already exist."))
-		
-		self.mrp_validate_item_code()
 
 	def after_insert(self):
 		"""set opening stock and item price"""
 		if self.standard_rate:
 			for default in self.item_defaults or [frappe._dict()]:
-				self.add_price(default.default_price_list,self.standard_rate)
-						
+				self.add_price(default.default_price_list, self.standard_rate)
+
 		if self.standard_buying_rate:
-			price_list = (frappe.db.get_single_value('Buying Settings', 'buying_price_list')
-				or frappe.db.get_value('Price List', _('Standard Buying')))
-			self.add_price(price_list,self.standard_buying_rate)
-			
+			price_list = (
+				frappe.db.get_single_value("Buying Settings", "buying_price_list")
+				or frappe.db.get_value("Price List", _("Standard Buying"))
+			)
+			self.add_price(price_list, self.standard_buying_rate)
+
 		if self.opening_stock:
 			self.set_opening_stock()
 
@@ -113,7 +91,6 @@ class Item(Document):
 		if not self.item_name:
 			self.item_name = self.item_code
 
-		self.mrp_validate_item_code()
 		self.validate_uom()
 		self.validate_description()
 		self.add_default_uom_in_conversion_factor_table()
@@ -133,10 +110,6 @@ class Item(Document):
 		self.validate_attributes()
 		self.validate_variant_attributes()
 		self.validate_variant_based_on_change()
-
-		
-		if self.item_group in ["Services","Header1","Header2"]:
-			self.is_stock_item = 0
 
 		self.validate_fixed_asset()
 		self.clear_retain_sample()

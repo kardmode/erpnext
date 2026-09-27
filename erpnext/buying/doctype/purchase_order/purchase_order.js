@@ -53,57 +53,6 @@ frappe.ui.form.on("Purchase Order", {
 		erpnext.accounts.dimensions.update_dimension(frm, frm.doctype);
 	},
 	
-	auto_make_purchase_receipts: function(){
-		var me = this;
-		var d = new frappe.ui.Dialog({
-			title: __('Auto Make Purchase Receipts For POs'),
-			fields: [
-				{
-					fieldname: "year",
-					fieldtype: "Int",
-					label:"Year",
-					reqd: 1,
-					default:2017
-				},
-				{
-					fieldname: "limit",
-					fieldtype: "Int",
-					label:"Limit",
-					reqd: 1,
-					default:1
-				},
-				{
-					fieldname: "submit",
-					fieldtype: "Check",
-					label:"Submit"
-				}
-			],
-		});
-		
-		d.set_primary_action(__('Create'), function() {
-			var data = d.get_values();
-			if(!data) return;
-			frappe.call({
-				method: "erpnext.buying.doctype.purchase_order.purchase_order.mrp_auto_make_prs",
-				args: {
-					year: data.year,
-					limit: data.limit,
-					submit: cint(data.submit)
-				},
-				callback: function(r) {
-					if(!r.exc) {
-					}
-					console.log(r)
-					d.hide();
-					// frappe.msgprint(r.message.join("<br>"));
-				}
-			});
-		})
-		
-		d.show();
-	},
-
-
 	refresh: function(frm) {
 		if(frm.doc.is_old_subcontracting_flow) {
 			frm.trigger('get_materials_from_supplier');
@@ -116,24 +65,6 @@ frappe.ui.form.on("Purchase Order", {
 				}
 			});
 		}
-		
-		/* if(frm.doc.docstatus === 1 && frm.doc.status !== 'Closed'
-			&& flt(frm.doc.per_received) < 100 && flt(frm.doc.per_billed) < 100) {
-			frm.add_custom_button(__('Update Items'), () => {
-				erpnext.utils.update_child_items({
-					frm: frm,
-					child_docname: "items",
-					child_doctype: "Purchase Order Detail",
-					cannot_add_row: false,
-				})
-			});
-		} */
-		
-		/* frm.add_custom_button(__('Make OLD PRs'), () => {
-			frm.trigger("auto_make_purchase_receipts");
-		}, __("Tools")); */
-		
-		
 	},
 
 	get_materials_from_supplier: function(frm) {

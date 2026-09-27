@@ -90,7 +90,7 @@
 		color: #ffffff;
 		font-weight: 600;
 		text-align: left;
-		padding: 6px 8px;
+		padding: 6px 7px;
 		font-size: 10px;
 		border: 1px solid #1e293b;
 		text-transform: uppercase;
@@ -100,7 +100,7 @@
 		text-align: right;
 	}
 	.soa-table td {
-		padding: 6px 8px;
+		padding: 6px 7px;
 		border: 1px solid #cbd5e1;
 		vertical-align: top;
 	}
@@ -130,30 +130,31 @@
 		color: #991b1b;
 		border: 1px solid #fecaca;
 	}
-	.badge-paid-cn {
-		background: #ede9fe;
-		color: #6b21a8;
-		border: 1px solid #ddd6fe;
+	.badge-paid {
+		background: #dcfce7;
+		color: #15803d;
+		border: 1px solid #bbf7d0;
 	}
-	.badge-unallocated-payment {
+	.badge-paid-cn {
 		background: #fef3c7;
 		color: #92400e;
 		border: 1px solid #fde68a;
 	}
-	.badge-advance-payment {
-		background: #dcfce7;
-		color: #166534;
-		border: 1px solid #bbf7d0;
-	}
-	.badge-paid {
-		background: #dcfce7;
-		color: #166534;
-		border: 1px solid #bbf7d0;
-	}
 	.badge-overdue {
 		background: #fee2e2;
-		color: #991b1b;
+		color: #b91c1c;
 		border: 1px solid #fecaca;
+	}
+	.badge-unallocated-payment {
+		background: #e0e7ff;
+		color: #3730a3;
+		border: 1px solid #c7d2fe;
+	}
+	.return-ref-text {
+		color: #b91c1c;
+		font-weight: 600;
+		font-size: 9.5px;
+		margin-top: 2px;
 	}
 	.project-tag {
 		display: inline-block;
@@ -162,12 +163,6 @@
 		color: #334155;
 		padding: 1px 4px;
 		border-radius: 3px;
-		margin-top: 2px;
-	}
-	.return-ref-text {
-		color: #b91c1c;
-		font-weight: 600;
-		font-size: 9.5px;
 		margin-top: 2px;
 	}
 	.ageing-box {
@@ -183,23 +178,20 @@
 		letter-spacing: 0.3px;
 	}
 	.letterhead-logo {
-    display: inline-block;
-    margin-right: 10px;
-}
-
-.letterhead-title {
-    display: inline-block;
-    vertical-align: middle;
-    font-size: 25px;
-    width: fit-content;
-    white-space: nowrap;
-}
-
-.letterhead-address {
-    text-align: center;
-    font-size: 12px;
-}
-	
+		display: inline-block;
+		margin-right: 10px;
+	}
+	.letterhead-title {
+		display: inline-block;
+		vertical-align: middle;
+		font-size: 25px;
+		width: fit-content;
+		white-space: nowrap;
+	}
+	.letterhead-address {
+		text-align: center;
+		font-size: 12px;
+	}
 </style>
 
 <div class="page-break soa-container">
@@ -217,7 +209,7 @@
 	</div>
 
 	<div class="soa-header">
-		<div class="soa-title text-center">{{ _("Statement Of Accounts") }}</div>
+		<div class="soa-title text-center">{{ _("Detailed Statement Of Accounts") }}</div>
 		<div class="soa-meta-grid">
 			<div class="soa-meta-left">
 				<div class="soa-party-name">{{ customer_doc.customer_name or filters.customer_name or (filters.party and filters.party[0]) or '' }}</div>
@@ -262,9 +254,9 @@
 			<div class="soa-kpi-title">{{ _("Credit Notes & Returns") }}</div>
 			<div class="soa-kpi-val" style="color: #b91c1c;">-{{ frappe.utils.fmt_money(summary.total_credit_notes, currency=filters.presentation_currency) }}</div>
 		</div>
-		<div class="soa-kpi-card" style="background: #f8fafc; border-color: #cbd5e1;">
-			<div class="soa-kpi-title" style="color: #0f172a;">{{ _("Net Billed Amount") }}</div>
-			<div class="soa-kpi-val" style="color: #0f172a;">{{ frappe.utils.fmt_money(summary.net_invoiced or (summary.total_invoiced - summary.total_credit_notes), currency=filters.presentation_currency) }}</div>
+		<div class="soa-kpi-card">
+			<div class="soa-kpi-title">{{ _("Net Billed Amount") }}</div>
+			<div class="soa-kpi-val">{{ frappe.utils.fmt_money(summary.net_invoiced or (summary.total_invoiced - summary.total_credit_notes), currency=filters.presentation_currency) }}</div>
 		</div>
 		<div class="soa-kpi-card">
 			<div class="soa-kpi-title">{{ _("Total Paid") }}</div>
@@ -280,14 +272,15 @@
 	<table class="soa-table">
 		<thead>
 			<tr>
-				<th style="width: 10%">{{ _("Date") }}</th>
-				<th style="width: 10%">{{ _("Due Date") }}</th>
-				<th style="width: 18%">{{ _("Reference") }}</th>
-				<th style="width: 24%">{{ _("Project & Details") }}</th>
-				<th class="num-col" style="width: 10%">{{ _("Invoiced") }}</th>
-				<th class="num-col" style="width: 9%">{{ _("Paid") }}</th>
-				<th class="num-col" style="width: 9%">{{ _("Credit Note") }}</th>
-				<th class="num-col" style="width: 10%">{{ _("Outstanding") }}</th>
+				<th style="width: 9%">{{ _("Date") }}</th>
+				<th style="width: 9%">{{ _("Due Date") }}</th>
+				<th style="width: 16%">{{ _("Reference") }}</th>
+				<th style="width: 22%">{{ _("Project & Details") }}</th>
+				<th class="num-col" style="width: 9%">{{ _("Invoiced") }}</th>
+				<th class="num-col" style="width: 8%">{{ _("Paid") }}</th>
+				<th class="num-col" style="width: 8%">{{ _("Credit Note") }}</th>
+				<th class="num-col" style="width: 9%">{{ _("Outstanding") }}</th>
+				<th class="num-col" style="width: 10%">{{ _("Running Bal") }}</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -297,10 +290,12 @@
 			{% set cr_amt = row.get("credit_note") or row.get("credit_note_amount") or 0 %}
 			{% set out_amt = row.get("outstanding") or row.get("outstanding_amount") or 0 %}
 			<tr>
-				<td>{{ row.posting_date and frappe.format(row.posting_date, 'Date') or "-" }}</td>
-				<td>{{ row.due_date and frappe.format(row.due_date, 'Date') or "-" }}</td>
+				<td>{{ frappe.format(row.posting_date, 'Date') if row.posting_date else '' }}</td>
+				<td>{{ frappe.format(row.due_date, 'Date') if row.due_date else '' }}</td>
 				<td>
-					{% if row.is_payment_entry or row.status == 'Unallocated Payment' %}
+					{% if row.is_opening or row.status == 'Opening' %}
+						<span class="badge-vtype badge-invoice">{{ _("Opening Balance") }}</span>
+					{% elif row.is_payment_entry or row.status == 'Unallocated Payment' %}
 						<span class="badge-vtype badge-unallocated-payment">{{ _("Unallocated Payment") }}</span>
 					{% elif row.is_return or inv_amt < 0 %}
 						<span class="badge-vtype badge-credit-note">{{ _("Credit Note") }}</span>
@@ -326,7 +321,11 @@
 					{% endif %}
 				</td>
 				<td>
-					{% if row.is_payment_entry or row.status == 'Unallocated Payment' %}
+					{% if row.is_opening or row.status == 'Opening' %}
+						<div style="color: #64748b; font-size: 9.5px; font-style: italic;">
+							{{ _("Accumulated balance brought forward prior to statement period") }}
+						</div>
+					{% elif row.is_payment_entry or row.status == 'Unallocated Payment' %}
 						{% if row.mode_of_payment %}
 							<div style="font-size: 9.5px; color: #0f172a; font-weight: 600;">
 								&#9679; {{ _("Mode") }}: {{ row.mode_of_payment }}
@@ -399,6 +398,7 @@
 				<td class="num-col">{{ frappe.utils.fmt_money(paid_amt, currency=filters.presentation_currency) }}</td>
 				<td class="num-col">{{ frappe.utils.fmt_money(cr_amt, currency=filters.presentation_currency) }}</td>
 				<td class="num-col"><b>{{ frappe.utils.fmt_money(out_amt, currency=filters.presentation_currency) }}</b></td>
+				<td class="num-col" style="font-weight: 600; color: #0f172a; background: #f8fafc;">{{ frappe.utils.fmt_money(row.running_balance, currency=filters.presentation_currency) if row.running_balance is not none else '' }}</td>
 			</tr>
 		{% endfor %}
 		{% if summary %}
@@ -408,6 +408,7 @@
 				<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.total_paid, currency=filters.presentation_currency) }}</b></td>
 				<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.total_credit_notes, currency=filters.presentation_currency) }}</b></td>
 				<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.total_outstanding, currency=filters.presentation_currency) }}</b></td>
+				<td class="num-col"><b>{{ frappe.utils.fmt_money(summary.closing_balance or summary.total_outstanding, currency=filters.presentation_currency) }}</b></td>
 			</tr>
 		{% endif %}
 		</tbody>

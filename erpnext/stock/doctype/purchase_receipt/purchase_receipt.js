@@ -376,15 +376,3 @@ var validate_sample_quantity = function(frm, cdt, cdn) {
 	}
 };
 
-var calculate_total_qty =  function(frm) {
-	var total_qty = 0;
-	var fake_total = 0;
-		
-	(frm.doc.items || []).forEach(function(d) {
-		total_qty = total_qty + d.qty;
-		fake_total = fake_total + d.fake_qty;
-	})
-	frm.doc.total_qty = total_qty;
-	frm.doc.fake_total = fake_total;
-};
-
