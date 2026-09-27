@@ -313,6 +313,7 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 	
 	company = args.get("company") or None
 	
+	# mrp_edit
 	from mrp.mrp.custom_stock_entry import get_best_warehouse
 	best_warehouse,enough_stock = get_best_warehouse(company = company)
 	

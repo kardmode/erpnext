@@ -344,7 +344,7 @@ frappe.ui.form.on("Item", {
 	opening_stock: function (frm) {
 		if (frm.doc.opening_stock > 0) {
 			frappe.call({
-				method: "erpnext.stock.utils.get_default_warehouse",
+				method: "mrp.mrp.utils.get_default_warehouse",
 				callback: function (r) {
 					if (!r.exc) {
 						cur_frm.set_value("opening_warehouse", r.message.source_warehouse);

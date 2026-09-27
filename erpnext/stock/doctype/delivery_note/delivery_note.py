@@ -14,6 +14,7 @@ from erpnext.controllers.accounts_controller import get_taxes_and_charges, merge
 from erpnext.controllers.selling_controller import SellingController
 from erpnext.stock.doctype.batch.batch import set_batch_nos
 from erpnext.stock.doctype.serial_no.serial_no import get_delivery_note_serial_no
+from mrp.mrp.utils import get_default_warehouse
 
 form_grid_templates = {"items": "templates/form_grid/item_grid.html"}
 
@@ -1080,8 +1081,6 @@ def make_purchase_receipt(source_name, target_doc=None):
 		target.run_method("calculate_taxes_and_totals")
 		
 		if not target.company == source.company:
-			from erpnext.stock.utils import get_default_warehouse
-
 			default_warehouse = get_default_warehouse(company = target.company).get("source_warehouse")
 
 			for d in target.get("items"):
@@ -1144,8 +1143,6 @@ def make_transfer_dn(company,customer,source_name,project=None):
 		new_dn.address_display = get_address_display(new_dn.customer_address)
 
 		if not new_dn.company == current_dn.company:
-			from erpnext.stock.utils import get_default_warehouse
-
 			default_warehouse = get_default_warehouse(company = new_dn.company).get("source_warehouse")
 
 			for d in new_dn.get("items"):
