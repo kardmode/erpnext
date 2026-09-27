@@ -313,7 +313,7 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 	
 	company = args.get("company") or None
 	
-	from erpnext.stock.doctype.stock_entry.stock_entry import get_best_warehouse
+	from mrp.mrp.custom_stock_entry import get_best_warehouse
 	best_warehouse,enough_stock = get_best_warehouse(company = company)
 	
 	if args.get('doctype') in ['Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice']:
