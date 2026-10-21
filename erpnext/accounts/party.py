@@ -420,22 +420,6 @@ def get_party_account(party_type, party=None, company=None):
 			"account",
 		)
 
-	# get payable account using default party currency
-	if not account and party_type in ["Customer", "Supplier"]:
-		default_currency = frappe.db.get_value(
-			party_type, {"name": party}, "default_currency",
-		)
-			
-		default_account_name = (
-			"Receivable" if party_type == "Customer" else "Payable"
-		)
-		
-		if default_currency:
-			account = frappe.db.get_value(
-				"Account", {"account_type": default_account_name, "company": company, "account_currency":default_currency}, "name",
-			)
-		
-
 	if not account and party_type in ["Customer", "Supplier"]:
 		default_account_name = (
 			"default_receivable_account" if party_type == "Customer" else "default_payable_account"
