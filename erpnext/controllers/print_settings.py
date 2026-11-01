@@ -44,4 +44,4 @@ def format_columns(display_columns, compact_fields):
 	for column in display_columns:
 		if column not in compact_fields:
 			final_columns.append(column)
-	return final_columns
+	return final_columns
