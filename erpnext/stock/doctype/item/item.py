@@ -75,14 +75,7 @@ class Item(Document):
 		"""set opening stock and item price"""
 		if self.standard_rate:
 			for default in self.item_defaults or [frappe._dict()]:
-				self.add_price(default.default_price_list, self.standard_rate)
-
-		if self.standard_buying_rate:
-			price_list = (
-				frappe.db.get_single_value("Buying Settings", "buying_price_list")
-				or frappe.db.get_value("Price List", _("Standard Buying"))
-			)
-			self.add_price(price_list, self.standard_buying_rate)
+				self.add_price(default.default_price_list)
 
 		if self.opening_stock:
 			self.set_opening_stock()
@@ -90,6 +83,9 @@ class Item(Document):
 	def validate(self):
 		if not self.item_name:
 			self.item_name = self.item_code
+
+		if not strip_html(cstr(self.description)).strip():
+			self.description = self.item_name
 
 		self.validate_uom()
 		self.validate_description()
@@ -110,7 +106,6 @@ class Item(Document):
 		self.validate_attributes()
 		self.validate_variant_attributes()
 		self.validate_variant_based_on_change()
-
 		self.validate_fixed_asset()
 		self.clear_retain_sample()
 		self.validate_retain_sample()
@@ -125,9 +120,6 @@ class Item(Document):
 
 		if not self.is_new():
 			self.old_item_group = frappe.db.get_value(self.doctype, self.name, "item_group")
-			
-			if not self.item_code == self.name:
-				self.item_code = self.name
 
 	def on_update(self):
 		invalidate_cache_for_item(self)
@@ -148,7 +140,7 @@ class Item(Document):
 				frappe.throw(_('"Customer Provided Item" cannot have Valuation Rate'))
 			self.default_material_request_type = "Customer Provided"
 
-	def add_price(self, price_list=None,value = None):
+	def add_price(self, price_list=None):
 		"""Add a new price"""
 		if not price_list:
 			price_list = frappe.db.get_single_value(
@@ -163,7 +155,7 @@ class Item(Document):
 					"uom": self.stock_uom,
 					"brand": self.brand,
 					"currency": erpnext.get_default_currency(),
-					"price_list_rate": value or self.standard_rate,
+					"price_list_rate": self.standard_rate,
 				}
 			)
 			item_price.insert()
@@ -177,7 +169,6 @@ class Item(Document):
 			frappe.throw(_("Valuation Rate is mandatory if Opening Stock entered"))
 
 		from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
-
 
 		# default warehouse, or Stores
 		for default in self.item_defaults or [
@@ -480,9 +471,9 @@ class Item(Document):
 			frappe.delete_doc("Item", variant_of.name)
 
 	def before_rename(self, old_name, new_name, merge=False):
-		# if self.item_name==old_name:
-			# frappe.db.set_value("Item", old_name, "item_name", new_name)
-		
+		if self.item_name == old_name:
+			frappe.db.set_value("Item", old_name, "item_name", new_name)
+
 		if merge:
 			self.validate_properties_before_merge(new_name)
 			self.validate_duplicate_product_bundles_before_merge(old_name, new_name)
@@ -502,7 +493,6 @@ class Item(Document):
 			invalidate_cache_for_item(self)
 
 		frappe.db.set_value("Item", new_name, "item_code", new_name)
-		frappe.db.set_value("Item", new_name, "item_name", new_name)
 
 		if merge:
 			self.set_last_purchase_rate(new_name)
@@ -905,6 +895,7 @@ class Item(Document):
 				)
 
 			validate_item_variant_attributes(self, args)
+
 			# copy variant_of value for each attribute row
 			for d in self.attributes:
 				d.variant_of = self.variant_of
@@ -1210,6 +1201,7 @@ def check_stock_uom_with_bin(item, stock_uom):
 	# No SLE or documents against item. Bin UOM can be changed safely.
 	frappe.db.sql("""update `tabBin` set stock_uom=%s where item_code=%s""", (stock_uom, item))
 
+
 def get_item_defaults(item_code, company):
 	item = frappe.get_cached_doc("Item", item_code)
 
@@ -1353,64 +1345,10 @@ def get_asset_naming_series():
 	from erpnext.assets.doctype.asset.asset import get_asset_naming_series
 
 	return get_asset_naming_series()
-	
+
+
 @frappe.request_cache
 def get_child_warehouses(warehouse):
 	from erpnext.stock.doctype.warehouse.warehouse import get_child_warehouses
+
 	return get_child_warehouses(warehouse)
-	
-@frappe.whitelist()
-def force_update_uom_transactions():
-	# get items in item_group
-	# find transactions
-	# purchase_order
-	# purchase_receipt
-	# delivery_note
-	# stock_entry
-	
-	# for d in transaction_details:
-		# if d.uom == 'm':
-	
-	# transaction_uom
-	# transaction_stock_uom
-	
-	# if not stock_uom == transaction_uom:
-	
-	pass
-
-@frappe.whitelist()
-def force_update_stock_uom(item, stock_uom):
-	current_stock_uom = frappe.db.get_value("Item", item, "stock_uom")
-	if stock_uom == current_stock_uom:
-		return
-
-	matched = True
-	ref_uom = frappe.db.get_value("Stock Ledger Entry",
-							   {"item_code": item}, "stock_uom")
-
-	if ref_uom:
-		if cstr(ref_uom) != cstr(stock_uom):
-			matched = False
-	else:
-		bin_list = frappe.db.sql("select * from tabBin where item_code=%s", item, as_dict=1)
-		for bin in bin_list:
-			if (bin.reserved_qty > 0 or bin.ordered_qty > 0 or bin.indented_qty > 0
-								or bin.planned_qty > 0) and cstr(bin.stock_uom) != cstr(stock_uom):
-				matched = False
-				break
-
-		if matched and bin_list:
-			frappe.db.sql("""update tabBin set stock_uom=%s where item_code=%s""", (stock_uom, item))
-
-	if not matched:
-		frappe.db.sql("""update `tabItem` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-		frappe.db.sql("""update `tabUOM Conversion Detail` set uom=%s where parent=%s and uom=%s""", (stock_uom, item,current_stock_uom))
-		frappe.db.sql("""update `tabBin` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-		frappe.db.sql("""update `tabStock Ledger Entry` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-		
-		
-		# frappe.db.sql("""update `tabStock Entry Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-		# frappe.db.sql("""update `tabDelivery Note Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-		# frappe.db.sql("""update `tabPurchase Receipt Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-		# frappe.db.sql("""update `tabPurchase Order Item` set stock_uom=%s where item_code=%s""", (stock_uom, item))
-

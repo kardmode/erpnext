@@ -978,7 +978,7 @@ class AccountsController(TransactionBase):
 				tax_account_company = frappe.get_cached_value("Account", d.account_head, "company")
 				if tax_account_company != self.company:
 					frappe.throw(
-						_("Row #{0} in Taxes: Account {1} does not belong to company {2}").format(
+						_("Row #{0}: Account {1} does not belong to company {2}").format(
 							d.idx, d.account_head, self.company
 						)
 					)
@@ -1213,7 +1213,7 @@ class AccountsController(TransactionBase):
 				if not advance_entries_against_si or d.reference_name not in advance_entries_against_si:
 					frappe.msgprint(
 						_(
-							"Payment Entry {0} is linked against Order {1}, Press Get Advances Paid under Advance Payments."
+							"Payment Entry {0} is linked against Order {1}, check if it should be pulled as advance in this invoice."
 						).format(d.reference_name, d.against_order)
 					)
 
@@ -2290,18 +2290,7 @@ class AccountsController(TransactionBase):
 	def set_due_date(self):
 		due_dates = [d.due_date for d in self.get("payment_schedule") if d.due_date]
 		if due_dates:
-			max_due_date = max(due_dates)
-
-			if self.due_date and getdate(max_due_date) < getdate(self.due_date):
-			
-				if self.get("payment_schedule") and len(self.payment_schedule) == 1:
-					self.payment_schedule[0].due_date = self.due_date
-				else:
-					frappe.throw(
-						_("Current Due Date is less than in the Payment Schedule table.")
-					)
-			else:
-				self.due_date = max_due_date
+			self.due_date = max(due_dates)
 
 	def validate_payment_schedule_dates(self):
 		dates = []
@@ -2414,7 +2403,7 @@ class AccountsController(TransactionBase):
 		else:
 			return False
 
-		if self.get(internal_party_field) and ((self.represents_company == self.company) or getattr(self, "custom_is_subcontract_transfer", False)):
+		if self.get(internal_party_field) and (self.represents_company == self.company):
 			return True
 
 		return False
@@ -2716,7 +2705,7 @@ def validate_cost_center(tax, doc):
 
 	if company != doc.company:
 		frappe.throw(
-			_("Row {0} in Taxes: Cost Center {1} does not belong to Company {2}").format(
+			_("Row {0}: Cost Center {1} does not belong to Company {2}").format(
 				tax.idx, frappe.bold(tax.cost_center), frappe.bold(doc.company)
 			),
 			title=_("Invalid Cost Center"),

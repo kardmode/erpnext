@@ -14,9 +14,9 @@ from erpnext.controllers.accounts_controller import get_taxes_and_charges, merge
 from erpnext.controllers.selling_controller import SellingController
 from erpnext.stock.doctype.batch.batch import set_batch_nos
 from erpnext.stock.doctype.serial_no.serial_no import get_delivery_note_serial_no
-from mrp.mrp.utils import get_default_warehouse
 
 form_grid_templates = {"items": "templates/form_grid/item_grid.html"}
+
 
 class DeliveryNote(SellingController):
 	def __init__(self, *args, **kwargs):
@@ -295,13 +295,11 @@ class DeliveryNote(SellingController):
 			self.check_credit_limit()
 		elif self.issue_credit_note:
 			self.make_return_invoice()
-
+		# Updating stock ledger should always be called after updating prevdoc status,
+		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		self.update_stock_ledger()
-
 		self.make_gl_entries()
-
 		self.repost_future_sle_and_gle()
-
 
 	def on_cancel(self):
 		super().on_cancel()
@@ -312,14 +310,14 @@ class DeliveryNote(SellingController):
 		self.update_prevdoc_status()
 		self.update_billing_status()
 
+		# Updating stock ledger should always be called after updating prevdoc status,
+		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		self.update_stock_ledger()
 
 		self.cancel_packing_slips()
 
 		self.make_gl_entries_on_cancel()
-
 		self.repost_future_sle_and_gle()
-
 		self.ignore_linked_doctypes = ("GL Entry", "Stock Ledger Entry", "Repost Item Valuation")
 
 	def check_credit_limit(self):
@@ -409,7 +407,7 @@ class DeliveryNote(SellingController):
 				ps.cancel()
 			frappe.msgprint(_("Packing Slip(s) cancelled"))
 
-	def update_status(self, status):			
+	def update_status(self, status):
 		self.set_status(update=True, status=status)
 		self.notify_update()
 		clear_doctype_notifications(self)
@@ -427,128 +425,6 @@ class DeliveryNote(SellingController):
 			dn_doc.update_billing_percentage(update_modified=update_modified)
 
 		self.load_from_db()
-		
-	def submit_to_manufacture(self):
-		self.make_stock_entries("Manufacture")
-		
-	def make_stock_entry_from_do(self,bom,purpose,sales_order_no=None,qty=None):
-		from erpnext.stock.stock_ledger import NegativeStockError
-		from erpnext.stock.doctype.stock_entry.stock_entry import IncorrectValuationRateError, \
-			DuplicateEntryForProductionOrderError, OperationsNotCompleteError
-
-		try:
-			st = frappe.get_doc(self.make_stock_entry(bom, purpose,sales_order_no,qty))
-			st.posting_date = frappe.flags.current_date
-			for d in st.get("items"):
-				d.cost_center = "Main - " + frappe.db.get_value('Company', st.company, 'abbr')
-			st.insert()
-			frappe.db.commit()
-			
-			return st.name
-
-		except (NegativeStockError, IncorrectValuationRateError, DuplicateEntryForProductionOrderError,
-			OperationsNotCompleteError):
-			frappe.db.rollback()
-			
-	def make_stock_entry(self,bom,purpose,sales_order_no=None,qty=None):
-
-		stock_entry = frappe.new_doc("Stock Entry")
-		stock_entry.purpose = purpose
-		stock_entry.sales_order = sales_order_no
-		stock_entry.delivery_note_no = self.name
-
-		stock_entry.company = self.company
-		stock_entry.from_bom = 1
-		stock_entry.bom_no = bom
-		stock_entry.use_multi_level_bom = 1
-		stock_entry.fg_completed_qty = qty
-
-		if purpose=="Manufacture":
-			# stock_entry.from_warehouse = production_order.wip_warehouse
-			# stock_entry.to_warehouse = production_order.fg_warehouse
-			stock_entry.project = self.project
-			
-			from erpnext.stock.doctype.stock_entry.stock_entry import get_additional_costs
-			additional_costs = get_additional_costs(production_order, fg_qty=stock_entry.fg_completed_qty)
-			stock_entry.set("additional_costs", additional_costs)
-			
-		else:
-			# stock_entry.from_warehouse = production_order.source_warehouse
-			# stock_entry.to_warehouse = production_order.wip_warehouse
-			stock_entry.project = self.project
-
-		
-		stock_entry.get_items()
-		return stock_entry.as_dict()
-		
-	def make_stock_entries(self,purpose=None,all=False):
-		if purpose:
-			conditions = ""
-			ste_list = []
-
-			for item in self.get('items'):
-				bom = frappe.db.get_value("BOM", filters={"item": item.item_code, "project": self.project}) or frappe.db.get_value("BOM", filters={"item": item.item_code, "is_default": 1})
-				if bom:
-					if purpose == "Manufacture":
-					
-						stock_entries = frappe.db.sql("""select name 
-						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
-						if not stock_entries:
-							ste_name = self.make_stock_entry_from_do(bom, purpose,item.against_sales_order,item.qty)
-							if ste_name:
-								ste_list.append(ste_name)
-							
-					else:
-						stock_entries = frappe.db.sql("""select name 
-						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
-						
-						if not stock_entries:
-							ste_name = self.make_stock_entry_from_do(bom, purpose,item.against_sales_order,item.qty)
-							if ste_name:
-								ste_list.append(ste_name)
-				
-				
-				
-			if ste_list:
-				ste_list = ["""<a href="#Form/Stock Entry/%s" target="_blank">%s</a>""" % \
-					(p, p) for p in ste_list]
-				msgprint(_("{0} created for {1}").format(comma_and(ste_list),purpose))
-			else :
-				msgprint(_("No Stock Entries Created for {0}").format(purpose))			
-			
-
-	def submit_stock_entries(self,purpose=None,all=False):
-		if purpose:
-			ste_list = []
-			for d in self.get('items'):
-				bom = frappe.db.get_value("BOM", filters={"item": item.item_code, "project": self.project}) or frappe.db.get_value("BOM", filters={"item": item.item_code, "is_default": 1})
-				if bom:
-					if purpose == "Manufacture":
-						stock_entries = frappe.db.sql("""select name 
-						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
-						
-						for ste in stock_entries:
-							doc = frappe.get_doc('Stock Entry', ste["name"])
-							doc.submit()
-							ste_list.append(doc.name)
-					else:
-						stock_entries = frappe.db.sql("""select name 
-						from `tabStock Entry` where delivery_note_no=%s and docstatus=0 and purpose=%s and bom_no = %s""",(self.name,purpose,bom), as_dict=1)
-						
-						for ste in stock_entries:
-							doc = frappe.get_doc('Stock Entry', ste["name"])
-							doc.submit()
-							ste_list.append(doc.name)
-
-				
-					
-			if ste_list:
-				ste_list = ["""<a href="#Form/Stock Entry/%s" target="_blank">%s</a>""" % \
-					(p, p) for p in ste_list]
-				msgprint(_("{0} submitted for {1}").format(comma_and(ste_list),purpose))
-			else :
-				msgprint(_("No Stock Entries Submitted for {0}").format(purpose))
-						
 
 	def make_return_invoice(self):
 		try:
@@ -749,11 +625,7 @@ def make_sales_invoice(source_name, target_doc=None, args=None):
 	returned_qty_map = get_returned_qty_map(source_name)
 	invoiced_qty_map = get_invoiced_qty_map(source_name)
 
-
 	def set_missing_values(source, target):
-		if source.project:
-			target.project = source.project
-
 		target.run_method("set_missing_values")
 		target.run_method("set_po_nos")
 
@@ -1052,108 +924,6 @@ def make_sales_return(source_name, target_doc=None):
 def update_delivery_note_status(docname, status):
 	dn = frappe.get_doc("Delivery Note", docname)
 	dn.update_status(status)
-	
-@frappe.whitelist()
-def make_purchase_receipt(source_name, target_doc=None):
-	def update_item(obj, target, source_parent):
-		# target.qty = flt(obj.qty) - flt(obj.received_qty)
-		# target.stock_qty = (flt(obj.qty) - flt(obj.received_qty)) * flt(obj.conversion_factor)
-		# target.amount = (flt(obj.qty) - flt(obj.received_qty)) * flt(obj.rate)
-		# target.base_amount = (flt(obj.qty) - flt(obj.received_qty)) * \
-			# flt(obj.rate) * flt(source_parent.conversion_rate)
-		target.project = source_parent.project
-		
-	def update_target_doc(obj, target, source_parent):
-		pass
-	
-	def set_missing_values(source, target):
-		target.supplier = source.company
-		target.supplier_delivery_note = source.name
-		
-		target.company = source.customer
-		
-		
-		target.shipping_address = source.shipping_address_name
-		target.title = source.title
-		
-		target.ignore_pricing_rule = 1
-		target.run_method("set_missing_values")
-		target.run_method("calculate_taxes_and_totals")
-		
-		if not target.company == source.company:
-			default_warehouse = get_default_warehouse(company = target.company).get("source_warehouse")
-
-			for d in target.get("items"):
-				d.warehouse = default_warehouse 
-		
-		target.flags.ignore_permissions = True
-		target.insert()
-
-	doc = get_mapped_doc("Delivery Note", source_name,	{
-		"Delivery Note": {
-			"doctype": "Purchase Receipt",
-			"field_map": {
-				# "per_billed": "per_billed"
-			},
-			"validation": {
-				"docstatus": ["=", 1],
-			}
-		},
-		"Delivery Note Item": {
-			"doctype": "Purchase Receipt Item",
-			# "field_map": {
-				# "name": "delivery_note_item",
-				# "parent": "delivery_note"
-			# },
-			"postprocess": update_item
-		},
-		"Sales Taxes and Charges": {
-			"doctype": "Purchase Taxes and Charges",
-			"add_if_empty": True
-		}
-	}, target_doc, set_missing_values)
-
-	return doc
-	
-@frappe.whitelist()
-def make_transfer_dn(company,customer,source_name,project=None):
-	try:
-		current_dn = frappe.get_doc("Delivery Note", source_name)
-
-		new_dn = frappe.copy_doc(current_dn, ignore_no_copy=True)
-		
-		new_dn.company = company
-		new_dn.company_trn = frappe.db.get_value("Company",company,"tax_id")
-		
-		new_dn.customer = customer
-		new_dn.project = project
-		
-		from erpnext.selling.doctype.customer.customer import get_customer_details
-		from frappe.contacts.doctype.address.address import get_default_address,get_address_display
-		
-		customer_details = get_customer_details(customer)
-		
-		if customer_details:
-			new_dn.tax_id = customer_details.tax_id
-			new_dn.customer_name_in_arabic = customer_details.customer_name_in_arabic
-		
-		new_dn.shipping_address_name = get_default_address('Customer', customer)
-		new_dn.shipping_address = get_address_display(new_dn.shipping_address_name)
-		new_dn.customer_address = get_default_address('Customer', customer)
-		new_dn.address_display = get_address_display(new_dn.customer_address)
-
-		if not new_dn.company == current_dn.company:
-			default_warehouse = get_default_warehouse(company = new_dn.company).get("source_warehouse")
-
-			for d in new_dn.get("items"):
-				d.warehouse = default_warehouse 
-		
-		new_dn.insert(ignore_permissions=True)
-
-		return new_dn.name
-	
-	except:
-		return False
 
 
 @frappe.whitelist()

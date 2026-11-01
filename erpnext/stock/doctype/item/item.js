@@ -313,45 +313,8 @@ frappe.ui.form.on("Item", {
 
 	page_name: frappe.utils.warn_page_name_change,
 
-	item_name: function (frm) {
-		if (frm.doc.item_name) {
-			//var newword = process_string(frm.doc.item_name);
-			//frm.set_value("item_name", newword.trim());
-			//frm.set_value("item_name", frm.doc.item_name.trim());
-		}
-	},
-
 	item_code: function (frm) {
-		if (frm.is_new()) {
-			frm.set_value("item_name", frm.doc.item_code);
-			frm.set_value("description", frm.doc.item_code);
-		}
-		else {
-			if (!frm.doc.item_name)
-				frm.set_value("item_name", frm.doc.item_code);
-			if (!frm.doc.description)
-				frm.set_value("description", frm.doc.item_code);
-		}
-	},
-
-	item_group: function (frm) {
-		if (frm.doc.item_group == "Services" || frm.doc.item_group == "Header1" || frm.doc.item_group == "Header2") {
-			frm.set_value("is_stock_item", 0);
-		} else {
-		}
-	},
-
-	opening_stock: function (frm) {
-		if (frm.doc.opening_stock > 0) {
-			frappe.call({
-				method: "mrp.mrp.utils.get_default_warehouse",
-				callback: function (r) {
-					if (!r.exc) {
-						cur_frm.set_value("opening_warehouse", r.message.source_warehouse);
-					}
-				}
-			});
-		}
+		if (!frm.doc.item_name) frm.set_value("item_name", frm.doc.item_code);
 	},
 
 	is_stock_item: function (frm) {
@@ -367,7 +330,7 @@ frappe.ui.form.on("Item", {
 	},
 });
 
-frappe.ui.form.on('Item Reorder', {
+frappe.ui.form.on("Item Reorder", {
 	reorder_levels_add: function (frm, cdt, cdn) {
 		var row = frappe.get_doc(cdt, cdn);
 		var type = frm.doc.default_material_request_type;
@@ -524,25 +487,19 @@ $.extend(erpnext.item, {
 			return { query: "erpnext.controllers.queries.supplier_query" };
 		};
 
-		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function (doc, cdt, cdn) {
+		frm.fields_dict["item_defaults"].grid.get_field("default_warehouse").get_query = function (
+			doc,
+			cdt,
+			cdn
+		) {
 			const row = locals[cdt][cdn];
 			return {
 				filters: {
-					"is_group": 0,
-					"company": row.company,
-					disabled: 0
-				}
-			}
-		}
-
-		frm.fields_dict['opening_warehouse'].get_query = function (doc) {
-			return {
-				filters: {
-					"is_group": 0,
-					"company": row.company
-				}
-			}
-		}
+					is_group: 0,
+					company: row.company,
+				},
+			};
+		};
 
 		frm.fields_dict.reorder_levels.grid.get_field("warehouse_group").get_query = function (
 			doc,
@@ -984,7 +941,6 @@ $.extend(erpnext.item, {
 		frm.layout.refresh_sections();
 	},
 });
-
 
 frappe.ui.form.on("UOM Conversion Detail", {
 	uom: function (frm, cdt, cdn) {

@@ -523,7 +523,9 @@ class PaymentEntry(AccountsController):
 							)
 
 					if ref_doc.docstatus != 1:
-						frappe.throw(_("{0} {1} must be submitted").format(d.reference_doctype, d.reference_name))
+						frappe.throw(
+							_("{0} {1} must be submitted").format(_(d.reference_doctype), d.reference_name)
+						)
 
 	def get_valid_reference_doctypes(self):
 		if self.party_type == "Customer":
@@ -2013,10 +2015,8 @@ def get_outstanding_reference_documents(args):
 
 		frappe.msgprint(
 			_(
-				"No outstanding {0} found for the {1} {2} which qualify the filters you have specified. Check Paid To Account"
-			).format(
-				_(ref_document_type), _(args.get("party_type")).lower(), frappe.bold(args.get("party"))
-			)
+				"No outstanding {0} found for the {1} {2} which qualify the filters you have specified."
+			).format(_(ref_document_type), _(args.get("party_type")).lower(), frappe.bold(args.get("party")))
 		)
 
 	return data
@@ -2400,18 +2400,7 @@ def get_reference_details(
 			)
 
 		if reference_doctype in ("Sales Invoice", "Purchase Invoice"):
-			ref_doc_party_account_currency = ref_doc.get("party_account_currency") or company_currency
-			if party_account_currency == ref_doc_party_account_currency:
-				outstanding_amount = ref_doc.get("outstanding_amount")
-			else:
-			
-				# Get the exchange rate from the original ref doc
-				# or get it based on the posting date of the ref doc.
-				party_exchange_rate = get_exchange_rate(
-					party_account_currency, ref_doc_party_account_currency, ref_doc.posting_date
-				)
-				outstanding_amount = ref_doc.get("outstanding_amount") / party_exchange_rate
-				
+			outstanding_amount = ref_doc.get("outstanding_amount")
 		else:
 			outstanding_amount = flt(total_amount) - flt(ref_doc.get("advance_paid"))
 
@@ -2499,7 +2488,6 @@ def get_payment_entry(
 		party_account_currency if payment_type == "Receive" else bank.account_currency
 	)
 	pe.paid_to_account_currency = party_account_currency if payment_type == "Pay" else bank.account_currency
-
 	pe.paid_amount = paid_amount
 	pe.received_amount = received_amount
 	pe.letter_head = doc.get("letter_head")

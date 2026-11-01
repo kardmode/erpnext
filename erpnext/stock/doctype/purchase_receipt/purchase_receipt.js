@@ -28,7 +28,6 @@ frappe.ui.form.on("Purchase Receipt", {
 			'Purchase Invoice': 'Purchase Invoice'
 		};
 
-
 		frm.set_query("expense_account", "items", function() {
 			return {
 				query: "erpnext.controllers.queries.get_expense_account",
@@ -53,10 +52,6 @@ frappe.ui.form.on("Purchase Receipt", {
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
 			return erpnext.queries.warehouse(frm.doc);
 		});
-	},
-	
-	is_subcontracted: function(frm) {
-		frm.set_value("is_old_subcontracting_flow", frm.doc.is_subcontracted)
 	},
 
 	refresh: function(frm) {
@@ -176,7 +171,6 @@ erpnext.stock.PurchaseReceiptController = class PurchaseReceiptController extend
 								message: __("Please Select a Supplier")
 							});
 						}
-
 						erpnext.utils.map_current_doc({
 							method: "erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt",
 							source_doctype: "Purchase Order",
@@ -223,10 +217,7 @@ erpnext.stock.PurchaseReceiptController = class PurchaseReceiptController extend
 		if(this.frm.doc.docstatus==1 && this.frm.doc.status === "Closed" && this.frm.has_perm("submit")) {
 			cur_frm.add_custom_button(__('Reopen'), this.reopen_purchase_receipt, __("Status"))
 		}
-		this.frm.toggle_reqd("supplier_warehouse", this.frm.doc.is_subcontracted==="Yes");
-	}
-	
-	make_purchase_invoice() {
+
 		this.frm.toggle_reqd("supplier_warehouse", this.frm.doc.is_old_subcontracting_flow);
 	}
 
@@ -375,4 +366,3 @@ var validate_sample_quantity = function(frm, cdt, cdn) {
 		});
 	}
 };
-

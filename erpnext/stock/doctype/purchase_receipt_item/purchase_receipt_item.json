@@ -618,7 +618,6 @@
    "print_hide": 1
   },
   {
-   "allow_on_submit": 1,
    "default": ":Company",
    "depends_on": "eval:cint(erpnext.is_perpetual_inventory_enabled(parent.company))",
    "fieldname": "cost_center",

@@ -74,25 +74,14 @@ frappe.ui.form.on("Warehouse", {
 				frappe.set_route("query-report", "General Ledger");
 			});
 		}
-		
-		
-		if (!frm.doc.__islocal) {
-			frm.toggle_enable(['is_group', 'company'], false);
-		}
-		else if(!frm.doc.is_group){
-			frm.add_fetch('company', 'default_inventory_account', 'account');	
-		}
-		
+
+		frm.toggle_enable(["is_group", "company"], false);
+
 		frappe.dynamic_link = {
 			doc: frm.doc,
 			fieldname: "name",
 			doctype: "Warehouse",
 		};
-		
-		frm.add_custom_button(__("Check Disabled"), function() {
-			check_all_disabled(frm);
-		});
-
 	},
 });
 
@@ -102,18 +91,6 @@ function convert_to_group_or_ledger(frm) {
 		args: {
 			docname: frm.doc.name,
 			is_group: frm.doc.is_group,
-		},
-		callback: function () {
-			frm.refresh();
-		},
-	});
-}
-
-function check_all_disabled(frm){
-	frappe.call({
-		method:"erpnext.stock.doctype.warehouse.warehouse.check_all_disabled",
-		args: {
-			docname: frm.doc.name
 		},
 		callback: function () {
 			frm.refresh();

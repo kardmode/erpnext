@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{COM}-{project_name}",
+ "autoname": "naming_series:",
  "creation": "2013-03-07 11:55:07",
  "doctype": "DocType",
  "document_type": "Setup",
@@ -16,7 +16,6 @@
   "percent_complete_method",
   "percent_complete",
   "column_break_5",
-  "company",
   "project_template",
   "expected_start_date",
   "expected_end_date",
@@ -40,6 +39,7 @@
   "estimated_costing",
   "total_costing_amount",
   "total_purchase_cost",
+  "company",
   "column_break_28",
   "total_sales_amount",
   "total_billable_amount",
@@ -290,8 +290,7 @@
    "label": "Company",
    "options": "Company",
    "remember_last_selected_value": 1,
-   "reqd": 1,
-   "set_only_once": 1
+   "reqd": 1
   },
   {
    "fieldname": "column_break_28",
@@ -453,11 +452,11 @@
  "index_web_pages_for_search": 1,
  "links": [],
  "max_attachments": 4,
- "modified": "2025-04-03 22:13:31.839160",
+ "modified": "2024-04-24 10:56:16.001032",
  "modified_by": "Administrator",
  "module": "Projects",
  "name": "Project",
- "naming_rule": "Expression",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {

@@ -44,31 +44,6 @@ frappe.query_reports["General Ledger"] = {
 				});
 			},
 		},
-
-{
-	fieldname: "voucher_type",
-	label: __("Voucher Type"),
-	fieldtype: "MultiSelectList",
-	get_data: function(txt) {
-		const gl_doctypes = [
-			"Sales Invoice",
-			"Purchase Invoice",
-			"Journal Entry",
-			"Payment Entry",
-			"Delivery Note",
-			"Stock Entry",
-			"Purchase Receipt",
-			"Stock Reconciliation"
-		];
-		return gl_doctypes
-			.filter(d => d.toLowerCase().includes(txt.toLowerCase()))
-			.map(d => ({ value: d, description: d, label: d }));
-	}
-}
-
-
-,
-
 		{
 			fieldname: "voucher_no",
 			label: __("Voucher No"),
@@ -235,11 +210,6 @@ frappe.query_reports["General Ledger"] = {
 		{
 			fieldname: "ignore_err",
 			label: __("Ignore Exchange Rate Revaluation Journals"),
-			fieldtype: "Check",
-		},
-		{
-			fieldname: "show_more_accounts",
-			label: __("Show More Accounts"),
 			fieldtype: "Check",
 		},
 		{

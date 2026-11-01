@@ -8,6 +8,7 @@ from frappe.contacts.doctype.address.address import get_address_display
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.utils import get_fetch_values
 from frappe.utils import add_days, cint, cstr, flt, formatdate, get_link_to_form, getdate, nowdate
+
 import erpnext
 from erpnext.accounts.deferred_revenue import validate_service_stop_date
 from erpnext.accounts.doctype.loyalty_program.loyalty_program import (
@@ -50,8 +51,8 @@ from erpnext.stock.doctype.serial_no.serial_no import (
 
 form_grid_templates = {"items": "templates/form_grid/item_grid.html"}
 
-class SalesInvoice(SellingController):
 
+class SalesInvoice(SellingController):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.status_updater = [
@@ -276,7 +277,6 @@ class SalesInvoice(SellingController):
 		# because updating reserved qty in bin depends upon updated delivered qty in SO
 		if self.update_stock == 1:
 			self.update_stock_ledger()
-
 		if self.is_return and self.update_stock:
 			update_serial_nos_after_submit(self, "items")
 
@@ -319,7 +319,6 @@ class SalesInvoice(SellingController):
 			self.apply_loyalty_points()
 
 		self.process_common_party_accounting()
-		self.process_common_party_accounting()
 
 	def validate_pos_return(self):
 		if self.is_consolidated:
@@ -355,29 +354,10 @@ class SalesInvoice(SellingController):
 				frappe.throw(msg, title=_("Not Allowed"))
 
 	def before_cancel(self):
-		# self.validate_payment_entries()
 		self.check_if_consolidated_invoice()
 
 		super().before_cancel()
 		self.update_time_sheet(None)
-		
-	def validate_payment_entries(self):
-		reference_name = self.name
-		
-		pe = frappe.db.sql("""
-			select
-				t1.name
-			from `tabPayment Entry` t1, `tabPayment Entry Reference` t2
-			where
-				t1.name = t2.parent and t1.payment_type = "Receive"
-				and t1.party_type = "Customer" and t1.docstatus = 1
-				and t2.reference_doctype = "Sales Invoice" and t2.reference_name = %s
-			order by t1.name
-		""",reference_name, as_dict=1)
-
-		if pe:
-			frappe.throw(_("Invoice is linked with payment entries."))
-
 
 	def on_cancel(self):
 		check_if_return_invoice_linked_with_payment_entry(self)
@@ -632,9 +612,6 @@ class SalesInvoice(SellingController):
 			if not for_validate:
 				self.tax_category = pos.get("tax_category")
 
-			if not for_validate:
-				self.tax_category = pos.get("tax_category")
-
 			if not for_validate and not self.customer:
 				self.customer = pos.customer
 
@@ -643,6 +620,7 @@ class SalesInvoice(SellingController):
 
 			if pos.get("account_for_change_amount"):
 				self.account_for_change_amount = pos.get("account_for_change_amount")
+
 			for fieldname in (
 				"currency",
 				"letter_head",
@@ -1135,7 +1113,7 @@ class SalesInvoice(SellingController):
 		)
 
 		for tax in self.get("taxes"):
-			amount, base_amount = self.get_tax_amounts(tax, self.enable_discount_accounting)
+			amount, base_amount = self.get_tax_amounts(tax, enable_discount_accounting)
 
 			if flt(tax.base_tax_amount_after_discount_amount):
 				account_currency = get_account_currency(tax.account_head)
@@ -1955,9 +1933,6 @@ def make_maintenance_schedule(source_name, target_doc=None):
 @frappe.whitelist()
 def make_delivery_note(source_name, target_doc=None):
 	def set_missing_values(source, target):
-		if source.project:
-			target.project = source.project
-
 		target.run_method("set_missing_values")
 		target.run_method("set_po_nos")
 		target.run_method("calculate_taxes_and_totals")
@@ -2006,6 +1981,7 @@ def make_sales_return(source_name, target_doc=None):
 	from erpnext.controllers.sales_and_purchase_return import make_return_doc
 
 	return make_return_doc("Sales Invoice", source_name, target_doc)
+
 
 def get_inter_company_details(doc, doctype):
 	if doctype in ["Sales Invoice", "Sales Order", "Delivery Note"]:
@@ -2247,6 +2223,7 @@ def make_inter_company_transaction(doctype, source_name, target_doc=None):
 
 	return doclist
 
+
 def get_received_items(reference_name, doctype, reference_fieldname):
 	reference_field = "inter_company_invoice_reference"
 	if doctype == "Purchase Order":
@@ -2331,13 +2308,11 @@ def update_pi_items(
 				)
 
 
-
 def update_pr_items(doc, sales_item_map, purchase_item_map, parent_child_map, warehouse_map):
 	for item in doc.get("items"):
 		item.warehouse = warehouse_map.get(sales_item_map.get(item.delivery_note_item))
 		if not item.warehouse and item.get("purchase_order") and item.get("purchase_order_item"):
 			item.warehouse = frappe.db.get_value("Purchase Order Item", item.purchase_order_item, "warehouse")
-
 
 
 def get_delivery_note_details(internal_reference):
@@ -2627,8 +2602,3 @@ def check_if_return_invoice_linked_with_payment_entry(self):
 			message += " " + ", ".join(payment_entries_link) + " "
 			message += _("to unallocate the amount of this Return Invoice before cancelling it.")
 			frappe.throw(message)
-
-	
-
-
-	

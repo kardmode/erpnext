@@ -10,11 +10,6 @@ from frappe.core.doctype.role.role import get_users
 from frappe.model.document import Document
 from frappe.utils import add_days, cint, flt, formatdate, get_datetime, getdate
 
-from typing import Any, Dict, List, Optional, TypedDict
-from frappe.query_builder import Order
-from frappe.query_builder.functions import Coalesce, CombineDatetime
-from frappe.utils.nestedset import get_descendants_of
-
 from erpnext.accounts.utils import get_fiscal_year
 from erpnext.controllers.item_variant import ItemTemplateCannotHaveStock
 from erpnext.stock.doctype.inventory_dimension.inventory_dimension import get_inventory_dimensions
@@ -313,4 +308,4 @@ def on_doctype_update():
 	frappe.db.add_index("Stock Ledger Entry", ["voucher_no", "voucher_type"])
 	frappe.db.add_index("Stock Ledger Entry", ["batch_no", "item_code", "warehouse"])
 	frappe.db.add_index("Stock Ledger Entry", ["warehouse", "item_code"], "item_warehouse")
-	frappe.db.add_index("Stock Ledger Entry", ["posting_datetime", "creation"])
+	frappe.db.add_index("Stock Ledger Entry", ["posting_datetime", "creation"])

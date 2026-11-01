@@ -305,20 +305,6 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 
 	if item.variant_of and not item.taxes and frappe.db.exists("Item Tax", {"parent": item.variant_of}):
 		item.update_template_tables()
-		
-	# from frappe.defaults import get_user_default_as_list
-	# user_default_warehouse_list = get_user_default_as_list('Warehouse')
-	# best_warehouse = user_default_warehouse_list[0] \
-		# if len(user_default_warehouse_list) == 1 else ""
-	
-	company = args.get("company") or None
-	
-	# mrp_edit
-	from mrp.mrp.custom_stock_entry import get_best_warehouse
-	best_warehouse,enough_stock = get_best_warehouse(company = company)
-	
-	if args.get('doctype') in ['Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice']:
-		best_warehouse,enough_stock = get_best_warehouse(item.name,args.get("qty") or 0,company = company)
 
 	item_defaults = get_item_defaults(item.name, args.company)
 	item_group_defaults = get_item_group_defaults(item.name, args.company)
@@ -430,7 +416,6 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 			"weight_per_unit": args.get("weight_per_unit") or item.get("weight_per_unit"),
 			"weight_uom": args.get("weight_uom") or item.get("weight_uom"),
 			"grant_commission": item.get("grant_commission"),
-			"hs_code":item.get("customs_tariff_number"),
 		}
 	)
 
@@ -473,9 +458,8 @@ def get_basic_details(args, item, overwrite_warehouse=True):
 		if not out[d[1]]:
 			out[d[1]] = frappe.get_cached_value("Company", args.company, d[2]) if d[2] else None
 
-	for fieldname in ("item_name", "item_group", "barcode", "brand", "stock_uom","manufacturer_part_no","warranty_period"):
+	for fieldname in ("item_name", "item_group", "brand", "stock_uom"):
 		out[fieldname] = item.get(fieldname)
-
 
 	if args.get("manufacturer"):
 		part_no = get_item_manufacturer_part_no(args.get("item_code"), args.get("manufacturer"))
@@ -862,7 +846,7 @@ def get_price_list_rate(args, item_doc, out=None):
 			# `get_price_list_currency_and_exchange_rate` has already been called
 			pl_details = get_price_list_currency_and_exchange_rate(args)
 			args.update(pl_details)
-			
+
 		if meta.get_field("currency"):
 			validate_conversion_rate(args, meta)
 
@@ -1025,18 +1009,6 @@ def get_price_list_rate_for(args, item_code):
 	:param qty: Desired Qty
 	:param transaction_date: Date of the price
 	"""
-	
-	
-	if args.get('transaction_type') =="selling":
-		from erpnext.selling.doctype.product_bundle.product_bundle import has_product_bundle,get_product_bundle_details
-		product_bundle = has_product_bundle(item_code,args.get('project'))
-		
-		if product_bundle:
-			product_bundle_details = get_product_bundle_details(product_bundle[0][0])			
-			if product_bundle_details.use_total_to_cost:
-				return product_bundle_details.total
-			
-	
 	item_price_args = {
 		"item_code": item_code,
 		"price_list": args.get("price_list"),
@@ -1389,8 +1361,10 @@ def apply_price_list(args, as_doc=False, doc=None):
 	        }
 	"""
 	args = process_args(args)
+
 	parent = get_price_list_currency_and_exchange_rate(args)
 	args.update(parent)
+
 	children = []
 
 	if "items" in args:
@@ -1453,6 +1427,7 @@ def get_price_list_currency_and_exchange_rate(args):
 			)
 			or plc_conversion_rate
 		)
+
 	return frappe._dict(
 		{
 			"price_list_currency": price_list_currency,

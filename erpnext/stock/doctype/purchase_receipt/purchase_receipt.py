@@ -107,7 +107,7 @@ class PurchaseReceipt(BuyingController):
 					},
 				]
 			)
-			
+
 	def before_validate(self):
 		from erpnext.stock.doctype.putaway_rule.putaway_rule import apply_putaway_rule
 
@@ -1102,10 +1102,7 @@ def make_purchase_return(source_name, target_doc=None):
 @frappe.whitelist()
 def update_purchase_receipt_status(docname, status):
 	pr = frappe.get_doc("Purchase Receipt", docname)
-	pr.update_status(status)	
-	
-
-
+	pr.update_status(status)
 
 
 @frappe.whitelist()
@@ -1134,40 +1131,6 @@ def make_stock_entry(source_name, target_doc=None):
 		target_doc,
 		set_missing_values,
 	)
-
-	return doclist
-	
-@frappe.whitelist()
-def make_delivery_note(source_name, target_doc=None):
-	from frappe.model.mapper import get_mapped_doc
-
-	def set_missing_values(source, target):
-		doc = frappe.get_doc(target)
-		doc.ignore_pricing_rule = 1
-		doc.run_method("set_missing_values")
-		# doc.run_method("calculate_taxes_and_totals")
-
-	def update_item(source_doc, target_doc, source_parent):
-		target_doc.qty = source_doc.qty
-
-	doclist = get_mapped_doc("Purchase Receipt", source_name,	{
-		"Purchase Receipt": {
-			"doctype": "Delivery Note",
-			"validation": {
-				"docstatus": ["=", 1],
-			},
-		},
-		"Purchase Receipt Item": {
-			"doctype": "Delivery Note Item",
-			"field_map": {
-				# "name": "pr_detail",
-				# "parent": "purchase_receipt",
-				# "purchase_order_item": "po_detail",
-				# "purchase_order": "purchase_order",
-			},
-			"postprocess": update_item
-		}
-	}, target_doc, set_missing_values)
 
 	return doclist
 

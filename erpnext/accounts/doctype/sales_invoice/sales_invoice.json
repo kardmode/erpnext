@@ -1,7 +1,6 @@
 {
  "actions": [],
  "allow_import": 1,
- "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2022-01-25 10:29:57.771398",
  "doctype": "DocType",
@@ -215,8 +214,7 @@
   "is_internal_customer",
   "is_discounted",
   "remarks",
-  "connections_tab",
-  "repost_required"
+  "connections_tab"
  ],
  "fields": [
   {
@@ -2138,7 +2136,6 @@
    "read_only": 1
   },
   {
-   "default": "0",
    "depends_on": "allocate_advances_automatically",
    "description": "Advance payments allocated against orders will only be fetched",
    "fieldname": "only_include_allocated_payments",
@@ -2194,7 +2191,7 @@
    "link_fieldname": "consolidated_invoice"
   }
  ],
- "modified": "2026-07-06 17:31:58.015469",
+ "modified": "2024-11-26 12:34:09.110690",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Sales Invoice",
