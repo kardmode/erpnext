@@ -1,14 +1,12 @@
 {
  "actions": [],
- "allow_rename": 1,
  "autoname": "Prompt",
- "creation": "2026-09-13 09:26:22.005326",
+ "creation": "2020-05-22 16:46:18.712954",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "report",
-  "override_email",
   "section_break_11",
   "from_date",
   "posting_date",
@@ -29,7 +27,6 @@
   "sales_person",
   "show_remarks",
   "based_on_payment_terms",
-  "include_settled_invoices",
   "section_break_3",
   "customer_collection",
   "collection_name",
@@ -61,9 +58,7 @@
   "cc_to",
   "section_break_30",
   "body",
-  "help_text",
-  "include_break",
-  "show_net_values_in_party_account"
+  "help_text"
  ],
  "fields": [
   {
@@ -81,16 +76,18 @@
    "reqd": 1
   },
   {
-   "depends_on": "eval:(doc.enable_auto_email == 0);",
+   "depends_on": "eval:(doc.enable_auto_email == 0 && doc.report == 'General Ledger');",
    "fieldname": "from_date",
    "fieldtype": "Date",
-   "label": "From Date"
+   "label": "From Date",
+   "mandatory_depends_on": "eval:doc.frequency == '';"
   },
   {
-   "depends_on": "eval:(doc.enable_auto_email == 0);",
+   "depends_on": "eval:(doc.enable_auto_email == 0 && doc.report == 'General Ledger');",
    "fieldname": "to_date",
    "fieldtype": "Date",
-   "label": "To Date"
+   "label": "To Date",
+   "mandatory_depends_on": "eval:doc.frequency == '';"
   },
   {
    "fieldname": "cost_center",
@@ -99,6 +96,7 @@
    "options": "PSOA Cost Center"
   },
   {
+   "depends_on": "eval: (doc.report == 'General Ledger');",
    "fieldname": "project",
    "fieldtype": "Table MultiSelect",
    "label": "Project",
@@ -271,7 +269,7 @@
    "fieldname": "help_text",
    "fieldtype": "HTML",
    "label": "Help Text",
-   "options": "<br>\n<h4>Note</h4>\n<ul>\n<li>\nYou can use <a href=\"https://jinja.palletsprojects.com/en/2.11.x/\" target=\"_blank\">Jinja tags</a> in <b>Subject</b> and <b>Body</b> fields for dynamic values.\n</li><li>\n    All fields in this doctype are available under the <b>doc</b> object and all fields for the customer to whom the mail will go to is available under the  <b>customer</b> object.\n</li></ul>\n<h4> Examples</h4>\n<!-- {% raw %} -->\n<ul>\n    <li><b>Subject</b>:<br><br><pre><code>Statement Of Accounts for {{ customer.customer_name }}</code></pre><br></li>\n    <li><b>Body</b>: <br><br>\n<pre><code>&lt;p&gt;To: &lt;b&gt;{{ customer.customer_name }}&lt;/b&gt;,&lt;/p&gt;\n&lt;p&gt;Please find attached your official &lt;b&gt;Statement of Accounts&lt;/b&gt; from &lt;b&gt;{{ doc.company }}&lt;/b&gt;{% if doc.from_date %} covering the period from &lt;b&gt;{{ doc.from_date }}&lt;/b&gt; to &lt;b&gt;{{ doc.to_date }}&lt;/b&gt;{% else %} as of &lt;b&gt;{{ doc.to_date or doc.posting_date }}&lt;/b&gt;{% endif %}.&lt;/p&gt;\n&lt;p&gt;Kindly review the statement and contact us should you have any questions or require any clarification.&lt;/p&gt;\n&lt;p&gt;Thank you for your business.&lt;/p&gt;\n&lt;p&gt;Kind regards,&lt;br&gt;&lt;b&gt;{{ doc.company }}&lt;/b&gt;&lt;/p&gt;</code></pre></li>\n</ul>\n<!-- {% endraw %} -->"
+   "options": "<br>\n<h4>Note</h4>\n<ul>\n<li>\nYou can use <a href=\"https://jinja.palletsprojects.com/en/2.11.x/\" target=\"_blank\">Jinja tags</a> in <b>Subject</b> and <b>Body</b> fields for dynamic values.\n</li><li>\n    All fields in this doctype are available under the <b>doc</b> object and all fields for the customer to whom the mail will go to is available under the  <b>customer</b> object.\n</li></ul>\n<h4> Examples</h4>\n<!-- {% raw %} -->\n<ul>\n    <li><b>Subject</b>:<br><br><pre><code>Statement Of Accounts for {{ customer.customer_name }}</code></pre><br></li>\n    <li><b>Body</b>: <br><br>\n<pre><code>Hello {{ customer.customer_name }},<br>PFA your Statement Of Accounts from {{ doc.from_date }} to {{ doc.to_date }}.</code> </pre></li>\n</ul>\n<!-- {% endraw %} -->"
   },
   {
    "fieldname": "subject",
@@ -322,46 +320,39 @@
    "fieldname": "report",
    "fieldtype": "Select",
    "label": "Report",
-   "options": "General Ledger\nAccounts Receivable\nProject Billing Statement\nDetailed Statement (Running Balance)",
+   "options": "General Ledger\nAccounts Receivable",
    "reqd": 1
   },
   {
-   "description": "If set, all statement emails will ONLY be sent to this email address instead of the customer contacts (useful for testing).",
-   "fieldname": "override_email",
-   "fieldtype": "Data",
-   "label": "Override Recipient (Test Mode)",
-   "options": "Email"
-  },
-  {
    "default": "Today",
-   "depends_on": "eval:(doc.report == 'Accounts Receivable' || doc.report == 'Project Billing Statement' || doc.report == 'Detailed Statement (Running Balance)');",
+   "depends_on": "eval:(doc.report == 'Accounts Receivable');",
    "fieldname": "posting_date",
    "fieldtype": "Date",
    "label": "Posting Date"
   },
   {
-   "depends_on": "eval: (doc.report == 'Accounts Receivable' || doc.report == 'Detailed Statement (Running Balance)');",
+   "depends_on": "eval: (doc.report == 'Accounts Receivable');",
    "fieldname": "payment_terms_template",
    "fieldtype": "Link",
    "label": "Payment Terms Template",
    "options": "Payment Terms Template"
   },
   {
-   "depends_on": "eval: (doc.report == 'Accounts Receivable' || doc.report == 'Detailed Statement (Running Balance)');",
+   "depends_on": "eval: (doc.report == 'Accounts Receivable');",
    "fieldname": "sales_partner",
    "fieldtype": "Link",
    "label": "Sales Partner",
    "options": "Sales Partner"
   },
   {
-   "depends_on": "eval: (doc.report == 'Accounts Receivable' || doc.report == 'Detailed Statement (Running Balance)');",
+   "depends_on": "eval: (doc.report == 'Accounts Receivable');",
    "fieldname": "sales_person",
    "fieldtype": "Link",
    "label": "Sales Person",
    "options": "Sales Person"
   },
   {
-   "depends_on": "eval: (doc.report == 'Accounts Receivable' || doc.report == 'Detailed Statement (Running Balance)');",
+   "depends_on": "eval: (doc.report == 'Accounts Receivable');",
    "fieldname": "territory",
    "fieldtype": "Link",
    "label": "Territory",
@@ -373,13 +364,6 @@
    "fieldname": "based_on_payment_terms",
    "fieldtype": "Check",
    "label": "Based On Payment Terms"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:(doc.report == 'Accounts Receivable' || doc.report == 'Detailed Statement (Running Balance)');",
-   "fieldname": "include_settled_invoices",
-   "fieldtype": "Check",
-   "label": "Include Fully Settled / Paid Invoices"
   },
   {
    "fieldname": "pdf_name",
@@ -414,7 +398,7 @@
   }
  ],
  "links": [],
- "modified": "2026-09-14 19:50:19.600565",
+ "modified": "2025-04-30 14:43:23.643006",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "Process Statement Of Accounts",
@@ -448,6 +432,5 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
  "track_changes": 1
 }

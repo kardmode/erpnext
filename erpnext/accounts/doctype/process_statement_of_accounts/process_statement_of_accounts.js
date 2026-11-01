@@ -9,86 +9,34 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 	refresh: function (frm) {
 		if (!frm.doc.__islocal) {
 			frm.add_custom_button(__("Send Emails"), function () {
-				const customer_count = (frm.doc.customers || []).length;
-				let msg = "";
-				if (frm.doc.override_email && frm.doc.override_email.trim()) {
-					msg = __(
-						"<div style='padding: 8px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; color: #92400e; margin-bottom: 10px; font-weight: 600;'>" +
-						"&#9888; TEST MODE ACTIVE: Override Recipient is set to <u>{0}</u>.<br>" +
-						"Emails will NOT be sent to customers. They will ONLY be sent to this override address." +
-						"</div>" +
-						"Are you sure you want to proceed and send statements for <b>{1} customer(s)</b>?",
-						[frappe.utils.escape_html(frm.doc.override_email.trim()), customer_count]
-					);
-				} else {
-					msg = __(
-						"Are you sure you want to queue and dispatch Statement of Accounts emails to <b>{0} customer(s)</b>?<br><br><span class='text-muted small'>All attached statements will be emailed to customer recipient addresses immediately.</span>",
-						[customer_count]
-					);
-				}
-
-				frappe.confirm(
-					msg,
-					function () {
-						frappe.call({
-							method: "erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.send_emails",
-							args: {
-								document_name: frm.doc.name,
-							},
-							freeze: true,
-							freeze_message: __("Queueing statement emails..."),
-							callback: function (r) {
-								if (r && r.message) {
-									frappe.show_alert({ message: __("Emails Queued successfully"), indicator: "green" });
-								} else {
-									frappe.msgprint(__("No Records found to send for these settings."));
-								}
-							},
-						});
-					},
-					function () {
-						// User cancelled
-					}
-				);
-			});
-			frm.add_custom_button(__("Download PDF"), function () {
 				frappe.call({
-					method: "erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.validate_has_records",
+					method: "erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.send_emails",
 					args: {
 						document_name: frm.doc.name,
-						format: "pdf",
 					},
-					freeze: true,
-					freeze_message: __("Preparing Statement PDF..."),
 					callback: function (r) {
 						if (r && r.message) {
-							var url = frappe.urllib.get_full_url(
-								"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_statements?" +
-								"document_name=" +
-								encodeURIComponent(frm.doc.name)
-							);
-							window.location = url;
+							frappe.show_alert({ message: __("Emails Queued"), indicator: "blue" });
+						} else {
+							frappe.msgprint(__("No Records for these settings."));
 						}
 					},
 				});
 			});
-			frm.add_custom_button(__("Export to Excel"), function () {
-				frappe.call({
-					method: "erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.validate_has_records",
-					args: {
-						document_name: frm.doc.name,
-						format: "excel",
-					},
-					freeze: true,
-					freeze_message: __("Preparing Excel Export..."),
-					callback: function (r) {
-						if (r && r.message) {
-							var url = frappe.urllib.get_full_url(
-								"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_excel_statements?" +
-								"document_name=" +
-								encodeURIComponent(frm.doc.name)
-							);
-							window.open(url);
+			frm.add_custom_button(__("Download"), function () {
+				var url = frappe.urllib.get_full_url(
+					"/api/method/erpnext.accounts.doctype.process_statement_of_accounts.process_statement_of_accounts.download_statements?" +
+						"document_name=" +
+						encodeURIComponent(frm.doc.name)
+				);
+				$.ajax({
+					url: url,
+					type: "GET",
+					success: function (result) {
+						if (jQuery.isEmptyObject(result)) {
+							frappe.msgprint(__("No Records for these settings."));
+						} else {
+							window.location = url;
 						}
 					},
 				});
@@ -110,20 +58,6 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 				},
 			};
 		});
-		frm.set_query("project", function () {
-			return {
-				filters: {
-					company: frm.doc.company,
-				},
-			};
-		});
-		frm.set_query("cost_center", function () {
-			return {
-				filters: {
-					company: frm.doc.company,
-				},
-			};
-		});
 		if (frm.doc.__islocal) {
 			frm.set_value("from_date", frappe.datetime.add_months(frappe.datetime.get_today(), -1));
 			frm.set_value("to_date", frappe.datetime.get_today());
@@ -133,7 +67,7 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 		let filters = {
 			company: frm.doc.company,
 		};
-		if (frm.doc.report == "Accounts Receivable" || frm.doc.report == "Detailed Statement (Running Balance)") {
+		if (frm.doc.report == "Accounts Receivable") {
 			filters["account_type"] = "Receivable";
 		}
 		frm.set_query("account", function () {
@@ -183,20 +117,6 @@ frappe.ui.form.on("Process Statement Of Accounts", {
 			});
 		} else {
 			frappe.throw("Enter " + frm.doc.customer_collection + " name.");
-		}
-	},
-	body: function (frm) {
-		let plain_text = $("<div>").html(frm.doc.body || "").text().trim();
-		if (!plain_text) {
-			let default_body =
-				"<p>To: <b>{{ customer.customer_name }}</b>,</p>" +
-				"<p>Please find attached your official <b>Statement of Accounts</b> from <b>{{ doc.company }}</b>" +
-				"{% if doc.from_date %} covering the period from <b>{{ doc.from_date }}</b> to <b>{{ doc.to_date }}</b>" +
-				"{% else %} as of <b>{{ doc.to_date or doc.posting_date }}</b>{% endif %}.</p>" +
-				"<p>Kindly review the statement and contact us should you have any questions or require any clarification.</p>" +
-				"<p>Thank you for your business.</p>" +
-				"<p>Kind regards,<br><b>{{ doc.company }}</b></p>";
-			frm.set_value("body", default_body);
 		}
 	},
 });
