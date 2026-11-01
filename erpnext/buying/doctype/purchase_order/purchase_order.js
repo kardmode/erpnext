@@ -40,19 +40,11 @@ frappe.ui.form.on("Purchase Order", {
 			}
 		});
 	},
-	
-	schedule_date: function(frm) {
-		for (var i in frm.doc.items) {
-			var item = frm.doc.items[i];
-			item.schedule_date = frm.doc.schedule_date;
-		}
-		refresh_field("items");
-	},
-		
+
 	company: function(frm) {
 		erpnext.accounts.dimensions.update_dimension(frm, frm.doctype);
 	},
-	
+
 	refresh: function(frm) {
 		if(frm.doc.is_old_subcontracting_flow) {
 			frm.trigger('get_materials_from_supplier');
@@ -99,6 +91,7 @@ frappe.ui.form.on("Purchase Order", {
 			}, __('Create'));
 		}
 	},
+
 	onload: function(frm) {
 		set_schedule_date(frm);
 		if (!frm.doc.transaction_date){
@@ -165,7 +158,6 @@ erpnext.buying.PurchaseOrderController = class PurchaseOrderController extends e
 		super.refresh();
 		var allow_receipt = false;
 		var is_drop_ship = false;
-		
 
 		for (var i in cur_frm.doc.items) {
 			var item = cur_frm.doc.items[i];
@@ -179,7 +171,6 @@ erpnext.buying.PurchaseOrderController = class PurchaseOrderController extends e
 				break;
 			}
 		}
-
 
 		this.frm.set_df_property("drop_ship", "hidden", !is_drop_ship);
 
@@ -280,6 +271,7 @@ erpnext.buying.PurchaseOrderController = class PurchaseOrderController extends e
 
 					}
 				}
+
 				cur_frm.page.set_inner_btn_group_as_primary(__('Create'));
 			}
 		} else if(doc.docstatus===0) {

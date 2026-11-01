@@ -635,6 +635,7 @@ def get_mapped_purchase_invoice(source_name, target_doc=None, ignore_permissions
 
 	return doc
 
+
 def get_list_context(context=None):
 	from erpnext.controllers.website_list_for_contact import get_list_context
 
@@ -662,7 +663,8 @@ def make_inter_company_sales_order(source_name, target_doc=None):
 	from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_inter_company_transaction
 
 	return make_inter_company_transaction("Purchase Order", source_name, target_doc)
-	
+
+
 @frappe.whitelist()
 def make_subcontracting_order(source_name, target_doc=None):
 	return get_mapped_subcontracting_order(source_name, target_doc)
@@ -724,4 +726,3 @@ def is_subcontracting_order_created(po_name) -> bool:
 		if frappe.db.exists("Subcontracting Order", {"purchase_order": po_name, "docstatus": ["=", 1]})
 		else False
 	)
-
