@@ -203,8 +203,7 @@
    "label": "Company",
    "options": "Company",
    "remember_last_selected_value": 1,
-   "reqd": 1,
-   "set_only_once": 1
+   "reqd": 1
   },
   {
    "default": "Work Order",
@@ -235,7 +234,7 @@
    "fieldname": "rm_cost_as_per",
    "fieldtype": "Select",
    "label": "Rate Of Materials Based On",
-   "options": "Valuation Rate\nLast Purchase Rate\nPrice List\nManual"
+   "options": "Valuation Rate\nLast Purchase Rate\nPrice List"
   },
   {
    "allow_on_submit": 1,
@@ -608,7 +607,7 @@
  "image_field": "image",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-01-21 20:27:35.788249",
+ "modified": "2023-12-26 19:34:08.159312",
  "modified_by": "Administrator",
  "module": "Manufacturing",
  "name": "BOM",
